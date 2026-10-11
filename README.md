@@ -1,84 +1,55 @@
-# 🚀 Demolition Mech 3D - Patlamalı Yıkım Oyunu
+# 🟩 Minecraft Demolition 3D - Voxel Patlamalı Yıkım Oyunu
 
-Web tarayıcısında çalışan, Three.js ve Cannon-es fizik motoruyla güçlendirilmiş, gerçek zamanlı 3D patlamalı bina yıkım oyunu!
+Web tarayıcısında çalışan, Three.js ve Cannon-es fizik motoruyla güçlendirilmiş, **tamamen Minecraft tarzı kare/kübik (voxel)** patlamalı yıkım oyunu!
 
 ---
 
-## 🎮 Oyun Özellikleri
+## 🎮 Minecraft Teması ve Özellikleri
 
-- **3D Karakter (Yıkım Robotu / Demolition Mech):**
-  - İki bacaklı, omuzunda devasa roketatar taşıyan, zırhlı ve animasyonlu 3D robot.
-  - **W tuşu:** Karakteri ileri doğru yürütür.
-  - **A, S, D tuşları:** Sola, geriye ve sağa hareket.
-  - **Boşluk (Space):** İtici roketlerle yukarı zıplama.
-  - **Fare / Sol Tık:** Kamerayı serbestçe döndürme ve hedef bloklara patlayıcı fırlatma.
-- **Gerçek Zamanlı 3D Fizik & Yıkım:**
-  - Cannon-es fizik kütüphanesiyle simüle edilen yüzlerce yıkılabilir yapı bloğu.
-  - Vurulan kolonlar devrilir, tavanlar çöker, parçalar çevreye savrulur.
-- **Zincirleme TNT Patlamaları:**
-  - Kırmızı TNT blokları vurulduğunda gecikmeli devasa şok dalgaları yaratarak çevresindeki blokları havaya fırlatır.
-- **3 Farklı Silah Türü:**
-  - 🚀 **Roket:** Yüksek hız, doğrudan isabet anında patlama ve güçlü itme dalgası.
-  - 💣 **Bomba:** Seken, zeminde yuvarlanan ve yüksek alan hasarı veren zaman ayarlı patlayıcı.
-  - 💥 **Nükleer Darbe:** Devasa etki yarıçapı ve tüm yapıyı yerle bir eden süper güç.
-- **5 Farklı Mimari Bölüm:**
-  - Bölüm 1: Eğitim Kulesi (Temel kule yıkımı)
-  - Bölüm 2: İkiz Kuleler ve Asma Köprü (Bağlantı çökmeleri)
-  - Bölüm 3: TNT Fabrikası (Zincirleme reaksiyon şöleni)
-  - Bölüm 4: Dev Gökdelen (Kat kat çökertme)
-  - Bölüm 5: Mega Şato ve Surlar (Büyük kale kuşatması)
-- **Prosedürel Web Audio API:**
-  - Harici ses dosyası indirmeye gerek olmadan anında çalışan patlama, adım, roket ve zafer ses efektleri.
+- **🟩 Steve Tarzı Kübik Karakter:**
+  - Kafası, gövdesi, kolları ve bacakları tamamen kare/kübik bloklardan oluşan Minecraft karakteri.
+  - Elinde taş ve TNT'den yapılmış kübik bir roketatar taşır.
+  - **W Tuşu:** Karakteri ileri doğru yürütür. Steve'in kolları ve bacakları klasik Minecraft yürüyüş animasyonuyla sallanır.
+  - **A, S, D Tuşları:** Sola, geriye ve sağa hareket.
+  - **Boşluk (Space):** Blokların üzerinden zıplama.
+  - **Fare:** Minecraft tarzı artı (+) nişangahla etrafa bakma ve nişan alma.
+  - **Sol Tık:** Kübik roket ve TNT fırlatma.
+- **🧱 Gerçek Minecraft Blokları (1x1x1 Voxels):**
+  - **Çimen Blokları:** Yeşil çimenli zemin.
+  - **Kırık Taş (Cobblestone) & Taş (Stone):** Sağlam duvar ve kolonlar.
+  - **Meşe Tahta (Wood Planks):** Asma köprüler ve ara katlar.
+  - **Tuğla (Bricks):** Şato ve kule duvarları.
+  - **Kırmızı TNT:** Vurulduğunda beyaz yanıp sönen ve etrafındaki tüm blokları savuran ikonik Minecraft TNT'si!
+  - **Elmas ve Altın Bloklar:** Özel kule taçları ve hazineler.
+- **💥 Kübik Parçacıklar ve Patlamalar:**
+  - Patlama dumanları ve alevler bile küçük piksel küplerinden oluşur.
+- **📦 Minecraft Hotbar Arayüzü:**
+  - Alt kısımdaki klasik Minecraft envanter kutucukları üzerinden roket, seken TNT ve elmas mega blok seçimi.
+- **☁️ Voxel Gökyüzü:**
+  - Açık mavi gökyüzü, kare Minecraft güneşi ve gökyüzünde süzülen kare bulutlar.
 
 ---
 
 ## 🛠️ Yerel Olarak Çalıştırma
 
-Projeyi bilgisayarınızda yerel olarak çalıştırmak için:
-
 ```bash
-# Bağımlılıkları yükleyin (zaten yüklü ise gerekmez)
-npm install
-
 # Geliştirici sunucusunu başlatın
 npm run dev
 ```
 
-Terminalde beliren adrese (örneğin `http://localhost:5173`) tarayıcınızdan girip hemen oynayabilirsiniz.
+Tarayıcınızdan `http://localhost:5173` adresine giderek hemen oynayabilirsiniz.
 
 ---
 
-## 📦 Projeyi GitHub'a Yükleme ve Vercel ile Yayınlama Adımları
+## 🚀 GitHub'a Gönderme ve Vercel'de Yayınlama
 
-### 1. Adım: GitHub Reposu Oluşturma
-1. [GitHub](https://github.com) hesabınıza giriş yapın.
-2. Sağ üstteki **+** ikonuna tıklayıp **New repository** seçeneğini seçin.
-3. Repoya bir isim verin (Örn: `demolition-mech-3d`).
-4. **Public** seçin ve hiçbir kutucuğu (README, .gitignore vb.) işaretlemeden **Create repository** butonuna basın.
-
-### 2. Adım: Dosyaları GitHub'a Gönderme
-Terminalde proje klasöründeyken şu komutları sırasıyla çalıştırın:
-
+### GitHub'a Gönderme:
 ```bash
-git add .
-git commit -m "feat: 3D Demolition Mech Game initial release"
-git branch -M main
 git remote add origin https://github.com/KULLANICI_ADINIZ/REPOSİTORY_ADINIZ.git
 git push -u origin main
 ```
-*(Yukarıdaki URL'yi kendi GitHub repo adresinizle değiştirin.)*
 
-### 3. Adım: Vercel Üzerinde Yayına Alma
-1. [Vercel](https://vercel.com) hesabınıza giriş yapın (GitHub ile giriş yapmanız önerilir).
-2. **Add New...** > **Project** butonuna tıklayın.
-3. GitHub'a yeni yüklediğiniz `demolition-mech-3d` reposunu seçin ve **Import** butonuna basın.
-4. Vercel projeyi otomatik olarak **Vite** olarak algılayacaktır:
-   - **Framework Preset:** Vite
-   - **Build Command:** `npm run build`
-   - **Output Directory:** `dist`
-5. **Deploy** butonuna tıklayın!
-6. Yaklaşık 20-30 saniye içinde oyununuz tüm dünyaya açık canlı bir bağlantı (örn: `https://demolition-mech-3d.vercel.app`) ile yayına girecektir.
-
----
-
-İyi eğlenceler ve bol patlamalı yıkımlar! 💥
+### Vercel'de Yayınlama:
+1. [Vercel.com](https://vercel.com)'a giriş yapın.
+2. Reponuzu seçip **Import** butonuna tıklayın.
+3. **Deploy** butonuna basın ve 20 saniye içinde oyununuz canlıda!
