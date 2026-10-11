@@ -113,7 +113,7 @@ export class ParticleSystem {
     const mesh = new THREE.Mesh(dustGeo, dustMat);
     mesh.position.set(
       position.x + (Math.random() - 0.5) * 0.4,
-      0.1,
+      (position.y || 0) + 0.1,
       position.z + (Math.random() - 0.5) * 0.4
     );
 
@@ -126,6 +126,32 @@ export class ParticleSystem {
       maxLife: 0.35,
       scaleSpeed: -0.4
     });
+  }
+
+  // Suya giriş / yüzme sırasında sıçrayan mavi-beyaz su küpleri
+  createSplash(position, strength = 1) {
+    const count = Math.ceil(7 * strength);
+    for (let i = 0; i < count; i++) {
+      const size = 0.12 + Math.random() * 0.12;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(size, size, size),
+        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xe0f2fe : 0x7dd3fc })
+      );
+      mesh.position.set(
+        position.x + (Math.random() - 0.5) * 0.9,
+        position.y + 0.05,
+        position.z + (Math.random() - 0.5) * 0.9
+      );
+      this.scene.add(mesh);
+      this.particles.push({
+        mesh,
+        velocity: new THREE.Vector3((Math.random() - 0.5) * 2.5, 2.5 + Math.random() * 3 * strength, (Math.random() - 0.5) * 2.5),
+        gravity: -14,
+        life: 0.55,
+        maxLife: 0.55,
+        scaleSpeed: -0.3
+      });
+    }
   }
 
   // Mermi arkası kübik duman/itici izi

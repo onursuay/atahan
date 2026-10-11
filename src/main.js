@@ -121,7 +121,7 @@ function init() {
     screenShake = 0.35;
   });
 
-  character = new Character(scene, physicsWorld, particleSystem);
+  character = new Character(scene, physicsWorld, particleSystem, voxelWorld);
 
   weaponSystem = new WeaponSystem(scene, physicsWorld, particleSystem, voxelWorld, (points, text) => {
     addScore(points, text);
@@ -263,7 +263,7 @@ function loadLevel(index) {
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
   particleSystem.clear();
-  character.resetPosition(-42, 2.0, 0);
+  character.resetPosition(-39, 2.5, 0); // Batı sahilinin kumsalı (x=-39 kum, deniz değil)
   cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
 
   levelTitleEl.innerText = cfg.title;

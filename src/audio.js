@@ -332,6 +332,12 @@ class SoundEngine {
     this.playNoise(0.05, 0.15, 5000);
   }
 
+  // Suya giriş / su sıçraması
+  playSplash() {
+    if (this.muted || !this.ctx) return;
+    this.playNoise(0.35, 0.3, 1200);
+  }
+
   // Gürültü (Noise) Üreteci
   playNoise(duration, volume, filterFreq = 1000) {
     if (!this.ctx) return;

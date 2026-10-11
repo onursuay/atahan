@@ -119,7 +119,7 @@ export class LevelManager {
     // Ön Cephe Giriş Kapısı (Yürüyerek doğrudan içeri girilebilir!)
     const doorX = Math.round((x1 + x2) / 2);
     for (let x = doorX - 1; x <= doorX + 1; x++) {
-      for (let y = y1; y <= y1 + 3; y++) {
+      for (let y = y1; y <= y1 + 4; y++) {
         // Kapı boşluğu (içeri girilebilir)
         const key = `${x},${y},${z1}`;
         w.voxels.delete(key);
@@ -217,7 +217,7 @@ export class LevelManager {
 
     // Kafe Kapısı
     for (let z = -1; z <= 1; z++) {
-      for (let y = y1; y <= y1 + 3; y++) {
+      for (let y = y1; y <= y1 + 4; y++) {
         w.voxels.delete(`${x2},${y},${z}`);
       }
     }
@@ -297,7 +297,7 @@ export class LevelManager {
 
     // Giriş Kapısı (Dar sokağa bakan ahşap villa kapısı)
     for (let z = z1 + 2; z <= z1 + 4; z++) {
-      for (let y = y1; y <= y1 + 3; y++) {
+      for (let y = y1; y <= y1 + 4; y++) {
         w.voxels.delete(`${x1},${y},${z}`);
       }
     }
@@ -366,7 +366,7 @@ export class LevelManager {
     w.fillBox(x1 + 2, y1 + 1, z1, x2 - 2, y2 - 2, z1, PALETTE.GLASS);
 
     // Kapı
-    for (let y = y1; y <= y1 + 3; y++) {
+    for (let y = y1; y <= y1 + 4; y++) {
       w.voxels.delete(`${x1},${y},${Math.round((z1 + z2) / 2)}`);
       w.voxels.delete(`${x1},${y},${Math.round((z1 + z2) / 2) + 1}`);
     }

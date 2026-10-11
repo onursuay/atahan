@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
+import { VOXEL_SIZE } from './teardown.js';
 import {
   getCharacterFaceTexture,
   getCharacterShirtTexture,
@@ -16,9 +17,24 @@ const BODY_HALF_HEIGHT = 1.0;
 const LEG_BOTTOM_Y = -0.475;
 const FOOT_OFFSET_Y = BODY_HALF_HEIGHT + LEG_BOTTOM_Y;
 
+// ── Voxel çarpışma ve su ayarları ──
+const HALF_W = 0.4;          // karakter yarı genişliği (x, z)
+const BODY_H = 2.0;          // çarpışma kutusu yüksekliği
+const EPS = 1e-4;
+const GRAVITY = 25;
+const MAX_FALL = 40;
+const WATER_LEVEL = -0.15;   // main.js içindeki deniz yüzeyi (waterMesh.position.y) ile aynı olmalı
+const WATER_BOUND = 185;     // deniz düzleminin (380x380) kenarından biraz içeride görünmez sınır
+const WATER_ENTER_DEPTH = 0.25;   // ayak tabanı yüzeyin en az bu kadar altındaysa yüzme moduna geçilir
+const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)
+const FLOAT_DEPTH_UP = 0.45; // Space basılıyken daha yüksekte yüzer
+const WATER_SPEED_MUL = 0.55;
+const WATER_HOP_SPEED = 11;  // kıyıya çıkarken zıplama hızı
+
 export class Character {
-  constructor(scene, physicsWorld, particleSystem) {
+  constructor(scene, physicsWorld, particleSystem, voxelWorld = null) {
     this.scene = scene;
+    this.voxelWorld = voxelWorld;
     this.physicsWorld = physicsWorld;
     this.particleSystem = particleSystem;
 
@@ -29,6 +45,13 @@ export class Character {
     this.moveSpeed = 15;
     this.jumpForce = 12;
     this.isGrounded = false;
+    this.inWater = false;
+    this.waterHopTimer = 0;
+    this.rippleTimer = 0;
+    this.blockedHoriz = false;
+    this.lastBlocked = false;
+    this.vel = new THREE.Vector3();     // kendi hızımız (gövde kinematik, Cannon hareket ettirmez)
+    this.spawn = { x: 0, y: 3, z: 26 };
     this.walkCycle = 0;
     this.stepTimer = 0;
 
@@ -69,22 +92,17 @@ export class Character {
   }
 
   initPhysics() {
-    const shape = new CANNON.Box(new CANNON.Vec3(0.4, 1.0, 0.4));
+    // Gövde KİNEMATİKTİR: zemin/duvar/su hareketini aşağıdaki _stepPhysics voxel ızgarasıyla çözer.
+    // Cannon yalnızca döküntü ve mermilerin karaktere çarpmasını bilsin diye kutuyu tutar.
+    const shape = new CANNON.Box(new CANNON.Vec3(HALF_W, BODY_H / 2, HALF_W));
     this.body = new CANNON.Body({
-      mass: 75,
+      mass: 0,
+      type: CANNON.Body.KINEMATIC,
       shape: shape,
-      position: new CANNON.Vec3(0, 2, 28),
-      fixedRotation: true,
-      linearDamping: 0.85
+      position: new CANNON.Vec3(0, 2, 28)
     });
 
     this.physicsWorld.addBody(this.body);
-
-    this.body.addEventListener('collide', (e) => {
-      if (e.contact.bi.position.y < this.body.position.y || e.contact.bj.position.y < this.body.position.y) {
-        this.isGrounded = true;
-      }
-    });
   }
 
   initVoxelMesh() {
@@ -335,8 +353,9 @@ export class Character {
       const worldX = moveX * cos + moveZ * sin;
       const worldZ = -moveX * sin + moveZ * cos;
 
-      this.body.velocity.x = worldX * this.moveSpeed;
-      this.body.velocity.z = worldZ * this.moveSpeed;
+      const speedMul = this.inWater ? WATER_SPEED_MUL : 1;
+      this.vel.x = worldX * this.moveSpeed * speedMul;
+      this.vel.z = worldZ * this.moveSpeed * speedMul;
 
       const targetAngle = Math.atan2(worldX, worldZ);
       this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, targetAngle, 14 * dt);
@@ -353,14 +372,15 @@ export class Character {
       this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, -0.3 + swing * 0.3, 10 * dt);
 
       this.stepTimer += dt;
-      if (this.stepTimer > 0.3) {
+      if (this.stepTimer > 0.3 && !this.inWater && this.isGrounded) {
         this.stepTimer = 0;
         sound.playStep();
-        this.particleSystem.createDust(this.mesh.position);
+        this.particleSystem.createDust(this._feetPosition());
       }
     } else {
-      this.body.velocity.x *= 0.8;
-      this.body.velocity.z *= 0.8;
+      const damp = Math.pow(0.8, dt * 60);
+      this.vel.x *= damp;
+      this.vel.z *= damp;
 
       this.leftLeg.rotation.x  = THREE.MathUtils.lerp(this.leftLeg.rotation.x, 0, 10 * dt);
       this.rightLeg.rotation.x = THREE.MathUtils.lerp(this.rightLeg.rotation.x, 0, 10 * dt);
@@ -369,6 +389,8 @@ export class Character {
       }
       this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, -0.4, 10 * dt);
     }
+
+    if (this.inWater) this._animateSwim(dt, isMoving);
 
     // Çekiç Savurma Animasyonu
     if (this.isSwingingHammer) {
@@ -394,16 +416,12 @@ export class Character {
       }
     }
 
-    // Zıplama
-    if (inputState.jump && this.isGrounded) {
-      this.body.velocity.y = this.jumpForce;
-      this.isGrounded = false;
-      sound.playJump();
-    }
+    // Voxel çarpışması, yerçekimi, zıplama ve su fiziği
+    this._stepPhysics(dt, inputState);
 
     // Haritadan aşağı düşme
     if (this.body.position.y < -10) {
-      this.resetPosition(0, 3, 26);
+      this.resetPosition(this.spawn.x, this.spawn.y, this.spawn.z);
     }
 
     this.mesh.position.copy(this.body.position);
@@ -441,7 +459,177 @@ export class Character {
     this.laserBeamTimer = 0.12; // 0.12 saniye görünür kal
   }
 
+  // ── VOXEL ÇARPIŞMA YARDIMCILARI ──
+  // Voxel ızgarası: x/z'de voxel merkezi ix*S, y'de iy*S ile (iy+1)*S arasıdır.
+  _isSolid(ix, iy, iz) {
+    if (!this.voxelWorld) return false;
+    const v = this.voxelWorld.voxels.get(`${ix},${iy},${iz}`);
+    return !!v && v.active;
+  }
+
+  _overlaps(x, feetY, z) {
+    const S = VOXEL_SIZE;
+    const minIx = Math.floor((x - HALF_W + EPS) / S + 0.5);
+    const maxIx = Math.floor((x + HALF_W - EPS) / S + 0.5);
+    const minIz = Math.floor((z - HALF_W + EPS) / S + 0.5);
+    const maxIz = Math.floor((z + HALF_W - EPS) / S + 0.5);
+    const minIy = Math.floor((feetY + EPS) / S);
+    const maxIy = Math.floor((feetY + BODY_H - EPS) / S);
+    for (let ix = minIx; ix <= maxIx; ix++) {
+      for (let iy = minIy; iy <= maxIy; iy++) {
+        for (let iz = minIz; iz <= maxIz; iz++) {
+          if (this._isSolid(ix, iy, iz)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  _feetPosition() {
+    return new THREE.Vector3(this.body.position.x, this.body.position.y - BODY_H / 2, this.body.position.z);
+  }
+
+  // Tek eksende (x veya z) hareket: duvara çarparsa bir voxel (0.5) yüksekliğindeki basamağa çıkmayı dener, olmazsa durur.
+  _moveAxis(axis, delta, pos, feet) {
+    if (delta === 0) return feet;
+    const nx = axis === 'x' ? pos.x + delta : pos.x;
+    const nz = axis === 'z' ? pos.z + delta : pos.z;
+
+    if (!this._overlaps(nx, feet, nz)) {
+      pos.x = nx; pos.z = nz;
+      return feet;
+    }
+
+    if (this.isGrounded && !this.inWater) {
+      const raised = feet + VOXEL_SIZE;
+      if (!this._overlaps(pos.x, raised, pos.z) && !this._overlaps(nx, raised, nz)) {
+        pos.x = nx; pos.z = nz;
+        return raised;
+      }
+    }
+
+    // Duvara çarptı: yarıya bölerek temas noktasına kadar yaklaş (yüzeyle arada boşluk kalmasın)
+    let lo = 0;
+    let hi = delta;
+    for (let k = 0; k < 8; k++) {
+      const mid = (lo + hi) / 2;
+      const mx = axis === 'x' ? pos.x + mid : pos.x;
+      const mz = axis === 'z' ? pos.z + mid : pos.z;
+      if (this._overlaps(mx, feet, mz)) hi = mid; else lo = mid;
+    }
+    if (axis === 'x') pos.x += lo; else pos.z += lo;
+    this.vel[axis] = 0;
+    this.blockedHoriz = true;
+    return feet;
+  }
+
+  _stepPhysics(dt, inputState) {
+    const pos = this.body.position;
+    let feet = pos.y - BODY_H / 2;
+    const S = VOXEL_SIZE;
+
+    const n = Math.max(1, Math.ceil(dt / (1 / 120)));
+    const h = dt / n;
+
+    for (let i = 0; i < n; i++) {
+      this.blockedHoriz = false;
+
+      // Su durumu: ayak tabanı yüzeyin yeterince altındaysa ve deniz sınırı içindeyse yüzülür
+      const depth = WATER_LEVEL - feet;
+      const wasInWater = this.inWater;
+      this.inWater = depth > WATER_ENTER_DEPTH &&
+        Math.abs(pos.x) < WATER_BOUND && Math.abs(pos.z) < WATER_BOUND;
+
+      if (this.inWater && !wasInWater && this.vel.y < -3) {
+        this._splash(1.0);
+      }
+      if (this.waterHopTimer > 0) this.waterHopTimer -= h;
+
+      // Dikey hız
+      if (this.inWater && this.waterHopTimer <= 0) {
+        const target = inputState.jump ? FLOAT_DEPTH_UP : FLOAT_DEPTH;
+        this.vel.y += ((depth - target) * 18 - this.vel.y * 4) * h;
+      } else {
+        this.vel.y = Math.max(-MAX_FALL, this.vel.y - GRAVITY * h);
+      }
+
+      // Zıplama (karada) / kıyıya tırmanma (suda duvara dayanıp Space)
+      if (inputState.jump) {
+        if (this.isGrounded && !this.inWater) {
+          this.vel.y = this.jumpForce;
+          this.isGrounded = false;
+          sound.playJump();
+        } else if (this.inWater && this.waterHopTimer <= 0 && this.lastBlocked) {
+          this.vel.y = WATER_HOP_SPEED;
+          this.waterHopTimer = 0.5;
+        }
+      }
+
+      // Yatay hareket (eksen eksen) + basamak çıkma
+      feet = this._moveAxis('x', this.vel.x * h, pos, feet);
+      feet = this._moveAxis('z', this.vel.z * h, pos, feet);
+      this.lastBlocked = this.blockedHoriz;
+
+      // Dikey hareket
+      this.isGrounded = false;
+      const dy = this.vel.y * h;
+      let newFeet = feet + dy;
+      if (dy !== 0 && this._overlaps(pos.x, newFeet, pos.z)) {
+        if (dy < 0) {
+          const snapped = (Math.floor((newFeet + EPS) / S) + 1) * S;
+          feet = this._overlaps(pos.x, snapped, pos.z) ? feet : snapped;
+          this.isGrounded = true;
+        } else {
+          const snapped = Math.floor((newFeet + BODY_H - EPS) / S) * S - BODY_H;
+          feet = this._overlaps(pos.x, snapped, pos.z) ? feet : snapped;
+        }
+        this.vel.y = 0;
+      } else {
+        feet = newFeet;
+      }
+    }
+
+    // Deniz sınırından fazla açılmasın
+    pos.x = THREE.MathUtils.clamp(pos.x, -WATER_BOUND, WATER_BOUND);
+    pos.z = THREE.MathUtils.clamp(pos.z, -WATER_BOUND, WATER_BOUND);
+    pos.y = feet + BODY_H / 2;
+
+    // Kinematik gövdeyi Cannon'un kendi başına kaydırmasını engelle
+    this.body.velocity.set(0, 0, 0);
+  }
+
+  _splash(strength) {
+    if (this.particleSystem.createSplash) {
+      this.particleSystem.createSplash(new THREE.Vector3(this.body.position.x, WATER_LEVEL, this.body.position.z), strength);
+    }
+    if (sound.playSplash) sound.playSplash();
+  }
+
+  // Yüzme animasyonu: kollarla kulaç, bacaklarla çırpma; yerinde dururken hafif kürek
+  _animateSwim(dt, isMoving) {
+    this.swimCycle = (this.swimCycle || 0) + dt * (isMoving ? 9 : 3);
+    const amp = isMoving ? 2.2 : 0.5;
+    const c = Math.sin(this.swimCycle);
+    if (!this.isSwingingHammer) this.leftArm.rotation.x = -1.0 + c * amp;
+    this.rightArm.rotation.x = -1.0 - c * amp;
+    const kick = Math.sin(this.swimCycle * 1.6) * (isMoving ? 0.5 : 0.2);
+    this.leftLeg.rotation.x = kick;
+    this.rightLeg.rotation.x = -kick;
+
+    if (isMoving) {
+      this.rippleTimer += dt;
+      if (this.rippleTimer > 0.35) {
+        this.rippleTimer = 0;
+        this._splash(0.35);
+      }
+    }
+  }
+
   resetPosition(x = 0, y = 3, z = 26) {
+    this.spawn = { x, y, z };
+    this.vel.set(0, 0, 0);
+    this.inWater = false;
+    this.waterHopTimer = 0;
     this.body.position.set(x, y, z);
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
