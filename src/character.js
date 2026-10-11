@@ -34,6 +34,11 @@ export class Character {
     this.leftLeg = null;
     this.rightLeg = null;
     this.cannonMuzzle = null;
+    this.hammer = null;
+
+    // Çekiç Durumu
+    this.isSwingingHammer = false;
+    this.hammerSwingTimer = 0;
 
     this.initPhysics();
     this.initVoxelMesh();
@@ -106,6 +111,28 @@ export class Character {
     leftArmMesh.position.y = -0.45;
     leftArmMesh.castShadow = true;
     this.leftArm.add(leftArmMesh);
+
+    // KÜBİK ÇEKİÇ (Teardown Sledgehammer)
+    this.hammer = new THREE.Group();
+    this.hammer.position.set(0, -0.85, 0.2);
+
+    // Çekiç Ahşap Sapı
+    const handleGeo = new THREE.BoxGeometry(0.1, 1.2, 0.1);
+    const handleMat = new THREE.MeshLambertMaterial({ color: 0x854d0e });
+    const handleMesh = new THREE.Mesh(handleGeo, handleMat);
+    handleMesh.rotation.x = Math.PI / 4;
+    handleMesh.castShadow = true;
+    this.hammer.add(handleMesh);
+
+    // Çekiç Ağır Çelik Başı
+    const hammerHeadGeo = new THREE.BoxGeometry(0.35, 0.35, 0.65);
+    const hammerHeadMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+    const hammerHeadMesh = new THREE.Mesh(hammerHeadGeo, hammerHeadMat);
+    hammerHeadMesh.position.set(0, 0.42, 0.42);
+    hammerHeadMesh.castShadow = true;
+    this.hammer.add(hammerHeadMesh);
+
+    this.leftArm.add(this.hammer);
     this.mesh.add(this.leftArm);
 
     // 4. Sağ Kol & Voxel Roketatar (Elinde Kübik Roketatar Taşır)
@@ -206,15 +233,17 @@ export class Character {
       const targetAngle = Math.atan2(worldX, worldZ);
       this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, targetAngle, 14 * dt);
 
-      // Klasik Minecraft Yürüyüş Animasyonu:
-      // Sol bacak öne giderken sağ kol öne, sağ bacak arkaya giderken sol kol arkaya sallanır!
+      // Yürüyüş animasyonu
       this.walkCycle += dt * 14;
       const swing = Math.sin(this.walkCycle) * 0.75;
 
       this.leftLeg.rotation.x = swing;
       this.rightLeg.rotation.x = -swing;
-      this.leftArm.rotation.x = -swing * 0.9;
-      // Sağ kol silah tuttuğu için hafif öne dönük sallanır
+      
+      // Çekiç savrulmuyorsa normal kol sallansın
+      if (!this.isSwingingHammer) {
+        this.leftArm.rotation.x = -swing * 0.9;
+      }
       this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, -0.3 + swing * 0.3, 10 * dt);
 
       // Adım Sesi ve Kübik Toz
@@ -229,11 +258,26 @@ export class Character {
       this.body.velocity.x *= 0.8;
       this.body.velocity.z *= 0.8;
 
-      // Minecraft dinlenme duruşuna dön
       this.leftLeg.rotation.x = THREE.MathUtils.lerp(this.leftLeg.rotation.x, 0, 10 * dt);
       this.rightLeg.rotation.x = THREE.MathUtils.lerp(this.rightLeg.rotation.x, 0, 10 * dt);
-      this.leftArm.rotation.x = THREE.MathUtils.lerp(this.leftArm.rotation.x, 0, 10 * dt);
-      this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, -0.4, 10 * dt); // Silahı hazır tutsun
+      if (!this.isSwingingHammer) {
+        this.leftArm.rotation.x = THREE.MathUtils.lerp(this.leftArm.rotation.x, 0, 10 * dt);
+      }
+      this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, -0.4, 10 * dt);
+    }
+
+    // Çekiç Savurma Animasyonu (E tuşuna basılınca darbe indirir)
+    if (this.isSwingingHammer) {
+      this.hammerSwingTimer += dt;
+      const progress = Math.min(1.0, this.hammerSwingTimer / 0.22);
+      // Kol hızlıca öne ve aşağı savrulup geri toparlanır
+      this.leftArm.rotation.x = -Math.sin(progress * Math.PI) * 1.8;
+      this.leftArm.rotation.z = Math.sin(progress * Math.PI) * 0.3;
+
+      if (this.hammerSwingTimer >= 0.22) {
+        this.isSwingingHammer = false;
+        this.leftArm.rotation.z = 0;
+      }
     }
 
     // Zıplama (Boşluk / Space tuşu)
@@ -258,6 +302,15 @@ export class Character {
     const pos = new THREE.Vector3();
     this.cannonMuzzle.getWorldPosition(pos);
     return pos;
+  }
+
+  // E tuşuyla çekici savur
+  triggerHammerSwing() {
+    if (this.isSwingingHammer) return false;
+    this.isSwingingHammer = true;
+    this.hammerSwingTimer = 0;
+    sound.playHammerSwing();
+    return true;
   }
 
   resetPosition(x = 0, y = 3, z = 26) {

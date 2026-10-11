@@ -16,6 +16,18 @@ export const PALETTE = {
   GOLD:     { id: 7, color: 0xfacc15, name: 'Altın' }
 };
 
+// Maddelere Göre Çekiç Dayanıklılığı (Kullanıcı istediği gibi sonradan değiştirebilir)
+export const MATERIAL_HARDNESS = {
+  [PALETTE.GLASS.id]: 0.3,    // Cam: çok kolay kırılır
+  [PALETTE.WOOD.id]: 0.7,     // Ahşap: orta direnç
+  [PALETTE.BRICK.id]: 1.2,    // Tuğla: sert
+  [PALETTE.CONCRETE.id]: 1.6, // Beton: çok sert
+  [PALETTE.STEEL.id]: 3.0,    // Çelik: son derece dayanıklı
+  [PALETTE.ROOF.id]: 0.9,     // Çatı
+  [PALETTE.TNT.id]: 0.5,      // TNT
+  [PALETTE.GOLD.id]: 1.0      // Altın
+};
+
 export class VoxelWorld {
   constructor(scene, physicsWorld, particleSystem, onScoreGain) {
     this.scene = scene;
@@ -223,6 +235,94 @@ export class VoxelWorld {
     }
 
     return removedCount;
+  }
+
+  // TEARDOWN ÇEKİÇ VURUŞU (Maddesine göre az hasar veren darbe)
+  hammerHit(hitPoint, hammerPower = 1.0) {
+    const dummy = new THREE.Object3D();
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+
+    // Çekiç vuruşu dar bir alana vurur (~0.65m)
+    const hitRadius = VOXEL_SIZE * 1.9;
+    const r2 = hitRadius * hitRadius;
+
+    let removedCount = 0;
+    const candidates = [];
+
+    const minIx = Math.floor((hitPoint.x - hitRadius) / VOXEL_SIZE);
+    const maxIx = Math.ceil((hitPoint.x + hitRadius) / VOXEL_SIZE);
+    const minIy = Math.floor((hitPoint.y - hitRadius) / VOXEL_SIZE);
+    const maxIy = Math.ceil((hitPoint.y + hitRadius) / VOXEL_SIZE);
+    const minIz = Math.floor((hitPoint.z - hitRadius) / VOXEL_SIZE);
+    const maxIz = Math.ceil((hitPoint.z + hitRadius) / VOXEL_SIZE);
+
+    for (let ix = minIx; ix <= maxIx; ix++) {
+      for (let iy = minIy; iy <= maxIy; iy++) {
+        for (let iz = minIz; iz <= maxIz; iz++) {
+          const key = `${ix},${iy},${iz}`;
+          const v = this.voxels.get(key);
+          if (!v || !v.active) continue;
+
+          const dx = v.x - hitPoint.x;
+          const dy = v.y - hitPoint.y;
+          const dz = v.z - hitPoint.z;
+          const distSq = dx * dx + dy * dy + dz * dz;
+
+          if (distSq <= r2) {
+            candidates.push({ v, distSq });
+          }
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+
+    // En yakından başlayarak sırala
+    candidates.sort((a, b) => a.distSq - b.distSq);
+
+    const hitMaterial = candidates[0].v.type;
+    const hardness = MATERIAL_HARDNESS[hitMaterial.id] || 1.0;
+
+    // Maddeye göre kırılacak voxel sayısı:
+    // Sert maddelerde 1-2 voxel, yumuşak maddelerde 4-6 voxel kırılır (Teardown çekiç hissi)
+    const maxBreak = Math.max(1, Math.round((4 * hammerPower) / hardness));
+
+    for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
+      const v = candidates[i].v;
+      v.active = false;
+      removedCount++;
+
+      if (v.instanceIdx !== -1) {
+        const mesh = this.instancedMeshes[v.type.id];
+        mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
+        mesh.instanceMatrix.needsUpdate = true;
+      }
+
+      // Minik döküntü fırlat
+      if (this.dynamicDebris.length < this.maxDynamicDebris) {
+        this.spawnLooseVoxel(v.x, v.y, v.z, v.type, hitPoint, Math.sqrt(candidates[i].distSq), hitRadius, 25);
+      }
+    }
+
+    this.destroyedVoxels += removedCount;
+    sound.playHammerHit();
+
+    // TNT var ise patlat
+    if (hitMaterial.isTNT) {
+      setTimeout(() => {
+        sound.playTNTExplosion();
+        this.particleSystem.createExplosion(hitPoint, 8, 0xef4444);
+        this.explode(hitPoint, 5.0, 320);
+      }, 80);
+    }
+
+    if (removedCount > 0 && this.onScoreGain) {
+      const score = removedCount * 10;
+      this.onScoreGain(score, `+${score} ÇEKİÇ (${hitMaterial.name})`);
+    }
+
+    return { success: true, removedCount, material: hitMaterial };
   }
 
   // Uçuşan ve Seken Minik Fizik Küpü Oluştur (Teardown parçacığı)

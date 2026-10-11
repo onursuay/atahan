@@ -50,6 +50,50 @@ class SoundEngine {
     this.playNoise(0.12, 0.25, 400);
   }
 
+  // Çekiç Savurma Sesi (Whoosh)
+  playHammerSwing() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.15);
+    this.playNoise(0.1, 0.15, 600);
+  }
+
+  // Çekiç Vuruş Sesi (Sert çarpma / Tok darbe)
+  playHammerHit() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.12);
+
+    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.12);
+    this.playNoise(0.14, 0.4, 1200);
+  }
+
   // Devasa Patlama Sesi (Sub-bass + Gürültü Filtresi)
   playExplosion(intensity = 1.0) {
     if (this.muted || !this.ctx) return;

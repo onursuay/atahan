@@ -352,6 +352,43 @@ function fireWeapon() {
   }
 }
 
+// Bilgisayarın E Tuşuna Basınca Çekiç Vursun (Belli bir mesafeye kadar)
+function useHammer() {
+  sound.init();
+  const swung = character.triggerHammerSwing();
+  if (!swung) return;
+
+  // Belli bir mesafeye kadar vursun (Menzil ~3.2m)
+  const HAMMER_REACH = 3.2;
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+
+  const charPos = character.mesh.position.clone();
+  charPos.y += 1.0;
+
+  const dir = raycaster.ray.direction.clone().normalize();
+  let hitPoint = null;
+
+  for (let dist = 0.4; dist <= HAMMER_REACH; dist += VOXEL_SIZE * 0.4) {
+    const checkPos = charPos.clone().addScaledVector(dir, dist);
+    const ix = Math.round(checkPos.x / VOXEL_SIZE);
+    const iy = Math.round((checkPos.y - VOXEL_SIZE / 2) / VOXEL_SIZE);
+    const iz = Math.round(checkPos.z / VOXEL_SIZE);
+    const key = `${ix},${iy},${iz}`;
+
+    const v = voxelWorld.voxels.get(key);
+    if (v && v.active) {
+      hitPoint = new THREE.Vector3(v.x, v.y, v.z);
+      break;
+    }
+  }
+
+  if (hitPoint) {
+    voxelWorld.hammerHit(hitPoint, 1.0);
+    screenShake = 0.08; // Çekiç az hasar verdiği için hafif sarsıntı
+  }
+}
+
 function setupEventListeners() {
   window.addEventListener('keydown', (e) => {
     sound.init();
@@ -365,6 +402,11 @@ function setupEventListeners() {
     if (e.code === 'Space') {
       inputState.jump = true;
       e.preventDefault();
+    }
+
+    // E tuşu: Çekiç vuruşu
+    if (key === 'e' || e.code === 'KeyE') {
+      useHammer();
     }
 
     if (key === '1') { weaponSystem.setWeapon(0); updateWeaponUI(); }
