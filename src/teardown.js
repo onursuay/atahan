@@ -2,18 +2,20 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
 
-export const VOXEL_SIZE = 0.35; // Teardown tarzı minik küp boyutu
+export const VOXEL_SIZE = 0.5; // Teardown tarzı minik küp boyutu (bina içlerine girilebilir ölçek)
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
   CONCRETE: { id: 0, color: 0x94a3b8, name: 'Beton', canBreakWithHammer: true },
   BRICK:    { id: 1, color: 0xb91c1c, name: 'Tuğla', canBreakWithHammer: true },
   WOOD:     { id: 2, color: 0x854d0e, name: 'Tahta', canBreakWithHammer: true, isWood: true },
-  IRON:     { id: 3, color: 0x64748b, name: 'Demir', canBreakWithHammer: false, isIron: true },
+  IRON:     { id: 3, color: 0x475569, name: 'Demir', canBreakWithHammer: false, isIron: true },
   GLASS:    { id: 4, color: 0x38bdf8, name: 'Cam', canBreakWithHammer: true },
   ROOF:     { id: 5, color: 0x7c2d12, name: 'Çatı', canBreakWithHammer: true },
   TNT:      { id: 6, color: 0xef4444, name: 'TNT', isTNT: true, canBreakWithHammer: true },
-  GOLD:     { id: 7, color: 0xfacc15, name: 'Altın', canBreakWithHammer: true }
+  GOLD:     { id: 7, color: 0xfacc15, name: 'Altın', canBreakWithHammer: true },
+  SAND:     { id: 8, color: 0xfde047, name: 'Kum (Sahil)', canBreakWithHammer: true },
+  ASPHALT:  { id: 9, color: 0x1e293b, name: 'Asfalt (Yol)', canBreakWithHammer: true }
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
@@ -21,8 +23,10 @@ PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 export const MATERIAL_HARDNESS = {
   [PALETTE.WOOD.id]: 0.5,     // 1. Madde: Tahta - çekiçle kolayca kırılır
   [PALETTE.GLASS.id]: 0.3,    // Cam
+  [PALETTE.SAND.id]: 0.4,     // Kum
   [PALETTE.BRICK.id]: 1.2,    // Tuğla
   [PALETTE.CONCRETE.id]: 1.6, // Beton
+  [PALETTE.ASPHALT.id]: 1.8,  // Asfalt
   [PALETTE.IRON.id]: Infinity,// 2. Madde: Demir - çekiçle kesinlikle kırılamaz
   [PALETTE.ROOF.id]: 0.9,     // Çatı
   [PALETTE.TNT.id]: 0.5,      // TNT
@@ -45,7 +49,7 @@ export class VoxelWorld {
     this.instancedMeshes = {};
     this.instanceMatrices = {};
     this.instanceCountByType = {};
-    this.maxInstancesPerType = 12000;
+    this.maxInstancesPerType = 45000; // Büyük şehir ve ada için geniş GPU kapasitesi
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
     this.dynamicDebris = [];
@@ -58,7 +62,11 @@ export class VoxelWorld {
   }
 
   initInstancedMeshes() {
+    const createdIds = new Set();
     Object.values(PALETTE).forEach(matDef => {
+      if (!matDef || createdIds.has(matDef.id)) return;
+      createdIds.add(matDef.id);
+
       const mat = new THREE.MeshLambertMaterial({
         color: matDef.color,
         transparent: matDef.id === PALETTE.GLASS.id,

@@ -72,22 +72,26 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   canvasContainer.appendChild(renderer.domElement);
 
-  // 4. Işıklandırma
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+  // 4. Işıklandırma ve Gerçekçi Gölgeler (Gelişmiş Gölge Haritası)
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.55); // Gölgelerin net ve derin görünmesi için dengeli ortam ışığı
   scene.add(ambientLight);
 
   const sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
-  sunLight.position.set(35, 55, 30);
+  sunLight.position.set(60, 95, 45);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.width = 2048;
-  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.mapSize.width = 4096; // Yüksek çözünürlüklü keskin gölgeler
+  sunLight.shadow.mapSize.height = 4096;
   sunLight.shadow.camera.near = 10;
-  sunLight.shadow.camera.far = 140;
-  const d = 35;
-  sunLight.shadow.camera.left = -d;
-  sunLight.shadow.camera.right = d;
-  sunLight.shadow.camera.top = d;
-  sunLight.shadow.camera.bottom = -d;
+  sunLight.shadow.camera.far = 260;
+
+  // Tüm şehri, sahili, uzun köprüyü ve adayı kapsayan geniş gölge alanı
+  const dx = 110;
+  const dz = 80;
+  sunLight.shadow.camera.left = -dx;
+  sunLight.shadow.camera.right = dx;
+  sunLight.shadow.camera.top = dz;
+  sunLight.shadow.camera.bottom = -dz;
+  sunLight.shadow.bias = -0.0004;
   scene.add(sunLight);
 
   // Gökyüzünde Kare Güneş
@@ -153,17 +157,18 @@ function createWorldArena() {
   groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
   physicsWorld.addBody(groundBody);
 
-  const grassTex = getGrassTopTexture();
-  grassTex.wrapS = THREE.RepeatWrapping;
-  grassTex.wrapT = THREE.RepeatWrapping;
-  grassTex.repeat.set(80, 80);
-
-  const groundGeo = new THREE.PlaneGeometry(160, 160);
-  const groundMat = new THREE.MeshLambertMaterial({ map: grassTex });
-  const groundMesh = new THREE.Mesh(groundGeo, groundMat);
-  groundMesh.rotation.x = -Math.PI / 2;
-  groundMesh.receiveShadow = true;
-  scene.add(groundMesh);
+  // Deniz / Okyanus Suyu Düzlemi (Şehir ve Adayı Çevreleyen Deniz)
+  const waterGeo = new THREE.PlaneGeometry(380, 380);
+  const waterMat = new THREE.MeshLambertMaterial({
+    color: 0x0369a1,
+    transparent: true,
+    opacity: 0.85
+  });
+  const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+  waterMesh.rotation.x = -Math.PI / 2;
+  waterMesh.position.y = -0.15;
+  waterMesh.receiveShadow = true;
+  scene.add(waterMesh);
 
   // Yüzen Voxel Bulutlar
   const cloudMat = new THREE.MeshBasicMaterial({
@@ -258,7 +263,8 @@ function loadLevel(index) {
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
   particleSystem.clear();
-  character.resetPosition(0, 2.5, 20);
+  character.resetPosition(-42, 2.0, 0);
+  cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
 
   levelTitleEl.innerText = cfg.title;
   levelDescEl.innerText = cfg.desc;
