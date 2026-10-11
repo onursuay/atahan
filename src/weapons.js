@@ -1,33 +1,29 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
-import { getTNTSideTexture, getTNTTopTexture, getStoneTexture, getDiamondTexture } from './textures.js';
+import { VOXEL_SIZE } from './teardown.js';
 
-// Minecraft Tarzı Kübik Silah ve Mermi Yöneticisi
+// Teardown Silah ve Patlama Sistemi
 export class WeaponSystem {
-  constructor(scene, physicsWorld, particleSystem, onScoreGain) {
+  constructor(scene, physicsWorld, particleSystem, voxelWorld, onScoreGain) {
     this.scene = scene;
     this.physicsWorld = physicsWorld;
     this.particleSystem = particleSystem;
+    this.voxelWorld = voxelWorld;
     this.onScoreGain = onScoreGain;
 
     this.activeProjectiles = [];
 
-    // Minecraft Dokuları
-    this.tntSideTex = getTNTSideTexture();
-    this.tntTopTex = getTNTTopTexture();
-    this.stoneTex = getStoneTexture();
-    this.diamondTex = getDiamondTexture();
-
-    // Silah Tipleri
+    // Silah Tanımları
     this.currentWeapon = 0;
     this.weapons = [
-      { id: 0, name: 'Kübik Roket', ammo: Infinity, speed: 45, radius: 8.0, force: 190, color: 0xff4400 },
-      { id: 1, name: 'Seken TNT', ammo: 10, speed: 28, radius: 10.5, force: 270, color: 0xffaa00, bounce: true },
-      { id: 2, name: 'Mega Blok', ammo: 3, speed: 22, radius: 18.0, force: 580, color: 0x00ffff }
+      { id: 0, name: 'Delici Roket', ammo: Infinity, speed: 48, radius: 2.2, force: 220, color: 0xff4400, desc: 'Duvarda delik açar' },
+      { id: 1, name: 'Teardown TNT', ammo: 10, speed: 28, radius: 3.8, force: 320, color: 0xef4444, bounce: true, desc: 'Geniş oyuk patlaması' },
+      { id: 2, name: 'Kırıcı Balyoz / Nükleer', ammo: 3, speed: 24, radius: 6.5, force: 600, color: 0x00ffff, desc: 'Tüm katı çökertir' }
     ];
 
     this.cooldown = 0;
+    this.cubeGeo = new THREE.BoxGeometry(VOXEL_SIZE * 1.2, VOXEL_SIZE * 1.2, VOXEL_SIZE * 1.2);
   }
 
   setWeapon(index) {
@@ -36,7 +32,6 @@ export class WeaponSystem {
     }
   }
 
-  // Kübik Mermi Ateşle
   shoot(startPos, targetDir) {
     if (this.cooldown > 0) return false;
 
@@ -47,52 +42,20 @@ export class WeaponSystem {
       w.ammo--;
     }
 
-    this.cooldown = 0.25;
+    this.cooldown = 0.22;
     sound.playShoot();
 
-    // Tamamen Kübik Mermi Modeli
-    let mesh;
-    let size = 0.5;
-
-    if (w.id === 0) {
-      // 1. Kübik Roket: Önünde mini TNT olan füze bloğu
-      const group = new THREE.Group();
-      const bodyGeo = new THREE.BoxGeometry(0.35, 0.35, 0.8);
-      const bodyMat = new THREE.MeshLambertMaterial({ map: this.stoneTex });
-      const bMesh = new THREE.Mesh(bodyGeo, bodyMat);
-      group.add(bMesh);
-
-      const tipGeo = new THREE.BoxGeometry(0.38, 0.38, 0.38);
-      const tipMat = new THREE.MeshLambertMaterial({ map: this.tntSideTex });
-      const tipMesh = new THREE.Mesh(tipGeo, tipMat);
-      tipMesh.position.z = 0.45;
-      group.add(tipMesh);
-
-      mesh = group;
-      size = 0.4;
-    } else if (w.id === 1) {
-      // 2. Seken Klasik Minecraft TNT Küpü (1x1x1)
-      const tntGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-      const tntSideMat = new THREE.MeshLambertMaterial({ map: this.tntSideTex });
-      const tntTopMat = new THREE.MeshLambertMaterial({ map: this.tntTopTex });
-      const mats = [tntSideMat, tntSideMat, tntTopMat, tntTopMat, tntSideMat, tntSideMat];
-      mesh = new THREE.Mesh(tntGeo, mats);
-      size = 0.5;
-    } else {
-      // 3. Mega Blok (Dev Parlayan Elmas / Nükleer Küp)
-      const nukeGeo = new THREE.BoxGeometry(1.4, 1.4, 1.4);
-      const nukeMat = new THREE.MeshLambertMaterial({ map: this.diamondTex });
-      mesh = new THREE.Mesh(nukeGeo, nukeMat);
-      size = 0.8;
-    }
-
+    // Kübik Mermi Görseli
+    const mat = new THREE.MeshBasicMaterial({ color: w.color });
+    const mesh = new THREE.Mesh(this.cubeGeo, mat);
     mesh.position.copy(startPos);
     this.scene.add(mesh);
 
-    // Mermi Fiziği (Kübik Cannon-es kutu gövde)
-    const shape = new CANNON.Box(new CANNON.Vec3(size / 2, size / 2, size / 2));
+    // Mermi Fiziği
+    const r = VOXEL_SIZE * 0.7;
+    const shape = new CANNON.Sphere(r);
     const body = new CANNON.Body({
-      mass: 6,
+      mass: 4,
       shape: shape,
       position: new CANNON.Vec3(startPos.x, startPos.y, startPos.z),
       linearDamping: 0.05
@@ -108,19 +71,15 @@ export class WeaponSystem {
       body,
       weaponInfo: w,
       life: w.bounce ? 2.5 : 5.0,
-      exploded: false,
-      flashTimer: 0
+      exploded: false
     };
 
-    body.addEventListener('collide', (e) => {
+    body.addEventListener('collide', () => {
       if (projectile.exploded) return;
       if (!w.bounce) {
         this.explode(projectile);
       } else {
         sound.playBlockHit();
-        if (e.body && e.body.isDestructible) {
-          this.explode(projectile);
-        }
       }
     });
 
@@ -128,7 +87,7 @@ export class WeaponSystem {
     return true;
   }
 
-  // Kübik Patlama Mantığı
+  // Teardown Patlama Mantığı
   explode(proj) {
     if (proj.exploded) return;
     proj.exploded = true;
@@ -136,66 +95,18 @@ export class WeaponSystem {
     const blastPos = proj.mesh.position.clone();
     const w = proj.weaponInfo;
 
-    // Kübik parçacık patlaması ve ses
-    this.particleSystem.createExplosion(blastPos, w.radius, w.color);
+    // Görsel kübik parçacık patlaması
+    this.particleSystem.createExplosion(blastPos, w.radius * 2, w.color);
     if (w.id === 2) {
       sound.playExplosion(2.2);
     } else {
-      sound.playExplosion(1.1);
+      sound.playExplosion(1.0);
     }
 
-    // Blokları fırlat
-    this.applyBlastImpulse(blastPos, w.radius, w.force);
+    // TEARDOWN OYUK AÇMA VE MİKRO-VOXEL PARÇALAMA
+    this.voxelWorld.explode(blastPos, w.radius, w.force);
 
     this.removeProjectile(proj);
-  }
-
-  applyBlastImpulse(blastPos, radius, maxForce) {
-    const cannonBlastPos = new CANNON.Vec3(blastPos.x, blastPos.y, blastPos.z);
-    let hitBlocks = 0;
-
-    for (let body of this.physicsWorld.bodies) {
-      if (!body.isDestructible && !body.isTNT) continue;
-
-      const dist = body.position.distanceTo(cannonBlastPos);
-      if (dist < radius) {
-        hitBlocks++;
-
-        const dir = body.position.vsub(cannonBlastPos);
-        dir.y += 0.6; // Blokları Minecraft gibi yukarı savur
-        dir.normalize();
-
-        const factor = Math.max(0, 1 - dist / radius);
-        const force = maxForce * factor * factor;
-
-        body.applyImpulse(dir.scale(force), body.position);
-
-        // TNT Varili ise zincirleme patlat
-        if (body.isTNT && !body.isDetonated) {
-          body.isDetonated = true;
-
-          // TNT beyaz yanıp sönme efekti
-          if (body.mesh) {
-            body.mesh.scale.set(1.15, 1.15, 1.15);
-          }
-
-          setTimeout(() => {
-            if (body && body.mesh) {
-              const tntPos = body.mesh.position.clone();
-              sound.playTNTExplosion();
-              this.particleSystem.createExplosion(tntPos, 12, 0xff0000);
-              this.applyBlastImpulse(tntPos, 14, 400);
-              if (this.onScoreGain) this.onScoreGain(300, '💥 ZİNCİRLEME TNT PATLAMASI!');
-            }
-          }, 140 + Math.random() * 160);
-        }
-      }
-    }
-
-    if (hitBlocks > 0 && this.onScoreGain) {
-      const score = hitBlocks * 35;
-      this.onScoreGain(score, `+${score} BLOK YIKILDI!`);
-    }
   }
 
   update(dt) {
@@ -209,11 +120,19 @@ export class WeaponSystem {
       p.mesh.position.copy(p.body.position);
       p.mesh.quaternion.copy(p.body.quaternion);
 
-      // Seken TNT yanıp sönme animasyonu (Minecraft TNT animasyonu)
-      if (p.weaponInfo.bounce) {
-        p.flashTimer += dt * 8;
-        const scale = 1 + Math.sin(p.flashTimer) * 0.1;
-        p.mesh.scale.set(scale, scale, scale);
+      // Minik voxel çarpışma kontrolü (Voxel haritasına çarptı mı?)
+      if (!p.exploded) {
+        const checkPos = p.mesh.position;
+        const ix = Math.round(checkPos.x / VOXEL_SIZE);
+        const iy = Math.round((checkPos.y - VOXEL_SIZE / 2) / VOXEL_SIZE);
+        const iz = Math.round(checkPos.z / VOXEL_SIZE);
+        const key = `${ix},${iy},${iz}`;
+
+        const v = this.voxelWorld.voxels.get(key);
+        if (v && v.active) {
+          this.explode(p);
+          continue;
+        }
       }
 
       if (p.life <= 0 && !p.exploded) {

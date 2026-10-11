@@ -1,32 +1,32 @@
-# 🟩 Minecraft Demolition 3D - Voxel Patlamalı Yıkım Oyunu
+# 💥 Teardown 3D - Minik Karelerle (Voxel) Patlamalı Yıkım Simülatörü
 
-Web tarayıcısında çalışan, Three.js ve Cannon-es fizik motoruyla güçlendirilmiş, **tamamen Minecraft tarzı kare/kübik (voxel)** patlamalı yıkım oyunu!
+Web tarayıcısında çalışan, Three.js ve Cannon-es fizik motoruyla güçlendirilmiş, **Teardown tarzı on binlerce minik kareden (mikro-voxel)** oluşan gerçek zamanlı bina yıkım oyunu!
 
 ---
 
-## 🎮 Minecraft Teması ve Özellikleri
+## 🎮 Teardown Tarzı Minik Kare Yıkım Mekaniği
 
+- **🧱 On Binlerce Minik Kare (Micro-Voxels):**
+  - Binalar artık büyük bloklardan değil; **Teardown oyunundaki gibi minik küplerden (0.35m)** oluşur.
+  - Tuğlalar, ahşap kirişler, cam pencereler, çelik kolonlar ve kiremit çatılar binlerce bağımsız minik kareden inşa edilmiştir.
+- **🕳️ Gerçek Delik Açma (Hole Carving):**
+  - Roket attığınızda duvarda tam olarak çarptığı yerde gerçekçi bir oyuk ve delik açılır!
+  - Duvarı delip içeri girebilir, kolonları tek tek incelterek binaları çökertebilirsiniz.
+- **💥 Havaya Saçılan ve Seken Döküntüler (Loose Physics Debris):**
+  - Patlama anında yüzlerce minik küp etrafa saçılır, zemin üzerinde taklalar atarak yuvarlanır ve gerçek fizik kurallarıyla yığılır.
+- **🧨 Zincirleme TNT Patlamaları:**
+  - Duvarların veya mahzenlerin içine yerleştirilmiş kırmızı TNT küpleri vurulduğunda gecikmeli devasa şok dalgaları oluşturur.
 - **🟩 Steve Tarzı Kübik Karakter:**
-  - Kafası, gövdesi, kolları ve bacakları tamamen kare/kübik bloklardan oluşan Minecraft karakteri.
-  - Elinde taş ve TNT'den yapılmış kübik bir roketatar taşır.
-  - **W Tuşu:** Karakteri ileri doğru yürütür. Steve'in kolları ve bacakları klasik Minecraft yürüyüş animasyonuyla sallanır.
-  - **A, S, D Tuşları:** Sola, geriye ve sağa hareket.
-  - **Boşluk (Space):** Blokların üzerinden zıplama.
-  - **Fare:** Minecraft tarzı artı (+) nişangahla etrafa bakma ve nişan alma.
-  - **Sol Tık:** Kübik roket ve TNT fırlatma.
-- **🧱 Gerçek Minecraft Blokları (1x1x1 Voxels):**
-  - **Çimen Blokları:** Yeşil çimenli zemin.
-  - **Kırık Taş (Cobblestone) & Taş (Stone):** Sağlam duvar ve kolonlar.
-  - **Meşe Tahta (Wood Planks):** Asma köprüler ve ara katlar.
-  - **Tuğla (Bricks):** Şato ve kule duvarları.
-  - **Kırmızı TNT:** Vurulduğunda beyaz yanıp sönen ve etrafındaki tüm blokları savuran ikonik Minecraft TNT'si!
-  - **Elmas ve Altın Bloklar:** Özel kule taçları ve hazineler.
-- **💥 Kübik Parçacıklar ve Patlamalar:**
-  - Patlama dumanları ve alevler bile küçük piksel küplerinden oluşur.
-- **📦 Minecraft Hotbar Arayüzü:**
-  - Alt kısımdaki klasik Minecraft envanter kutucukları üzerinden roket, seken TNT ve elmas mega blok seçimi.
-- **☁️ Voxel Gökyüzü:**
-  - Açık mavi gökyüzü, kare Minecraft güneşi ve gökyüzünde süzülen kare bulutlar.
+  - **W Tuşu:** Karakteri ileri doğru yürütür (klasik kol ve bacak sallama animasyonuyla).
+  - **A, S, D:** Yön kontrolleri.
+  - **Boşluk (Space):** Zıplama.
+  - **Fare & Sol Tık:** Nişan alma ve roket/TNT fırlatma.
+- **5 Farklı Teardown Bölümü:**
+  - Bölüm 1: Teardown Villası (2 katlı müstakil ev, pencereler, çatı ve baca)
+  - Bölüm 2: Sanayi Deposu (Çelik kolonlar, hangar çatısı ve variller)
+  - Bölüm 3: TNT Rafinerisi (Birbirine bağlı patlayıcı tanklar)
+  - Bölüm 4: Voxel İş Merkezi (5 katlı modern cam & beton bina)
+  - Bölüm 5: Büyük Kale & Saat Kulesi (Surlar ve devasa saat kulesi)
 
 ---
 
@@ -37,7 +37,7 @@ Web tarayıcısında çalışan, Three.js ve Cannon-es fizik motoruyla güçlend
 npm run dev
 ```
 
-Tarayıcınızdan `http://localhost:5173` adresine giderek hemen oynayabilirsiniz.
+Tarayıcınızdan `http://localhost:5173` adresine giderek oyunu oynayabilirsiniz.
 
 ---
 

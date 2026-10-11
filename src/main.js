@@ -5,13 +5,13 @@ import { Character } from './character.js';
 import { WeaponSystem } from './weapons.js';
 import { LevelManager } from './levels.js';
 import { ParticleSystem } from './particles.js';
+import { VoxelWorld, VOXEL_SIZE } from './teardown.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
-// Oyun Değişkenleri
 let scene, camera, renderer;
 let physicsWorld;
-let character, weaponSystem, levelManager, particleSystem;
+let character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -21,10 +21,9 @@ let clouds = [];
 // Kamera Açıları
 let cameraYaw = Math.PI;
 let cameraPitch = 0.25;
-const cameraDistance = 8.5;
+const cameraDistance = 9.0;
 const cameraHeight = 3.2;
 
-// Giriş Durumu
 const inputState = {
   forward: false,
   backward: false,
@@ -57,10 +56,10 @@ const levelsModal = document.getElementById('levels-modal');
 const levelsGrid = document.getElementById('levels-grid');
 
 function init() {
-  // 1. Minecraft Gökyüzü (Açık Mavi)
+  // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
-  scene.fog = new THREE.Fog(0x78a7ff, 45, 120);
+  scene.fog = new THREE.Fog(0x78a7ff, 50, 140);
 
   // 2. Kamera
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -73,8 +72,8 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   canvasContainer.appendChild(renderer.domElement);
 
-  // 4. Minecraft Güneşi ve Işıklandırma
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+  // 4. Işıklandırma
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
   scene.add(ambientLight);
 
   const sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
@@ -91,7 +90,7 @@ function init() {
   sunLight.shadow.camera.bottom = -d;
   scene.add(sunLight);
 
-  // Gökyüzünde Kare Minecraft Güneşi
+  // Gökyüzünde Kare Güneş
   const sunGeo = new THREE.BoxGeometry(6, 6, 0.5);
   const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const sunMesh = new THREE.Mesh(sunGeo, sunMat);
@@ -103,23 +102,31 @@ function init() {
   physicsWorld = new CANNON.World({
     gravity: new CANNON.Vec3(0, -25, 0)
   });
-  physicsWorld.solver.iterations = 10;
-  physicsWorld.defaultContactMaterial.friction = 0.5;
-  physicsWorld.defaultContactMaterial.restitution = 0.15;
+  physicsWorld.solver.iterations = 8;
+  physicsWorld.defaultContactMaterial.friction = 0.55;
+  physicsWorld.defaultContactMaterial.restitution = 0.1;
 
-  // 6. Minecraft Çimen Zemin ve Voxel Bulutlar
-  createMinecraftWorld();
+  // 6. Çimen Zemin ve Voxel Bulutlar
+  createWorldArena();
 
-  // 7. Karakter, Seviyeler ve Silahlar
+  // 7. Teardown Voxel Dünyası, Parçacıklar ve Karakter
   particleSystem = new ParticleSystem(scene);
+
+  voxelWorld = new VoxelWorld(scene, physicsWorld, particleSystem, (points, text) => {
+    addScore(points, text);
+    screenShake = 0.35;
+  });
+
   character = new Character(scene, physicsWorld, particleSystem);
-  weaponSystem = new WeaponSystem(scene, physicsWorld, particleSystem, (points, text) => {
+
+  weaponSystem = new WeaponSystem(scene, physicsWorld, particleSystem, voxelWorld, (points, text) => {
     addScore(points, text);
     screenShake = 0.4;
   });
-  levelManager = new LevelManager(scene, physicsWorld);
 
-  // İlk Bölümü Başlat
+  levelManager = new LevelManager(voxelWorld);
+
+  // İlk Bölümü Yükle
   loadLevel(0);
 
   setupEventListeners();
@@ -138,9 +145,7 @@ function init() {
   requestAnimationFrame(animate);
 }
 
-// Minecraft Dünyası (Çimen Blok Zemin & Yüzen Voxel Bulutlar)
-function createMinecraftWorld() {
-  // Fizik Zemin
+function createWorldArena() {
   const groundBody = new CANNON.Body({
     mass: 0,
     shape: new CANNON.Plane()
@@ -148,7 +153,6 @@ function createMinecraftWorld() {
   groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
   physicsWorld.addBody(groundBody);
 
-  // Görsel Minecraft Çimen Zemin
   const grassTex = getGrassTopTexture();
   grassTex.wrapS = THREE.RepeatWrapping;
   grassTex.wrapT = THREE.RepeatWrapping;
@@ -161,7 +165,7 @@ function createMinecraftWorld() {
   groundMesh.receiveShadow = true;
   scene.add(groundMesh);
 
-  // Minecraft Kare Bulutları
+  // Yüzen Voxel Bulutlar
   const cloudMat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
@@ -175,7 +179,7 @@ function createMinecraftWorld() {
     const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
     cloudMesh.position.set(
       (Math.random() - 0.5) * 140,
-      30 + Math.random() * 8,
+      32 + Math.random() * 8,
       (Math.random() - 0.5) * 140
     );
     scene.add(cloudMesh);
@@ -186,12 +190,14 @@ function createMinecraftWorld() {
 function updateGame(dt) {
   physicsWorld.step(1 / 60, dt, 3);
 
-  // Karakter Güncellemesi (W tuşu vb.)
+  // Karakter Kontrolü (W tuşu ileri vb.)
   character.update(dt, inputState, cameraYaw);
 
-  // Seviye ve Yıkım Kontrolü
-  levelManager.update();
-  const currentPct = levelManager.getDestructionPercentage();
+  // Teardown Voxel Dünyası ve Döküntü Fiziği
+  voxelWorld.update(dt);
+
+  // Yıkım Oranı
+  const currentPct = voxelWorld.getDestructionPercentage();
   updateDestructionUI(currentPct);
 
   const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
@@ -203,13 +209,12 @@ function updateGame(dt) {
   weaponSystem.update(dt);
   particleSystem.update(dt);
 
-  // Bulutları hareket ettir
+  // Bulutlar
   clouds.forEach(c => {
     c.mesh.position.x += c.speed * dt;
     if (c.mesh.position.x > 80) c.mesh.position.x = -80;
   });
 
-  // Kamera Takibi
   updateCamera(dt);
 }
 
@@ -233,7 +238,7 @@ function updateCamera(dt) {
 
   camera.position.lerp(targetCamPos, 14 * dt);
 
-  // Ekran Sarsıntısı (Screen Shake)
+  // Ekran Sarsıntısı
   if (screenShake > 0) {
     camera.position.x += (Math.random() - 0.5) * screenShake;
     camera.position.y += (Math.random() - 0.5) * screenShake;
@@ -253,7 +258,7 @@ function loadLevel(index) {
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
   particleSystem.clear();
-  character.resetPosition(0, 2.5, 25);
+  character.resetPosition(0, 2.5, 20);
 
   levelTitleEl.innerText = cfg.title;
   levelDescEl.innerText = cfg.desc;
@@ -295,7 +300,7 @@ function triggerLevelWin(pct) {
   sound.playLevelWin();
 
   confetti({
-    particleCount: 130,
+    particleCount: 140,
     spread: 80,
     origin: { y: 0.6 }
   });
@@ -312,7 +317,7 @@ function triggerLevelWin(pct) {
   modalDestruction.innerText = `${pct}%`;
   modalScore.innerText = currentScore;
   modalTitle.innerText = 'BÖLÜM TAMAMLANDI!';
-  modalSubtitle.innerText = `Harika Yıkım! Hedef %${cfg.targetPercent} aşıldı.`;
+  modalSubtitle.innerText = `Harika Teardown Yıkımı! Hedef %${cfg.targetPercent} aşıldı.`;
 
   setTimeout(() => {
     levelModal.classList.add('active');

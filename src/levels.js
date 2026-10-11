@@ -1,264 +1,240 @@
-import * as THREE from 'three';
-import * as CANNON from 'cannon-es';
-import {
-  getStoneTexture,
-  getCobblestoneTexture,
-  getWoodPlankTexture,
-  getBrickTexture,
-  getTNTSideTexture,
-  getTNTTopTexture,
-  getDiamondTexture,
-  getGoldTexture
-} from './textures.js';
+import { PALETTE } from './teardown.js';
 
-// Minecraft Tarzı 1x1x1 Voxel Yapı ve Seviye Yöneticisi
+// Teardown Tarzı Minik Karelerden Oluşan Mimari Seviyeler
 export class LevelManager {
-  constructor(scene, physicsWorld) {
-    this.scene = scene;
-    this.physicsWorld = physicsWorld;
-    this.blocks = [];
+  constructor(voxelWorld) {
+    this.world = voxelWorld;
     this.currentLevelIndex = 0;
 
-    // Minecraft Dokuları
-    const stoneTex = getStoneTexture();
-    const cobbleTex = getCobblestoneTexture();
-    const woodTex = getWoodPlankTexture();
-    const brickTex = getBrickTexture();
-    const diamondTex = getDiamondTexture();
-    const goldTex = getGoldTexture();
-    const tntSideTex = getTNTSideTexture();
-    const tntTopTex = getTNTTopTexture();
-
-    // Minecraft Malzemeleri
-    this.materials = {
-      stone: new THREE.MeshLambertMaterial({ map: stoneTex }),
-      cobble: new THREE.MeshLambertMaterial({ map: cobbleTex }),
-      wood: new THREE.MeshLambertMaterial({ map: woodTex }),
-      brick: new THREE.MeshLambertMaterial({ map: brickTex }),
-      diamond: new THREE.MeshLambertMaterial({ map: diamondTex }),
-      gold: new THREE.MeshLambertMaterial({ map: goldTex }),
-      tnt: [
-        new THREE.MeshLambertMaterial({ map: tntSideTex }),
-        new THREE.MeshLambertMaterial({ map: tntSideTex }),
-        new THREE.MeshLambertMaterial({ map: tntTopTex }),
-        new THREE.MeshLambertMaterial({ map: tntTopTex }),
-        new THREE.MeshLambertMaterial({ map: tntSideTex }),
-        new THREE.MeshLambertMaterial({ map: tntSideTex })
-      ]
-    };
-
-    // 1x1x1 Standart Minecraft Küp Geometrisi
-    this.cubeGeo = new THREE.BoxGeometry(1, 1, 1);
-    this.cubeShape = new CANNON.Box(new CANNON.Vec3(0.5, 0.5, 0.5));
-
-    // Bölüm Listesi
     this.levelConfigs = [
       {
         id: 0,
-        title: 'BÖLÜM 1: MİNECRAFT KULESİ',
-        desc: 'Taş ve ahşap blokları devir, tepedeki altın bloğu indir!',
-        targetPercent: 70,
-        builder: this.buildVoxelTower.bind(this)
+        title: 'BÖLÜM 1: TEARDOWN VİLLASI',
+        desc: 'Tuğla duvarlarda delik aç, kolonları patlat ve çatıyı çökert!',
+        targetPercent: 65,
+        builder: this.buildSuburbanHouse.bind(this)
       },
       {
         id: 1,
-        title: 'BÖLÜM 2: İKİZ KALE & KÖPRÜ',
-        desc: 'Kırık taş kuleleri patlat, ahşap asma köprüyü çökert!',
-        targetPercent: 75,
-        builder: this.buildVoxelTwinTowers.bind(this)
+        title: 'BÖLÜM 2: SANAYİ DEPOSU',
+        desc: 'Çelik taşıyıcı kolonları vur, asma katları yerle bir et!',
+        targetPercent: 70,
+        builder: this.buildIndustrialDepot.bind(this)
       },
       {
         id: 2,
-        title: 'BÖLÜM 3: TNT CEPHANELİĞİ',
-        desc: 'Kırmızı TNT küplerini vur ve efsanevi zincirleme patlama başlat!',
-        targetPercent: 80,
-        builder: this.buildVoxelTNTArsenal.bind(this)
+        title: 'BÖLÜM 3: TNT RAFİNERİSİ',
+        desc: 'Depolardaki kırmızı TNT küplerini hedef al, zincirleme patlama yarat!',
+        targetPercent: 75,
+        builder: this.buildTNTRefinery.bind(this)
       },
       {
         id: 3,
-        title: 'BÖLÜM 4: VOXEL GÖKDELEN',
-        desc: 'Tuğla ve elmas bloklardan oluşan devasa yapıyı yık!',
-        targetPercent: 75,
-        builder: this.buildVoxelSkyscraper.bind(this)
+        title: 'BÖLÜM 4: VOXEL İŞ MERKEZİ',
+        desc: 'Geniş cam cepheleri ve ana taşıyıcı kolonları patlat!',
+        targetPercent: 70,
+        builder: this.buildHighRise.bind(this)
       },
       {
         id: 4,
-        title: 'BÖLÜM 5: BÜYÜK KRALİYET KALESİ',
-        desc: 'Surlar, kuleler ve merkez şatoyu tamamen yerle bir et!',
-        targetPercent: 80,
-        builder: this.buildVoxelFortress.bind(this)
+        title: 'BÖLÜM 5: BÜYÜK KALE & SAAT KULESİ',
+        desc: 'Kule ayaklarını yok et, saat kulesinin devrilişini izle!',
+        targetPercent: 75,
+        builder: this.buildCitadelAndTower.bind(this)
       }
     ];
   }
 
-  // 1x1x1 Minecraft Küpü Ekle
-  createBlock(x, y, z, matType = 'stone', isTNT = false) {
-    const mat = isTNT ? this.materials.tnt : (this.materials[matType] || this.materials.stone);
-    const mesh = new THREE.Mesh(this.cubeGeo, mat);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    this.scene.add(mesh);
+  // 1. Bölüm: Teardown Villası (Giriş kat, üst kat, camlar, ahşap kolonlar, kiremit çatı)
+  buildSuburbanHouse() {
+    const w = this.world;
 
-    const mass = isTNT ? 7 : 12;
-    const body = new CANNON.Body({
-      mass: mass,
-      shape: this.cubeShape,
-      position: new CANNON.Vec3(x, y, z),
-      linearDamping: 0.15,
-      angularDamping: 0.2
-    });
+    // Temel Beton Zemin (Genişlik: 24, Derinlik: 20 voxel)
+    w.fillBox(-12, 0, -10, 12, 0, 10, PALETTE.CONCRETE);
 
-    body.isDestructible = true;
-    body.isTNT = isTNT;
-    body.isDetonated = false;
-    body.mesh = mesh;
-    body.initPos = new CANNON.Vec3(x, y, z);
+    // 1. Kat Tuğla Dış Duvarlar (Yükseklik: 1'den 10'a)
+    w.fillHollowBox(-12, 1, -10, 12, 10, 10, PALETTE.BRICK, PALETTE.WOOD);
 
-    this.physicsWorld.addBody(body);
-    this.blocks.push({ mesh, body, initPos: new THREE.Vector3(x, y, z), isTNT });
-    return body;
-  }
+    // 1. Kat Pencereler (Cam Voxel)
+    // Ön cephe pencereleri
+    w.fillBox(-8, 3, 10, -4, 7, 10, PALETTE.GLASS);
+    w.fillBox(4, 3, 10, 8, 7, 10, PALETTE.GLASS);
+    // Yan pencereler
+    w.fillBox(-12, 3, -4, -12, 7, 0, PALETTE.GLASS);
+    w.fillBox(12, 3, -4, 12, 7, 0, PALETTE.GLASS);
 
-  // Bölüm 1: Minecraft Klasik Kule (10 katlı 1x1 küpler)
-  buildVoxelTower() {
-    const height = 9;
-    const size = 3;
-    const offset = 1;
-
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < size; x++) {
-        for (let z = 0; z < size; z++) {
-          const posX = (x - offset);
-          const posY = y + 0.5;
-          const posZ = (z - offset);
-
-          // Bazı katlar tahta, bazıları taş, ortada TNT
-          const isTNT = y === 2 && x === 1 && z === 1;
-          const matType = y % 2 === 0 ? 'stone' : 'wood';
-          this.createBlock(posX, posY, posZ, matType, isTNT);
-        }
-      }
-    }
-
-    // Tepeye Altın Taç Blok
-    this.createBlock(0, height + 0.5, 0, 'gold');
-  }
-
-  // Bölüm 2: İkiz Kırık Taş Kuleler ve Asma Ahşap Köprü
-  buildVoxelTwinTowers() {
-    const height = 10;
-    const towerOffset = 4;
-
-    const buildTower = (centerX) => {
-      for (let y = 0; y < height; y++) {
-        for (let x = -1; x <= 1; x++) {
-          for (let z = -1; z <= 1; z++) {
-            // İçi boş kule (Minecraft sur mantığı)
-            if (x === 0 && z === 0 && y > 0 && y < height - 1) continue;
-            const isTNT = y === 1 && x === 0 && z === 1;
-            this.createBlock(centerX + x, y + 0.5, z, 'cobble', isTNT);
-          }
-        }
-      }
-    };
-
-    buildTower(-towerOffset);
-    buildTower(towerOffset);
-
-    // Kuleler Arasındaki Ahşap Köprü
-    const bridgeY = 6.5;
-    for (let x = -towerOffset + 1; x <= towerOffset - 1; x++) {
-      for (let z = -1; z <= 1; z++) {
-        this.createBlock(x, bridgeY, z, 'wood');
-      }
-    }
-  }
-
-  // Bölüm 3: TNT Cephaneliği (Kırmızı Minecraft TNT küpleri dolu)
-  buildVoxelTNTArsenal() {
-    const size = 6;
-    const half = size / 2;
-
-    for (let y = 0; y < 5; y++) {
-      for (let x = -half; x < half; x++) {
-        for (let z = -half; z < half; z++) {
-          const isEdge = x === -half || x === half - 1 || z === -half || z === half - 1;
-          const isCenter = Math.abs(x) <= 1 && Math.abs(z) <= 1;
-
-          if (isCenter && y < 3) {
-            // Bol bol patlamaya hazır TNT blokları
-            this.createBlock(x + 0.5, y + 0.5, z + 0.5, 'tnt', true);
-          } else if (isEdge || y === 4) {
-            this.createBlock(x + 0.5, y + 0.5, z + 0.5, 'brick');
-          }
-        }
-      }
-    }
-  }
-
-  // Bölüm 4: Voxel Gökdelen (12 katlı elmas & tuğla kule)
-  buildVoxelSkyscraper() {
-    const floors = 11;
-    for (let y = 0; y < floors; y++) {
-      // 4 Köşe Kolon
-      this.createBlock(-1.5, y + 0.5, -1.5, 'stone');
-      this.createBlock(1.5, y + 0.5, -1.5, 'stone');
-      this.createBlock(-1.5, y + 0.5, 1.5, 'stone');
-      this.createBlock(1.5, y + 0.5, 1.5, 'stone');
-
-      // Taban Blokları
-      for (let x = -1; x <= 1; x++) {
-        for (let z = -1; z <= 1; z++) {
-          const isTNT = (y === 2 || y === 6) && x === 0 && z === 0;
-          const mat = y === floors - 1 ? 'diamond' : 'brick';
-          this.createBlock(x, y + 0.5, z, mat, isTNT);
-        }
-      }
-    }
-  }
-
-  // Bölüm 5: Büyük Kraliyet Kalesi
-  buildVoxelFortress() {
-    // 4 Köşe Kulesi
-    const corners = [
-      { x: -4, z: -4 },
-      { x: 4, z: -4 },
-      { x: -4, z: 4 },
-      { x: 4, z: 4 }
-    ];
-
-    corners.forEach(c => {
-      for (let y = 0; y < 7; y++) {
-        const isTNT = y === 1;
-        this.createBlock(c.x, y + 0.5, c.z, 'cobble', isTNT);
-        this.createBlock(c.x + 1, y + 0.5, c.z, 'cobble');
-        this.createBlock(c.x, y + 0.5, c.z + 1, 'cobble');
-        this.createBlock(c.x + 1, y + 0.5, c.z + 1, 'cobble');
-      }
-    });
-
-    // Bağlantı Duvarları
+    // Ön Kapı Açıklığı
     for (let x = -2; x <= 2; x++) {
-      for (let y = 0; y < 3; y++) {
-        this.createBlock(x, y + 0.5, -4, 'stone');
-        this.createBlock(x, y + 0.5, 4, 'stone');
+      for (let y = 1; y <= 6; y++) {
+        w.setVoxel(x, y, 10, PALETTE.WOOD);
       }
     }
 
-    // Merkez Kale ve TNT Deposu
-    for (let y = 0; y < 9; y++) {
-      for (let x = -1; x <= 1; x++) {
-        for (let z = -1; z <= 1; z++) {
-          const isTNT = y === 2 && x === 0 && z === 0;
-          this.createBlock(x, y + 0.5, z, y === 8 ? 'diamond' : 'brick', isTNT);
-        }
+    // 1. Kat İçinde TNT Deposu (Merkezde)
+    w.fillBox(-2, 1, -3, 2, 4, 1, PALETTE.TNT);
+
+    // Ara Kat Tabanı (2. Kat Zemini)
+    w.fillBox(-12, 11, -10, 12, 11, 10, PALETTE.WOOD);
+
+    // 2. Kat Duvarları (Ahşap & Tuğla)
+    w.fillHollowBox(-11, 12, -9, 11, 19, 9, PALETTE.WOOD, PALETTE.WOOD);
+    // 2. Kat Ön Cam
+    w.fillBox(-6, 14, 9, 6, 17, 9, PALETTE.GLASS);
+
+    // Kiremit Çatı (Piramit / Eğimli Çatı Katmanları)
+    let shrink = 0;
+    for (let y = 20; y <= 26; y++) {
+      w.fillBox(-12 + shrink, y, -10 + shrink, 12 - shrink, y, 10 - shrink, PALETTE.ROOF);
+      shrink += 2;
+    }
+
+    // Baca (Çelik/Tuğla)
+    w.fillBox(6, 22, -4, 9, 29, -1, PALETTE.BRICK);
+  }
+
+  // 2. Bölüm: Sanayi Deposu (Geniş çelik hangar, taşıyıcı ayaklar, variller)
+  buildIndustrialDepot() {
+    const w = this.world;
+
+    // Beton Taban
+    w.fillBox(-16, 0, -12, 16, 0, 12, PALETTE.CONCRETE);
+
+    // 6 Adet Kalın Çelik Taşıyıcı Kolon (Vurulunca tavan çöker)
+    const columns = [
+      [-14, -10], [0, -10], [14, -10],
+      [-14, 10],  [0, 10],  [14, 10]
+    ];
+    columns.forEach(([cx, cz]) => {
+      w.fillBox(cx - 1, 1, cz - 1, cx + 1, 16, cz + 1, PALETTE.STEEL);
+    });
+
+    // Yan Duvarlar (Dalgalı sac / Çelik)
+    w.fillBox(-16, 1, -12, 16, 16, -11, PALETTE.CONCRETE);
+    w.fillBox(-16, 1, 11, 16, 16, 12, PALETTE.CONCRETE);
+    w.fillBox(-16, 1, -12, -15, 16, 12, PALETTE.CONCRETE);
+
+    // İçerideki Depo Rafı ve TNT Varilleri
+    w.fillBox(-8, 1, -4, 8, 2, -2, PALETTE.WOOD);
+    w.fillBox(-6, 3, -4, 6, 6, -2, PALETTE.TNT); // Raf üstü TNT
+
+    // Ağır Çatı Kirişleri
+    for (let x = -16; x <= 16; x += 3) {
+      w.fillBox(x, 16, -12, x, 17, 12, PALETTE.STEEL);
+    }
+    // Çatı Kaplaması
+    w.fillBox(-16, 18, -12, 16, 18, 12, PALETTE.ROOF);
+  }
+
+  // 3. Bölüm: TNT Rafinerisi (Büyük patlayıcı tanklar ve birbirine bağlı köprüler)
+  buildTNTRefinery() {
+    const w = this.world;
+
+    // Beton Platform
+    w.fillBox(-18, 0, -14, 18, 0, 14, PALETTE.CONCRETE);
+
+    // 3 Büyük Silindirik TNT Reaktörü
+    const reactors = [-10, 0, 10];
+    reactors.forEach(rx => {
+      // Beton kaide
+      w.fillBox(rx - 4, 1, -4, rx + 4, 3, 4, PALETTE.CONCRETE);
+      // TNT İç Çekirdek
+      w.fillBox(rx - 3, 4, -3, rx + 3, 14, 3, PALETTE.TNT);
+      // Dış Çelik Koruma Kafesi (Aralıklı pencereli)
+      w.fillHollowBox(rx - 4, 4, -4, rx + 4, 15, 4, PALETTE.STEEL);
+    });
+
+    // Reaktörleri birbirine bağlayan boru hattı ve köprüler
+    w.fillBox(-14, 10, -1, 14, 12, 1, PALETTE.STEEL);
+    w.fillBox(-14, 13, -2, 14, 13, 2, PALETTE.WOOD);
+
+    // Tepe Gözlem Kulesi
+    w.fillBox(-2, 15, -2, 2, 24, 2, PALETTE.CONCRETE);
+    w.fillBox(-4, 24, -4, 4, 26, 4, PALETTE.GLASS);
+    w.fillBox(0, 27, 0, 0, 31, 0, PALETTE.GOLD); // Paratoner
+  }
+
+  // 4. Bölüm: Voxel İş Merkezi (5 Katlı Modern Gökdelen)
+  buildHighRise() {
+    const w = this.world;
+
+    const floors = 5;
+    const floorHeight = 6;
+
+    for (let f = 0; f < floors; f++) {
+      const baseY = f * floorHeight;
+
+      // Kat Tabanı (Beton)
+      w.fillBox(-10, baseY, -10, 10, baseY + 1, 10, PALETTE.CONCRETE);
+
+      // 4 Taşıyıcı Köşe Kolon (Çelik)
+      w.fillBox(-10, baseY + 1, -10, -8, baseY + floorHeight, -8, PALETTE.STEEL);
+      w.fillBox(8, baseY + 1, -10, 10, baseY + floorHeight, -8, PALETTE.STEEL);
+      w.fillBox(-10, baseY + 1, 8, -8, baseY + floorHeight, 10, PALETTE.STEEL);
+      w.fillBox(8, baseY + 1, 8, 10, baseY + floorHeight, 10, PALETTE.STEEL);
+
+      // Cam Cepheler (Her katta boydan boya cam)
+      w.fillBox(-7, baseY + 2, -10, 7, baseY + floorHeight - 1, -10, PALETTE.GLASS);
+      w.fillBox(-7, baseY + 2, 10, 7, baseY + floorHeight - 1, 10, PALETTE.GLASS);
+      w.fillBox(-10, baseY + 2, -7, -10, baseY + floorHeight - 1, 7, PALETTE.GLASS);
+      w.fillBox(10, baseY + 2, -7, 10, baseY + floorHeight - 1, 7, PALETTE.GLASS);
+
+      // 2. ve 4. Katta Sunucu Odası / TNT
+      if (f === 1 || f === 3) {
+        w.fillBox(-2, baseY + 2, -2, 2, baseY + 4, 2, PALETTE.TNT);
       }
+    }
+
+    // Çatı Helikopter Pisti / Teras
+    const roofY = floors * floorHeight;
+    w.fillBox(-11, roofY, -11, 11, roofY + 1, 11, PALETTE.CONCRETE);
+    w.fillBox(-3, roofY + 2, -3, 3, roofY + 2, 3, PALETTE.GOLD); // H Harfi yerine altın blok
+  }
+
+  // 5. Bölüm: Büyük Kale ve Saat Kulesi (Surlar, mazgallar, devasa saat kulesi)
+  buildCitadelAndTower() {
+    const w = this.world;
+
+    // Sur Tabanı
+    w.fillBox(-16, 0, -16, 16, 0, 16, PALETTE.CONCRETE);
+
+    // 4 Köşe Savunma Kulesi
+    const towers = [
+      [-14, -14], [14, -14],
+      [-14, 14],  [14, 14]
+    ];
+    towers.forEach(([tx, tz]) => {
+      w.fillHollowBox(tx - 3, 1, tz - 3, tx + 3, 14, tz + 3, PALETTE.BRICK, PALETTE.WOOD);
+      // Tepe mazgallar
+      w.fillBox(tx - 4, 15, tz - 4, tx + 4, 16, tz + 4, PALETTE.BRICK);
+      // Kule dibinde patlayıcı mahzen
+      w.fillBox(tx - 1, 1, tz - 1, tx + 1, 3, tz + 1, PALETTE.TNT);
+    });
+
+    // Bağlantı Surları (Geniş taş surlar)
+    w.fillBox(-11, 1, -15, 11, 10, -13, PALETTE.BRICK);
+    w.fillBox(-11, 1, 13, 11, 10, 15, PALETTE.BRICK);
+    w.fillBox(-15, 1, -11, -13, 10, 11, PALETTE.BRICK);
+    w.fillBox(13, 1, -11, 15, 10, 11, PALETTE.BRICK);
+
+    // MERKEZ SAAT KULESİ (Devasa 32 Katmanlı Voxel Kulesi)
+    w.fillHollowBox(-4, 1, -4, 4, 28, 4, PALETTE.BRICK, PALETTE.WOOD);
+    // Saat Katı (Cam ve Altın kadranlar)
+    w.fillBox(-3, 24, 4, 3, 26, 4, PALETTE.GOLD);
+    w.fillBox(-3, 24, -4, 3, 26, -4, PALETTE.GOLD);
+
+    // Saat Kulesi Temel Taşıyıcı TNT Havuzu
+    w.fillBox(-2, 1, -2, 2, 3, 2, PALETTE.TNT);
+
+    // Kule Çatısı (Sivri külah çatı)
+    let shrink = 0;
+    for (let y = 29; y <= 35; y++) {
+      w.fillBox(-4 + shrink, y, -4 + shrink, 4 - shrink, y, 4 - shrink, PALETTE.ROOF);
+      shrink += 1;
     }
   }
 
   loadLevel(index) {
-    this.clearLevel();
+    this.world.clear();
     if (index >= 0 && index < this.levelConfigs.length) {
       this.currentLevelIndex = index;
     } else {
@@ -267,40 +243,7 @@ export class LevelManager {
 
     const cfg = this.levelConfigs[this.currentLevelIndex];
     cfg.builder();
+    this.world.buildMeshBuffers(); // Binlerce minik küpü GPU'ya tek seferde yazar
     return cfg;
-  }
-
-  getDestructionPercentage() {
-    if (this.blocks.length === 0) return 0;
-
-    let destroyedCount = 0;
-    for (let b of this.blocks) {
-      const currentPos = b.body.position;
-      const initPos = b.initPos;
-
-      const fallen = currentPos.y < Math.max(0.4, initPos.y * 0.4);
-      const displaced = currentPos.distanceTo(b.body.initPos) > 1.8;
-
-      if (fallen || displaced) {
-        destroyedCount++;
-      }
-    }
-
-    return Math.min(100, Math.round((destroyedCount / this.blocks.length) * 100));
-  }
-
-  clearLevel() {
-    for (let b of this.blocks) {
-      this.scene.remove(b.mesh);
-      this.physicsWorld.removeBody(b.body);
-    }
-    this.blocks = [];
-  }
-
-  update() {
-    for (let b of this.blocks) {
-      b.mesh.position.copy(b.body.position);
-      b.mesh.quaternion.copy(b.body.quaternion);
-    }
   }
 }
