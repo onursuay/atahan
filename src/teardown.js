@@ -346,7 +346,154 @@ export class VoxelWorld {
     return { success: true, removedCount, material: hitMaterial };
   }
 
-  // Uçuşan ve Seken Minik Fizik Küpü Oluştur (Teardown parçacığı)
+  // TABANCA VURUŞU (1 tuşu) — Tahtayı rahatça kırar, demiri biraz kırar
+  gunHit(hitPoint, gunPower = 1.0) {
+    const dummy = new THREE.Object3D();
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+
+    const hitRadius = VOXEL_SIZE * 2.5; // Kurşun biraz daha geniş bir alan etkiler
+    const r2 = hitRadius * hitRadius;
+
+    const candidates = [];
+    const minIx = Math.floor((hitPoint.x - hitRadius) / VOXEL_SIZE);
+    const maxIx = Math.ceil((hitPoint.x + hitRadius) / VOXEL_SIZE);
+    const minIy = Math.floor((hitPoint.y - hitRadius) / VOXEL_SIZE);
+    const maxIy = Math.ceil((hitPoint.y + hitRadius) / VOXEL_SIZE);
+    const minIz = Math.floor((hitPoint.z - hitRadius) / VOXEL_SIZE);
+    const maxIz = Math.ceil((hitPoint.z + hitRadius) / VOXEL_SIZE);
+
+    for (let ix = minIx; ix <= maxIx; ix++) {
+      for (let iy = minIy; iy <= maxIy; iy++) {
+        for (let iz = minIz; iz <= maxIz; iz++) {
+          const key = `${ix},${iy},${iz}`;
+          const v = this.voxels.get(key);
+          if (!v || !v.active) continue;
+          const dx = v.x - hitPoint.x;
+          const dy = v.y - hitPoint.y;
+          const dz = v.z - hitPoint.z;
+          const distSq = dx * dx + dy * dy + dz * dz;
+          if (distSq <= r2) candidates.push({ v, distSq });
+        }
+      }
+    }
+
+    if (candidates.length === 0) return null;
+    candidates.sort((a, b) => a.distSq - b.distSq);
+
+    const hitMaterial = candidates[0].v.type;
+    let removedCount = 0;
+
+    if (hitMaterial.isIron) {
+      // Demir: tabanca biraz hasar verir — sadece 1-2 voxel kırar
+      const ironBreak = Math.max(1, Math.round(gunPower * 1.5));
+      for (let i = 0; i < Math.min(candidates.length, ironBreak); i++) {
+        const v = candidates[i].v;
+        v.active = false;
+        removedCount++;
+        if (v.instanceIdx !== -1) {
+          const mesh = this.instancedMeshes[v.type.id];
+          mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
+          mesh.instanceMatrix.needsUpdate = true;
+        }
+        if (this.dynamicDebris.length < this.maxDynamicDebris) {
+          this.spawnLooseVoxel(v.x, v.y, v.z, v.type, hitPoint, Math.sqrt(candidates[i].distSq), hitRadius, 20);
+        }
+      }
+      sound.playIronHit();
+    } else {
+      // Tahta ve diğerleri: tabanca rahatça kırar
+      const hardness = MATERIAL_HARDNESS[hitMaterial.id] || 1.0;
+      const maxBreak = Math.max(2, Math.round((12 * gunPower) / hardness));
+      for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
+        const v = candidates[i].v;
+        v.active = false;
+        removedCount++;
+        if (v.instanceIdx !== -1) {
+          const mesh = this.instancedMeshes[v.type.id];
+          mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
+          mesh.instanceMatrix.needsUpdate = true;
+        }
+        if (this.dynamicDebris.length < this.maxDynamicDebris) {
+          this.spawnLooseVoxel(v.x, v.y, v.z, v.type, hitPoint, Math.sqrt(candidates[i].distSq), hitRadius, 35);
+        }
+      }
+      if (hitMaterial.isWood) sound.playWoodHit();
+      else sound.playHammerHit();
+
+      if (hitMaterial.isTNT) {
+        setTimeout(() => {
+          sound.playTNTExplosion();
+          this.particleSystem.createExplosion(hitPoint, 8, 0xef4444);
+          this.explode(hitPoint, 5.0, 320);
+        }, 80);
+      }
+    }
+
+    this.destroyedVoxels += removedCount;
+    if (removedCount > 0 && this.onScoreGain) {
+      const score = removedCount * 15;
+      this.onScoreGain(score, `+${score} KURŞUN (${hitMaterial.name})`);
+    }
+    return { success: true, removedCount, material: hitMaterial };
+  }
+
+  // CYBORG LAZER KESİM (R tuşu) — Ray-march ile hem demiri hem tahtayı rahatça keser
+  laserCut(startPos, direction, maxRange = 22) {
+    const dummy = new THREE.Object3D();
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+
+    let removedCount = 0;
+    const step = VOXEL_SIZE * 0.6;
+    const hitRadius = VOXEL_SIZE * 1.4;
+    const r2 = hitRadius * hitRadius;
+
+    for (let dist = 0.5; dist <= maxRange; dist += step) {
+      const pos = startPos.clone().addScaledVector(direction, dist);
+
+      const minIx = Math.floor((pos.x - hitRadius) / VOXEL_SIZE);
+      const maxIx = Math.ceil((pos.x + hitRadius) / VOXEL_SIZE);
+      const minIy = Math.floor((pos.y - hitRadius) / VOXEL_SIZE);
+      const maxIy = Math.ceil((pos.y + hitRadius) / VOXEL_SIZE);
+      const minIz = Math.floor((pos.z - hitRadius) / VOXEL_SIZE);
+      const maxIz = Math.ceil((pos.z + hitRadius) / VOXEL_SIZE);
+
+      for (let ix = minIx; ix <= maxIx; ix++) {
+        for (let iy = minIy; iy <= maxIy; iy++) {
+          for (let iz = minIz; iz <= maxIz; iz++) {
+            const key = `${ix},${iy},${iz}`;
+            const v = this.voxels.get(key);
+            if (!v || !v.active) continue;
+            const dx = v.x - pos.x;
+            const dy = v.y - pos.y;
+            const dz = v.z - pos.z;
+            if (dx * dx + dy * dy + dz * dz > r2) continue;
+
+            v.active = false;
+            removedCount++;
+            if (v.instanceIdx !== -1) {
+              const mesh = this.instancedMeshes[v.type.id];
+              mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
+              mesh.instanceMatrix.needsUpdate = true;
+            }
+            if (this.dynamicDebris.length < this.maxDynamicDebris) {
+              this.spawnLooseVoxel(v.x, v.y, v.z, v.type, pos, 0.1, hitRadius, 18);
+            }
+          }
+        }
+      }
+    }
+
+    this.destroyedVoxels += removedCount;
+    if (removedCount > 0 && this.onScoreGain) {
+      const score = removedCount * 20;
+      this.onScoreGain(score, `+${score} LAZER KESİM!`);
+    }
+    return removedCount;
+  }
+
+
   spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce) {
     // Görsel Küp
     const mat = new THREE.MeshLambertMaterial({ color: matType.color });
