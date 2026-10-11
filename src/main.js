@@ -6,8 +6,9 @@ import { WeaponSystem } from './weapons.js';
 import { LevelManager } from './levels.js';
 import { ParticleSystem } from './particles.js';
 import { sound } from './audio.js';
+import { getGrassTopTexture } from './textures.js';
 
-// Oyun Durumu
+// Oyun Değişkenleri
 let scene, camera, renderer;
 let physicsWorld;
 let character, weaponSystem, levelManager, particleSystem;
@@ -15,14 +16,15 @@ let character, weaponSystem, levelManager, particleSystem;
 let currentScore = 0;
 let isLevelCompleted = false;
 let screenShake = 0;
+let clouds = [];
 
-// Kamera Açıları (TPS Mouse Look)
-let cameraYaw = Math.PI; // Karşıya (kuzeye) baksın
-let cameraPitch = 0.25;  // Hafif yukarıdan aşağı baksın
-const cameraDistance = 9;
-const cameraHeight = 3.5;
+// Kamera Açıları
+let cameraYaw = Math.PI;
+let cameraPitch = 0.25;
+const cameraDistance = 8.5;
+const cameraHeight = 3.2;
 
-// Giriş Durumu (W, A, S, D, Space vb.)
+// Giriş Durumu
 const inputState = {
   forward: false,
   backward: false,
@@ -31,7 +33,7 @@ const inputState = {
   jump: false
 };
 
-// Ekran / DOM Elemanları
+// UI DOM Elemanları
 const canvasContainer = document.getElementById('canvas-container');
 const levelTitleEl = document.getElementById('level-title');
 const levelDescEl = document.getElementById('level-desc');
@@ -42,7 +44,6 @@ const targetMarkerEl = document.getElementById('target-marker');
 const scoreDisplayEl = document.getElementById('score-display');
 const scorePopupsEl = document.getElementById('score-popups');
 
-// Modallar
 const levelModal = document.getElementById('level-modal');
 const modalTitle = document.getElementById('modal-title');
 const modalSubtitle = document.getElementById('modal-subtitle');
@@ -55,12 +56,11 @@ const star3 = document.getElementById('star-3');
 const levelsModal = document.getElementById('levels-modal');
 const levelsGrid = document.getElementById('levels-grid');
 
-// Başlatma (Init)
 function init() {
-  // 1. Three.js Sahnesi
+  // 1. Minecraft Gökyüzü (Açık Mavi)
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0b0f19);
-  scene.fog = new THREE.FogExp2(0x0b0f19, 0.012);
+  scene.background = new THREE.Color(0x78a7ff);
+  scene.fog = new THREE.Fog(0x78a7ff, 45, 120);
 
   // 2. Kamera
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -73,28 +73,31 @@ function init() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   canvasContainer.appendChild(renderer.domElement);
 
-  // 4. Işıklandırma
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  // 4. Minecraft Güneşi ve Işıklandırma
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
   scene.add(ambientLight);
 
-  const dirLight = new THREE.DirectionalLight(0xffeedd, 1.4);
-  dirLight.position.set(30, 45, 30);
-  dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 2048;
-  dirLight.shadow.mapSize.height = 2048;
-  dirLight.shadow.camera.near = 10;
-  dirLight.shadow.camera.far = 120;
+  const sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
+  sunLight.position.set(35, 55, 30);
+  sunLight.castShadow = true;
+  sunLight.shadow.mapSize.width = 2048;
+  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.camera.near = 10;
+  sunLight.shadow.camera.far = 140;
   const d = 35;
-  dirLight.shadow.camera.left = -d;
-  dirLight.shadow.camera.right = d;
-  dirLight.shadow.camera.top = d;
-  dirLight.shadow.camera.bottom = -d;
-  scene.add(dirLight);
+  sunLight.shadow.camera.left = -d;
+  sunLight.shadow.camera.right = d;
+  sunLight.shadow.camera.top = d;
+  sunLight.shadow.camera.bottom = -d;
+  scene.add(sunLight);
 
-  // Vurgulu Neon Dolgu Işığı
-  const pointLight = new THREE.PointLight(0xff6600, 1.2, 50);
-  pointLight.position.set(0, 15, 10);
-  scene.add(pointLight);
+  // Gökyüzünde Kare Minecraft Güneşi
+  const sunGeo = new THREE.BoxGeometry(6, 6, 0.5);
+  const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+  sunMesh.position.set(40, 50, 35);
+  sunMesh.lookAt(0, 0, 0);
+  scene.add(sunMesh);
 
   // 5. Cannon.js Fizik Dünyası
   physicsWorld = new CANNON.World({
@@ -104,29 +107,25 @@ function init() {
   physicsWorld.defaultContactMaterial.friction = 0.5;
   physicsWorld.defaultContactMaterial.restitution = 0.15;
 
-  // 6. Zemin ve Arena Platformu
-  createArena();
+  // 6. Minecraft Çimen Zemin ve Voxel Bulutlar
+  createMinecraftWorld();
 
-  // 7. Parçacık, Karakter, Silah ve Seviye Sistemleri
+  // 7. Karakter, Seviyeler ve Silahlar
   particleSystem = new ParticleSystem(scene);
-
   character = new Character(scene, physicsWorld, particleSystem);
-
   weaponSystem = new WeaponSystem(scene, physicsWorld, particleSystem, (points, text) => {
     addScore(points, text);
     screenShake = 0.4;
   });
-
   levelManager = new LevelManager(scene, physicsWorld);
 
-  // İlk Bölümü Yükle
+  // İlk Bölümü Başlat
   loadLevel(0);
 
-  // 8. Olay Dinleyicileri (Event Listeners)
   setupEventListeners();
   buildLevelSelectButtons();
 
-  // 9. Ana Döngüyü Başlat
+  // Oyun Döngüsü
   let lastTime = performance.now();
   function animate(now) {
     requestAnimationFrame(animate);
@@ -139,8 +138,8 @@ function init() {
   requestAnimationFrame(animate);
 }
 
-// Zemin ve Arena Platformu Tasarımı
-function createArena() {
+// Minecraft Dünyası (Çimen Blok Zemin & Yüzen Voxel Bulutlar)
+function createMinecraftWorld() {
   // Fizik Zemin
   const groundBody = new CANNON.Body({
     mass: 0,
@@ -149,64 +148,74 @@ function createArena() {
   groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
   physicsWorld.addBody(groundBody);
 
-  // Görsel Zemin Tabakası
+  // Görsel Minecraft Çimen Zemin
+  const grassTex = getGrassTopTexture();
+  grassTex.wrapS = THREE.RepeatWrapping;
+  grassTex.wrapT = THREE.RepeatWrapping;
+  grassTex.repeat.set(80, 80);
+
   const groundGeo = new THREE.PlaneGeometry(160, 160);
-  const groundMat = new THREE.MeshStandardMaterial({
-    color: 0x111827,
-    roughness: 0.8,
-    metalness: 0.2
-  });
+  const groundMat = new THREE.MeshLambertMaterial({ map: grassTex });
   const groundMesh = new THREE.Mesh(groundGeo, groundMat);
   groundMesh.rotation.x = -Math.PI / 2;
   groundMesh.receiveShadow = true;
   scene.add(groundMesh);
 
-  // Izgara Deseni (Grid)
-  const gridHelper = new THREE.GridHelper(160, 80, 0xff6600, 0x1e293b);
-  gridHelper.position.y = 0.02;
-  scene.add(gridHelper);
+  // Minecraft Kare Bulutları
+  const cloudMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.8
+  });
 
-  // Hedef Yıkım Alanı Dairesi (Merkez Zemin İşareti)
-  const ringGeo = new THREE.RingGeometry(8, 8.5, 64);
-  const ringMat = new THREE.MeshBasicMaterial({ color: 0xff6600, side: THREE.DoubleSide });
-  const targetRing = new THREE.Mesh(ringGeo, ringMat);
-  targetRing.rotation.x = -Math.PI / 2;
-  targetRing.position.y = 0.05;
-  scene.add(targetRing);
+  for (let i = 0; i < 12; i++) {
+    const w = 12 + Math.random() * 16;
+    const d = 10 + Math.random() * 14;
+    const cloudGeo = new THREE.BoxGeometry(w, 1.2, d);
+    const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
+    cloudMesh.position.set(
+      (Math.random() - 0.5) * 140,
+      30 + Math.random() * 8,
+      (Math.random() - 0.5) * 140
+    );
+    scene.add(cloudMesh);
+    clouds.push({ mesh: cloudMesh, speed: 1.5 + Math.random() * 2 });
+  }
 }
 
-// Oyun Güncelleme Döngüsü
 function updateGame(dt) {
-  // 1. Fizik Simülasyonu
   physicsWorld.step(1 / 60, dt, 3);
 
-  // 2. Karakter Güncellemesi (W, A, S, D, Zıplama)
+  // Karakter Güncellemesi (W tuşu vb.)
   character.update(dt, inputState, cameraYaw);
 
-  // 3. Seviye Blokları ve Yıkım Kontrolü
+  // Seviye ve Yıkım Kontrolü
   levelManager.update();
   const currentPct = levelManager.getDestructionPercentage();
   updateDestructionUI(currentPct);
 
-  // Bölüm Hedefine Ulaşıldı mı?
   const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
   if (currentPct >= cfg.targetPercent && !isLevelCompleted) {
     triggerLevelWin(currentPct);
   }
 
-  // 4. Silahlar ve Parçacıklar
+  // Silahlar ve Parçacıklar
   weaponSystem.update(dt);
   particleSystem.update(dt);
 
-  // 5. 3. Şahıs (TPS) Kamera Takibi
+  // Bulutları hareket ettir
+  clouds.forEach(c => {
+    c.mesh.position.x += c.speed * dt;
+    if (c.mesh.position.x > 80) c.mesh.position.x = -80;
+  });
+
+  // Kamera Takibi
   updateCamera(dt);
 }
 
-// 3. Şahıs Kamera Takibi ve Ekran Titremesi
 function updateCamera(dt) {
   const charPos = character.mesh.position;
 
-  // Küresel koordinatlardan kamera ofseti
   const cosPitch = Math.cos(cameraPitch);
   const sinPitch = Math.sin(cameraPitch);
   const sinYaw = Math.sin(cameraYaw);
@@ -222,10 +231,9 @@ function updateCamera(dt) {
     charPos.z + offsetZ
   );
 
-  // Yumuşak kamera geçişi
   camera.position.lerp(targetCamPos, 14 * dt);
 
-  // Ekran Titremesi (Screen Shake)
+  // Ekran Sarsıntısı (Screen Shake)
   if (screenShake > 0) {
     camera.position.x += (Math.random() - 0.5) * screenShake;
     camera.position.y += (Math.random() - 0.5) * screenShake;
@@ -233,12 +241,10 @@ function updateCamera(dt) {
     screenShake = Math.max(0, screenShake - dt * 1.5);
   }
 
-  // Kameranın odaklanacağı hedef (Karakterin biraz üstü)
-  const lookTarget = new THREE.Vector3(charPos.x, charPos.y + 1.8, charPos.z);
+  const lookTarget = new THREE.Vector3(charPos.x, charPos.y + 1.6, charPos.z);
   camera.lookAt(lookTarget);
 }
 
-// Bölüm Yükleme
 function loadLevel(index) {
   isLevelCompleted = false;
   levelModal.classList.remove('active');
@@ -247,9 +253,8 @@ function loadLevel(index) {
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
   particleSystem.clear();
-  character.resetPosition(0, 3, 26);
+  character.resetPosition(0, 2.5, 25);
 
-  // UI Güncelle
   levelTitleEl.innerText = cfg.title;
   levelDescEl.innerText = cfg.desc;
   targetPercentEl.innerText = `${cfg.targetPercent}%`;
@@ -258,31 +263,26 @@ function loadLevel(index) {
   updateWeaponUI();
 }
 
-// Yıkım Oranı Arayüzü
 function updateDestructionUI(percent) {
   destructionPercentEl.innerText = `${percent}%`;
   destructionBarEl.style.width = `${percent}%`;
 
   if (percent >= 70) {
-    destructionBarEl.style.background = 'linear-gradient(90deg, #00ff88, #00ffff)';
-    destructionBarEl.style.boxShadow = '0 0 16px rgba(0, 255, 255, 0.9)';
+    destructionBarEl.style.background = 'linear-gradient(90deg, #5b8e32, #69a139)';
   } else {
-    destructionBarEl.style.background = 'linear-gradient(90deg, #ff4500, #ff8c00, #ffdd00)';
-    destructionBarEl.style.boxShadow = '0 0 14px rgba(255, 140, 0, 0.8)';
+    destructionBarEl.style.background = 'linear-gradient(90deg, #db3323, #fed83d)';
   }
 }
 
-// Skor Ekleme ve Havada Uçan Skor Yazısı
 function addScore(points, label) {
   currentScore += points;
   scoreDisplayEl.innerText = currentScore.toLocaleString();
 
-  // Popup Oluştur
   const popup = document.createElement('div');
   popup.className = 'score-popup';
   popup.innerText = label || `+${points}`;
-  popup.style.left = `${window.innerWidth / 2 + (Math.random() - 0.5) * 120}px`;
-  popup.style.top = `${window.innerHeight / 2 - 40 + (Math.random() - 0.5) * 60}px`;
+  popup.style.left = `${window.innerWidth / 2 + (Math.random() - 0.5) * 100}px`;
+  popup.style.top = `${window.innerHeight / 2 - 40 + (Math.random() - 0.5) * 50}px`;
   scorePopupsEl.appendChild(popup);
 
   setTimeout(() => {
@@ -290,19 +290,16 @@ function addScore(points, label) {
   }, 1200);
 }
 
-// Bölüm Başarısı ve Konfeti
 function triggerLevelWin(pct) {
   isLevelCompleted = true;
   sound.playLevelWin();
 
-  // Konfeti Patlat
   confetti({
-    particleCount: 120,
+    particleCount: 130,
     spread: 80,
     origin: { y: 0.6 }
   });
 
-  // Yıldız Sayısı Hesabı
   const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
   let stars = 1;
   if (pct >= cfg.targetPercent + 10) stars = 2;
@@ -322,7 +319,6 @@ function triggerLevelWin(pct) {
   }, 1000);
 }
 
-// Silah Seçimi Arayüzü
 function updateWeaponUI() {
   document.querySelectorAll('.weapon-btn').forEach((btn, idx) => {
     btn.classList.toggle('active', idx === weaponSystem.currentWeapon);
@@ -334,31 +330,24 @@ function updateWeaponUI() {
   });
 }
 
-// Ateş Etme Fonksiyonu
 function fireWeapon() {
-  sound.init(); // Kullanıcı ilk tıkladığında AudioContext'i başlat
+  sound.init();
 
-  // Ekranın tam ortasındaki nişangahın (Crosshair) 3D dünya yönünü hesapla
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
-  // Işının ulaştığı hedef nokta (Uzak bir nokta veya blok hedefi)
   const targetPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(60));
-
-  // Karakter namlu ucu
   const muzzlePos = character.getMuzzleWorldPosition();
   const dir = targetPoint.clone().sub(muzzlePos).normalize();
 
   const success = weaponSystem.shoot(muzzlePos, dir);
   if (success) {
     updateWeaponUI();
-    screenShake = 0.15;
+    screenShake = 0.2;
   }
 }
 
-// Olay Dinleyicileri (Klavye & Fare & Arayüz)
 function setupEventListeners() {
-  // Klavye Tuşları (W, A, S, D, Boşluk, 1, 2, 3)
   window.addEventListener('keydown', (e) => {
     sound.init();
     const key = e.key.toLowerCase();
@@ -373,7 +362,6 @@ function setupEventListeners() {
       e.preventDefault();
     }
 
-    // Silah Değiştirme
     if (key === '1') { weaponSystem.setWeapon(0); updateWeaponUI(); }
     if (key === '2') { weaponSystem.setWeapon(1); updateWeaponUI(); }
     if (key === '3') { weaponSystem.setWeapon(2); updateWeaponUI(); }
@@ -388,44 +376,25 @@ function setupEventListeners() {
     if (e.code === 'Space') inputState.jump = false;
   });
 
-  // Fare Nişan Alma ve Kamerayı Döndürme
-  let isMouseDown = false;
-  let mouseStartX = 0;
-  let mouseStartY = 0;
-
-  // Pointer Lock desteği (Tıklanınca tam ekran FPS/TPS kontrolü)
   canvasContainer.addEventListener('mousedown', (e) => {
     if (e.button === 0) {
-      // Sol Tık ile ateş et
       fireWeapon();
     }
-    isMouseDown = true;
-    mouseStartX = e.clientX;
-    mouseStartY = e.clientY;
-  });
-
-  window.addEventListener('mouseup', () => {
-    isMouseDown = false;
   });
 
   window.addEventListener('mousemove', (e) => {
-    // Fare hareket ettikçe kamerayı döndür
     const sensitivity = 0.0035;
     cameraYaw -= e.movementX * sensitivity;
     cameraPitch += e.movementY * sensitivity;
-
-    // Pitch açısını sınırla (Yere veya gökyüzüne aşırı bükülmesin)
     cameraPitch = Math.max(-0.2, Math.min(0.9, cameraPitch));
   });
 
-  // Canvas Tıklanınca Pointer Lock İsteği
   canvasContainer.addEventListener('click', () => {
     if (document.pointerLockElement !== canvasContainer) {
       canvasContainer.requestPointerLock();
     }
   });
 
-  // Silah Butonları
   document.querySelectorAll('.weapon-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -435,7 +404,6 @@ function setupEventListeners() {
     });
   });
 
-  // Hızlı Aksiyon Butonları
   document.getElementById('btn-sound').addEventListener('click', (e) => {
     e.stopPropagation();
     sound.init();
@@ -453,7 +421,6 @@ function setupEventListeners() {
     levelsModal.classList.add('active');
   });
 
-  // Modal Butonları
   document.getElementById('modal-btn-retry').addEventListener('click', () => {
     loadLevel(levelManager.currentLevelIndex);
   });
@@ -467,7 +434,6 @@ function setupEventListeners() {
     levelsModal.classList.remove('active');
   });
 
-  // Pencere Boyutlandırma (Resize)
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -475,7 +441,6 @@ function setupEventListeners() {
   });
 }
 
-// Bölüm Seçim Menüsü Butonlarını Dinamik Oluştur
 function buildLevelSelectButtons() {
   levelsGrid.innerHTML = '';
   levelManager.levelConfigs.forEach((cfg, idx) => {
@@ -491,5 +456,4 @@ function buildLevelSelectButtons() {
   });
 }
 
-// Başlat
 window.addEventListener('DOMContentLoaded', init);
