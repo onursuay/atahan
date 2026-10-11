@@ -10,6 +10,12 @@ import {
 } from './textures.js';
 
 // Tamamen Minecraft Tarzı Kübik Karakter (Steve / Voxel Demolitionist)
+// Fizik kutusunun yarı yüksekliği 1.0; bacak modelinin tabanı mesh orijininin 0.475 altında.
+// Mesh'i bu farkla yukarı kaydırınca ayak tabanı tam fizik kutusunun tabanına (zemine) oturur.
+const BODY_HALF_HEIGHT = 1.0;
+const LEG_BOTTOM_Y = -0.475;
+const FOOT_OFFSET_Y = BODY_HALF_HEIGHT + LEG_BOTTOM_Y;
+
 export class Character {
   constructor(scene, physicsWorld, particleSystem) {
     this.scene = scene;
@@ -401,7 +407,7 @@ export class Character {
     }
 
     this.mesh.position.copy(this.body.position);
-    this.mesh.position.y -= 1.0;
+    this.mesh.position.y -= FOOT_OFFSET_Y;
 
     // Cyborg göz parlaması animasyonu
     if (this.currentMode === 'cyborg') {
@@ -440,6 +446,7 @@ export class Character {
     this.body.velocity.set(0, 0, 0);
     this.body.angularVelocity.set(0, 0, 0);
     this.mesh.position.copy(this.body.position);
+    this.mesh.position.y -= FOOT_OFFSET_Y;
     this.mesh.rotation.y = Math.PI;
   }
 }
