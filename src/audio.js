@@ -94,6 +94,63 @@ class SoundEngine {
     this.playNoise(0.14, 0.4, 1200);
   }
 
+  // 2. Madde: Demir Çekiç Çarpma Sesi (Metalik Tınlama / Clang Sesi)
+  playIronHit() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    // Metalik çift osilatör (Demir rezonansı)
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(980, now);
+    osc1.frequency.exponentialRampToValueAtTime(650, now + 0.35);
+
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(1850, now);
+    osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
+
+    gain.gain.setValueAtTime(0.45, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + 0.35);
+    osc2.stop(now + 0.35);
+
+    // Kısa metalik kıvılcım gürültüsü
+    this.playNoise(0.06, 0.2, 2800);
+  }
+
+  // 1. Madde: Tahta Kırılma Sesi (Çıtırtılı ahşap darbesi)
+  playWoodHit() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(260, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
+
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.12);
+    this.playNoise(0.12, 0.35, 750);
+  }
+
   // Devasa Patlama Sesi (Sub-bass + Gürültü Filtresi)
   playExplosion(intensity = 1.0) {
     if (this.muted || !this.ctx) return;

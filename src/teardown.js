@@ -6,23 +6,24 @@ export const VOXEL_SIZE = 0.35; // Teardown tarzı minik küp boyutu
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
-  CONCRETE: { id: 0, color: 0x94a3b8, name: 'Beton' },
-  BRICK:    { id: 1, color: 0xb91c1c, name: 'Tuğla' },
-  WOOD:     { id: 2, color: 0x854d0e, name: 'Ahşap' },
-  STEEL:    { id: 3, color: 0x475569, name: 'Çelik' },
-  GLASS:    { id: 4, color: 0x38bdf8, name: 'Cam' },
-  ROOF:     { id: 5, color: 0x7c2d12, name: 'Çatı' },
-  TNT:      { id: 6, color: 0xef4444, name: 'TNT', isTNT: true },
-  GOLD:     { id: 7, color: 0xfacc15, name: 'Altın' }
+  CONCRETE: { id: 0, color: 0x94a3b8, name: 'Beton', canBreakWithHammer: true },
+  BRICK:    { id: 1, color: 0xb91c1c, name: 'Tuğla', canBreakWithHammer: true },
+  WOOD:     { id: 2, color: 0x854d0e, name: 'Tahta', canBreakWithHammer: true, isWood: true },
+  IRON:     { id: 3, color: 0x64748b, name: 'Demir', canBreakWithHammer: false, isIron: true },
+  GLASS:    { id: 4, color: 0x38bdf8, name: 'Cam', canBreakWithHammer: true },
+  ROOF:     { id: 5, color: 0x7c2d12, name: 'Çatı', canBreakWithHammer: true },
+  TNT:      { id: 6, color: 0xef4444, name: 'TNT', isTNT: true, canBreakWithHammer: true },
+  GOLD:     { id: 7, color: 0xfacc15, name: 'Altın', canBreakWithHammer: true }
 };
+PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
-// Maddelere Göre Çekiç Dayanıklılığı (Kullanıcı istediği gibi sonradan değiştirebilir)
+// Maddelere Göre Çekiç Dayanıklılığı
 export const MATERIAL_HARDNESS = {
-  [PALETTE.GLASS.id]: 0.3,    // Cam: çok kolay kırılır
-  [PALETTE.WOOD.id]: 0.7,     // Ahşap: orta direnç
-  [PALETTE.BRICK.id]: 1.2,    // Tuğla: sert
-  [PALETTE.CONCRETE.id]: 1.6, // Beton: çok sert
-  [PALETTE.STEEL.id]: 3.0,    // Çelik: son derece dayanıklı
+  [PALETTE.WOOD.id]: 0.5,     // 1. Madde: Tahta - çekiçle kolayca kırılır
+  [PALETTE.GLASS.id]: 0.3,    // Cam
+  [PALETTE.BRICK.id]: 1.2,    // Tuğla
+  [PALETTE.CONCRETE.id]: 1.6, // Beton
+  [PALETTE.IRON.id]: Infinity,// 2. Madde: Demir - çekiçle kesinlikle kırılamaz
   [PALETTE.ROOF.id]: 0.9,     // Çatı
   [PALETTE.TNT.id]: 0.5,      // TNT
   [PALETTE.GOLD.id]: 1.0      // Altın
@@ -282,11 +283,17 @@ export class VoxelWorld {
     candidates.sort((a, b) => a.distSq - b.distSq);
 
     const hitMaterial = candidates[0].v.type;
+
+    // 2. MADDE: DEMİR - Çekiçle kırılamaz, biri kırmaya çalışırsa sadece demir sesi çıksın!
+    if (hitMaterial.isIron || hitMaterial.canBreakWithHammer === false) {
+      sound.playIronHit();
+      return { success: false, broken: false, material: hitMaterial, reason: 'iron' };
+    }
+
     const hardness = MATERIAL_HARDNESS[hitMaterial.id] || 1.0;
 
-    // Maddeye göre kırılacak voxel sayısı:
-    // Sert maddelerde 1-2 voxel, yumuşak maddelerde 4-6 voxel kırılır (Teardown çekiç hissi)
-    const maxBreak = Math.max(1, Math.round((4 * hammerPower) / hardness));
+    // 1. MADDE: TAHTA (ve diğer kırılabilirler) - Çekiçle kırılabilir
+    const maxBreak = Math.max(1, Math.round((5 * hammerPower) / hardness));
 
     for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
       const v = candidates[i].v;
@@ -306,7 +313,13 @@ export class VoxelWorld {
     }
 
     this.destroyedVoxels += removedCount;
-    sound.playHammerHit();
+
+    // Tahta kırılınca ahşap kırılma sesi, diğerlerinde standart darbe sesi
+    if (hitMaterial.isWood) {
+      sound.playWoodHit();
+    } else {
+      sound.playHammerHit();
+    }
 
     // TNT var ise patlat
     if (hitMaterial.isTNT) {

@@ -63,12 +63,18 @@ export class LevelManager {
     w.fillBox(-12, 3, -4, -12, 7, 0, PALETTE.GLASS);
     w.fillBox(12, 3, -4, 12, 7, 0, PALETTE.GLASS);
 
-    // Ön Kapı Açıklığı
+    // Ön Kapı (Tahta) ve Giriş Demir Kolonları
     for (let x = -2; x <= 2; x++) {
       for (let y = 1; y <= 6; y++) {
         w.setVoxel(x, y, 10, PALETTE.WOOD);
       }
     }
+    // Kapı Yanı Demir Taşıyıcı Kolonlar (Çekiçle kırılamaz, demir sesi çıkarır)
+    w.fillBox(-3, 1, 10, -3, 8, 10, PALETTE.IRON);
+    w.fillBox(3, 1, 10, 3, 8, 10, PALETTE.IRON);
+
+    // Evin İçinde Ağır Demir Kasa
+    w.fillBox(-10, 1, -8, -7, 4, -5, PALETTE.IRON);
 
     // 1. Kat İçinde TNT Deposu (Merkezde)
     w.fillBox(-2, 1, -3, 2, 4, 1, PALETTE.TNT);
