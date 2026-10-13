@@ -17,6 +17,7 @@ import { getGrassTopTexture } from './textures.js';
 
 let scene, camera, renderer;
 let physicsWorld;
+let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
@@ -149,6 +150,7 @@ function init() {
     damagePlayer(8 + speed * 1.2);
   });
   voxelWorld.cars = cars;
+  cars.onCrash = (impact) => { damagePlayer(Math.min(35, impact * 1.1)); screenShake = Math.max(screenShake, 0.5); };
   handWeapons.cars = cars;
   planes = new PlaneManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (s) => { screenShake = Math.max(screenShake, s); });
   voxelWorld.planes = planes;
@@ -242,6 +244,7 @@ function damagePlayer(amount) {
 
 // Ölünce spawn noktasında yeniden doğar; dünya, yıkım ve puan olduğu gibi kalır
 function respawnPlayer() {
+  if (inCar) exitCar();
   hp = 100;
   invulnUntil = performance.now() + 1500;
   const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
@@ -267,6 +270,9 @@ function updateFountains(dt) {
   fountainTimer = 0;
   const cp = character.mesh.position;
   (voxelWorld.fountains || []).forEach(f => {
+    if (f.dead) return;
+    // Orta sütun ya da üst kase kırılırsa çeşme akmayı bırakır
+    if (f.keys && f.keys.some(k => { const v = voxelWorld.voxels.get(k); return !v || !v.active; })) { f.dead = true; return; }
     if (Math.abs(f.x - cp.x) > 90 || Math.abs(f.z - cp.z) > 90) return; // uzaktakini çizme
     particleSystem.createFountainJet(new THREE.Vector3(f.x, f.y, f.z));
   });
@@ -290,9 +296,19 @@ function updateGame(dt) {
   physicsWorld.step(1 / 60, dt, 3);
 
   // Karakter Kontrolü (W tuşu ileri vb.)
-  character.update(dt, inputState, cameraYaw);
+  if (inCar) {
+    cars.updateDriven(dt, inputState);
+    const cp = cars.driven.pos;
+    character.mesh.position.set(cp.x, cp.y, cp.z);       // kamera ve diğer sistemler oyuncuyu arabayla birlikte görür
+    character.body.position.set(cp.x, cp.y + 1, cp.z);
+  } else {
+    character.update(dt, inputState, cameraYaw);
+  }
   // Birinci kişi: karakter her zaman baktığımız yöne dönük olsun (silah öne baksın)
-  if (firstPerson) character.mesh.rotation.y = cameraYaw + Math.PI;
+  if (firstPerson && !inCar) character.mesh.rotation.y = cameraYaw + Math.PI;
+  // Nişangâh yakınlaştırması (yumuşak)
+  camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
+  camera.updateProjectionMatrix();
 
   // Teardown Voxel Dünyası ve Döküntü Fiziği
   voxelWorld.update(dt);
@@ -343,6 +359,15 @@ function setFirstPerson(on) {
 
 function updateCamera(dt) {
   const charPos = character.mesh.position;
+
+  if (inCar && cars.driven) {
+    // Araç takip kamerası: arkadan, hafif yüksekten
+    const c = cars.driven;
+    const target = new THREE.Vector3(c.pos.x - c.fwd.x * 8.5, c.pos.y + 3.6, c.pos.z - c.fwd.z * 8.5);
+    camera.position.lerp(target, Math.min(1, dt * 6));
+    camera.lookAt(c.pos.x + c.fwd.x * 3, c.pos.y + 1.0, c.pos.z + c.fwd.z * 3);
+    return;
+  }
 
   if (firstPerson) {
     // Göz: kafanın olduğu nokta, biraz önde (gövde çarpışma kutusunun içinde kalır, duvara girmez)
@@ -512,12 +537,49 @@ function updateWeaponUI() {
   });
 }
 
+function enterCar(car) {
+  if (scopeOn) toggleScope();
+  cars.enter(car);
+  inCar = true;
+  character.mesh.visible = false;
+  handWeapons.setFirstPerson(false);   // elde silah görünmez
+  handWeapons.fireHeld = false;
+  document.getElementById('vitals').dataset.car = '1';
+}
+
+function exitCar() {
+  const at = cars.exit();
+  inCar = false;
+  character.mesh.visible = true;
+  handWeapons.setFirstPerson(firstPerson);
+  if (at) {
+    character.resetPosition(at.x, at.y + 1.2, at.z);
+    cameraYaw = Math.atan2(at.x - cars.player.x, at.z - cars.player.z) + Math.PI;
+  }
+  eyeY = null;
+}
+
+function toggleScope() {
+  if (inCar) return;
+  const want = !scopeOn;
+  if (want && weaponSystem.currentWeapon !== 8) return;     // yalnız sniper elde iken
+  scopeOn = want;
+  handWeapons.setScoped(scopeOn);
+  targetFov = scopeOn ? 16 : 70;
+  document.getElementById('scope').classList.toggle('on', scopeOn);
+}
+
 function fireWeapon() {
+  if (inCar) return;
   sound.init();
   const cur = weaponSystem.currentWeapon;
 
   if (cur === 2) { handWeapons.startSwing(); return; }   // Işın kılıcı: savur
   if (cur === 1) { handWeapons.fireHeld = true; return; } // Minigun: basılı tutunca ateş
+  if (cur === 7) { handWeapons.fireHeld = true; return; } // AK-47: otomatik
+  if (cur === 5) { handWeapons.fireGun('pistol'); return; }
+  if (cur === 6) { handWeapons.fireGun('shotgun'); return; }
+  if (cur === 8) { handWeapons.fireGun('sniper'); screenShake = 0.12; return; }
   if (cur === 3 || cur === 4) {                           // Bombalar: yerleştir
     if (bombs.place(cur === 3 ? 'timed' : 'remote')) handWeapons.onRocketFired();
     return;
@@ -543,6 +605,7 @@ function fireWeapon() {
 }
 
 function selectWeapon(idx) {
+  if (scopeOn && idx !== 8) toggleScope();
   weaponSystem.setWeapon(idx);
   handWeapons.setWeapon(idx);
   character.pistolGroup.visible = idx === 0 && character.currentMode !== 'cyborg';
@@ -620,8 +683,15 @@ function setupEventListeners() {
 
     // E tuşu: Çekiç vuruşu
     if (key === 'e' || e.code === 'KeyE') {
-      useHammer();
+      if (inCar) exitCar();
+      else {
+        const car = cars.nearestEnterable(character.mesh.position);
+        if (car) enterCar(car); else useHammer();
+      }
     }
+
+    // X: sniper nişangâhı
+    if (key === 'x' || e.code === 'KeyX') toggleScope();
 
     if (key === 'v' || e.code === 'KeyV') setFirstPerson(!firstPerson);
 
@@ -656,7 +726,7 @@ function setupEventListeners() {
   });
 
   window.addEventListener('mousemove', (e) => {
-    const sensitivity = 0.0035;
+    const sensitivity = scopeOn ? 0.0011 : 0.0035;
     if (handWeapons) { handWeapons.mx += e.movementX; handWeapons.my += e.movementY; }
     cameraYaw -= e.movementX * sensitivity;
     cameraPitch += e.movementY * sensitivity;

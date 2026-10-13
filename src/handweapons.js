@@ -10,6 +10,16 @@ import { GROUND_Y } from './terrain.js';
 const MINIGUN_RATE = 18;       // saniyedeki mermi
 const MINIGUN_SPINUP = 0.35;   // namlular bu sürede tam hıza çıkar
 const MINIGUN_RANGE = 90;
+
+// Hitscan silah özellikleri: saçılma, voxel gücü/yarıçapı, araç/uçak hasarı, menzil
+const GUNS = {
+  minigun: { spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'skip' },
+  pistol:  { spread: 0.004, power: 0.9,  radius: 0.4,  carDmg: 3, planeDmg: 3, range: 120, sound: 'every', kick: 0.6 },
+  shotgun: { spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
+  ak47:    { spread: 0.016, power: 0.6,  radius: 0.45, carDmg: 2, planeDmg: 2, range: 140, sound: 'every', kick: 0.45 },
+  sniper:  { spread: 0.0,   power: 3.0,  radius: 0.7,  carDmg: 14, planeDmg: 25, range: 260, sound: 'every', kick: 1.0 }
+};
+const WEAPON_KIND = { 1: 'minigun', 5: 'pistol', 6: 'shotgun', 7: 'ak47', 8: 'sniper' };
 const SABER_SWING_TIME = 0.42;
 const SABER_REACH = 3.2;       // metre: kılıç etkisi
 const SABER_RADIUS = 0.42;
@@ -58,6 +68,9 @@ export class HandWeapons {
     this._buildMinigun();
     this._buildSaber();
     this._buildBomb();
+    this._buildGuns();
+    this.gunCooldown = 0;
+    this.scoped = false;
 
     // Kılıcın çevreyi aydınlatması (mavi ışık)
     this.saberLight = new THREE.PointLight(0x5ac8ff, 0, 9);
@@ -198,6 +211,19 @@ export class HandWeapons {
     this.root.add(g);
   }
 
+  _buildGuns() {
+    const dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 }), steel = new THREE.MeshLambertMaterial({ color: 0x4b5563 });
+    const wood = new THREE.MeshLambertMaterial({ color: 0x7c4a1e }), black = new THREE.MeshLambertMaterial({ color: 0x0b0f14 });
+    const B = (w, h, d, m, x, y, z) => { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mesh.position.set(x, y, z); return mesh; };
+    const mk = (parts, pos) => { const g = new THREE.Group(); parts.forEach(p => g.add(p)); g.position.set(...pos); g.visible = false; this.root.add(g); return g; };
+    this.gunModels = {
+      5: mk([B(0.07, 0.1, 0.34, steel, 0, 0.05, -0.1), B(0.065, 0.2, 0.09, dark, 0, -0.1, 0.05), B(0.05, 0.05, 0.05, black, 0, 0.1, -0.25)], [0.26, -0.22, -0.5]),
+      6: mk([B(0.07, 0.07, 1.05, steel, 0, 0.05, -0.35), B(0.09, 0.1, 0.18, wood, 0, 0.0, -0.1), B(0.08, 0.14, 0.45, wood, 0, -0.04, 0.3), B(0.06, 0.06, 0.45, dark, 0, -0.04, -0.35)], [0.26, -0.24, -0.55]),
+      7: mk([B(0.08, 0.12, 0.55, dark, 0, 0.0, -0.1), B(0.045, 0.045, 0.5, steel, 0, 0.02, -0.55), B(0.07, 0.2, 0.1, black, 0, -0.14, -0.05), B(0.08, 0.13, 0.4, wood, 0, -0.02, 0.35), B(0.06, 0.1, 0.25, wood, 0, 0.0, -0.4)], [0.25, -0.24, -0.5]),
+      8: mk([B(0.07, 0.1, 0.7, dark, 0, 0.0, -0.05), B(0.045, 0.045, 0.85, steel, 0, 0.02, -0.75), B(0.06, 0.11, 0.3, wood, 0, -0.04, 0.4), B(0.07, 0.07, 0.34, black, 0, 0.12, -0.1), B(0.09, 0.09, 0.06, steel, 0, 0.12, -0.3), B(0.09, 0.09, 0.06, steel, 0, 0.12, 0.1)], [0.25, -0.24, -0.5])
+    };
+  }
+
   setBombModel(i) {
     this.bombModel.visible = i === 3 || i === 4;
     if (i === 3) this.bombLamp.material.color.setHex(0xff2222);
@@ -214,6 +240,8 @@ export class HandWeapons {
     this.minigunModel.visible = i === 1;
     this.saberModel.visible = i === 2;
     this.bombModel.visible = i === 3 || i === 4;
+    Object.entries(this.gunModels).forEach(([k, g]) => g.visible = Number(k) === i);
+    if (i !== 8) this.scoped = false;
     if (i === 2) sound.playSaberOn();
     if (i !== 2) this.saberLight.intensity = 0;
   }
@@ -265,6 +293,13 @@ export class HandWeapons {
     this.rocketModel.rotation.x = this.kick * 0.1;
 
     this.bombModel.position.set(0.3 + swayX, -0.28 - swayY - drop, -0.55 + this.kick * 0.12);
+    this.gunCooldown = Math.max(0, this.gunCooldown - dt);
+    if (this.gunModels[this.current]) {
+      const g = this.gunModels[this.current];
+      g.position.set(0.26 + swayX, -0.23 - swayY - drop, -0.52 + this.kick * 0.1);
+      g.rotation.x = this.kick * 0.08;
+    }
+    if (this.current === 7 && this.fireHeld) this.fireGun('ak47');
 
     // Minigun: basılı tutunca namlular dönmeye başlar, hızlanınca ateş eder
     const targetSpin = this.current === 1 && this.fireHeld ? 1 : 0;
@@ -348,11 +383,11 @@ export class HandWeapons {
   }
 
   // ───────────────────────── Minigun ─────────────────────────
-  _fireMinigunBullet(ctx) {
+  _fireMinigunBullet(ctx, o = GUNS.minigun) {
     const cam = this.camera;
     const fwd = new THREE.Vector3(); cam.getWorldDirection(fwd);
     // Hafif saçılma
-    const spread = 0.012;
+    const spread = this.scoped && o.spread > 0 ? o.spread * 0.3 : o.spread;
     const dir = fwd.clone();
     const right = new THREE.Vector3().crossVectors(fwd, cam.up).normalize();
     const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
@@ -366,7 +401,7 @@ export class HandWeapons {
     const step = VOXEL_SIZE * 0.5;
     const p = origin.clone();
     let hit = null, hitType = null;
-    for (let d = 0.3; d < MINIGUN_RANGE; d += step) {
+    for (let d = 0.3; d < o.range; d += step) {
       p.copy(origin).addScaledVector(dir, d);
       const key = `${Math.round(p.x / VOXEL_SIZE)},${Math.round((p.y - VOXEL_SIZE / 2) / VOXEL_SIZE)},${Math.round(p.z / VOXEL_SIZE)}`;
       const v = this.voxelWorld.voxels.get(key);
@@ -380,35 +415,35 @@ export class HandWeapons {
 
     // Önce bir araca mı çarptı? (yol üstündeki arabayı durdurur)
     if (this.cars) {
-      const ch = this.cars.rayHit(origin, dir, hit ? origin.distanceTo(hit) : MINIGUN_RANGE);
+      const ch = this.cars.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);
       if (ch) {
         this._spawnTracer(muzzle, ch.point);
-        this.cars.bulletHit(ch.car);
+        for (let i = 0; i < o.carDmg; i++) this.cars.bulletHit(ch.car);
         if (this.particleSystem.createSpark) this.particleSystem.createSpark(ch.point);
         this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
         this.flashLight.position.copy(muzzle);
-        if (this._soundSkip = !this._soundSkip) sound.playGunShot();
+        this._shotSound(o);
         return;
       }
     }
 
     // Havada uçak mı var?
     if (this.planes) {
-      const ph = this.planes.rayHit(origin, dir, MINIGUN_RANGE);
+      const ph = this.planes.rayHit(origin, dir, o.range);
       if (ph) {
         this._spawnTracer(muzzle, ph.point);
-        this.planes.bulletHit(ph.plane);
+        for (let i = 0; i < o.planeDmg; i++) this.planes.bulletHit(ph.plane);
         if (this.particleSystem.createSpark) this.particleSystem.createSpark(ph.point);
         this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
         this.flashLight.position.copy(muzzle);
-        if (this._soundSkip = !this._soundSkip) sound.playGunShot();
+        this._shotSound(o);
         return;
       }
     }
 
     // Mermi önce bir NPC'ye mi çarptı?
     if (this.npcs) {
-      const hitDist = hit ? origin.distanceTo(hit) : MINIGUN_RANGE;
+      const hitDist = hit ? origin.distanceTo(hit) : o.range;
       const nh = this.npcs.rayHit(origin, dir, hitDist);
       if (nh) {
         this._spawnTracer(muzzle, nh.point);
@@ -416,17 +451,17 @@ export class HandWeapons {
         this.flashTimer = 0.04;
         this.kick = Math.min(1, this.kick + 0.35);
         this.flashLight.position.copy(muzzle);
-        if (this._soundSkip = !this._soundSkip) sound.playGunShot();
+        this._shotSound(o);
         return;
       }
     }
 
-    const end = hit || origin.clone().addScaledVector(dir, MINIGUN_RANGE);
+    const end = hit || origin.clone().addScaledVector(dir, o.range);
     this._spawnTracer(muzzle, end);
 
     if (hit) {
       if (hitType === 'voxel') {
-        this.voxelWorld.gunHit(hit, 0.45, 0.45);
+        this.voxelWorld.gunHit(hit, o.power, o.radius);
       } else if (Math.random() < 0.5) {
         this.voxelWorld.breakGround(hit, 0.45, 40);
       }
@@ -436,7 +471,32 @@ export class HandWeapons {
     this.flashTimer = 0.04;
     this.kick = Math.min(1, this.kick + 0.35);
     this.flashLight.position.copy(muzzle);
-    if (this._soundSkip = !this._soundSkip) sound.playGunShot();
+    this._shotSound(o);
+  }
+
+  _shotSound(o) {
+    if (o.sound === 'none') return;
+    if (o.sound === 'every' || (this._soundSkip = !this._soundSkip)) sound.playGunShot();
+  }
+
+  // Tek atış silahlar (tabanca, pompalı, sniper) ve otomatik AK-47 buradan ateşler
+  fireGun(kind) {
+    const o = GUNS[kind];
+    const cd = { pistol: 0.22, shotgun: 0.85, sniper: 1.4, ak47: 0.1 }[kind];
+    if (this.gunCooldown > 0) return false;
+    this.gunCooldown = cd;
+    const pellets = o.pellets || 1;
+    for (let i = 0; i < pellets; i++) this._fireMinigunBullet(null, i === 0 ? o : { ...o, sound: 'none' });
+    this.kick = Math.min(1, (o.kick || 0.5));
+    this.flashTimer = 0.05;
+    if (kind === 'sniper' && this.scoped === false) { /* kalkandan atış: geniş saçılma */ }
+    return true;
+  }
+
+  setScoped(on) {
+    if (on && this.current !== 8) return false;
+    this.scoped = on;
+    return true;
   }
 
   _spawnTracer(from, to) {
@@ -492,7 +552,7 @@ export class HandWeapons {
 
   // ───────────────────────── Çizim ─────────────────────────
   render(renderer) {
-    if (!this.visible) return;
+    if (!this.visible || this.scoped) return;
     renderer.clearDepth();
     renderer.render(this.viewScene, this.viewCam);
   }
