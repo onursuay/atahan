@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { sound } from './audio.js';
+import { VOXEL_SIZE } from './config.js';
+const BRIDGE_Y = VOXEL_SIZE >= 0.5 ? 1.0 : 0.75; // köprü tabliyesinin üst yüzü
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NPC ARABALAR: yol ağında (caddeler, sokaklar, otoyol, köprü) sağ şeritte giderler. Kavşaklarda düz devam eder
@@ -59,6 +61,12 @@ function buildCar(kind, color) {
   };
   person(0.35);
   if (Math.random() < 0.4) person(-0.35);
+  // Demir iskelet (şasi + güvenlik kafesi): paneller uçsa da kalır, çok daha zor kırılır
+  const steel = lam(0x3b4350);
+  const frame = add(box(T.len * 0.92, 0.16, T.wid * 0.74), steel, 0, 0.4, 0); frame.userData.iron = true;
+  const cy = kind === 'sport' ? 0.95 : 1.2;
+  for (const px of [-0.9, 0.55]) for (const pz of [-1, 1]) add(box(0.07, 0.62, 0.07), steel, px, cy, pz * (T.wid / 2 - 0.2)).userData.iron = true;
+  g.userData.panels = g.children.filter(m => m.material === body || m.material === glassMat);
   return g;
 }
 
@@ -77,9 +85,12 @@ export class CarManager {
     // [x0,z0,x1,z1, şerit sayısı, şerit ofseti (m)] metre
     // Yollar kıyıdan 9 m önce biter: çıkmaz uçta U dönüşü denize taşmasın
     const R = [
-      [-50, 0, 160, 0, 1, 2.0],                                            // ana cadde: batı ada + köprü + doğu ada
-      [-50, 66*U, -13, 66*U, 1, 2.06], [-50, -66*U, -13, -66*U, 1, 2.06],  // kuzey / güney caddeleri
+      [-140*U, 0, 160, 0, 1, 2.0],                                         // ana cadde: batı ada + köprü + doğu ada
+      [-140*U, 66*U, -13, 66*U, 1, 2.06], [-140*U, -66*U, -13, -66*U, 1, 2.06], // kuzey / güney caddeleri
+      [-127*U, -87, -127*U, 87, 1, 1.7], [-87*U, -87, -87*U, 87, 1, 1.7],  // batı sokakları
       [-47*U, -87, -47*U, 87, 1, 1.7], [-27*U, -87, -27*U, 87, 1, 1.7],    // sokaklar
+      [82*U, 44*U, 176*U, 44*U, 1, 2.06], [82*U, -44*U, 176*U, -44*U, 1, 2.06], // doğu ada caddeleri
+      [82*U, 88*U, 176*U, 88*U, 1, 2.06], [82*U, -88*U, 176*U, -88*U, 1, 2.06],
       [125*U, -88, 125*U, 88, 3, 1.75],                                    // otoyol: her yönde 3 şerit
       [199*U, -45, 199*U, 45, 1, 1.0]                                      // zengin bölge sokağı
     ];
@@ -202,11 +213,33 @@ export class CarManager {
 
   rayHit(origin, dir, maxDist) { return this.segmentHit(origin, origin.clone().addScaledVector(dir, maxDist)); }
 
-  bulletHit(car) {
+  bulletHit(car) { this._damage(car, 1); }
+
+  // Hasar: her 2 puanda bir gövde paneli kopar; demir iskelet ancak çok ağır hasarda (hp'nin 3 katı) gider
+  _damage(car, amt) {
     if (car.state === 'wreck') return;
-    car.hp -= 1;
+    car.dmg = (car.dmg || 0) + amt;
+    car.hp -= amt;
     car.smoke = 0;
-    if (car.hp <= 0 && car.state === 'drive') this._disable(car);
+    car.detached = car.detached || 0;
+    while (car.detached < Math.floor(car.dmg / 2)) { car.detached++; this._detach(car); }
+    if (car.dmg >= car.T.hp * 3) { this._wreck(car); return; }
+    if (car.hp <= 0 && (car.state === 'drive')) this._disable(car);
+  }
+
+  _detach(car) {
+    const panels = car.g.userData.panels.filter(m => m.visible);
+    if (!panels.length) return;
+    const m = panels[Math.floor(Math.random() * panels.length)];
+    m.visible = false;
+    const wp = car.g.localToWorld(m.position.clone());
+    const col = m.material.color ? m.material.color.getHex() : 0x888888;
+    const vw = this.vw;
+    for (let i = 0; i < 3 && vw.dynamicDebris.length < vw.maxDynamicDebris; i++) {
+      vw.spawnLooseVoxel(wp.x + (Math.random() - 0.5) * 0.5, wp.y + Math.random() * 0.4, wp.z + (Math.random() - 0.5) * 0.5,
+        { color: col }, car.pos, 0.6, 3, 70);
+    }
+    if (this.ps.createSpark) this.ps.createSpark(wp);
   }
 
   _disable(car) {
@@ -229,13 +262,16 @@ export class CarManager {
   hitSphere(center, radius) {
     this.cars.forEach(c => {
       if (c.state === 'wreck') return;
-      if (c.pos.distanceTo(center) <= radius + 1.8) this._wreck(c);
+      const d = c.pos.distanceTo(center);
+      if (d <= radius * 0.6 + 1.8) this._wreck(c);            // yakın patlama: iskelet bile dayanamaz
+      else if (d <= radius + 2.5) this._damage(c, 8);          // uzak patlama: paneller kopar, araç durur
     });
   }
 
   // ── Güncelleme ──
   update(dt, playerPos) {
-    this.player.copy(playerPos);
+    if (!this.driven) this.player.copy(playerPos);
+    this._collide(dt);
     this.hitCooldown -= dt;
     for (let i = this.respawn.length - 1; i >= 0; i--) { this.respawn[i] -= dt; if (this.respawn[i] <= 0) { this.respawn.splice(i, 1); this._spawn(); } }
 
@@ -281,6 +317,7 @@ export class CarManager {
   }
 
   _drive(car, dt) {
+    if (car.crash > 0) { car.crash -= dt; car.speed *= Math.exp(-6 * dt); return; }   // kazadan sonra bir süre bekler
     // Önünde aynı şeritte araç varsa yavaşla ya da dur
     let limit = car.target;
     for (const o of this.cars) {
@@ -315,10 +352,43 @@ export class CarManager {
 
     // Yükseklik: yol yüzeyi (köprüde tabliye)
     const onBridge = car.pos.x > -9.2 && car.pos.x < 58.7 && Math.abs(car.pos.z) < 4.5;
-    const h = onBridge ? 0.75 : this.vw.terrain.heightAt(car.pos.x, car.pos.z);
+    const h = onBridge ? BRIDGE_Y : this.vw.terrain.heightAt(car.pos.x, car.pos.z);
     car.pos.y = h > -Infinity ? h : car.pos.y;
     car.g.position.copy(car.pos);
     car.g.rotation.y = -Math.atan2(car.fwd.z, car.fwd.x);
+  }
+
+  // ── ARAÇ-ARAÇ ÇARPIŞMASI ──
+  _collide(dt) {
+    const L = this.cars;
+    for (let i = 0; i < L.length; i++) {
+      const a = L[i];
+      a.collT = Math.max(0, (a.collT || 0) - dt);
+      for (let j = i + 1; j < L.length; j++) {
+        const b = L[j];
+        if ((a.collT > 0 && b.collT > 0) || (a.state === 'wreck' && b.state === 'wreck')) continue;
+        const dx = b.pos.x - a.pos.x, dz = b.pos.z - a.pos.z;
+        if (dx * dx + dz * dz > 30) continue;
+        const lx = dx * a.fwd.x + dz * a.fwd.z, lz = -dx * a.fwd.z + dz * a.fwd.x;
+        if (Math.abs(lx) > (a.T.len + b.T.len) * 0.43 || Math.abs(lz) > (a.T.wid + b.T.wid) * 0.46) continue;
+        if (Math.abs(a.pos.y - b.pos.y) > 1.5) continue;
+        const va = a === this.driven ? a.speed : (a.state === 'drive' ? a.speed : 0);
+        const vb = b === this.driven ? b.speed : (b.state === 'drive' ? b.speed : 0);
+        const rx = a.fwd.x * va - b.fwd.x * vb, rz = a.fwd.z * va - b.fwd.z * vb;
+        const rel = Math.hypot(rx, rz);
+        if (rel < 1.5) continue;
+        a.collT = b.collT = 0.9;
+        [a, b].forEach(c => {
+          if (c.state === 'wreck') return;
+          this._damage(c, rel * 0.45);
+          if (c === this.driven) { c.speed = -c.speed * 0.3; if (this.onCrash) this.onCrash(rel * 0.7); }
+          else if (c.state === 'drive') { c.crash = 1.6; c.speed *= 0.2; }
+        });
+        const mid = new THREE.Vector3((a.pos.x + b.pos.x) / 2, Math.max(a.pos.y, b.pos.y) + 0.7, (a.pos.z + b.pos.z) / 2);
+        if (this.ps.createSpark) { this.ps.createSpark(mid); this.ps.createSpark(mid); }
+        sound.playBlockHit();
+      }
+    }
   }
 
   // ── ARABAYA BİNME / SÜRME ──
@@ -345,7 +415,7 @@ export class CarManager {
     const car = this.driven;
     if (!car) return null;
     this.driven = null;
-    car.state = 'parked'; car.life = 0; car.speed = 0;
+    car.state = 'parked'; car.life = 0; car.speed = 0; car.edge = null; car.turn = null;
     const left = new THREE.Vector3(car.fwd.z, 0, -car.fwd.x);
     return car.pos.clone().addScaledVector(left, car.T.wid / 2 + 1.0).setY(car.pos.y);
   }
@@ -376,11 +446,11 @@ export class CarManager {
       const qx = px + side[0] * so * (T.wid / 2 - 0.1), qz = pz + side[1] * so * (T.wid / 2 - 0.1);
       for (const hy of [0.4, 1.0]) {
         const y = car.pos.y + hy;
-        const v = this.vw.voxels.get(`${Math.round(qx / 0.25)},${Math.round((y - 0.125) / 0.25)},${Math.round(qz / 0.25)}`);
+        const v = this.vw.voxels.get(`${Math.round(qx / VOXEL_SIZE)},${Math.round((y - VOXEL_SIZE / 2) / VOXEL_SIZE)},${Math.round(qz / VOXEL_SIZE)}`);
         if (v && v.active) { blocked = true; hitVox = { x: qx, y, z: qz }; }
       }
       const onBridge = qx > -9.2 && qx < 58.7 && Math.abs(qz) < 4.5;
-      const h = onBridge ? 0.75 : this.vw.terrain.heightAt(qx, qz);
+      const h = onBridge ? BRIDGE_Y : this.vw.terrain.heightAt(qx, qz);
       if (h === -Infinity || h - car.pos.y > 0.62) blocked = true;
     }
     if (blocked) {
@@ -400,7 +470,7 @@ export class CarManager {
     if (Math.abs(car.speed) > 4 && this.vw.npcs) this.vw.npcs.hitSphere(car.pos.clone().addScaledVector(car.fwd, half * dir), 1.1);
 
     const onBridge = car.pos.x > -9.2 && car.pos.x < 58.7 && Math.abs(car.pos.z) < 4.5;
-    const h = onBridge ? 0.75 : this.vw.terrain.heightAt(car.pos.x, car.pos.z);
+    const h = onBridge ? BRIDGE_Y : this.vw.terrain.heightAt(car.pos.x, car.pos.z);
     if (h > -Infinity) car.pos.y += (h - car.pos.y) * Math.min(1, dt * 14);
     car.g.position.copy(car.pos);
     car.g.rotation.y = -car.heading;

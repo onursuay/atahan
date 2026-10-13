@@ -4,7 +4,8 @@ import { sound } from './audio.js';
 import { Terrain, GROUND_Y, BEDROCK_Y } from './terrain.js';
 import { CollapseSystem } from './collapse.js';
 
-export const VOXEL_SIZE = 0.25; // Teardown tarzı minik küp boyutu (eskisinin yarısı)
+import { VOXEL_SIZE, FINE } from './config.js';
+export { VOXEL_SIZE };
 
 // Her küpün yüzüne 2x2 ince ızgara (tuğla/tahta/beton derzi): küpler yarı boyutlu küplerden örülmüş gibi görünür
 function makeCubeTexture(def) {
@@ -33,7 +34,7 @@ function makeCubeTexture(def) {
 }
 
 // Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
-const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // küçük küpten 8 kat fazla gerekir
+const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // 0.5 m küpte 1; küçüldükçe daha çok küp gerekir
 const CHUNK_SIZE = 16; // metre: dünya bu boyutlu bölgelere ayrılır, kamera dışındakiler çizilmez
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
@@ -48,6 +49,7 @@ export const PALETTE = {
   GOLD:     { id: 7, color: 0xfacc15, name: 'Altın', canBreakWithHammer: true },
   SAND:     { id: 8, color: 0xfde047, name: 'Kum (Sahil)', canBreakWithHammer: true },
   ASPHALT:  { id: 9, color: 0x1e293b, name: 'Asfalt (Yol)', canBreakWithHammer: true },
+  WHITE:    { id: 11, color: 0xf2f2ef, name: 'Beyaz Duvar', canBreakWithHammer: true },
   GRASS:    { id: 10, color: 0x4f8f3a, name: 'Çim (Tepe)', canBreakWithHammer: true, isGrass: true }
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
@@ -58,6 +60,7 @@ export const MATERIAL_HARDNESS = {
   [PALETTE.GLASS.id]: 0.3,    // Cam
   [PALETTE.SAND.id]: 0.4,     // Kum
   [10]: 0.4,                  // Çim
+  [11]: 1.3,                  // Beyaz duvar
   [PALETTE.BRICK.id]: 1.2,    // Tuğla
   [PALETTE.CONCRETE.id]: 1.6, // Beton
   [PALETTE.ASPHALT.id]: 1.8,  // Asfalt
@@ -131,7 +134,8 @@ export class VoxelWorld {
   }
 
   // Voxel Kütlesi İnşa Etme (Kutu şeklinde minik kareler yığını)
-  fillBox(minX, minY, minZ, maxX, maxY, maxZ, matType) {
+  fillBox(a0, b0, c0, a1, b1, c1, matType) {
+    const [minX, minY, minZ, maxX, maxY, maxZ] = this._q(a0, b0, c0, a1, b1, c1);
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
         for (let z = minZ; z <= maxZ; z++) {
@@ -141,8 +145,20 @@ export class VoxelWorld {
     }
   }
 
+  // Seviye koordinatları 0.25 m'lik ince ızgaradadır; küp daha büyükse en yakın küp ızgarasına yuvarlanır.
+  _q(minX, minY, minZ, maxX, maxY, maxZ) {
+    const f = VOXEL_SIZE / FINE;
+    if (f === 1) return [minX, minY, minZ, maxX, maxY, maxZ];
+    const cx = (a) => Math.floor((a + f / 2) / f), cy = (a) => Math.floor(a / f);
+    return [cx(minX), cy(minY), cx(minZ), cx(maxX), cy(maxY), cx(maxZ)];
+  }
+
+  // İnce ızgara koordinatındaki bir noktanın küp indeksi
+  toVoxel(fx, fy, fz) { const q = this._q(fx, fy, fz, fx, fy, fz); return [q[0], q[1], q[2]]; }
+
   // Aralıktaki voxelleri kaldır (kapı, pencere boşluğu, merdiven deliği)
-  removeBox(minX, minY, minZ, maxX, maxY, maxZ) {
+  removeBox(a0, b0, c0, a1, b1, c1) {
+    const [minX, minY, minZ, maxX, maxY, maxZ] = this._q(a0, b0, c0, a1, b1, c1);
     for (let x = minX; x <= maxX; x++) {
       for (let y = minY; y <= maxY; y++) {
         for (let z = minZ; z <= maxZ; z++) {

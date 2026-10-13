@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
+import { VOXEL_SIZE } from './config.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ZEMİN = İKİ AYRI KATMAN
@@ -13,7 +14,7 @@ export const GROUND_Y = 0.5;               // üst katmanın üst yüzü
 export const TOP_LAYER_THICKNESS = 0.5;
 export const BEDROCK_Y = GROUND_Y - TOP_LAYER_THICKNESS; // alt katmanın üst yüzü (çukur tabanı)
 
-const CELL = 0.25;        // hücre boyutu = voxel boyutu
+const CELL = VOXEL_SIZE;  // hücre boyutu = voxel boyutu
 const PX_PER_M = 16;      // üst katman dokusunun çözünürlüğü
 const DEPTH_BELOW = -2.5; // kıyıda görünen yan yüzeylerin alt sınırı
 
@@ -211,7 +212,7 @@ export class Terrain {
       minX = Math.min(minX, r.x0); maxX = Math.max(maxX, r.x1);
       minZ = Math.min(minZ, r.z0); maxZ = Math.max(maxZ, r.z1);
     });
-    minX = Math.floor(minX) - 1 - 0.125; minZ = Math.floor(minZ) - 1 - 0.125;
+    minX = Math.floor(minX) - 1 - VOXEL_SIZE / 2; minZ = Math.floor(minZ) - 1 - VOXEL_SIZE / 2;
     maxX = Math.ceil(maxX) + 1;          maxZ = Math.ceil(maxZ) + 1;
     const cols = Math.ceil((maxX - minX) / CELL);
     const rows = Math.ceil((maxZ - minZ) / CELL);
