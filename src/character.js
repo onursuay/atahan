@@ -438,12 +438,18 @@ export class Character {
     }
   }
 
-  // Birinci kişi kamerada kafa gizlenir (kameranın içinden bakılmasın)
+  // Birinci kişi kamerada yüz ve beden gizlenir; yalnız kollar (ve elindeki silah/çekiç) kadraja girebilir
   setFirstPerson(on) {
+    this.firstPerson = on;
     this.head.visible = !on;
+    this.torso.visible = !on;
+    this.leftLeg.visible = !on;
+    this.rightLeg.visible = !on;
     this._leftEye.visible = !on && this.currentMode === 'cyborg';
     this._rightEye.visible = !on && this.currentMode === 'cyborg';
-    this.firstPerson = on;
+    // Kollar omuz hizasından biraz içeri ve öne alınır: aşağı bakınca ve çekiç savururken kadraja girer
+    this.leftArm.position.set(on ? -0.45 : -0.6, 1.3, on ? 0.1 : 0);
+    this.rightArm.position.set(on ? 0.45 : 0.6, 1.3, on ? 0.1 : 0);
   }
 
   // Lazer ışını görsel efekti (kırmızı çizgi)

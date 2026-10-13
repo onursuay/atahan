@@ -20,8 +20,10 @@ let clouds = [];
 
 // Kamera Açıları
 let cameraYaw = Math.PI;
-let cameraPitch = 0.25;
-let firstPerson = false; // true: karakterin gözünden, false: uzaktan
+let cameraPitch = 0.05;
+let firstPerson = true; // varsayılan: karakterin gözünden (V ile uzak kameraya geçilebilir)
+let eyeY = null;        // yumuşatılmış göz yüksekliği (basamakta/inişte sıçramasın)
+let bobAmount = 0;      // yürüyüş sallanması şiddeti (0..1)
 const cameraDistance = 9.0;
 const cameraHeight = 3.2;
 
@@ -63,7 +65,7 @@ function init() {
   scene.fog = new THREE.Fog(0x78a7ff, 50, 140);
 
   // 2. Kamera
-  camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 1000);
 
   // 3. Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -123,6 +125,7 @@ function init() {
   });
 
   character = new Character(scene, physicsWorld, particleSystem, voxelWorld);
+  setFirstPerson(true);
 
   weaponSystem = new WeaponSystem(scene, physicsWorld, particleSystem, voxelWorld, (points, text) => {
     addScore(points, text);
@@ -223,6 +226,7 @@ function updateGame(dt) {
 
 function setFirstPerson(on) {
   firstPerson = on;
+  eyeY = null;
   character.setFirstPerson(on);
   cameraPitch = on ? Math.min(cameraPitch, 1.3) : Math.max(-0.2, Math.min(0.9, cameraPitch));
   const btn = document.getElementById('btn-camera');
@@ -233,14 +237,29 @@ function updateCamera(dt) {
   const charPos = character.mesh.position;
 
   if (firstPerson) {
-    // Göz: kafanın olduğu yer, biraz önde (kafa modeli gizli olduğundan içinden bakılmaz)
+    // Göz: kafanın olduğu nokta, biraz önde (gövde çarpışma kutusunun içinde kalır, duvara girmez)
     const dirX = -Math.sin(cameraYaw) * Math.cos(cameraPitch);
     const dirY = -Math.sin(cameraPitch);
     const dirZ = -Math.cos(cameraYaw) * Math.cos(cameraPitch);
+
+    // Yükseklik yumuşatılır: basamak çıkarken ve inerken kamera sıçramaz
+    const targetY = charPos.y + 1.8;
+    if (eyeY === null || Math.abs(targetY - eyeY) > 3) eyeY = targetY;
+    eyeY += (targetY - eyeY) * (1 - Math.exp(-16 * dt));
+
+    // Hafif yürüyüş sallanması (yalnız karada yürürken), suda yavaş dalgalanma
+    const walking = character.isGrounded && !character.inWater &&
+      (Math.abs(character.vel.x) + Math.abs(character.vel.z)) > 1.5;
+    bobAmount += ((walking ? 1 : 0) - bobAmount) * (1 - Math.exp(-8 * dt));
+    let bobY = Math.sin(character.walkCycle * 2) * 0.035 * bobAmount;
+    let bobX = Math.sin(character.walkCycle) * 0.02 * bobAmount;
+    if (character.inWater) bobY += Math.sin(performance.now() * 0.002) * 0.04;
+
+    const rightX = Math.cos(cameraYaw), rightZ = -Math.sin(cameraYaw);
     camera.position.set(
-      charPos.x - Math.sin(cameraYaw) * 0.25,
-      charPos.y + 1.8,
-      charPos.z - Math.cos(cameraYaw) * 0.25
+      charPos.x - Math.sin(cameraYaw) * 0.25 + rightX * bobX,
+      eyeY + bobY,
+      charPos.z - Math.cos(cameraYaw) * 0.25 + rightZ * bobX
     );
     if (screenShake > 0) {
       camera.position.x += (Math.random() - 0.5) * screenShake * 0.4;
