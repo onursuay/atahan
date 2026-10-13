@@ -322,6 +322,9 @@ export class VoxelWorld {
     let removedCount = 0;
     const tntChainPositions = [];
 
+    // Patlama yakınındaki NPC'ler vurulur
+    if (this.npcs) this.npcs.hitSphere(blastPos, blastRadius);
+
     // Zemin üst katmanını kır (taban kayası etkilenmez)
     const groundBroken = this.breakGround(blastPos, blastRadius, force);
 

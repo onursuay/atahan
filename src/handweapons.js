@@ -332,6 +332,21 @@ export class HandWeapons {
       if (p.y < -0.4) break; // denize düştü
     }
 
+    // Mermi önce bir NPC'ye mi çarptı?
+    if (this.npcs) {
+      const hitDist = hit ? origin.distanceTo(hit) : MINIGUN_RANGE;
+      const nh = this.npcs.rayHit(origin, dir, hitDist);
+      if (nh) {
+        this._spawnTracer(muzzle, nh.point);
+        this.npcs.killNpc(nh.npc, origin);
+        this.flashTimer = 0.04;
+        this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        if (this._soundSkip = !this._soundSkip) sound.playGunShot();
+        return;
+      }
+    }
+
     const end = hit || origin.clone().addScaledVector(dir, MINIGUN_RANGE);
     this._spawnTracer(muzzle, end);
 
@@ -385,6 +400,7 @@ export class HandWeapons {
       const pt = base.clone().addScaledVector(dir, d);
       const n = this.voxelWorld.sweepCut(pt, SABER_RADIUS);
       cut += n;
+      if (this.npcs) this.npcs.hitSphere(pt, SABER_RADIUS + 0.25);
       if (pt.y <= GROUND_Y + 0.3 && this.voxelWorld.terrain.topIntactAt(pt.x, pt.z)) {
         this.voxelWorld.breakGround(new THREE.Vector3(pt.x, GROUND_Y, pt.z), 0.55, 50);
       }

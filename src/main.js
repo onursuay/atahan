@@ -8,12 +8,13 @@ import { ParticleSystem } from './particles.js';
 import { VoxelWorld, VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y } from './terrain.js';
 import { HandWeapons } from './handweapons.js';
+import { NPCManager } from './npc.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
 let scene, camera, renderer;
 let physicsWorld;
-let handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
+let npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -138,6 +139,10 @@ function init() {
   handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   handWeapons.setFirstPerson(firstPerson);
 
+  npcs = new NPCManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text));
+  voxelWorld.npcs = npcs;
+  handWeapons.npcs = npcs;
+
   levelManager = new LevelManager(voxelWorld);
 
   // İlk Bölümü Yükle
@@ -221,6 +226,7 @@ function updateGame(dt) {
 
   // Silahlar ve Parçacıklar
   weaponSystem.update(dt);
+  npcs.update(dt, character.mesh.position);
   handWeapons.update(dt, {
     moving: character.isGrounded && !character.inWater &&
       (Math.abs(character.vel.x) + Math.abs(character.vel.z)) > 1.5,
@@ -323,6 +329,8 @@ function loadLevel(index) {
   weaponSystem.clear();
   particleSystem.clear();
   character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
+  npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
+  npcs.reset();
   cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
 
   levelTitleEl.innerText = cfg.title;
@@ -462,6 +470,9 @@ function useHammer() {
 
   const dir = raycaster.ray.direction.clone().normalize();
   let hitPoint = null;
+
+  // Çekiç menzilindeki NPC'ye de vurur
+  npcs.hitSphere(charPos.clone().addScaledVector(dir, 1.8), 0.9);
 
   for (let dist = 0.4; dist <= HAMMER_REACH; dist += VOXEL_SIZE * 0.4) {
     const checkPos = charPos.clone().addScaledVector(dir, dist);
