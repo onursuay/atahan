@@ -332,6 +332,20 @@ class SoundEngine {
     this.playNoise(0.05, 0.15, 5000);
   }
 
+  // Bomba bip sesi (pitch yükseldikçe daha tiz)
+  playBeep(pitch = 1) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880 * pitch, now);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 0.08);
+  }
+
   // Işın kılıcı açılışı (yükselen vızıltı)
   playSaberOn() {
     if (this.muted || !this.ctx) return;

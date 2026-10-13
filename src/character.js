@@ -489,8 +489,7 @@ export class Character {
     // üst katman yalnız sağlam olduğu hücrelerde katıdır (kırılan yerde çukurun tabanında yürünür).
     if (this.voxelWorld) {
       const t = this.voxelWorld.terrain;
-      if (feetY < BEDROCK_Y - EPS && t.overlapsLand(x, z, HALF_W)) return true;
-      if (feetY < GROUND_Y - EPS && t.overlapsTop(x, z, HALF_W)) return true;
+      if (t.solidAt(x, feetY, z, HALF_W)) return true;
     }
     const minIx = Math.floor((x - HALF_W + EPS) / S + 0.5);
     const maxIx = Math.floor((x + HALF_W - EPS) / S + 0.5);

@@ -9,12 +9,13 @@ import { VoxelWorld, VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y } from './terrain.js';
 import { HandWeapons } from './handweapons.js';
 import { NPCManager } from './npc.js';
+import { BombManager } from './bombs.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
 let scene, camera, renderer;
 let physicsWorld;
-let npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
+let bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -92,8 +93,8 @@ function init() {
   sunLight.shadow.camera.far = 260;
 
   // Tüm şehri, sahili, uzun köprüyü ve adayı kapsayan geniş gölge alanı
-  const dx = 110;
-  const dz = 80;
+  const dx = 150;
+  const dz = 125;
   sunLight.shadow.camera.left = -dx;
   sunLight.shadow.camera.right = dx;
   sunLight.shadow.camera.top = dz;
@@ -139,6 +140,9 @@ function init() {
   handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   handWeapons.setFirstPerson(firstPerson);
 
+  bombs = new BombManager(scene, camera, voxelWorld, particleSystem, (s) => { screenShake = s; }, (n) => {
+    document.getElementById('detonate-btn').classList.toggle('show', n > 0);
+  });
   npcs = new NPCManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   voxelWorld.npcs = npcs;
   handWeapons.npcs = npcs;
@@ -227,6 +231,7 @@ function updateGame(dt) {
   // Silahlar ve Parçacıklar
   weaponSystem.update(dt);
   npcs.update(dt, character.mesh.position);
+  bombs.update(dt);
   handWeapons.update(dt, {
     moving: character.isGrounded && !character.inWater &&
       (Math.abs(character.vel.x) + Math.abs(character.vel.z)) > 1.5,
@@ -327,6 +332,7 @@ function loadLevel(index) {
 
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
+  bombs.clear();
   particleSystem.clear();
   character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
@@ -427,6 +433,10 @@ function fireWeapon() {
 
   if (cur === 2) { handWeapons.startSwing(); return; }   // Işın kılıcı: savur
   if (cur === 1) { handWeapons.fireHeld = true; return; } // Minigun: basılı tutunca ateş
+  if (cur === 3 || cur === 4) {                           // Bombalar: yerleştir
+    if (bombs.place(cur === 3 ? 'timed' : 'remote')) handWeapons.onRocketFired();
+    return;
+  }
   if (cur !== 0) return;
 
   const raycaster = new THREE.Raycaster();
@@ -451,6 +461,7 @@ function selectWeapon(idx) {
   weaponSystem.setWeapon(idx);
   handWeapons.setWeapon(idx);
   character.pistolGroup.visible = idx === 0 && character.currentMode !== 'cyborg';
+  if (handWeapons) handWeapons.setBombModel(idx);
   updateWeaponUI();
 }
 
@@ -492,8 +503,9 @@ function useHammer() {
   if (!hitPoint) {
     for (let dist = 0.4; dist <= HAMMER_REACH; dist += 0.1) {
       const p = charPos.clone().addScaledVector(dir, dist);
-      if (p.y <= GROUND_Y && voxelWorld.terrain.topIntactAt(p.x, p.z)) {
-        voxelWorld.hammerGround(new THREE.Vector3(p.x, GROUND_Y, p.z));
+      const gy = voxelWorld.terrain.topYAt(p.x, p.z);
+      if (p.y <= gy && voxelWorld.terrain.topIntactAt(p.x, p.z)) {
+        voxelWorld.hammerGround(new THREE.Vector3(p.x, gy, p.z));
         screenShake = 0.1;
         return;
       }
@@ -529,6 +541,9 @@ function setupEventListeners() {
     if (key === 'v' || e.code === 'KeyV') setFirstPerson(!firstPerson);
 
     // TAB: silah menüsü. İmleç serbest kalır, silah çubuğundan tıklayarak seçilir.
+    // F: yerleştirilmiş uzaktan bombaları patlat (ekrandaki PATLAT butonuyla aynı)
+    if (key === 'f' || e.code === 'KeyF') bombs.detonateRemote();
+
     if (e.code === 'Tab') {
       e.preventDefault();
       toggleWeaponMenu();
@@ -557,6 +572,7 @@ function setupEventListeners() {
 
   window.addEventListener('mousemove', (e) => {
     const sensitivity = 0.0035;
+    if (handWeapons) { handWeapons.mx += e.movementX; handWeapons.my += e.movementY; }
     cameraYaw -= e.movementX * sensitivity;
     cameraPitch += e.movementY * sensitivity;
     cameraPitch = firstPerson
@@ -577,6 +593,11 @@ function setupEventListeners() {
       selectWeapon(wId);
       closeWeaponMenu(true);
     });
+  });
+
+  document.getElementById('detonate-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    bombs.detonateRemote();
   });
 
   document.getElementById('btn-camera').addEventListener('click', (e) => {

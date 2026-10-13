@@ -14,7 +14,7 @@ export const TOP_LAYER_THICKNESS = 0.5;
 export const BEDROCK_Y = GROUND_Y - TOP_LAYER_THICKNESS; // alt katmanın üst yüzü (çukur tabanı)
 
 const CELL = 0.25;        // hücre boyutu = voxel boyutu
-const PX_PER_M = 24;      // üst katman dokusunun çözünürlüğü
+const PX_PER_M = 16;      // üst katman dokusunun çözünürlüğü
 const DEPTH_BELOW = -2.5; // kıyıda görünen yan yüzeylerin alt sınırı
 
 export class Terrain {
@@ -30,6 +30,8 @@ export class Terrain {
     this.rim = null;      // 1: çukur kenarındaki sağlam hücre voxel olarak da çizildi
     this.matList = [];
     this.bounds = null;
+    this.hq = null;       // hücre başına tepe yüksekliği (0.25 m'lik adımlar)
+    this.heightFn = null; // (x, z) -> metre: yalnız çim (isGrass) hücrelere uygulanır
     this.dirty = false;   // doku güncellenmeli
   }
 
@@ -55,7 +57,7 @@ export class Terrain {
     this.objects = [];
     this.bodies = [];
     this.rects = [];
-    this.land = this.top = this.matIdx = this.rim = null;
+    this.land = this.top = this.matIdx = this.rim = this.hq = null;
     this.bounds = null;
     this.matList = [];
     this.canvas = null;
@@ -81,11 +83,41 @@ export class Terrain {
   isLand(x, z) { const i = this.cellIndex(x, z); return i >= 0 && this.land[i] === 1; }
   topIntactAt(x, z) { const i = this.cellIndex(x, z); return i >= 0 && this.top[i] === 1; }
 
+  // ── Tepeler: hücre başına yükseklik kayması ──
+  _h(i) { return this.hq ? this.hq[i] * CELL : 0; }
+  topYAt(x, z) { const i = this.cellIndex(x, z); return i < 0 ? GROUND_Y : GROUND_Y + this._h(i); }
+  bedYAt(x, z) { const i = this.cellIndex(x, z); return i < 0 ? BEDROCK_Y : BEDROCK_Y + this._h(i); }
+  topYIdx(i) { return GROUND_Y + this._h(i); }
+  bedYIdx(i) { return BEDROCK_Y + this._h(i); }
+
+  // Kutu (x ± halfW, z ± halfW, ayak yüksekliği feet) zemin katmanlarına giriyor mu?
+  // Alt katman (taban kayası) her kara hücresinde katıdır; üst katman yalnız sağlam hücrelerde.
+  solidAt(x, feet, z, halfW) {
+    if (!this.land) return false;
+    const b = this.bounds;
+    const c0 = Math.floor((x - halfW - b.minX) / CELL);
+    const c1 = Math.floor((x + halfW - 1e-4 - b.minX) / CELL);
+    const r0 = Math.floor((z - halfW - b.minZ) / CELL);
+    const r1 = Math.floor((z + halfW - 1e-4 - b.minZ) / CELL);
+    for (let r = r0; r <= r1; r++) {
+      if (r < 0 || r >= b.rows) continue;
+      for (let c = c0; c <= c1; c++) {
+        if (c < 0 || c >= b.cols) continue;
+        const i = r * b.cols + c;
+        if (this.land[i] !== 1) continue;
+        const h = this._h(i);
+        if (feet < BEDROCK_Y + h - 1e-4) return true;
+        if (this.top[i] === 1 && feet < GROUND_Y + h - 1e-4) return true;
+      }
+    }
+    return false;
+  }
+
   // Yürünebilir yüzey yüksekliği: sağlam üst katman -> GROUND_Y, çukur -> BEDROCK_Y, kara yoksa -Infinity
   heightAt(x, z) {
     const i = this.cellIndex(x, z);
     if (i < 0 || this.land[i] !== 1) return -Infinity;
-    return this.top[i] === 1 ? GROUND_Y : BEDROCK_Y;
+    return this.top[i] === 1 ? GROUND_Y + this._h(i) : BEDROCK_Y + this._h(i);
   }
 
   _overlaps(mask, x, z, halfW) {
@@ -115,10 +147,7 @@ export class Terrain {
   breakInSphere(center, radius, jagged = 0.25) {
     if (!this.top) return [];
     const b = this.bounds;
-    const yc = Math.min(GROUND_Y, Math.max(BEDROCK_Y, center.y));
-    const dy = center.y - yc;
-    if (Math.abs(dy) > radius) return [];
-    const rXZ = Math.sqrt(Math.max(0, radius * radius - dy * dy));
+    const rXZ = radius;
     const c0 = Math.max(0, Math.floor((center.x - rXZ - b.minX) / CELL));
     const c1 = Math.min(b.cols - 1, Math.floor((center.x + rXZ - b.minX) / CELL));
     const r0 = Math.max(0, Math.floor((center.z - rXZ - b.minZ) / CELL));
@@ -130,8 +159,13 @@ export class Terrain {
         const idx = r * b.cols + c;
         if (this.top[idx] !== 1) continue;
         const x = b.minX + (c + 0.5) * CELL, z = b.minZ + (r + 0.5) * CELL;
+        // Üst katmanın bu hücredeki dikey aralığına en yakın nokta
+        const yc = Math.min(this.topYIdx(idx), Math.max(this.bedYIdx(idx), center.y));
+        const dy = center.y - yc;
+        const rr = Math.sqrt(Math.max(0, radius * radius - dy * dy));
+        if (rr <= 0) continue;
         // Kenarlar düzensiz: kırık, pürüzlü bir çukur
-        const limit = rXZ * (1 - jagged + Math.random() * jagged * 1.4);
+        const limit = rr * (1 - jagged + Math.random() * jagged * 1.4);
         if (Math.hypot(x - center.x, z - center.z) <= limit) {
           broken.push({ idx, x, z, mat: this.matList[this.matIdx[idx]] });
         }
@@ -210,6 +244,35 @@ export class Terrain {
       }
     });
 
+    // Tepeler: yalnız çim hücrelerde yükseklik (yollar ve binalar düz zeminde kalır)
+    this.hq = new Int16Array(cols * rows);
+    if (this.heightFn) {
+      for (let i = 0; i < cols * rows; i++) {
+        if (this.land[i] !== 1 || !this.matList[this.matIdx[i]].isGrass) continue;
+        const c = i % cols, r = Math.floor(i / cols);
+        const hm = this.heightFn(minX + (c + 0.5) * CELL, minZ + (r + 0.5) * CELL);
+        this.hq[i] = Math.max(0, Math.round(hm / CELL));
+      }
+    }
+
+    // Eğim sınırı: komşu hücreler arası fark en çok 0.25 m (yürünebilir, basamak çıkılabilir)
+    if (this.heightFn) {
+      const hq = this.hq, L = this.land;
+      const lim = (i, j) => { if (L[i] === 1 && L[j] === 1 && hq[i] > hq[j] + 1) hq[i] = hq[j] + 1; };
+      for (let pass = 0; pass < 24; pass++) {
+        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+          const i = r * cols + c;
+          if (c > 0) lim(i, i - 1);
+          if (r > 0) lim(i, i - cols);
+        }
+        for (let r = rows - 1; r >= 0; r--) for (let c = cols - 1; c >= 0; c--) {
+          const i = r * cols + c;
+          if (c < cols - 1) lim(i, i + 1);
+          if (r < rows - 1) lim(i, i + cols);
+        }
+      }
+    }
+
     // ── ÜST KATMAN DOKUSU: her 0.25 m'lik hücre hafif farklı tonda ──
     const W = Math.ceil(cols * CELL * PX_PER_M);
     const H = Math.ceil(rows * CELL * PX_PER_M);
@@ -272,16 +335,7 @@ export class Terrain {
     tex.colorSpace = THREE.SRGBColorSpace;
     this.tex = tex;
 
-    const planeW = cols * CELL, planeH = rows * CELL;
-    const plane = new THREE.Mesh(
-      new THREE.PlaneGeometry(planeW, planeH),
-      new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.5 })
-    );
-    plane.rotation.x = -Math.PI / 2;
-    plane.position.set(minX + planeW / 2, GROUND_Y + 0.004, minZ + planeH / 2);
-    plane.receiveShadow = true;
-    this.scene.add(plane);
-    this.objects.push(plane);
+    this._buildTopMesh(tex);
 
     this._buildBedrock();
     this._buildSides();
@@ -298,6 +352,43 @@ export class Terrain {
       this.physicsWorld.addBody(body);
       this.bodies.push(body);
     });
+  }
+
+  // Üst katman yüzeyi: aynı yükseklikteki ardışık hücreler tek dörtgen (tepelerde basamaklı)
+  _buildTopMesh(tex) {
+    const b = this.bounds;
+    const planeW = b.cols * CELL, planeH = b.rows * CELL;
+    const pos = [], uv = [], idx = [];
+    let v = 0;
+    for (let r = 0; r < b.rows; r++) {
+      let c = 0;
+      while (c < b.cols) {
+        const i0 = r * b.cols + c;
+        if (this.land[i0] !== 1) { c++; continue; }
+        const hq = this.hq[i0];
+        let c2 = c;
+        while (c2 < b.cols && this.land[r * b.cols + c2] === 1 && this.hq[r * b.cols + c2] === hq) c2++;
+        const x0 = b.minX + c * CELL, x1 = b.minX + c2 * CELL;
+        const z0 = b.minZ + r * CELL, z1 = z0 + CELL;
+        const y = GROUND_Y + hq * CELL + 0.004;
+        pos.push(x0, y, z0, x1, y, z0, x1, y, z1, x0, y, z1);
+        const u0 = (x0 - b.minX) / planeW, u1 = (x1 - b.minX) / planeW;
+        const t0 = 1 - (z0 - b.minZ) / planeH, t1 = 1 - (z1 - b.minZ) / planeH;
+        uv.push(u0, t0, u1, t0, u1, t1, u0, t1);
+        idx.push(v, v + 2, v + 1, v, v + 3, v + 2);
+        v += 4;
+        c = c2;
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.5 }));
+    mesh.receiveShadow = true;
+    this.scene.add(mesh);
+    this.objects.push(mesh);
   }
 
   // Taban kayası yüzeyi: çukur kırılınca görünen koyu, çatlaklı taş (üst katmandan belirgin biçimde farklı)
@@ -330,11 +421,13 @@ export class Terrain {
       let c = 0;
       while (c < b.cols) {
         if (this.land[r * b.cols + c] !== 1) { c++; continue; }
+        const hq = this.hq[r * b.cols + c];
         let c2 = c;
-        while (c2 < b.cols && this.land[r * b.cols + c2] === 1) c2++;
+        while (c2 < b.cols && this.land[r * b.cols + c2] === 1 && this.hq[r * b.cols + c2] === hq) c2++;
         const x0 = b.minX + c * CELL, x1 = b.minX + c2 * CELL;
         const z0 = b.minZ + r * CELL, z1 = z0 + CELL;
-        pos.push(x0, BEDROCK_Y, z0, x1, BEDROCK_Y, z0, x1, BEDROCK_Y, z1, x0, BEDROCK_Y, z1);
+        const by = BEDROCK_Y + hq * CELL;
+        pos.push(x0, by, z0, x1, by, z0, x1, by, z1, x0, by, z1);
         uv.push(x0 / tileM, z0 / tileM, x1 / tileM, z0 / tileM, x1 / tileM, z1 / tileM, x0 / tileM, z1 / tileM);
         idx.push(v, v + 2, v + 1, v, v + 3, v + 2);
         v += 4;
@@ -370,18 +463,25 @@ export class Terrain {
         const i = r * b.cols + c;
         if (this.land[i] !== 1) continue;
         const topColor = new THREE.Color(this.matList[this.matIdx[i]].color).multiplyScalar(0.8);
+        const top = this.topYIdx(i), bed = this.bedYIdx(i);
         for (const [dc, dr] of dirs) {
           const nc = c + dc, nr = r + dr;
-          const open = nc < 0 || nr < 0 || nc >= b.cols || nr >= b.rows || this.land[nr * b.cols + nc] !== 1;
-          if (!open) continue;
+          const inside = nc >= 0 && nr >= 0 && nc < b.cols && nr < b.rows;
+          const n = inside ? nr * b.cols + nc : -1;
+          const open = !inside || this.land[n] !== 1;
           const x0 = b.minX + c * CELL, z0 = b.minZ + r * CELL;
           let ax, az, bx, bz;
           if (dc === 1)  { ax = x0 + CELL; az = z0;        bx = x0 + CELL; bz = z0 + CELL; }
           if (dc === -1) { ax = x0;        az = z0 + CELL; bx = x0;        bz = z0; }
           if (dr === 1)  { ax = x0 + CELL; az = z0 + CELL; bx = x0;        bz = z0 + CELL; }
           if (dr === -1) { ax = x0;        az = z0;        bx = x0 + CELL; bz = z0; }
-          quad(ax, az, bx, bz, DEPTH_BELOW, BEDROCK_Y, stone);
-          quad(ax, az, bx, bz, BEDROCK_Y, GROUND_Y, topColor);
+          if (open) {
+            quad(ax, az, bx, bz, DEPTH_BELOW, bed, stone);
+            quad(ax, az, bx, bz, bed, top, topColor);
+          } else if (this.topYIdx(n) < top - 1e-6) {
+            // Tepe basamağı: komşu hücre daha alçaksa aradaki dik yüzey
+            quad(ax, az, bx, bz, this.topYIdx(n), top, topColor);
+          }
         }
       }
     }

@@ -20,7 +20,8 @@ export const PALETTE = {
   TNT:      { id: 6, color: 0xef4444, name: 'TNT', isTNT: true, canBreakWithHammer: true },
   GOLD:     { id: 7, color: 0xfacc15, name: 'Altın', canBreakWithHammer: true },
   SAND:     { id: 8, color: 0xfde047, name: 'Kum (Sahil)', canBreakWithHammer: true },
-  ASPHALT:  { id: 9, color: 0x1e293b, name: 'Asfalt (Yol)', canBreakWithHammer: true }
+  ASPHALT:  { id: 9, color: 0x1e293b, name: 'Asfalt (Yol)', canBreakWithHammer: true },
+  GRASS:    { id: 10, color: 0x4f8f3a, name: 'Çim (Tepe)', canBreakWithHammer: true, isGrass: true }
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
@@ -29,6 +30,7 @@ export const MATERIAL_HARDNESS = {
   [PALETTE.WOOD.id]: 0.5,     // 1. Madde: Tahta - çekiçle kolayca kırılır
   [PALETTE.GLASS.id]: 0.3,    // Cam
   [PALETTE.SAND.id]: 0.4,     // Kum
+  [10]: 0.4,                  // Çim
   [PALETTE.BRICK.id]: 1.2,    // Tuğla
   [PALETTE.CONCRETE.id]: 1.6, // Beton
   [PALETTE.ASPHALT.id]: 1.8,  // Asfalt
@@ -204,7 +206,7 @@ export class VoxelWorld {
   // Çukur kenarındaki sağlam hücreler 2 sıra küp olarak çizilir (çukurun yan duvarı + kırık kenar görünümü)
   _createRimMeshes() {
     const cap = 40000;
-    [PALETTE.CONCRETE, PALETTE.SAND, PALETTE.ASPHALT, PALETTE.WOOD].forEach(m => {
+    [PALETTE.CONCRETE, PALETTE.SAND, PALETTE.ASPHALT, PALETTE.WOOD, PALETTE.GRASS].forEach(m => {
       const mesh = new THREE.InstancedMesh(this.cubeGeo, this.materials[m.id], cap);
       mesh.count = 0;
       mesh.frustumCulled = false;
@@ -252,7 +254,7 @@ export class VoxelWorld {
         const ix = Math.round(cc.x / VOXEL_SIZE), iz = Math.round(cc.z / VOXEL_SIZE);
         const type = t.matList[t.matIdx[n]];
         const rows = Math.round((GROUND_Y - BEDROCK_Y) / VOXEL_SIZE);
-        const iy0 = Math.round(BEDROCK_Y / VOXEL_SIZE);
+        const iy0 = Math.round(t.bedYIdx(n) / VOXEL_SIZE);
         for (let k = 0; k < rows; k++) this._addRimVoxel(ix, iy0 + k, iz, type, n);
       });
     });
@@ -280,7 +282,7 @@ export class VoxelWorld {
     const t = this.terrain;
     const idx = v.groundCell;
     const rows = Math.round((GROUND_Y - BEDROCK_Y) / VOXEL_SIZE);
-    const iy0 = Math.round(BEDROCK_Y / VOXEL_SIZE);
+    const iy0 = Math.round(t.bedYIdx(idx) / VOXEL_SIZE);
     for (let k = 0; k < rows; k++) {
       const sib = this.voxels.get(`${v.ix},${iy0 + k},${v.iz}`);
       if (sib && sib.active && sib !== v) {
@@ -307,7 +309,7 @@ export class VoxelWorld {
       if (this.dynamicDebris.length >= this.maxDynamicDebris) return;
       if (Math.random() > 0.3) return;
       const dist = Math.hypot(h.x - center.x, h.z - center.z);
-      this.spawnLooseVoxel(h.x, GROUND_Y + 0.05, h.z, h.mat, center, dist, radius, force);
+      this.spawnLooseVoxel(h.x, this.terrain.topYAt(h.x, h.z) + 0.05, h.z, h.mat, center, dist, radius, force);
     });
     return broken.length;
   }
@@ -755,9 +757,10 @@ export class VoxelWorld {
 
       // Sağlam üst katmanın üstünde dur (fizik yalnız taban kayasını bilir; çukurlara serbestçe düşer)
       const b = d.body;
+      const ty = this.terrain.topYAt(b.position.x, b.position.z);
       if (this.terrain.topIntactAt(b.position.x, b.position.z) &&
-          b.position.y - VOXEL_SIZE / 2 < GROUND_Y && b.position.y > BEDROCK_Y) {
-        b.position.y = GROUND_Y + VOXEL_SIZE / 2;
+          b.position.y - VOXEL_SIZE / 2 < ty && b.position.y > ty - 0.5) {
+        b.position.y = ty + VOXEL_SIZE / 2;
         if (b.velocity.y < 0) b.velocity.y *= -0.25;
         b.velocity.x *= 0.85;
         b.velocity.z *= 0.85;

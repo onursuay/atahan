@@ -20,7 +20,9 @@ export class WeaponSystem {
     this.weapons = [
       { id: 0, type: 'rocket', name: 'Delici Roket', ammo: Infinity, speed: 48, radius: 2.2, force: 220, color: 0xff4400, desc: 'Duvarda delik açar' },
       { id: 1, type: 'minigun', name: 'Minigun', ammo: Infinity, desc: 'Basılı tut: seri ateş' },
-      { id: 2, type: 'saber', name: 'Işın Kılıcı', ammo: Infinity, desc: 'Savur: her şeyi keser' }
+      { id: 2, type: 'saber', name: 'Işın Kılıcı', ammo: Infinity, desc: 'Savur: her şeyi keser' },
+      { id: 3, type: 'timed', name: 'Süreli Bomba', ammo: Infinity, desc: '3 sn sonra patlar' },
+      { id: 4, type: 'remote', name: 'Uzaktan Bomba', ammo: Infinity, desc: 'Butonla patlar' }
     ];
 
     this.cooldown = 0;
@@ -147,17 +149,18 @@ export class WeaponSystem {
 
         // Sağlam zemin üst katmanına çarptı mı? (fizik yalnız alttaki taban kayasını bilir)
         const ter = this.voxelWorld.terrain;
-        if (to.y < GROUND_Y + 0.1 && to.y > BEDROCK_Y && ter.topIntactAt(to.x, to.z)) {
+        const ty = ter.topYAt(to.x, to.z);
+        if (to.y < ty + 0.1 && to.y > ty - 0.5 && ter.topIntactAt(to.x, to.z)) {
           if (p.weaponInfo.bounce) {
             if (p.body.velocity.y < 0) {
-              p.body.position.y = GROUND_Y + 0.15;
+              p.body.position.y = ty + 0.15;
               p.body.velocity.y *= -0.4;
               p.body.velocity.x *= 0.8;
               p.body.velocity.z *= 0.8;
               sound.playBlockHit();
             }
           } else {
-            p.mesh.position.set(to.x, GROUND_Y + 0.05, to.z);
+            p.mesh.position.set(to.x, ty + 0.05, to.z);
             this.explode(p);
             continue;
           }

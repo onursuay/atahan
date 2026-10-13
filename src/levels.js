@@ -13,7 +13,7 @@ const WALL_T = 1;     // duvar/döşeme kalınlığı (küp)
 const MAX_FLOORS = 3;  // iç döşemesi yapılan en üst kat
 const GROUND_ROW_SUB = 2; // y=0.5 m: zemin üstü, 1. satırın alt sınırı (küp indeksi)
 
-const GROUND_MATS = new Set([PALETTE.CONCRETE, PALETTE.SAND, PALETTE.ASPHALT, PALETTE.WOOD]);
+const GROUND_MATS = new Set([PALETTE.CONCRETE, PALETTE.SAND, PALETTE.ASPHALT, PALETTE.WOOD, PALETTE.GRASS]);
 
 class ScaledBuilder {
   constructor(world) {
@@ -110,7 +110,7 @@ export class LevelManager {
       {
         id: 0,
         title: 'BÜYÜK ŞEHİR, SAHİL & ZENGİN ADA',
-        desc: 'Yüksek binaların içine gir, caddelerde dolaş, uzun köprüden zengin adaya geç ve sinemayı/villaları yık!',
+        desc: 'Geniş caddelerde dolaş, tepelere çık, binaların içine gir, köprüden adaya geç ve sinemayı/villaları yık!',
         targetPercent: 35,
         // Batı kumsalı (eski birim x=-78 -> -58.5 m)
         spawn: { x: -58.5, y: 2.5, z: 0 },
@@ -128,6 +128,12 @@ export class LevelManager {
     // 1. ZEMİN, SAHİL VE YOLLAR (kaplama yüzeyi)
     // ==========================================
 
+    // TEPELİK ARAZİ: şehrin kuzeyi/güneyi ve adanın etrafı çimdir; tepeler yalnız çim hücrelerde yükselir.
+    w.fillBox(-74, 0, 54, -12, 0, 110, PALETTE.GRASS);
+    w.fillBox(-74, 0, -110, -12, 0, -54, PALETTE.GRASS);
+    w.fillBox(24, 0, -64, 92, 0, 64, PALETTE.GRASS);
+    this._setHills();
+
     // A. ŞEHİR ZEMİNİ (X: -74..-12, Z: -54..54)
     w.fillBox(-74, 0, -54, -12, 0, 54, PALETTE.CONCRETE);
 
@@ -138,9 +144,10 @@ export class LevelManager {
     w.fillBox(-90, 0, 14, -82, 0, 18, PALETTE.WOOD);
 
     // Ana cadde (köprüye giden) ve iki ara cadde
-    w.fillBox(-72, 0, -4, -12, 0, 4, PALETTE.ASPHALT);
-    w.fillBox(-50, 0, -52, -44, 0, 52, PALETTE.ASPHALT);
-    w.fillBox(-30, 0, -52, -24, 0, 52, PALETTE.ASPHALT);
+    // Yollar iki yönlüdür: her yönde bir şerit, toplam genişlik 6.75 m ve üstü
+    w.fillBox(-72, 0, -5, -12, 0, 5, PALETTE.ASPHALT);
+    w.fillBox(-51, 0, -52, -43, 0, 52, PALETTE.ASPHALT);
+    w.fillBox(-31, 0, -52, -23, 0, 52, PALETTE.ASPHALT);
 
     // B. UZUN KÖPRÜ (X: -12..24): ince tabliye, zeminden bir küp yukarıda
     const bx0 = -K * 12 - 1, bx1 = K * 24 + 1;
@@ -160,13 +167,10 @@ export class LevelManager {
     // C. ZENGİN ADA ZEMİNİ
     w.fillBox(24, 0, -32, 68, 0, 32, PALETTE.CONCRETE);
     w.fillBox(22, 0, -34, 24, 0, 34, PALETTE.SAND);
-    w.fillBox(68, 0, -34, 72, 0, 34, PALETTE.SAND);
-    w.fillBox(24, 0, -35, 68, 0, -33, PALETTE.SAND);
-    w.fillBox(24, 0, 33, 68, 0, 35, PALETTE.SAND);
 
     // Adanın dar sokakları
-    w.fillBox(24, 0, -1, 64, 0, 1, PALETTE.ASPHALT);
-    w.fillBox(44, 0, -30, 46, 0, 30, PALETTE.ASPHALT);
+    w.fillBox(24, 0, -4, 64, 0, 4, PALETTE.ASPHALT);
+    w.fillBox(43, 0, -30, 47, 0, 30, PALETTE.ASPHALT);
     w.fillBox(56, 0, -28, 57, 0, 28, PALETTE.CONCRETE);
 
     // ==========================================
@@ -200,6 +204,30 @@ export class LevelManager {
     this.buildLuxuryBoutique(48, 1, 16, 62, 14, 28);
     this.buildTower(48, 1, -30, 57, 14, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' }); // Küçük villa
     this.buildTower(59, 1, -30, 66, 26, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' }); // Ada kulesi
+  }
+
+  // Tepeler: yumuşak çan eğrileri; düz (asfalt/beton) bölgelere yaklaştıkça sıfıra iner
+  _setHills() {
+    const U = 0.75; // 1 eski birim = 0.75 m
+    const hills = [ // [merkez x, merkez z (eski birim), yayılma, yükseklik (m)]
+      [-58, 88, 15, 7], [-26, 98, 13, 8.5], [-44, -88, 16, 7.5], [-20, -102, 12, 9],
+      [56, 52, 12, 6], [44, -58, 13, 7.5], [86, 6, 13, 8], [70, -50, 10, 6]
+    ];
+    const paved = [[-74, -12, -58, 58], [24, 70, -36, 36]]; // [x0, x1, z0, z1] eski birim: düz kalacak alanlar
+    const smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+    this.world.terrain.heightFn = (xm, zm) => {
+      const x = xm / U, z = zm / U;
+      let h = 0;
+      for (const [cx, cz, sg, A] of hills) {
+        h += A * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * sg * sg));
+      }
+      let d = Infinity; // en yakın düz alana uzaklık
+      for (const [x0, x1, z0, z1] of paved) {
+        const dx = Math.max(x0 - x, 0, x - x1), dz = Math.max(z0 - z, 0, z - z1);
+        d = Math.min(d, Math.hypot(dx, dz));
+      }
+      return h * smooth(d / 10);
+    };
   }
 
   // Her 6 satırda (4.5 m) bir kat döşemesi

@@ -36,6 +36,9 @@ export class HandWeapons {
     this.bob = 0;
 
     this.swingT = -1;       // -1: boşta, 0..1: savuruyor
+    this.swingDir = { x: 1, y: 0 }; // savurma yönü (ekranda: x sağ+, y yukarı+)
+    this.swingCycle = 0;
+    this.mx = 0; this.my = 0;       // son fare hareketi (savurma yönünü belirler)
     this.swingCut = 0;      // bu savuruşta kırılan küp sayısı
     this.swingSoundT = 0;
     this.tracers = [];
@@ -54,6 +57,7 @@ export class HandWeapons {
     this._buildRocket();
     this._buildMinigun();
     this._buildSaber();
+    this._buildBomb();
 
     // Kılıcın çevreyi aydınlatması (mavi ışık)
     this.saberLight = new THREE.PointLight(0x5ac8ff, 0, 9);
@@ -180,6 +184,26 @@ export class HandWeapons {
     this.root.add(this.saberPivot);
   }
 
+  _buildBomb() {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshLambertMaterial({ color: 0x3a3f47 }));
+    this.bombLamp = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.09), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
+    this.bombLamp.position.y = 0.13;
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.02), new THREE.MeshLambertMaterial({ color: 0xd4a017 }));
+    wire.position.set(0.08, 0.15, 0);
+    g.add(body, this.bombLamp, wire);
+    g.position.set(0.3, -0.28, -0.55);
+    g.rotation.set(0.25, 0.4, 0);
+    this.bombModel = g;
+    this.root.add(g);
+  }
+
+  setBombModel(i) {
+    this.bombModel.visible = i === 3 || i === 4;
+    if (i === 3) this.bombLamp.material.color.setHex(0xff2222);
+    if (i === 4) this.bombLamp.material.color.setHex(0x33ff66);
+  }
+
   // ───────────────────────── Silah değiştirme ─────────────────────────
   setWeapon(i) {
     if (i !== this.current) this.switchT = 0; // silah aşağıdan yukarı kalkar
@@ -189,6 +213,7 @@ export class HandWeapons {
     this.rocketModel.visible = i === 0;
     this.minigunModel.visible = i === 1;
     this.saberModel.visible = i === 2;
+    this.bombModel.visible = i === 3 || i === 4;
     if (i === 2) sound.playSaberOn();
     if (i !== 2) this.saberLight.intensity = 0;
   }
@@ -203,6 +228,17 @@ export class HandWeapons {
     if (this.current !== 2 || this.swingT >= 0) return false;
     this.swingT = 0;
     this.swingCut = 0;
+    // Yön: son fare hareketine göre (sağa çekersen sağa keser, aşağı çekersen yukarıdan aşağı).
+    // Fare durağansa eğik, dikey ve yatay kesikler sırayla değişir.
+    const mag = Math.hypot(this.mx, this.my);
+    if (mag > 25) {
+      this.swingDir = { x: this.mx / mag, y: -this.my / mag };
+    } else {
+      const combo = [[1, 0.0], [-1, 0.6], [0.55, -1], [-0.6, -1], [0, 1], [1, 0.7], [-1, -0.2]];
+      const c = combo[this.swingCycle++ % combo.length];
+      const m = Math.hypot(c[0], c[1]);
+      this.swingDir = { x: c[0] / m, y: c[1] / m };
+    }
     sound.playSaberSwing();
     return true;
   }
@@ -215,6 +251,7 @@ export class HandWeapons {
     this.switchT = Math.min(1, this.switchT + dt * 5);
     this.kick = Math.max(0, this.kick - dt * 6);
     this.flashTimer = Math.max(0, this.flashTimer - dt);
+    const md = Math.exp(-6 * dt); this.mx *= md; this.my *= md; // fare hareketi zamanla söner
 
     // Yürüyüş sallanması (silahın hafifçe oynaması)
     this.bob += ((ctx.moving ? 1 : 0) - this.bob) * (1 - Math.exp(-8 * dt));
@@ -226,6 +263,8 @@ export class HandWeapons {
     // Roket
     this.rocketModel.position.set(0.3 + swayX, -0.26 - swayY - drop, -0.62 + this.kick * 0.1);
     this.rocketModel.rotation.x = this.kick * 0.1;
+
+    this.bombModel.position.set(0.3 + swayX, -0.28 - swayY - drop, -0.55 + this.kick * 0.12);
 
     // Minigun: basılı tutunca namlular dönmeye başlar, hızlanınca ateş eder
     const targetSpin = this.current === 1 && this.fireHeld ? 1 : 0;
@@ -263,16 +302,22 @@ export class HandWeapons {
         }
       }
     }
-    // Savurma eğrisi: geriye çek, hızla sağdan sola salla, yerine dön
-    const e = swingU < 0.2 ? -swingU / 0.2 * 0.25 : (swingU < 0.8 ? lerp(-0.25, 1, (swingU - 0.2) / 0.6) : lerp(1, 0, (swingU - 0.8) / 0.2));
-    const sweep = swingU > 0 ? e : 0;
+    // Savurma: geriye çek, seçilen yönde hızla salla, yerine dön. Yön yatay, dikey ya da çapraz olabilir.
+    const sCur = swingU <= 0 ? 0
+      : swingU < 0.2 ? lerp(0, -1.15, swingU / 0.2)
+      : swingU < 0.8 ? lerp(-1.15, 1, (swingU - 0.2) / 0.6)
+      : lerp(1, 0, (swingU - 0.8) / 0.2);
+    const dx = this.swingDir.x, dy = this.swingDir.y;
+    const ox = dx * sCur, oy = dy * sCur;
+    const arc = Math.sin(swingU * Math.PI);
     this.saberPivot.position.set(
-      0.34 + swayX - sweep * 0.55,
-      -0.36 - swayY - drop - Math.sin(swingU * Math.PI) * 0.06,
-      -0.5 - Math.sin(swingU * Math.PI) * 0.12
+      0.2 + swayX + ox * 0.42,
+      -0.36 - swayY - drop + oy * 0.28 - arc * 0.05,
+      -0.5 - arc * 0.14
     );
-    this.saberPivot.rotation.z = swingU > 0 ? lerp(-0.5, 1.6, Math.max(0, Math.min(1, (e + 0.25) / 1.25))) : -0.18;
-    this.saberPivot.rotation.x = swingU > 0 ? -0.15 * Math.sin(swingU * Math.PI) : 0;
+    this.saberPivot.rotation.z = swingU > 0 ? 0.42 - ox * 1.05 : -0.18;
+    this.saberPivot.rotation.x = swingU > 0 ? -oy * 0.85 : 0;
+    this.saberPivot.rotation.y = swingU > 0 ? ox * 0.25 : 0;
 
     // Kılıç ışığı dünyayı mavi aydınlatır
     if (this.current === 2 && this.visible) {
@@ -326,8 +371,9 @@ export class HandWeapons {
       const key = `${Math.round(p.x / VOXEL_SIZE)},${Math.round((p.y - VOXEL_SIZE / 2) / VOXEL_SIZE)},${Math.round(p.z / VOXEL_SIZE)}`;
       const v = this.voxelWorld.voxels.get(key);
       if (v && v.active) { hit = p.clone(); hitType = 'voxel'; break; }
-      if (p.y <= GROUND_Y && this.voxelWorld.terrain.topIntactAt(p.x, p.z)) {
-        hit = new THREE.Vector3(p.x, GROUND_Y, p.z); hitType = 'ground'; break;
+      const gy = this.voxelWorld.terrain.topYAt(p.x, p.z);
+      if (p.y <= gy && this.voxelWorld.terrain.topIntactAt(p.x, p.z)) {
+        hit = new THREE.Vector3(p.x, gy, p.z); hitType = 'ground'; break;
       }
       if (p.y < -0.4) break; // denize düştü
     }
@@ -383,11 +429,12 @@ export class HandWeapons {
     const fwd = new THREE.Vector3(); cam.getWorldDirection(fwd);
     const right = new THREE.Vector3().crossVectors(fwd, cam.up).normalize();
 
-    // Yatay yay: sağdan sola, hafif aşağı eğimli
-    const eased = u < 0.2 ? 0 : Math.min(1, (u - 0.2) / 0.6);
-    const phi = lerp(0.9, -0.9, eased);
-    const dir = fwd.clone().multiplyScalar(Math.cos(phi))
-      .addScaledVector(right, Math.sin(phi)).add(new THREE.Vector3(0, -0.18, 0)).normalize();
+    // Savurma yayı: seçilen yönde (yatay, dikey veya çapraz), vuruş evresinde -1'den +1'e
+    const s = lerp(-1.0, 1.0, Math.min(1, Math.max(0, (u - 0.2) / 0.6)));
+    const up = new THREE.Vector3().crossVectors(right, fwd).normalize();
+    const dir = fwd.clone()
+      .addScaledVector(right, this.swingDir.x * s * 1.05)
+      .addScaledVector(up, this.swingDir.y * s * 0.85 - 0.12).normalize();
 
     const base = cam.position.clone().addScaledVector(fwd, 0.3);
     base.y -= 0.25;
@@ -401,8 +448,9 @@ export class HandWeapons {
       const n = this.voxelWorld.sweepCut(pt, SABER_RADIUS);
       cut += n;
       if (this.npcs) this.npcs.hitSphere(pt, SABER_RADIUS + 0.25);
-      if (pt.y <= GROUND_Y + 0.3 && this.voxelWorld.terrain.topIntactAt(pt.x, pt.z)) {
-        this.voxelWorld.breakGround(new THREE.Vector3(pt.x, GROUND_Y, pt.z), 0.55, 50);
+      const gy = this.voxelWorld.terrain.topYAt(pt.x, pt.z);
+      if (pt.y <= gy + 0.3 && this.voxelWorld.terrain.topIntactAt(pt.x, pt.z)) {
+        this.voxelWorld.breakGround(new THREE.Vector3(pt.x, gy, pt.z), 0.55, 50);
       }
       if (n > 0 && !soundPlayed && this.swingSoundT <= 0) {
         sound.playSaberHit();

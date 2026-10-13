@@ -8,7 +8,7 @@ import { GROUND_Y, BEDROCK_Y } from './terrain.js';
 // gelince sağa/sola dönüp yürümeye devam ederler. Roket/patlama, minigun, ışın kılıcı ve çekiçle
 // vurulabilirler (küplere dağılırlar, gore yok). Bir süre sonra başka yerde yenisi doğar.
 // ─────────────────────────────────────────────────────────────────────────────
-const NPC_COUNT = 40;
+const NPC_COUNT = 60;
 const HALF_W = 0.22;
 const HEIGHT = 1.55;
 const SPEED = 2.0;
@@ -56,8 +56,7 @@ export class NPCManager {
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
   _solid(x, feet, z) {
     const t = this.voxelWorld.terrain;
-    if (feet < BEDROCK_Y - EPS && t.overlapsLand(x, z, HALF_W)) return true;
-    if (feet < GROUND_Y - EPS && t.overlapsTop(x, z, HALF_W)) return true;
+    if (t.solidAt(x, feet, z, HALF_W)) return true;
 
     const S = VOXEL_SIZE, vox = this.voxelWorld.voxels;
     const ix0 = Math.floor((x - HALF_W + EPS) / S + 0.5), ix1 = Math.floor((x + HALF_W - EPS) / S + 0.5);
@@ -108,17 +107,19 @@ export class NPCManager {
       const x = b.minX + Math.random() * (b.maxX - b.minX);
       const z = b.minZ + Math.random() * (b.maxZ - b.minZ);
       if (!t.topIntactAt(x, z)) continue;
-      if (this.playerPos.distanceTo(new THREE.Vector3(x, GROUND_Y, z)) < 12) continue;
-      if (this._solid(x, GROUND_Y, z)) continue;
+      const gy0 = t.topYAt(x, z);
+      if (this.playerPos.distanceTo(new THREE.Vector3(x, gy0, z)) < 12) continue;
+      if (this._solid(x, gy0, z)) continue;
       // Çevresi açık mı (bina içinde ya da duvarın dibinde doğmasın)
-      if (this._solid(x + 0.6, GROUND_Y, z) || this._solid(x - 0.6, GROUND_Y, z) ||
-          this._solid(x, GROUND_Y, z + 0.6) || this._solid(x, GROUND_Y, z - 0.6)) continue;
+      if (this._solid(x + 0.6, gy0, z) || this._solid(x - 0.6, gy0, z) ||
+          this._solid(x, gy0, z + 0.6) || this._solid(x, gy0, z - 0.6)) continue;
 
+      const gy = t.topYAt(x, z);
       const body = this._makeBody();
-      body.g.position.set(x, GROUND_Y, z);
+      body.g.position.set(x, gy, z);
       this.scene.add(body.g);
       this.npcs.push({
-        ...body, group: body.g, x, y: GROUND_Y, z, vy: 0,
+        ...body, group: body.g, x, y: gy, z, vy: 0,
         heading: Math.random() * Math.PI * 2,
         turnTimer: 2 + Math.random() * 5, pause: 0, cycle: Math.random() * 6, grounded: true
       });
