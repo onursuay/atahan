@@ -168,6 +168,16 @@ export class VoxelWorld {
     }
   }
 
+  // Yalnız MEVCUT voxellerin türünü değiştirir; boşluklara (kapı, garaj girişi) hiçbir şey eklemez.
+  // Pencereler için: duvarın olduğu yere cam koyar, kapı boşluğuna cam yerleştirmez.
+  retypeBox(a0, b0, c0, a1, b1, c1, matType) {
+    const [minX, minY, minZ, maxX, maxY, maxZ] = this._q(a0, b0, c0, a1, b1, c1);
+    for (let x = minX; x <= maxX; x++) for (let y = minY; y <= maxY; y++) for (let z = minZ; z <= maxZ; z++) {
+      const v = this.voxels.get(`${x},${y},${z}`);
+      if (v) v.type = matType;
+    }
+  }
+
   // Varsa üstüne yazar (cam pencere gibi duvarın yerini alan parçalar için)
   replaceBox(minX, minY, minZ, maxX, maxY, maxZ, matType) {
     this.removeBox(minX, minY, minZ, maxX, maxY, maxZ);
