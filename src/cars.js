@@ -85,16 +85,18 @@ export class CarManager {
     // [x0,z0,x1,z1, şerit sayısı, şerit ofseti (m)] metre
     // Yollar kıyıdan 9 m önce biter: çıkmaz uçta U dönüşü denize taşmasın
     const R = [
-      [-140*U, 0, 160, 0, 1, 2.0],                                         // ana cadde: batı ada + köprü + doğu ada
-      [-140*U, 66*U, -13, 66*U, 1, 2.06], [-140*U, -66*U, -13, -66*U, 1, 2.06], // kuzey / güney caddeleri
-      [-127*U, -87, -127*U, 87, 1, 1.7], [-87*U, -87, -87*U, 87, 1, 1.7],  // batı sokakları
-      [-47*U, -87, -47*U, 87, 1, 1.7], [-27*U, -87, -27*U, 87, 1, 1.7],    // sokaklar
-      [82*U, 44*U, 176*U, 44*U, 1, 2.06], [82*U, -44*U, 176*U, -44*U, 1, 2.06], // doğu ada caddeleri
-      [82*U, 88*U, 176*U, 88*U, 1, 2.06], [82*U, -88*U, 176*U, -88*U, 1, 2.06],
-      [125*U, -88, 125*U, 88, 3, 1.75],                                    // otoyol: her yönde 3 şerit
-      [199*U, -45, 199*U, 45, 1, 1.0]                                      // zengin bölge sokağı
+      [-140*U, 0, 160, 0, 1, 2.0, 'noMerge'],                                  // ana cadde: batı ada + köprü + doğu ada (üst geçitten geçer)
+      [-140*U, 66*U, -13, 66*U, 1, 2.06], [-140*U, -66*U, -13, -66*U, 1, 2.06],
+      [-140*U, 134*U, -13, 134*U, 1, 2.06], [-140*U, -134*U, -13, -134*U, 1, 2.06],
+      [-127*U, -112, -127*U, 112, 1, 1.7], [-87*U, -112, -87*U, 112, 1, 1.7],
+      [-47*U, -112, -47*U, 112, 1, 1.7], [-27*U, -112, -27*U, 112, 1, 1.7],
+      [82*U, 44*U, 176*U, 44*U, 1, 2.06], [82*U, -44*U, 176*U, -44*U, 1, 2.06],
+      [82*U, 88*U, 100*U, 88*U, 1, 2.06], [82*U, -88*U, 100*U, -88*U, 1, 2.06], // hastane/AVM'nin içinden geçmez
+      [82*U, 134*U, 176*U, 134*U, 1, 2.06], [82*U, -134*U, 176*U, -134*U, 1, 2.06],
+      [125*U, -112, 125*U, 112, 3, 1.75],                                      // otoyol: her yönde 3 şerit
+      [199*U, -45, 199*U, 45, 1, 1.0]
     ];
-    this.roads = R.map((r, i) => ({ id: i, a: [r[0], r[1]], b: [r[2], r[3]], lanes: r[4], off: r[5] }));
+    this.roads = R.map((r, i) => ({ id: i, a: [r[0], r[1]], b: [r[2], r[3]], lanes: r[4], off: r[5], noMerge: r[6] === 'noMerge' }));
 
     const key = (x, z) => `${Math.round(x * 4)},${Math.round(z * 4)}`;
     const node = (x, z) => { const k = key(x, z); if (!this.nodes.has(k)) this.nodes.set(k, { x, z, out: [] }); return this.nodes.get(k); };
@@ -160,11 +162,17 @@ export class CarManager {
       const dot = o.d[0] * e.d[0] + o.d[1] * e.d[1];
       const cross = e.d[0] * o.d[1] - e.d[1] * o.d[0];
       if (dot > 0.9) straight = o;
-      else if (Math.abs(dot) < 0.2 && o.road.lanes === 1) (cross > 0 ? right : left).push(o);
+      else if (Math.abs(dot) < 0.2) {
+        if (o.road.lanes === 1 && (e.road.lanes === 1 || cross > 0)) (cross > 0 ? right : left).push(o);   // otoyoldan yalnız sağa (çıkış)
+        else if (o.road.lanes > 1 && e.road.lanes === 1 && cross > 0 && !e.road.noMerge) right.push(o);    // yan yoldan sağa dönüp otoyola katılma
+      }
     });
     let pick2 = null;
-    if (e.road.lanes > 1) pick2 = straight;                 // otoyolda yalnız düz
-    else {
+    if (e.road.lanes > 1) {
+      // Otoyolda: dıştaki şeritteki araç ara sıra sağdan çıkış yapar, diğerleri düz gider
+      const exits = car.lane === e.road.lanes - 1 ? right.filter(o => o.road.lanes === 1) : [];
+      pick2 = (exits.length && Math.random() < 0.3) ? exits[0] : straight;
+    } else {
       const bag = [];
       if (straight) bag.push(straight, straight, straight);
       left.forEach(o => bag.push(o)); right.forEach(o => bag.push(o));
@@ -172,7 +180,8 @@ export class CarManager {
     }
     if (!pick2) pick2 = n.out.length === 1 ? n.out[0] : (straight || opts[0] || n.out[0]); // çıkmaz: U dönüşü
     car.next = pick2;
-    car.nextLane = Math.min(car.lane, pick2.road.lanes - 1);
+    // Otoyola katılan araç dış şeride girer; otoyoldan çıkan tek şeride iner
+    car.nextLane = pick2.road.lanes > e.road.lanes ? pick2.road.lanes - 1 : Math.min(car.lane, pick2.road.lanes - 1);
   }
 
   _beginTurn(car) {
@@ -316,6 +325,26 @@ export class CarManager {
     return false;
   }
 
+  // Yol yüzeyi yüksekliği: köprü tabliyesi 0.5, üst geçit tabliyesi 5.0, diğer yerlerde arazi
+  _roadY(x, z) {
+    if (Math.abs(z) < 4.5) {
+      if (x > -9.2 && x < 58.7) return BRIDGE_Y;
+      if (x > 106 * U && x < 145 * U) return 5.0;
+    }
+    return this.vw.terrain.heightAt(x, z);
+  }
+
+  // Önündeki yolda başka araç varsa (araya girene de) durur; uzun bekleyen araç bir süre kontrolü bırakır
+  _carAhead(car) {
+    for (const o of this.cars) {
+      if (o === car || o.state === 'wreck' && false) continue;
+      const dx = o.pos.x - car.pos.x, dz = o.pos.z - car.pos.z;
+      const ahead = dx * car.fwd.x + dz * car.fwd.z, side = Math.abs(-dx * car.fwd.z + dz * car.fwd.x);
+      if (ahead > 0.3 && ahead < (car.T.len / 2 + o.T.len / 2 + 2.5 + car.speed * 0.7) && side < (car.T.wid + o.T.wid) / 2 + 0.5 && Math.abs(o.pos.y - car.pos.y) < 1.5) return true;
+    }
+    return false;
+  }
+
   _drive(car, dt) {
     if (car.crash > 0) { car.crash -= dt; car.speed *= Math.exp(-6 * dt); return; }   // kazadan sonra bir süre bekler
     // Önünde aynı şeritte araç varsa yavaşla ya da dur
@@ -327,6 +356,12 @@ export class CarManager {
     }
     // Önüne biri çıkarsa (oyuncu ya da yaya) araba durur
     if (this._personAhead(car)) limit = 0;
+    // Yoluna biri girerse (kesilirse) dur; 3 sn'den uzun beklediysek 2 sn önceliği bırakma (kilitlenme olmasın)
+    if (car.ignoreT > 0) car.ignoreT -= dt;
+    else if (this._carAhead(car)) {
+      limit = 0; car.waitT = (car.waitT || 0) + dt;
+      if (car.waitT > 3) { car.waitT = 0; car.ignoreT = 2; }
+    } else car.waitT = 0;
     const turning = !!car.turn;
     const cap = turning ? Math.min(limit, 8) : limit;
     car.speed += (cap - car.speed) * Math.min(1, dt * (cap < car.speed ? 3.5 : 1.4));
@@ -351,9 +386,8 @@ export class CarManager {
     }
 
     // Yükseklik: yol yüzeyi (köprüde tabliye)
-    const onBridge = car.pos.x > -9.2 && car.pos.x < 58.7 && Math.abs(car.pos.z) < 4.5;
-    const h = onBridge ? BRIDGE_Y : this.vw.terrain.heightAt(car.pos.x, car.pos.z);
-    car.pos.y = h > -Infinity ? h : car.pos.y;
+    const h = this._roadY(car.pos.x, car.pos.z);
+    if (h > -Infinity) car.pos.y = Math.abs(h - car.pos.y) > 3 ? h : car.pos.y + (h - car.pos.y) * Math.min(1, dt * 12);
     car.g.position.copy(car.pos);
     car.g.rotation.y = -Math.atan2(car.fwd.z, car.fwd.x);
   }
@@ -449,8 +483,7 @@ export class CarManager {
         const v = this.vw.voxels.get(`${Math.round(qx / VOXEL_SIZE)},${Math.round((y - VOXEL_SIZE / 2) / VOXEL_SIZE)},${Math.round(qz / VOXEL_SIZE)}`);
         if (v && v.active) { blocked = true; hitVox = { x: qx, y, z: qz }; }
       }
-      const onBridge = qx > -9.2 && qx < 58.7 && Math.abs(qz) < 4.5;
-      const h = onBridge ? BRIDGE_Y : this.vw.terrain.heightAt(qx, qz);
+      const h = this._roadY(qx, qz);
       if (h === -Infinity || h - car.pos.y > 0.62) blocked = true;
     }
     if (blocked) {
@@ -469,8 +502,7 @@ export class CarManager {
     // Yaya ezme
     if (Math.abs(car.speed) > 4 && this.vw.npcs) this.vw.npcs.hitSphere(car.pos.clone().addScaledVector(car.fwd, half * dir), 1.1);
 
-    const onBridge = car.pos.x > -9.2 && car.pos.x < 58.7 && Math.abs(car.pos.z) < 4.5;
-    const h = onBridge ? BRIDGE_Y : this.vw.terrain.heightAt(car.pos.x, car.pos.z);
+    const h = this._roadY(car.pos.x, car.pos.z);
     if (h > -Infinity) car.pos.y += (h - car.pos.y) * Math.min(1, dt * 14);
     car.g.position.copy(car.pos);
     car.g.rotation.y = -car.heading;

@@ -249,9 +249,9 @@ export class Terrain {
     this.hq = new Int16Array(cols * rows);
     if (this.heightFn) {
       for (let i = 0; i < cols * rows; i++) {
-        if (this.land[i] !== 1 || !this.matList[this.matIdx[i]].isGrass) continue;
+        if (this.land[i] !== 1) continue;
         const c = i % cols, r = Math.floor(i / cols);
-        const hm = this.heightFn(minX + (c + 0.5) * CELL, minZ + (r + 0.5) * CELL);
+        const hm = this.heightFn(minX + (c + 0.5) * CELL, minZ + (r + 0.5) * CELL, this.matList[this.matIdx[i]]);
         this.hq[i] = Math.max(0, Math.round(hm / CELL));
       }
     }
@@ -259,7 +259,9 @@ export class Terrain {
     // Eğim sınırı: komşu hücreler arası fark en çok 0.25 m (yürünebilir, basamak çıkılabilir)
     if (this.heightFn) {
       const hq = this.hq, L = this.land;
-      const lim = (i, j) => { if (L[i] === 1 && L[j] === 1 && hq[i] > hq[j] + 1) hq[i] = hq[j] + 1; };
+      const M = this.matIdx; // eğim sınırı yalnız aynı malzemeli komşular arasında (rampa/üst geçit yolu kenardaki zeminden ayrışabilir)
+      const isRoad = (i) => this.matList[M[i]].name.startsWith('Asfalt'); // yol rampaları (üst geçit) kendi eğimini taşır
+      const lim = (i, j) => { if (L[i] === 1 && L[j] === 1 && M[i] === M[j] && !isRoad(i) && hq[i] > hq[j] + 1) hq[i] = hq[j] + 1; };
       for (let pass = 0; pass < 24; pass++) {
         for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
           const i = r * cols + c;

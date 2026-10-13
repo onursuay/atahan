@@ -19,7 +19,10 @@ class ScaledBuilder {
   constructor(world) {
     this.world = world;
     this.shell = null; // son kurulan bina kabuğu (eski birim cinsinden)
+    this.footprints = []; // tüm binaların ayak izi: yol lambası/ağaç gibi donatı bina içine konmasın
   }
+
+  blocked(x, z, m = 1) { return this.footprints.some(r => x >= r.minX - m && x <= r.maxX + m && z >= r.minZ - m && z <= r.maxZ + m); }
 
   beginBuilding() { this.shell = null; }
 
@@ -74,7 +77,7 @@ class ScaledBuilder {
   }
 
   fillHollowBox(minX, minY, minZ, maxX, maxY, maxZ, wallMat, floorMat) {
-    if (!this.shell) this.shell = { minX, maxX, minY, maxY, minZ, maxZ };
+    if (!this.shell) { this.shell = { minX, maxX, minY, maxY, minZ, maxZ }; this.footprints.push({ minX, maxX, minZ, maxZ }); }
 
     const X0 = this._x0(minX), X1 = this._x1(maxX);
     const Y0 = this._y0(minY), Y1 = this._y1(maxY);
@@ -130,15 +133,15 @@ export class LevelManager {
     // ==========================================
     // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi)
     // ==========================================
-    w.fillBox(78, 0, -130, 235, 0, 130, PALETTE.GRASS);         // doğu ada çimi (zengin bölgenin kuzeyi/güneyi)
+    w.fillBox(78, 0, -165, 235, 0, 165, PALETTE.GRASS);         // doğu ada çimi (zengin bölgenin kuzeyi/güneyi)
     this._setHills();
-    w.fillBox(-154, 0, -130, -12, 0, 130, PALETTE.CONCRETE);    // batı ada: genişletilmiş şehir zemini
-    w.fillBox(-162, 0, -130, -155, 0, 130, PALETTE.SAND);       // batı kumsalı
-    w.fillBox(-155, 0, -128, -153, 0, 128, PALETTE.WOOD);       // gezinti yolu
+    w.fillBox(-154, 0, -165, -12, 0, 165, PALETTE.CONCRETE);    // batı ada: genişletilmiş şehir zemini
+    w.fillBox(-162, 0, -165, -155, 0, 165, PALETTE.SAND);       // batı kumsalı
+    w.fillBox(-155, 0, -163, -153, 0, 163, PALETTE.WOOD);       // gezinti yolu
     w.fillBox(-170, 0, -18, -162, 0, -14, PALETTE.WOOD);        // iskeleler
     w.fillBox(-170, 0, 14, -162, 0, 18, PALETTE.WOOD);
-    w.fillBox(78, 0, -130, 110, 0, 130, PALETTE.CONCRETE);      // doğu ada: şehir blokları (köprüden sonra)
-    w.fillBox(141, 0, -130, 178, 0, 130, PALETTE.CONCRETE);
+    w.fillBox(78, 0, -165, 110, 0, 165, PALETTE.CONCRETE);      // doğu ada: şehir blokları (köprüden sonra)
+    w.fillBox(141, 0, -165, 178, 0, 165, PALETTE.CONCRETE);
     w.fillBox(178, 0, -70, 224, 0, 70, PALETTE.CONCRETE);       // zengin bölge zemini
 
     // Yollar iki yönlüdür: her yönde bir şerit, 6.75 m ve üstü
@@ -146,14 +149,16 @@ export class LevelManager {
     w.fillBox(78, 0, -5, 224, 0, 5, PALETTE.ASPHALT);           // ana cadde (doğu ada)
     w.fillBox(-152, 0, 61, -12, 0, 71, PALETTE.ASPHALT);
     w.fillBox(-152, 0, -71, -12, 0, -61, PALETTE.ASPHALT);
-    [-131, -91, -51, -31].forEach(x => w.fillBox(x, 0, -128, x + 8, 0, 128, PALETTE.ASPHALT));  // kuzey-güney sokaklar
-    [44, -44, 88, -88].forEach(zz => w.fillBox(78, 0, zz - 5, 178, 0, zz + 5, PALETTE.ASPHALT)); // doğu ada caddeleri
-    w.fillBox(110, 0, -130, 141, 0, 130, PALETTE.ASPHALT);      // OTOYOL: her yönde 3 şerit (23 m)
+    [-131, -91, -51, -31].forEach(x => w.fillBox(x, 0, -163, x + 8, 0, 163, PALETTE.ASPHALT));  // kuzey-güney sokaklar
+    [44, -44].forEach(zz => w.fillBox(78, 0, zz - 5, 178, 0, zz + 5, PALETTE.ASPHALT));      // doğu ada caddeleri
+    [88, -88].forEach(zz => w.fillBox(78, 0, zz - 5, 110, 0, zz + 5, PALETTE.ASPHALT));       // hastane/AVM'nin içinden geçmez
+    [134, -134].forEach(zz => { w.fillBox(-152, 0, zz - 5, -12, 0, zz + 5, PALETTE.ASPHALT); w.fillBox(78, 0, zz - 5, 178, 0, zz + 5, PALETTE.ASPHALT); }); // yeni kuzey/güney caddeleri
+    w.fillBox(110, 0, -165, 141, 0, 165, PALETTE.ASPHALT);      // OTOYOL: her yönde 3 şerit (23 m)
     w.fillBox(197, 0, -66, 201, 0, 66, PALETTE.ASPHALT);        // zengin bölge ara sokağı
 
     // Otoyol orta bariyeri (kavşaklarda boşluk) ve çift kollu aydınlatma
-    [[-130, -96], [-80, -52], [-36, -8], [8, 36], [52, 80], [96, 130]].forEach(([a, b]) => w.fillBox(125, 1, a, 125, 2, b, PALETTE.CONCRETE));
-    for (let z = -120; z <= 120; z += 15) if ([0, 44, -44, 88, -88].every(g => Math.abs(z - g) > 10)) this.lamp(125, z, 1, 0, true);
+    [[-165, -142], [-126, -96], [-80, -52], [-36, -8], [8, 36], [52, 80], [96, 126], [142, 165]].forEach(([a, b]) => w.fillBox(125, 1, a, 125, 2, b, PALETTE.CONCRETE));
+    for (let z = -160; z <= 160; z += 15) if ([0, 44, -44, 88, -88, 134, -134].every(g => Math.abs(z - g) > 10)) this.lamp(125, z, 1, 0, true);
 
     // ==========================================
     // 2. ASMA KÖPRÜ (iki adayı bağlar)
@@ -167,7 +172,7 @@ export class LevelManager {
     this.buildCityApartment(-72, 1, 8, -54, 32, 26);
     this.buildCityBank(-72, 1, -26, -54, 20, -8);
     this.buildBeachCafe(-70, 1, 28, -56, 9, 52);
-    this.buildTower(-70, 1, -50, -58, 34, -36, { ...CC, side: 'x2' });
+    this.buildTower(-70, 1, -50, -58, 34, -36, { ...CC, side: 'x2', interior: 'hotel' });
     this.buildCityWarehouse(-41, 1, 10, -33, 14, 26);
     this.buildTower(-42, 1, -30, -32, 26, -8, { ...BR, side: 'x1' });
     this.buildTower(-42, 1, 32, -32, 14, 50, { ...CC, side: 'x1' });
@@ -193,8 +198,16 @@ export class LevelManager {
     this.buildTower(-150, 1, -40, -134, 10, -8, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, 74, -134, 12, 110, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, -110, -134, 12, -74, { ...BR, side: 'x2' });
-    this.buildTower(-88, 1, 10, -76, 20, 36, { ...CC, side: 'z1' });
-    this.buildTower(-88, 1, -36, -76, 18, -10, { ...BR, side: 'z2' });
+    this.buildTower(-81, 1, 10, -74, 20, 36, { ...CC, side: 'z1' });
+    this.buildTower(-81, 1, -36, -74, 18, -10, { ...BR, side: 'z2' });
+
+    // Uzatılan kuzey/güney mahalleleri (yeni caddeler z=±134 boyunca)
+    [[1, 142, 164, 'z1'], [-1, -164, -142, 'z2']].forEach(([sg, za, zb, door]) => {
+      this.buildTower(-150, 1, za, -134, 10, zb, { ...BR, side: 'x2' });
+      this.buildTower(-120, 1, za, -96, 16, zb, { ...CC, side: door });
+      this.buildTower(-42, 1, za, -32, 14, zb, { ...BR, side: door });
+      this.buildTower(-22, 1, za, -14, 12, zb, { ...CC, side: door });
+    });
 
     this.buildPark(-72, 72, -52, 128);
     this.buildSite(-72, -124, -33, -74);
@@ -208,12 +221,17 @@ export class LevelManager {
     this.buildTower(82, 1, 96, 106, 12, 120, { ...CC, side: 'z1', sign: true });     // polis merkezi
     this.buildTower(80, 1, 8, 108, 12, 38, { ...BR, side: 'z1' });                   // okul
     this.buildTower(80, 1, -38, 108, 26, -8, { ...CC, side: 'z2' });                 // iş merkezi
-    this.buildTower(80, 1, -82, 108, 20, -50, { ...BR, side: 'z1' });                // otel
+    this.buildTower(80, 1, -82, 108, 20, -50, { ...BR, side: 'z1', interior: 'hotel' });  // otel
     this.buildTower(82, 1, -122, 106, 24, -96, { ...CC, side: 'z2' });               // apartmanlar
     this.buildTower(144, 1, 8, 176, 28, 38, { ...CC, side: 'z1' });                  // apartman bloğu
     this.buildTower(144, 1, -38, 176, 22, -8, { ...BR, side: 'z2' });                // ofis kulesi
     this.buildTower(182, 1, 78, 202, 14, 100, { ...BR, side: 'x1' });
     this.buildTower(206, 1, 78, 224, 16, 104, { ...CC, side: 'x1' });
+    [[142, 164, 'z1'], [-164, -142, 'z2']].forEach(([za, zb, door]) => {
+      this.buildTower(80, 1, za, 108, 14, zb, { ...BR, side: door });
+      this.buildTower(144, 1, za, 176, 16, zb, { ...CC, side: door });
+    });
+    this.buildOverpass();
     this.buildTower(182, 1, -104, 202, 14, -78, { ...CC, side: 'x1' });
     this.buildTower(206, 1, -108, 224, 18, -80, { ...BR, side: 'x1' });
 
@@ -231,7 +249,7 @@ export class LevelManager {
       if (!onStreet(x)) this.tree(x, 6.5, 6);
       if (!onStreet(x + 13)) this.tree(x + 13, -6.5, 6);
     }
-    for (let x = 84; x <= 172; x += 16) [44, -44, 88, -88].forEach(zz => { if (Math.abs(x - 125) > 20) { this.lamp(x, zz + 6.5, 0, -1); this.lamp(x + 8, zz - 6.5, 0, 1); } });
+    for (let x = 84; x <= 172; x += 16) [44, -44, 88, -88, 134, -134].forEach(zz => { if (Math.abs(x - 125) > 20 && !(Math.abs(zz) === 88 && x > 106)) { this.lamp(x, zz + 6.5, 0, -1); this.lamp(x + 8, zz - 6.5, 0, 1); } });
 
     // ==========================================
     // 5. ZENGİN BÖLGE (doğu adanın doğusu)
@@ -243,6 +261,18 @@ export class LevelManager {
     this.buildTower(48 + ISL, 1, -30, 57 + ISL, 14, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' });
     this.buildTower(59 + ISL, 1, -30, 66 + ISL, 26, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' });
     for (let z = -60; z <= 60; z += 20) { this.tree(227, z, 7); this.lamp(195, z + 4, 0, 0); }
+  }
+
+  // ── ÜST GEÇİT: ana cadde otoyolun üstünden geçer. Rampalar zeminin kendisidir (yükselen yol), tabliye küptür. ──
+  buildOverpass() {
+    const w = this.b;
+    const X0 = K * 106 - 1, X1 = K * 145 + 1, ZD = 16;
+    w.raw(X0, 18, -ZD, X1, 19, ZD, PALETTE.ASPHALT);                                    // tabliye (üst yüz 5.0 m)
+    for (let x = X0 + 4; x < X1 - 4; x += 14) w.rawReplace(x, 19, -1, x + 6, 19, 0, PALETTE.GOLD); // orta şerit
+    w.raw(X0, 20, -ZD, X1, 23, -ZD, PALETTE.CONCRETE);                                  // korkuluklar
+    w.raw(X0, 20, ZD, X1, 23, ZD, PALETTE.CONCRETE);
+    [K * 109, K * 125, K * 142].forEach(px => [-14, 14].forEach(pz => w.raw(px - 1, GROUND_ROW_SUB, pz - 1, px + 1, 17, pz + 1, PALETTE.CONCRETE))); // sütunlar
+    w.raw(K * 109 - 1, 16, -ZD, K * 142 + 1, 17, ZD, PALETTE.CONCRETE);                 // alt kiriş
   }
 
   // ── KIRMIZI ASMA KÖPRÜ: iki basamaklı kule, ana kablolar ve dikey askılar (küçültülmüş ve alçaltılmış) ──
@@ -299,6 +329,7 @@ export class LevelManager {
 
   // ── Sokak donatımı ──
   lamp(x, z, dx = 0, dz = 0, both = false) {
+    if (this.b.blocked(x, z, 0)) return;
     this.lampSub(Math.round(K * x), Math.round(K * z), GROUND_ROW_SUB, dx, dz, both);
   }
 
@@ -324,12 +355,14 @@ export class LevelManager {
   }
 
   trashBin(x, z) {
+    if (this.b.blocked(x, z, 0)) return;
     const w = this.b, sx = Math.round(K * x), sz = Math.round(K * z);
     w.raw(sx, GROUND_ROW_SUB, sz, sx + 1, GROUND_ROW_SUB + 3, sz + 1, PALETTE.IRON);
     w.raw(sx, GROUND_ROW_SUB + 4, sz, sx + 1, GROUND_ROW_SUB + 4, sz + 1, PALETTE.WOOD);
   }
 
   tree(x, z, h) {
+    if (this.b.blocked(x, z, 1)) return;
     const w = this.b;
     w.fillBox(x, 1, z, x, h - 2, z, PALETTE.WOOD);
     w.fillBox(x - 1, h - 3, z - 1, x + 1, h - 1, z + 1, PALETTE.GRASS);
@@ -416,8 +449,8 @@ export class LevelManager {
     w.fillBox(cx + 5, fy0, z2, x2, fy1, z2, PALETTE.IRON);
     this.buildTower(cx + 7, 1, z2 - 8, cx + 12, 8, z2 - 3, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'x1' });
     [[z1 + 4, z1 + 18], [z1 + 22, z1 + 36]].forEach(([a, b]) => {
-      this.buildTower(x1 + 4, 1, a, cx - 7, 10, b, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x2' });
-      this.buildTower(cx + 7, 1, a, x2 - 4, 10, b, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'x1' });
+      this.buildTower(x1 + 4, 1, a, cx - 7, 10, b, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x2', interior: 'apt' });
+      this.buildTower(cx + 7, 1, a, x2 - 4, 10, b, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'x1', interior: 'apt' });
     });
     for (let z = z1 + 6; z < z2 - 4; z += 14) { this.lamp(cx - 5, z, 1, 0); this.lamp(cx + 5, z + 7, -1, 0); }
   }
@@ -558,11 +591,18 @@ export class LevelManager {
     const hills = [ // [merkez x, merkez z (eski birim), yayılma, yükseklik (m)]: yalnız zengin bölgenin kuzey/güneyi
       [200, 108, 11, 4.5], [210, -108, 11, 4.5], [226, 100, 8, 3.5]
     ];
-    const paved = [[78, 178, -134, 134], [106, 145, -134, 134], [78, 228, -9, 9], [174, 228, -74, 74]];
+    const paved = [[78, 178, -170, 170], [106, 145, -170, 170], [78, 228, -9, 9], [174, 228, -74, 74]];
     const smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
-    const edgeDist = (x, z) => Math.min(x - 78, 235 - x, 130 - z, z + 130);
-    this.world.terrain.heightFn = (xm, zm) => {
+    const edgeDist = (x, z) => Math.min(x - 78, 235 - x, 165 - z, z + 165);
+    this.world.terrain.heightFn = (xm, zm, mat) => {
       const x = xm / U, z = zm / U;
+      // Üst geçit rampaları: ana cadde otoyolun üstünden geçer (5 m yükseklik); rampa 78..106 ve 145..176 arası
+      if (mat === PALETTE.ASPHALT && Math.abs(z) <= 5.6) {
+        if (x >= 78 && x < 106) return 4.5 * smooth((x - 78) / 28);
+        if (x >= 145 && x < 176) return 4.5 * (1 - smooth((x - 145) / 31));
+        return 0;
+      }
+      if (!mat.isGrass) return 0;
       let h = 0;
       for (const [cx, cz, sg, A] of hills) h += A * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * sg * sg));
       let d = Infinity;
@@ -592,6 +632,75 @@ export class LevelManager {
       for (let j = 0; j < 19; j++) w.raw(xw0, start, zs + j, xw1, start + j, zs + j, PALETTE.WOOD);
       zs += 19;
     }
+  }
+
+  // Bina içi mobilya (ince ızgara koordinatlarıyla, küçük kutular): mutfak, yatak odası, salon, banyo / otel odası / ofis.
+  // xu, zu: eski birim; h: yükseklik (küçük küp = 0.25 m); off: tabandan yükseklik
+  furn(base, xu0, zu0, xu1, zu1, h, mat, off = 0) {
+    this.b.raw(Math.round(K * xu0) - 1, base + off, Math.round(K * zu0) - 1, Math.round(K * xu1) + 1, base + off + h - 1, Math.round(K * zu1) + 1, mat);
+  }
+
+  furnish(x1, y1, z1, x2, y2, z2, kind) {
+    const W = x2 - x1, D = z2 - z1;
+    if (!kind || W < 9 || D < 9) return;
+    const bases = [GROUND_ROW_SUB];
+    if (y1 + 6 < y2 - 2) bases.push(GROUND_ROW_SUB + 19);           // 1. kat döşemesinin üstü
+    const xa = x1 + 3, xb = x2 - 6, za = z1 + 4, zb = z2 - 2;       // kullanılabilir alan (kapıdan ve merdivenden uzak)
+    const F = (b, ...a) => this.furn(b, ...a);
+    bases.forEach((b, fi) => {
+      if (kind === 'office') {
+        for (let z = za + 1; z < zb - 2; z += 5) for (let x = xa; x + 3 <= xb; x += 5) {
+          F(b, x, z, x + 2, z + 1, 3, PALETTE.WOOD);                      // masa
+          F(b, x + 1, z, x + 1, z, 2, PALETTE.IRON, 3);                   // monitör
+          F(b, x + 1, z + 2, x + 1, z + 2, 2, PALETTE.IRON);              // sandalye
+        }
+        return;
+      }
+      // Mutfak: arka duvar boyunca tezgâh, ocak, buzdolabı; ortada yemek masası ve sandalyeler
+      if (xb - xa >= 10 && (kind !== 'hotel')) {
+        F(b, xa, zb - 1, xa + 6, zb, 4, PALETTE.WOOD);                     // tezgâh
+        F(b, xa, zb - 1, xa + 6, zb, 1, PALETTE.WHITE, 4);                 // tezgâh üstü
+        F(b, xa + 2, zb - 1, xa + 3, zb, 1, PALETTE.GLASS, 5);             // evye
+        F(b, xa + 7, zb - 1, xa + 8, zb, 4, PALETTE.IRON);                 // ocak
+        F(b, xa + 7, zb - 1, xa + 8, zb, 1, PALETTE.ROOF, 4);              // ocak gözleri
+        F(b, xa + 9, zb - 1, xa + 10, zb, 9, PALETTE.WHITE);               // buzdolabı
+        F(b, xa + 1, zb - 6, xa + 4, zb - 4, 3, PALETTE.WOOD);             // yemek masası
+        F(b, xa, zb - 5, xa, zb - 5, 2, PALETTE.ROOF); F(b, xa + 5, zb - 5, xa + 5, zb - 5, 2, PALETTE.ROOF); // sandalyeler
+      }
+      // Yatak odası: yatak, yastık, battaniye, dolap ve komodin
+      const bz = za + 1;
+      if (kind === 'hotel') {
+        for (let k = 0; k < 2; k++) {
+          const bx = xa + k * 6;
+          F(b, bx, bz, bx + 2, bz + 3, 2, PALETTE.WOOD);
+          F(b, bx, bz, bx + 2, bz, 1, PALETTE.WHITE, 2);
+          F(b, bx, bz + 1, bx + 2, bz + 3, 1, k ? PALETTE.GOLD : PALETTE.BRICK, 2);
+          F(b, bx + 3, bz, bx + 3, bz, 2, PALETTE.WOOD);
+        }
+        F(b, xa, zb - 1, xa + 3, zb, 8, PALETTE.ROOF);                     // dolap
+        F(b, xa + 5, zb, xa + 8, zb, 3, PALETTE.IRON); F(b, xa + 5, zb, xa + 8, zb, 1, PALETTE.GLASS, 3); // TV
+        return;
+      }
+      F(b, xa, bz, xa + 2, bz + 3, 2, PALETTE.WOOD);                      // yatak
+      F(b, xa, bz, xa + 2, bz, 1, PALETTE.WHITE, 2);                       // yastık
+      F(b, xa, bz + 1, xa + 2, bz + 3, 1, PALETTE.BRICK, 2);               // battaniye
+      F(b, xa + 3, bz, xa + 3, bz, 2, PALETTE.WOOD);                       // komodin
+      F(b, xa + 5, bz, xa + 6, bz + 1, 8, PALETTE.ROOF);                   // gardırop
+      // Salon: koltuk takımı, sehpa, televizyon
+      const lz = Math.round((za + zb) / 2) - 1;
+      if (xb - xa >= 8) {
+        F(b, xa, lz, xa + 3, lz + 1, 2, PALETTE.BRICK);                    // kanepe
+        F(b, xa, lz + 1, xa + 3, lz + 1, 3, PALETTE.BRICK);                // sırtlık
+        F(b, xa + 1, lz - 3, xa + 2, lz - 2, 2, PALETTE.WOOD);             // sehpa
+        F(b, xa, lz - 7, xa + 3, lz - 7, 2, PALETTE.IRON);                 // TV sehpası
+        F(b, xa + 1, lz - 7, xa + 2, lz - 7, 2, PALETTE.GLASS, 2);         // ekran
+      }
+      // Banyo: küvet ve klozet
+      if (xb - xa >= 10 && fi === 0) {
+        F(b, xb - 4, za, xb, za + 1, 2, PALETTE.WHITE);
+        F(b, xb - 1, za + 4, xb - 1, za + 4, 3, PALETTE.WHITE);
+      }
+    });
   }
 
   // Her 6 satırda (4.5 m) bir kat döşemesi
@@ -648,8 +757,7 @@ export class LevelManager {
     }
 
     this.addStairs(x1, y1, z1, x2, y2, z2);
-    // Zemin kat: resepsiyon/tezgâh (kapıdan uzakta)
-    w.fillBox(x1 + 2, y1, z1 + 2, x1 + 4, y1 + 1, z1 + 4, PALETTE.WOOD);
+    this.furnish(x1, y1, z1, x2, y2, z2, o.interior || (y2 - y1 >= 20 ? 'apt' : (y2 - y1 >= 12 ? 'office' : null)));
   }
 
   // -------------------------------------------------------------
@@ -676,6 +784,7 @@ export class LevelManager {
 
     // İç merdiven: zeminden 1. kata ve oradan 2. kata
     this.addStairs(x1, y1, z1, x2, y2, z2);
+    this.furnish(x1, y1, z1, x2, y2, z2, 'apt');
 
     // 2. kat odaları: ahşap bölme + yatak ve masa
     const midZ = Math.round((z1 + z2) / 2);
