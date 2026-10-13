@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './config.js';
-const BRIDGE_Y = VOXEL_SIZE >= 0.5 ? 1.0 : 0.75; // köprü tabliyesinin üst yüzü
+const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yüz 0.5 m)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NPC ARABALAR: yol ağında (caddeler, sokaklar, otoyol, köprü) sağ şeritte giderler. Kavşaklarda düz devam eder

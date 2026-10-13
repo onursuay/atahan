@@ -245,42 +245,47 @@ export class LevelManager {
     for (let z = -60; z <= 60; z += 20) { this.tree(227, z, 7); this.lamp(195, z + 4, 0, 0); }
   }
 
-  // ── KIRMIZI ASMA KÖPRÜ: iki basamaklı kule, ana kablolar ve dikey askılar ──
+  // ── KIRMIZI ASMA KÖPRÜ: iki basamaklı kule, ana kablolar ve dikey askılar (küçültülmüş ve alçaltılmış) ──
   buildSuspensionBridge() {
     const w = this.b;
-    const X0 = -K * 12, X1 = K * 78;                 // tabliye uçları (küçük küp)
-    const T1 = K * 8, T2 = K * 58;                   // iki kulenin x konumu
-    const ZD = 16, ZL = 21, DECK_TOP = 2;
+    const DY = -2;                                   // bir blok (0.5 m) aşağı: tabliye artık zeminle aynı hizada
+    const X0 = -K * 12, X1 = K * 78;                 // tabliye uçları (ince ızgara)
+    const T1 = K * 10, T2 = K * 56;                  // iki kulenin x konumu (köprü kısaldı, kuleler yaklaştı)
+    const ZD = 14, ZL = 18;                          // tabliye yarı genişliği, kule bacaklarının z konumu
+    const DECK_TOP = 2 + DY;
+    const TOP = 100;                                 // kule tepesi (≈25 m; eskiden ≈41 m)
+    const Y = (v) => v + DY;
 
     // Tabliye (asfalt) + kesik sarı orta şerit + kırmızı korkuluklar
-    w.raw(X0, 1, -ZD, X1, DECK_TOP, ZD, PALETTE.ASPHALT);
+    w.raw(X0, Y(1), -ZD, X1, DECK_TOP, ZD, PALETTE.ASPHALT);
     for (let x = X0 + 6; x < X1 - 6; x += 14) w.rawReplace(x, DECK_TOP, -1, x + 6, DECK_TOP, 0, PALETTE.GOLD);
-    w.raw(X0, 3, -ZD, X1, 6, -ZD, PALETTE.BRICK);
-    w.raw(X0, 3, ZD, X1, 6, ZD, PALETTE.BRICK);
+    w.raw(X0, DECK_TOP + 1, -ZD, X1, DECK_TOP + 3, -ZD, PALETTE.BRICK);
+    w.raw(X0, DECK_TOP + 1, ZD, X1, DECK_TOP + 3, ZD, PALETTE.BRICK);
 
     // Kuleler: aşağıdan yukarı daralan 3 basamak (kırmızı çelik), iki bacak + yatay kirişler
     for (const tx of [T1, T2]) {
       for (const sz of [-ZL, ZL]) {
-        w.raw(tx - 3, -8, sz - 3, tx + 3, 70, sz + 3, PALETTE.BRICK);
-        w.raw(tx - 2, 71, sz - 2, tx + 2, 118, sz + 2, PALETTE.BRICK);
-        w.raw(tx - 1, 119, sz - 1, tx + 1, 165, sz + 1, PALETTE.BRICK);
-        w.raw(tx - 3, 70, sz - 3, tx + 3, 70, sz + 3, PALETTE.IRON);
-        w.raw(tx - 2, 118, sz - 2, tx + 2, 118, sz + 2, PALETTE.IRON);
+        w.raw(tx - 3, -8, sz - 3, tx + 3, 44, sz + 3, PALETTE.BRICK);
+        w.raw(tx - 2, 45, sz - 2, tx + 2, 74, sz + 2, PALETTE.BRICK);
+        w.raw(tx - 1, 75, sz - 1, tx + 1, TOP, sz + 1, PALETTE.BRICK);
+        w.raw(tx - 3, 44, sz - 3, tx + 3, 44, sz + 3, PALETTE.IRON);
+        w.raw(tx - 2, 74, sz - 2, tx + 2, 74, sz + 2, PALETTE.IRON);
       }
-      for (const by of [72, 112, 150, 164]) w.raw(tx - 1, by, -ZL + 4, tx + 1, by + 2, ZL - 4, PALETTE.BRICK);
+      for (const by of [46, 70, 92, TOP - 1]) w.raw(tx - 1, by, -ZL + 4, tx + 1, by + 2, ZL - 4, PALETTE.BRICK);
     }
 
     // Ana kablolar
+    const endY = DECK_TOP + 5;
     const yAt = (x) => {
-      if (x <= T1) { const t = (x - X0) / (T1 - X0); return (DECK_TOP + 6) + (165 - (DECK_TOP + 6)) * t - 40 * t * (1 - t); }
-      if (x >= T2) { const t = (x - T2) / (X1 - T2); return 165 + (DECK_TOP + 6 - 165) * t - 40 * t * (1 - t); }
-      const t = (x - T1) / (T2 - T1); return 165 - 600 * t * (1 - t);
+      if (x <= T1) { const t = (x - X0) / (T1 - X0); return endY + (TOP - endY) * t - 24 * t * (1 - t); }
+      if (x >= T2) { const t = (x - T2) / (X1 - T2); return TOP + (endY - TOP) * t - 24 * t * (1 - t); }
+      const t = (x - T1) / (T2 - T1); return TOP - 4 * (TOP - endY - 8) * t * (1 - t);
     };
     for (let x = X0; x <= X1; x++) {
       const y = Math.round(yAt(x));
       for (const sz of [-ZL, ZL]) w.raw(x, y, sz - 1, x, y + 1, sz, PALETTE.BRICK);
     }
-    // Dikey askılar (kablodan tabliyeye) ve tabliyeye bağlayan konsollar
+    // Dikey askılar ve tabliyeye bağlayan konsollar
     for (let x = X0 + 10; x < X1 - 9; x += 10) {
       if (Math.abs(x - T1) < 4 || Math.abs(x - T2) < 4) continue;
       const y = Math.round(yAt(x));
@@ -645,8 +650,6 @@ export class LevelManager {
     this.addStairs(x1, y1, z1, x2, y2, z2);
     // Zemin kat: resepsiyon/tezgâh (kapıdan uzakta)
     w.fillBox(x1 + 2, y1, z1 + 2, x1 + 4, y1 + 1, z1 + 4, PALETTE.WOOD);
-    // Çatı tankı
-    w.fillBox(cx - 1, y2 + 1, cz - 1, cx, y2 + 2, cz, PALETTE.IRON);
   }
 
   // -------------------------------------------------------------
@@ -830,7 +833,6 @@ export class LevelManager {
 
     // Ara kat + çatı terası altın heykel
     this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);
-    w.fillBox(Math.round((x1 + x2) / 2) - 1, y2 + 1, zc - 1, Math.round((x1 + x2) / 2) + 1, y2 + 3, zc + 1, PALETTE.GOLD);
 
     // Gizli TNT sandığı
     w.fillBox(x1 + 2, y1, z2 - 3, x1 + 4, y1 + 1, z2 - 2, PALETTE.TNT);
