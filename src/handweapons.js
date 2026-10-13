@@ -378,6 +378,20 @@ export class HandWeapons {
       if (p.y < -0.4) break; // denize düştü
     }
 
+    // Havada uçak mı var?
+    if (this.planes) {
+      const ph = this.planes.rayHit(origin, dir, MINIGUN_RANGE);
+      if (ph) {
+        this._spawnTracer(muzzle, ph.point);
+        this.planes.bulletHit(ph.plane);
+        if (this.particleSystem.createSpark) this.particleSystem.createSpark(ph.point);
+        this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        if (this._soundSkip = !this._soundSkip) sound.playGunShot();
+        return;
+      }
+    }
+
     // Mermi önce bir NPC'ye mi çarptı?
     if (this.npcs) {
       const hitDist = hit ? origin.distanceTo(hit) : MINIGUN_RANGE;

@@ -52,7 +52,8 @@ export class Character {
     this.rippleTimer = 0;
     this.blockedHoriz = false;
     this.lastBlocked = false;
-    this.vel = new THREE.Vector3();     // kendi hızımız (gövde kinematik, Cannon hareket ettirmez)
+    this.vel = new THREE.Vector3();
+    this.knock = new THREE.Vector3();   // patlama savrulması (yatay, zamanla söner)     // kendi hızımız (gövde kinematik, Cannon hareket ettirmez)
     this.spawn = { x: 0, y: 3, z: 26 };
     this.walkCycle = 0;
     this.stepTimer = 0;
@@ -418,6 +419,8 @@ export class Character {
       }
     }
 
+    this.knock.multiplyScalar(Math.exp(-4 * dt));
+
     // Voxel çarpışması, yerçekimi, zıplama ve su fiziği
     this._stepPhysics(dt, inputState);
 
@@ -591,8 +594,8 @@ export class Character {
       }
 
       // Yatay hareket (eksen eksen) + basamak çıkma
-      feet = this._moveAxis('x', this.vel.x * h, pos, feet);
-      feet = this._moveAxis('z', this.vel.z * h, pos, feet);
+      feet = this._moveAxis('x', (this.vel.x + this.knock.x) * h, pos, feet);
+      feet = this._moveAxis('z', (this.vel.z + this.knock.z) * h, pos, feet);
       this.lastBlocked = this.blockedHoriz;
 
       // Dikey hareket
@@ -621,6 +624,13 @@ export class Character {
 
     // Kinematik gövdeyi Cannon'un kendi başına kaydırmasını engelle
     this.body.velocity.set(0, 0, 0);
+  }
+
+  // Patlama dalgası oyuncuyu iter
+  applyKnock(vx, vy, vz) {
+    this.knock.x += vx; this.knock.z += vz;
+    this.vel.y += vy;
+    this.isGrounded = false;
   }
 
   _splash(strength) {

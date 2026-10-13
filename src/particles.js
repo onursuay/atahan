@@ -128,6 +128,24 @@ export class ParticleSystem {
     });
   }
 
+  // Çeşmeden akan su: yukarı fışkırıp kavis çizerek havuza düşer
+  createFountainJet(pos) {
+    for (let i = 0; i < 3; i++) {
+      const a = Math.random() * Math.PI * 2, sp = 0.6 + Math.random() * 1.3;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 0.1, 0.1),
+        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xbfe6ff : 0x7dd3fc, transparent: true, opacity: 0.85 })
+      );
+      mesh.position.copy(pos);
+      this.scene.add(mesh);
+      this.particles.push({
+        mesh,
+        velocity: new THREE.Vector3(Math.cos(a) * sp, 4.2 + Math.random() * 1.6, Math.sin(a) * sp),
+        gravity: -9.5, life: 0.95, maxLife: 0.95
+      });
+    }
+  }
+
   // Mermi çarpma kıvılcımı
   createSpark(position) {
     for (let i = 0; i < 3; i++) {

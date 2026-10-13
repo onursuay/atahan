@@ -35,6 +35,7 @@ export class CollapseSystem {
   _grounded(v) {
     if (v.groundCell !== undefined) return true;
     const t = this.vw.terrain;
+    if (v.y - VOXEL_SIZE / 2 <= -1.0) return true; // deniz tabanına inen kazık/ayak
     const h = t.heightAt(v.x, v.z);
     return h > -Infinity && v.y - VOXEL_SIZE / 2 <= h + 1e-3;
   }

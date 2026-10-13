@@ -6,6 +6,32 @@ import { CollapseSystem } from './collapse.js';
 
 export const VOXEL_SIZE = 0.25; // Teardown tarzı minik küp boyutu (eskisinin yarısı)
 
+// Her küpün yüzüne 2x2 ince ızgara (tuğla/tahta/beton derzi): küpler yarı boyutlu küplerden örülmüş gibi görünür
+function makeCubeTexture(def) {
+  const N = 16, c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d');
+  const base = def.color;
+  const shade = (f) => `rgb(${Math.min(255, Math.round(((base >> 16) & 255) * f))},${Math.min(255, Math.round(((base >> 8) & 255) * f))},${Math.min(255, Math.round((base & 255) * f))})`;
+  const h = N / 2;
+  const isBrick = def.id === 1, isWood = def.id === 2, isGlass = def.id === 4;
+  for (let qy = 0; qy < 2; qy++) {
+    for (let qx = 0; qx < 2; qx++) {
+      g.fillStyle = shade(0.92 + Math.random() * 0.14);
+      g.fillRect(qx * h, qy * h, h, h);
+    }
+  }
+  g.fillStyle = shade(isGlass ? 1.25 : 0.72); // derz çizgileri: yarım küpleri ayırır
+  g.fillRect(h - 1, 0, 1, N); g.fillRect(0, h - 1, N, 1);
+  g.fillRect(0, 0, N, 1); g.fillRect(0, 0, 1, N);
+  if (isBrick) { g.fillStyle = shade(0.6); g.fillRect(h / 2, 0, 1, h - 1); g.fillRect(h + h / 2, h, 1, h); }
+  if (isWood) { g.fillStyle = shade(0.8); g.fillRect(0, h / 2, N, 1); g.fillRect(0, h + h / 2, N, 1); }
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter; tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false; tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 // Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
 const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // küçük küpten 8 kat fazla gerekir
 const CHUNK_SIZE = 16; // metre: dünya bu boyutlu bölgelere ayrılır, kamera dışındakiler çizilmez
@@ -62,10 +88,11 @@ export class VoxelWorld {
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
     this.dynamicDebris = [];
-    this.maxDynamicDebris = 350; // Performansı korumak için sınır
+    this.maxDynamicDebris = 500; // Performansı korumak için sınır
 
     this.cubeGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
-    this.cubeShape = new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 2, VOXEL_SIZE / 2, VOXEL_SIZE / 2));
+    this.cubeShape = new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 4, VOXEL_SIZE / 4, VOXEL_SIZE / 4));
+    this.debrisGeo = new THREE.BoxGeometry(VOXEL_SIZE / 2, VOXEL_SIZE / 2, VOXEL_SIZE / 2); // döküntü: yarım boy küpler
 
     this.initInstancedMeshes();
   }
@@ -77,7 +104,8 @@ export class VoxelWorld {
       createdIds.add(matDef.id);
 
       this.materials[matDef.id] = new THREE.MeshLambertMaterial({
-        color: matDef.color,
+        color: 0xffffff,
+        map: makeCubeTexture(matDef),
         transparent: matDef.id === PALETTE.GLASS.id,
         opacity: matDef.id === PALETTE.GLASS.id ? 0.7 : 1.0
       });
@@ -327,8 +355,16 @@ export class VoxelWorld {
     let removedCount = 0;
     const tntChainPositions = [];
 
+    // Suya yakın patlama: su sütunu; yakındaki oyuncu itilir
+    if (blastPos.y < 2 && !this.terrain.isLand(blastPos.x, blastPos.z) && this.particleSystem.createSplash) {
+      this.particleSystem.createSplash(new THREE.Vector3(blastPos.x, -0.15, blastPos.z), Math.min(5, blastRadius / 1.2));
+      sound.playSplash && sound.playSplash();
+    }
+    if (this.onBlast) this.onBlast(blastPos, blastRadius, force);
+
     // Patlama yakınındaki NPC'ler vurulur
     if (this.npcs) this.npcs.hitSphere(blastPos, blastRadius);
+    if (this.planes) this.planes.hitSphere(blastPos, blastRadius);
 
     // Zemin üst katmanını kır (taban kayası etkilenmez)
     const groundBroken = this.breakGround(blastPos, blastRadius, force);
@@ -706,7 +742,7 @@ export class VoxelWorld {
   spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce) {
     // Görsel Küp
     const mat = new THREE.MeshLambertMaterial({ color: matType.color });
-    const mesh = new THREE.Mesh(this.cubeGeo, mat);
+    const mesh = new THREE.Mesh(this.debrisGeo, mat);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     this.scene.add(mesh);
@@ -768,6 +804,17 @@ export class VoxelWorld {
         if (b.velocity.y < 0) b.velocity.y *= -0.25;
         b.velocity.x *= 0.85;
         b.velocity.z *= 0.85;
+      }
+
+      // Su fiziği: suya düşen parça sıçratır, yavaşlar ve yüzeyde bobinler (batmaz)
+      if (b.position.y < -0.15 && this.terrain.heightAt(b.position.x, b.position.z) === -Infinity) {
+        if (!d.inWater) {
+          d.inWater = true;
+          if (this.particleSystem.createSplash) this.particleSystem.createSplash(new THREE.Vector3(b.position.x, -0.15, b.position.z), 0.5);
+        }
+        b.velocity.scale(Math.pow(0.04, dt), b.velocity);
+        b.velocity.y += (-0.15 - b.position.y + 0.1) * 60 * dt;
+        b.angularVelocity.scale(Math.pow(0.1, dt), b.angularVelocity);
       }
 
       // Pozisyon ve rotasyonu Cannon fiziğiyle eşitle

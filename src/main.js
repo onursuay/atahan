@@ -10,12 +10,13 @@ import { GROUND_Y } from './terrain.js';
 import { HandWeapons } from './handweapons.js';
 import { NPCManager } from './npc.js';
 import { BombManager } from './bombs.js';
+import { PlaneManager } from './planes.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
 let scene, camera, renderer;
 let physicsWorld;
-let bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
+let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -66,7 +67,7 @@ function init() {
   // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
-  scene.fog = new THREE.Fog(0x78a7ff, 50, 140);
+  scene.fog = new THREE.Fog(0x78a7ff, 90, 330);
 
   // 2. Kamera
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 1000);
@@ -141,6 +142,17 @@ function init() {
   handWeapons.setFirstPerson(firstPerson);
 
   voxelWorld.collapse.onShake = (v) => { screenShake = Math.max(screenShake, v); };
+  planes = new PlaneManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (s) => { screenShake = Math.max(screenShake, s); });
+  voxelWorld.planes = planes;
+  handWeapons.planes = planes;
+  voxelWorld.onBlast = (pos, radius, force) => {
+    const p = character.mesh.position;
+    const dx = p.x - pos.x, dy = p.y + 1 - pos.y, dz = p.z - pos.z;
+    const d = Math.hypot(dx, dy, dz), reach = radius * 1.8;
+    if (d > reach || d < 0.01) return;
+    const k = (1 - d / reach) * Math.min(1, force / 300) * 16;   // m/s
+    character.applyKnock((dx / d) * k, Math.max(0, dy / d) * k * 0.7 + k * 0.25, (dz / d) * k);
+  };
   bombs = new BombManager(scene, camera, voxelWorld, particleSystem, (s) => { screenShake = s; }, (n) => {
     document.getElementById('detonate-btn').classList.toggle('show', n > 0);
   });
@@ -175,7 +187,7 @@ function createWorldArena() {
   // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
   // Deniz / Okyanus Suyu Düzlemi (Şehir ve Adayı Çevreleyen Deniz)
-  const waterGeo = new THREE.PlaneGeometry(380, 380);
+  waterGeo = new THREE.PlaneGeometry(380, 380, 80, 80);
   const waterMat = new THREE.MeshLambertMaterial({
     color: 0x0369a1,
     transparent: true,
@@ -209,6 +221,32 @@ function createWorldArena() {
   }
 }
 
+let fountainTimer = 0;
+function updateFountains(dt) {
+  fountainTimer += dt;
+  if (fountainTimer < 0.045) return;
+  fountainTimer = 0;
+  const cp = character.mesh.position;
+  (voxelWorld.fountains || []).forEach(f => {
+    if (Math.abs(f.x - cp.x) > 90 || Math.abs(f.z - cp.z) > 90) return; // uzaktakini çizme
+    particleSystem.createFountainJet(new THREE.Vector3(f.x, f.y, f.z));
+  });
+}
+
+// Deniz yüzeyi: hafif dalgalar
+let waveTime = 0, waveFrame = 0, waterGeo = null;
+function updateWaves(dt) {
+  if (!waterGeo) return;
+  waveTime += dt;
+  if ((waveFrame++ & 1) !== 0) return;
+  const pos = waterGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i);
+    pos.setZ(i, Math.sin(x * 0.18 + waveTime * 1.6) * 0.06 + Math.cos(y * 0.15 + waveTime * 1.2) * 0.05);
+  }
+  pos.needsUpdate = true;
+}
+
 function updateGame(dt) {
   physicsWorld.step(1 / 60, dt, 3);
 
@@ -233,6 +271,9 @@ function updateGame(dt) {
   weaponSystem.update(dt);
   npcs.update(dt, character.mesh.position);
   bombs.update(dt);
+  planes.update(dt);
+  updateFountains(dt);
+  updateWaves(dt);
   handWeapons.update(dt, {
     moving: character.isGrounded && !character.inWater &&
       (Math.abs(character.vel.x) + Math.abs(character.vel.z)) > 1.5,
@@ -334,6 +375,7 @@ function loadLevel(index) {
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
   bombs.clear();
+  planes.clear();
   particleSystem.clear();
   character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);

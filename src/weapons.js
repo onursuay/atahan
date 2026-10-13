@@ -147,6 +147,20 @@ export class WeaponSystem {
         }
         if (hit) continue;
 
+        // Roket havadaki uçağa çarptı mı?
+        if (this.voxelWorld.planes) {
+          const ph = this.voxelWorld.planes.segmentHit(new THREE.Vector3(from.x, from.y, from.z), new THREE.Vector3(to.x, to.y, to.z), 3.2);
+          if (ph) { p.mesh.position.copy(ph.point); this.explode(p); continue; }
+        }
+
+        // Suya düştü: sıçratır ve yok olur
+        if (to.y < -0.1 && this.voxelWorld.terrain.heightAt(to.x, to.z) === -Infinity) {
+          this.particleSystem.createSplash(new THREE.Vector3(to.x, -0.15, to.z), 2.2);
+          sound.playSplash && sound.playSplash();
+          this.removeProjectile(p);
+          continue;
+        }
+
         // Sağlam zemin üst katmanına çarptı mı? (fizik yalnız alttaki taban kayasını bilir)
         const ter = this.voxelWorld.terrain;
         const ty = ter.topYAt(to.x, to.z);
