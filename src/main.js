@@ -150,12 +150,7 @@ function init() {
 }
 
 function createWorldArena() {
-  const groundBody = new CANNON.Body({
-    mass: 0,
-    shape: new CANNON.Plane()
-  });
-  groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
-  physicsWorld.addBody(groundBody);
+  // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
   // Deniz / Okyanus Suyu Düzlemi (Şehir ve Adayı Çevreleyen Deniz)
   const waterGeo = new THREE.PlaneGeometry(380, 380);
@@ -263,7 +258,7 @@ function loadLevel(index) {
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
   particleSystem.clear();
-  character.resetPosition(-39, 2.5, 0); // Batı sahilinin kumsalı (x=-39 kum, deniz değil)
+  character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
   cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
 
   levelTitleEl.innerText = cfg.title;

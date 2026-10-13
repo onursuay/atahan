@@ -1,8 +1,13 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
+import { Terrain } from './terrain.js';
 
-export const VOXEL_SIZE = 0.5; // Teardown tarzı minik küp boyutu (bina içlerine girilebilir ölçek)
+export const VOXEL_SIZE = 0.25; // Teardown tarzı minik küp boyutu (eskisinin yarısı)
+
+// Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
+const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // küçük küpten 8 kat fazla gerekir
+const CHUNK_SIZE = 16; // metre: dünya bu boyutlu bölgelere ayrılır, kamera dışındakiler çizilmez
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
@@ -46,10 +51,9 @@ export class VoxelWorld {
     this.destroyedVoxels = 0;
 
     // Her malzeme tipi için InstancedMesh (Binlerce minik küpü tek bir GPU çağrısıyla 60 FPS çizer)
-    this.instancedMeshes = {};
-    this.instanceMatrices = {};
-    this.instanceCountByType = {};
-    this.maxInstancesPerType = 45000; // Büyük şehir ve ada için geniş GPU kapasitesi
+    this.materials = {};
+    this.chunkMeshes = [];   // [{ mesh, typeId }]
+    this.terrain = new Terrain(scene, physicsWorld);
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
     this.dynamicDebris = [];
@@ -67,21 +71,11 @@ export class VoxelWorld {
       if (!matDef || createdIds.has(matDef.id)) return;
       createdIds.add(matDef.id);
 
-      const mat = new THREE.MeshLambertMaterial({
+      this.materials[matDef.id] = new THREE.MeshLambertMaterial({
         color: matDef.color,
         transparent: matDef.id === PALETTE.GLASS.id,
         opacity: matDef.id === PALETTE.GLASS.id ? 0.7 : 1.0
       });
-
-      const instancedMesh = new THREE.InstancedMesh(this.cubeGeo, mat, this.maxInstancesPerType);
-      instancedMesh.castShadow = true;
-      instancedMesh.receiveShadow = true;
-      instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-      instancedMesh.count = 0;
-
-      this.scene.add(instancedMesh);
-      this.instancedMeshes[matDef.id] = instancedMesh;
-      this.instanceCountByType[matDef.id] = 0;
     });
   }
 
@@ -114,6 +108,23 @@ export class VoxelWorld {
     }
   }
 
+  // Aralıktaki voxelleri kaldır (kapı, pencere boşluğu, merdiven deliği)
+  removeBox(minX, minY, minZ, maxX, maxY, maxZ) {
+    for (let x = minX; x <= maxX; x++) {
+      for (let y = minY; y <= maxY; y++) {
+        for (let z = minZ; z <= maxZ; z++) {
+          this.voxels.delete(`${x},${y},${z}`);
+        }
+      }
+    }
+  }
+
+  // Varsa üstüne yazar (cam pencere gibi duvarın yerini alan parçalar için)
+  replaceBox(minX, minY, minZ, maxX, maxY, maxZ, matType) {
+    this.removeBox(minX, minY, minZ, maxX, maxY, maxZ);
+    this.fillBox(minX, minY, minZ, maxX, maxY, maxZ, matType);
+  }
+
   // İçi boş duvar / oda inşa etme
   fillHollowBox(minX, minY, minZ, maxX, maxY, maxZ, wallMat, floorMat) {
     for (let x = minX; x <= maxX; x++) {
@@ -133,38 +144,55 @@ export class VoxelWorld {
     }
   }
 
-  // Seviye oluşturulduğunda GPU InstancedMesh'leri hazırlar
+  // Seviye oluşturulduğunda GPU InstancedMesh'leri hazırlar.
+  // Voxeller 16 m'lik bölgelere ve malzemeye göre gruplanır: kamera dışındaki bölgeler çizilmez.
   buildMeshBuffers() {
-    // Sayaçları sıfırla
-    Object.keys(this.instanceCountByType).forEach(k => {
-      this.instanceCountByType[k] = 0;
-    });
+    this._disposeChunkMeshes();
 
-    const dummy = new THREE.Object3D();
-
-    for (const [key, v] of this.voxels.entries()) {
-      const typeId = v.type.id;
-      const mesh = this.instancedMeshes[typeId];
-      const count = this.instanceCountByType[typeId];
-
-      if (count < this.maxInstancesPerType) {
-        dummy.position.set(v.x, v.y, v.z);
-        dummy.updateMatrix();
-
-        mesh.setMatrixAt(count, dummy.matrix);
-        v.instanceIdx = count;
-        this.instanceCountByType[typeId]++;
-      }
+    const groups = new Map(); // `${typeId}|${cx}|${cz}` -> voxel listesi
+    for (const v of this.voxels.values()) {
+      const cx = Math.floor(v.x / CHUNK_SIZE);
+      const cz = Math.floor(v.z / CHUNK_SIZE);
+      const gk = `${v.type.id}|${cx}|${cz}`;
+      let list = groups.get(gk);
+      if (!list) { list = []; groups.set(gk, list); }
+      list.push(v);
     }
 
-    // Her InstancedMesh'in count değerini güncelle ve GPU'ya yükle
-    Object.entries(this.instancedMeshes).forEach(([typeId, mesh]) => {
-      mesh.count = this.instanceCountByType[typeId];
+    const dummy = new THREE.Object3D();
+    for (const [gk, list] of groups.entries()) {
+      const typeId = Number(gk.split('|')[0]);
+      const mesh = new THREE.InstancedMesh(this.cubeGeo, this.materials[typeId], list.length);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+      for (let i = 0; i < list.length; i++) {
+        const v = list[i];
+        dummy.position.set(v.x, v.y, v.z);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(i, dummy.matrix);
+        v.instanceIdx = i;
+        v.mesh = mesh;
+      }
       mesh.instanceMatrix.needsUpdate = true;
-    });
+      mesh.computeBoundingSphere();
+      this.scene.add(mesh);
+      this.chunkMeshes.push(mesh);
+    }
+
+    this.terrain.build();
 
     this.totalInitialVoxels = this.voxels.size;
     this.destroyedVoxels = 0;
+  }
+
+  _disposeChunkMeshes() {
+    this.chunkMeshes.forEach(m => {
+      this.scene.remove(m);
+      m.dispose();
+    });
+    this.chunkMeshes = [];
   }
 
   // TEARDOWN PATLAMA & OYUK AÇMA MOTORU (Hole Carving & Destruction)
@@ -203,7 +231,7 @@ export class VoxelWorld {
 
             // InstancedMesh'ten kaldır (Görünmez yap)
             if (v.instanceIdx !== -1) {
-              const mesh = this.instancedMeshes[v.type.id];
+              const mesh = v.mesh;
               mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
               mesh.instanceMatrix.needsUpdate = true;
             }
@@ -228,13 +256,14 @@ export class VoxelWorld {
 
     // Skor ve ses
     if (removedCount > 0 && this.onScoreGain) {
-      const score = removedCount * 12;
+      const score = Math.max(1, Math.round(removedCount * 12 / VOLUME_RATIO));
       this.onScoreGain(score, `+${score} VOXEL PARÇALANDI!`);
     }
 
-    // Zincirleme TNT patlamalarını tetikle
-    if (tntChainPositions.length > 0) {
-      tntChainPositions.forEach((pos, idx) => {
+    // Zincirleme TNT patlamalarını tetikle (1,5 m'lik kümelere göre tek patlama)
+    const tntClusters = this._clusterPositions(tntChainPositions);
+    if (tntClusters.length > 0) {
+      tntClusters.forEach((pos, idx) => {
         setTimeout(() => {
           sound.playTNTExplosion();
           this.particleSystem.createExplosion(pos, 8, 0xef4444);
@@ -246,6 +275,16 @@ export class VoxelWorld {
     return removedCount;
   }
 
+  // Yakın pozisyonları tek noktaya indirger (yüzlerce küçük TNT küpü = tek patlama)
+  _clusterPositions(list, cell = 1.5) {
+    const seen = new Map();
+    list.forEach(p => {
+      const key = `${Math.floor(p.x / cell)},${Math.floor(p.y / cell)},${Math.floor(p.z / cell)}`;
+      if (!seen.has(key)) seen.set(key, p);
+    });
+    return Array.from(seen.values());
+  }
+
   // TEARDOWN ÇEKİÇ VURUŞU (Maddesine göre az hasar veren darbe)
   hammerHit(hitPoint, hammerPower = 1.0) {
     const dummy = new THREE.Object3D();
@@ -253,7 +292,7 @@ export class VoxelWorld {
     dummy.updateMatrix();
 
     // Çekiç vuruşu dar bir alana vurur (~0.65m)
-    const hitRadius = VOXEL_SIZE * 1.9;
+    const hitRadius = 0.95; // metre (eski küp boyutuna göre ayarlı)
     const r2 = hitRadius * hitRadius;
 
     let removedCount = 0;
@@ -301,7 +340,7 @@ export class VoxelWorld {
     const hardness = MATERIAL_HARDNESS[hitMaterial.id] || 1.0;
 
     // 1. MADDE: TAHTA (ve diğer kırılabilirler) - Çekiçle kırılabilir
-    const maxBreak = Math.max(1, Math.round((5 * hammerPower) / hardness));
+    const maxBreak = Math.max(1, Math.round((5 * hammerPower * VOLUME_RATIO) / hardness));
 
     for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
       const v = candidates[i].v;
@@ -309,7 +348,7 @@ export class VoxelWorld {
       removedCount++;
 
       if (v.instanceIdx !== -1) {
-        const mesh = this.instancedMeshes[v.type.id];
+        const mesh = v.mesh;
         mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
         mesh.instanceMatrix.needsUpdate = true;
       }
@@ -339,7 +378,7 @@ export class VoxelWorld {
     }
 
     if (removedCount > 0 && this.onScoreGain) {
-      const score = removedCount * 10;
+      const score = Math.max(1, Math.round(removedCount * 10 / VOLUME_RATIO));
       this.onScoreGain(score, `+${score} ÇEKİÇ (${hitMaterial.name})`);
     }
 
@@ -352,7 +391,7 @@ export class VoxelWorld {
     dummy.scale.set(0, 0, 0);
     dummy.updateMatrix();
 
-    const hitRadius = VOXEL_SIZE * 2.5; // Kurşun biraz daha geniş bir alan etkiler
+    const hitRadius = 1.25; // metre: kurşun biraz daha geniş bir alan etkiler
     const r2 = hitRadius * hitRadius;
 
     const candidates = [];
@@ -386,13 +425,13 @@ export class VoxelWorld {
 
     if (hitMaterial.isIron) {
       // Demir: tabanca biraz hasar verir — sadece 1-2 voxel kırar
-      const ironBreak = Math.max(1, Math.round(gunPower * 1.5));
+      const ironBreak = Math.max(1, Math.round(gunPower * 1.5 * VOLUME_RATIO));
       for (let i = 0; i < Math.min(candidates.length, ironBreak); i++) {
         const v = candidates[i].v;
         v.active = false;
         removedCount++;
         if (v.instanceIdx !== -1) {
-          const mesh = this.instancedMeshes[v.type.id];
+          const mesh = v.mesh;
           mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
           mesh.instanceMatrix.needsUpdate = true;
         }
@@ -404,13 +443,13 @@ export class VoxelWorld {
     } else {
       // Tahta ve diğerleri: tabanca rahatça kırar
       const hardness = MATERIAL_HARDNESS[hitMaterial.id] || 1.0;
-      const maxBreak = Math.max(2, Math.round((12 * gunPower) / hardness));
+      const maxBreak = Math.max(2, Math.round((12 * gunPower * VOLUME_RATIO) / hardness));
       for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
         const v = candidates[i].v;
         v.active = false;
         removedCount++;
         if (v.instanceIdx !== -1) {
-          const mesh = this.instancedMeshes[v.type.id];
+          const mesh = v.mesh;
           mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
           mesh.instanceMatrix.needsUpdate = true;
         }
@@ -432,7 +471,7 @@ export class VoxelWorld {
 
     this.destroyedVoxels += removedCount;
     if (removedCount > 0 && this.onScoreGain) {
-      const score = removedCount * 15;
+      const score = Math.max(1, Math.round(removedCount * 15 / VOLUME_RATIO));
       this.onScoreGain(score, `+${score} KURŞUN (${hitMaterial.name})`);
     }
     return { success: true, removedCount, material: hitMaterial };
@@ -446,7 +485,7 @@ export class VoxelWorld {
 
     let removedCount = 0;
     const step = VOXEL_SIZE * 0.6;
-    const hitRadius = VOXEL_SIZE * 1.4;
+    const hitRadius = 0.7; // metre
     const r2 = hitRadius * hitRadius;
 
     for (let dist = 0.5; dist <= maxRange; dist += step) {
@@ -473,7 +512,7 @@ export class VoxelWorld {
             v.active = false;
             removedCount++;
             if (v.instanceIdx !== -1) {
-              const mesh = this.instancedMeshes[v.type.id];
+              const mesh = v.mesh;
               mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
               mesh.instanceMatrix.needsUpdate = true;
             }
@@ -487,7 +526,7 @@ export class VoxelWorld {
 
     this.destroyedVoxels += removedCount;
     if (removedCount > 0 && this.onScoreGain) {
-      const score = removedCount * 20;
+      const score = Math.max(1, Math.round(removedCount * 20 / VOLUME_RATIO));
       this.onScoreGain(score, `+${score} LAZER KESİM!`);
     }
     return removedCount;
@@ -566,12 +605,8 @@ export class VoxelWorld {
   // Tüm Dünyayı Temizle
   clear() {
     this.voxels.clear();
-
-    // InstancedMesh'leri sıfırla
-    Object.values(this.instancedMeshes).forEach(mesh => {
-      mesh.count = 0;
-      mesh.instanceMatrix.needsUpdate = true;
-    });
+    this._disposeChunkMeshes();
+    this.terrain.clear();
 
     // Uçuşan döküntüleri sil
     this.dynamicDebris.forEach(d => {

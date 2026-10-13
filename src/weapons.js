@@ -120,19 +120,29 @@ export class WeaponSystem {
       p.mesh.position.copy(p.body.position);
       p.mesh.quaternion.copy(p.body.quaternion);
 
-      // Minik voxel çarpışma kontrolü (Voxel haritasına çarptı mı?)
+      // Minik voxel çarpışma kontrolü: önceki konumdan şimdikine kadar adım adım tara
+      // (hızlı mermi 0.25 m'lik ince duvarı tek karede atlayabilir)
       if (!p.exploded) {
-        const checkPos = p.mesh.position;
-        const ix = Math.round(checkPos.x / VOXEL_SIZE);
-        const iy = Math.round((checkPos.y - VOXEL_SIZE / 2) / VOXEL_SIZE);
-        const iz = Math.round(checkPos.z / VOXEL_SIZE);
-        const key = `${ix},${iy},${iz}`;
-
-        const v = this.voxelWorld.voxels.get(key);
-        if (v && v.active) {
-          this.explode(p);
-          continue;
+        const to = p.body.position;
+        const from = p.prevPos || to;
+        const dist = Math.hypot(to.x - from.x, to.y - from.y, to.z - from.z);
+        const steps = Math.max(1, Math.ceil(dist / (VOXEL_SIZE * 0.8)));
+        let hit = false;
+        for (let i = 1; i <= steps && !hit; i++) {
+          const t = i / steps;
+          const x = from.x + (to.x - from.x) * t;
+          const y = from.y + (to.y - from.y) * t;
+          const z = from.z + (to.z - from.z) * t;
+          const key = `${Math.round(x / VOXEL_SIZE)},${Math.round((y - VOXEL_SIZE / 2) / VOXEL_SIZE)},${Math.round(z / VOXEL_SIZE)}`;
+          const v = this.voxelWorld.voxels.get(key);
+          if (v && v.active) {
+            p.mesh.position.set(x, y, z);
+            this.explode(p);
+            hit = true;
+          }
         }
+        if (hit) continue;
+        p.prevPos = { x: to.x, y: to.y, z: to.z };
       }
 
       if (p.life <= 0 && !p.exploded) {

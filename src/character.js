@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
+import { GROUND_Y } from './terrain.js';
 import {
   getCharacterFaceTexture,
   getCharacterShirtTexture,
@@ -28,6 +29,7 @@ const WATER_BOUND = 185;     // deniz düzleminin (380x380) kenarından biraz i�
 const WATER_ENTER_DEPTH = 0.25;   // ayak tabanı yüzeyin en az bu kadar altındaysa yüzme moduna geçilir
 const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)
 const FLOAT_DEPTH_UP = 0.45; // Space basılıyken daha yüksekte yüzer
+const STEP_UP_MAX = 0.5;     // otomatik çıkılabilen en yüksek basamak (m)
 const WATER_SPEED_MUL = 0.55;
 const WATER_HOP_SPEED = 11;  // kıyıya çıkarken zıplama hızı
 
@@ -469,6 +471,10 @@ export class Character {
 
   _overlaps(x, feetY, z) {
     const S = VOXEL_SIZE;
+    // Zemin yüzeyi (yollar, kumsal, iskele): yüzeyin altı katıdır
+    if (feetY < GROUND_Y - EPS && this.voxelWorld && this.voxelWorld.terrain.overlapsLand(x, z, HALF_W)) {
+      return true;
+    }
     const minIx = Math.floor((x - HALF_W + EPS) / S + 0.5);
     const maxIx = Math.floor((x + HALF_W - EPS) / S + 0.5);
     const minIz = Math.floor((z - HALF_W + EPS) / S + 0.5);
@@ -489,7 +495,7 @@ export class Character {
     return new THREE.Vector3(this.body.position.x, this.body.position.y - BODY_H / 2, this.body.position.z);
   }
 
-  // Tek eksende (x veya z) hareket: duvara çarparsa bir voxel (0.5) yüksekliğindeki basamağa çıkmayı dener, olmazsa durur.
+  // Tek eksende (x veya z) hareket: duvara çarparsa en fazla 0.5 m'lik basamağa çıkmayı dener, olmazsa durur.
   _moveAxis(axis, delta, pos, feet) {
     if (delta === 0) return feet;
     const nx = axis === 'x' ? pos.x + delta : pos.x;
@@ -501,10 +507,13 @@ export class Character {
     }
 
     if (this.isGrounded && !this.inWater) {
-      const raised = feet + VOXEL_SIZE;
-      if (!this._overlaps(pos.x, raised, pos.z) && !this._overlaps(nx, raised, nz)) {
-        pos.x = nx; pos.z = nz;
-        return raised;
+      // En fazla 0.5 m'lik basamağa (küp adımlarıyla) otomatik çık
+      for (let h = VOXEL_SIZE; h <= STEP_UP_MAX + EPS; h += VOXEL_SIZE) {
+        const raised = feet + h;
+        if (!this._overlaps(pos.x, raised, pos.z) && !this._overlaps(nx, raised, nz)) {
+          pos.x = nx; pos.z = nz;
+          return raised;
+        }
       }
     }
 
