@@ -283,8 +283,8 @@ export class Character {
       this._rightLegMesh.material = this._cyMetalMat;
 
       // Kırmızı gözler görünür
-      this._leftEye.visible  = true;
-      this._rightEye.visible = true;
+      this._leftEye.visible  = !this.firstPerson;
+      this._rightEye.visible = !this.firstPerson;
 
       // Silah: lazer emiteri
       this.pistolGroup.visible = false;
@@ -436,6 +436,14 @@ export class Character {
       this._eyeMatRight.color.setRGB(pulse, 0, 0);
       this._laserEmitter.material.color.setRGB(pulse, 0, 0);
     }
+  }
+
+  // Birinci kişi kamerada kafa gizlenir (kameranın içinden bakılmasın)
+  setFirstPerson(on) {
+    this.head.visible = !on;
+    this._leftEye.visible = !on && this.currentMode === 'cyborg';
+    this._rightEye.visible = !on && this.currentMode === 'cyborg';
+    this.firstPerson = on;
   }
 
   // Lazer ışını görsel efekti (kırmızı çizgi)

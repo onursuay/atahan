@@ -21,6 +21,7 @@ let clouds = [];
 // Kamera Açıları
 let cameraYaw = Math.PI;
 let cameraPitch = 0.25;
+let firstPerson = false; // true: karakterin gözünden, false: uzaktan
 const cameraDistance = 9.0;
 const cameraHeight = 3.2;
 
@@ -192,6 +193,8 @@ function updateGame(dt) {
 
   // Karakter Kontrolü (W tuşu ileri vb.)
   character.update(dt, inputState, cameraYaw);
+  // Birinci kişi: karakter her zaman baktığımız yöne dönük olsun (silah öne baksın)
+  if (firstPerson) character.mesh.rotation.y = cameraYaw + Math.PI;
 
   // Teardown Voxel Dünyası ve Döküntü Fiziği
   voxelWorld.update(dt);
@@ -218,8 +221,36 @@ function updateGame(dt) {
   updateCamera(dt);
 }
 
+function setFirstPerson(on) {
+  firstPerson = on;
+  character.setFirstPerson(on);
+  cameraPitch = on ? Math.min(cameraPitch, 1.3) : Math.max(-0.2, Math.min(0.9, cameraPitch));
+  const btn = document.getElementById('btn-camera');
+  if (btn) btn.classList.toggle('active', on);
+}
+
 function updateCamera(dt) {
   const charPos = character.mesh.position;
+
+  if (firstPerson) {
+    // Göz: kafanın olduğu yer, biraz önde (kafa modeli gizli olduğundan içinden bakılmaz)
+    const dirX = -Math.sin(cameraYaw) * Math.cos(cameraPitch);
+    const dirY = -Math.sin(cameraPitch);
+    const dirZ = -Math.cos(cameraYaw) * Math.cos(cameraPitch);
+    camera.position.set(
+      charPos.x - Math.sin(cameraYaw) * 0.25,
+      charPos.y + 1.8,
+      charPos.z - Math.cos(cameraYaw) * 0.25
+    );
+    if (screenShake > 0) {
+      camera.position.x += (Math.random() - 0.5) * screenShake * 0.4;
+      camera.position.y += (Math.random() - 0.5) * screenShake * 0.4;
+      camera.position.z += (Math.random() - 0.5) * screenShake * 0.4;
+      screenShake = Math.max(0, screenShake - dt * 1.5);
+    }
+    camera.lookAt(camera.position.x + dirX, camera.position.y + dirY, camera.position.z + dirZ);
+    return;
+  }
 
   const cosPitch = Math.cos(cameraPitch);
   const sinPitch = Math.sin(cameraPitch);
@@ -410,6 +441,8 @@ function setupEventListeners() {
       useHammer();
     }
 
+    if (key === 'v' || e.code === 'KeyV') setFirstPerson(!firstPerson);
+
     if (key === '1') { weaponSystem.setWeapon(0); updateWeaponUI(); }
     if (key === '2') { weaponSystem.setWeapon(1); updateWeaponUI(); }
     if (key === '3') { weaponSystem.setWeapon(2); updateWeaponUI(); }
@@ -434,7 +467,9 @@ function setupEventListeners() {
     const sensitivity = 0.0035;
     cameraYaw -= e.movementX * sensitivity;
     cameraPitch += e.movementY * sensitivity;
-    cameraPitch = Math.max(-0.2, Math.min(0.9, cameraPitch));
+    cameraPitch = firstPerson
+      ? Math.max(-1.3, Math.min(1.3, cameraPitch))
+      : Math.max(-0.2, Math.min(0.9, cameraPitch));
   });
 
   canvasContainer.addEventListener('click', () => {
@@ -450,6 +485,11 @@ function setupEventListeners() {
       weaponSystem.setWeapon(wId);
       updateWeaponUI();
     });
+  });
+
+  document.getElementById('btn-camera').addEventListener('click', (e) => {
+    e.stopPropagation();
+    setFirstPerson(!firstPerson);
   });
 
   document.getElementById('btn-sound').addEventListener('click', (e) => {
