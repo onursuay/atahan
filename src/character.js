@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
-import { GROUND_Y } from './terrain.js';
+import { GROUND_Y, BEDROCK_Y } from './terrain.js';
 import {
   getCharacterFaceTexture,
   getCharacterShirtTexture,
@@ -485,9 +485,12 @@ export class Character {
 
   _overlaps(x, feetY, z) {
     const S = VOXEL_SIZE;
-    // Zemin yüzeyi (yollar, kumsal, iskele): yüzeyin altı katıdır
-    if (feetY < GROUND_Y - EPS && this.voxelWorld && this.voxelWorld.terrain.overlapsLand(x, z, HALF_W)) {
-      return true;
+    // Zemin iki katmandır. Alt katman (taban kayası) her yerde katıdır ve kırılamaz;
+    // üst katman yalnız sağlam olduğu hücrelerde katıdır (kırılan yerde çukurun tabanında yürünür).
+    if (this.voxelWorld) {
+      const t = this.voxelWorld.terrain;
+      if (feetY < BEDROCK_Y - EPS && t.overlapsLand(x, z, HALF_W)) return true;
+      if (feetY < GROUND_Y - EPS && t.overlapsTop(x, z, HALF_W)) return true;
     }
     const minIx = Math.floor((x - HALF_W + EPS) / S + 0.5);
     const maxIx = Math.floor((x + HALF_W - EPS) / S + 0.5);

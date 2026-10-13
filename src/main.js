@@ -6,6 +6,7 @@ import { WeaponSystem } from './weapons.js';
 import { LevelManager } from './levels.js';
 import { ParticleSystem } from './particles.js';
 import { VoxelWorld, VOXEL_SIZE } from './teardown.js';
+import { GROUND_Y } from './terrain.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
@@ -431,6 +432,18 @@ function useHammer() {
     if (v && v.active) {
       hitPoint = new THREE.Vector3(v.x, v.y, v.z);
       break;
+    }
+  }
+
+  // Havada voxel yoksa çekiç yere vurmuş olabilir: zemin üst katmanı kırılır (alt katman kırılmaz)
+  if (!hitPoint) {
+    for (let dist = 0.4; dist <= HAMMER_REACH; dist += 0.1) {
+      const p = charPos.clone().addScaledVector(dir, dist);
+      if (p.y <= GROUND_Y && voxelWorld.terrain.topIntactAt(p.x, p.z)) {
+        voxelWorld.hammerGround(new THREE.Vector3(p.x, GROUND_Y, p.z));
+        screenShake = 0.1;
+        return;
+      }
     }
   }
 

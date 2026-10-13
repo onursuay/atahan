@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
-import { Terrain } from './terrain.js';
+import { Terrain, GROUND_Y, BEDROCK_Y } from './terrain.js';
 
 export const VOXEL_SIZE = 0.25; // Teardown tarzı minik küp boyutu (eskisinin yarısı)
 
@@ -52,7 +52,8 @@ export class VoxelWorld {
 
     // Her malzeme tipi için InstancedMesh (Binlerce minik küpü tek bir GPU çağrısıyla 60 FPS çizer)
     this.materials = {};
-    this.chunkMeshes = [];   // [{ mesh, typeId }]
+    this.chunkMeshes = [];
+    this.rimMeshes = {};     // çukur kenarı küpleri için (zemin malzemesi başına dinamik)
     this.terrain = new Terrain(scene, physicsWorld);
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
@@ -182,6 +183,7 @@ export class VoxelWorld {
     }
 
     this.terrain.build();
+    this._createRimMeshes();
 
     this.totalInitialVoxels = this.voxels.size;
     this.destroyedVoxels = 0;
@@ -193,6 +195,121 @@ export class VoxelWorld {
       m.dispose();
     });
     this.chunkMeshes = [];
+    Object.values(this.rimMeshes).forEach(m => { this.scene.remove(m); m.dispose(); });
+    this.rimMeshes = {};
+  }
+
+  // ── ZEMİN ÜST KATMANI KIRILMASI ──────────────────────────────────────────────
+
+  // Çukur kenarındaki sağlam hücreler 2 sıra küp olarak çizilir (çukurun yan duvarı + kırık kenar görünümü)
+  _createRimMeshes() {
+    const cap = 40000;
+    [PALETTE.CONCRETE, PALETTE.SAND, PALETTE.ASPHALT, PALETTE.WOOD].forEach(m => {
+      const mesh = new THREE.InstancedMesh(this.cubeGeo, this.materials[m.id], cap);
+      mesh.count = 0;
+      mesh.frustumCulled = false;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      this.scene.add(mesh);
+      this.rimMeshes[m.id] = mesh;
+    });
+  }
+
+  _addRimVoxel(ix, iy, iz, type, cellIdx) {
+    const mesh = this.rimMeshes[type.id];
+    const key = `${ix},${iy},${iz}`;
+    if (!mesh || mesh.count >= mesh.instanceMatrix.count || this.voxels.has(key)) return;
+    const dummy = new THREE.Object3D();
+    const v = {
+      ix, iy, iz,
+      x: ix * VOXEL_SIZE, y: iy * VOXEL_SIZE + VOXEL_SIZE / 2, z: iz * VOXEL_SIZE,
+      type, active: true,
+      instanceIdx: mesh.count, mesh,
+      groundCell: cellIdx
+    };
+    dummy.position.set(v.x, v.y, v.z);
+    dummy.updateMatrix();
+    mesh.setMatrixAt(mesh.count, dummy.matrix);
+    mesh.count++;
+    mesh.instanceMatrix.needsUpdate = true;
+    this.voxels.set(key, v);
+  }
+
+  // Kırılan hücrelerin sağlam komşularını voxel olarak da çiz (kırık kenar + çukur duvarı)
+  _materializeRim(brokenIdx) {
+    const t = this.terrain;
+    const b = t.bounds;
+    brokenIdx.forEach(idx => {
+      const c = idx % b.cols, r = Math.floor(idx / b.cols);
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dc, dr]) => {
+        const nc = c + dc, nr = r + dr;
+        if (nc < 0 || nr < 0 || nc >= b.cols || nr >= b.rows) return;
+        const n = nr * b.cols + nc;
+        if (t.top[n] !== 1 || t.rim[n] === 1) return;
+        t.rim[n] = 1;
+        const cc = t.cellCenter(n);
+        const ix = Math.round(cc.x / VOXEL_SIZE), iz = Math.round(cc.z / VOXEL_SIZE);
+        const type = t.matList[t.matIdx[n]];
+        const rows = Math.round((GROUND_Y - BEDROCK_Y) / VOXEL_SIZE);
+        const iy0 = Math.round(BEDROCK_Y / VOXEL_SIZE);
+        for (let k = 0; k < rows; k++) this._addRimVoxel(ix, iy0 + k, iz, type, n);
+      });
+    });
+  }
+
+  _hideVoxel(v) {
+    const dummy = new THREE.Object3D();
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+    if (v.mesh && v.instanceIdx !== -1) {
+      v.mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
+      v.mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  // Her voxel kaldırması buradan geçer. Çukur kenarı küpü yok olursa altındaki zemin hücresi de kırılır.
+  _kill(v) {
+    if (!v.active) return;
+    v.active = false;
+    if (v.groundCell === undefined) {
+      this.destroyedVoxels++;
+      return;
+    }
+    // Kenar küpünün diğer sırası ve altındaki üst katman hücresi birlikte gider
+    const t = this.terrain;
+    const idx = v.groundCell;
+    const rows = Math.round((GROUND_Y - BEDROCK_Y) / VOXEL_SIZE);
+    const iy0 = Math.round(BEDROCK_Y / VOXEL_SIZE);
+    for (let k = 0; k < rows; k++) {
+      const sib = this.voxels.get(`${v.ix},${iy0 + k},${v.iz}`);
+      if (sib && sib.active && sib !== v) {
+        sib.active = false;
+        this._hideVoxel(sib);
+        if (this.dynamicDebris.length < this.maxDynamicDebris && Math.random() > 0.5) {
+          this.spawnLooseVoxel(sib.x, sib.y, sib.z, sib.type, { x: sib.x, y: sib.y - 1, z: sib.z }, 0.5, 1, 40);
+        }
+      }
+    }
+    if (t.breakCell(idx)) this._materializeRim([idx]);
+  }
+
+  // Üst katmanı kır: hücreleri dokudan sil, parçaları fırlat, çukur kenarlarını çiz.
+  // Alt katmana (taban kayası) dokunmaz.
+  breakGround(center, radius, force = 200) {
+    const broken = this.terrain.breakInSphere(center, radius);
+    if (broken.length === 0) return 0;
+
+    this._materializeRim(broken.map(h => h.idx));
+
+    // Kırık parçalar: bir kısmı fırlayan küp olur (alan küçük küplerle dolu, hepsini fiziğe sokma)
+    broken.forEach(h => {
+      if (this.dynamicDebris.length >= this.maxDynamicDebris) return;
+      if (Math.random() > 0.3) return;
+      const dist = Math.hypot(h.x - center.x, h.z - center.z);
+      this.spawnLooseVoxel(h.x, GROUND_Y + 0.05, h.z, h.mat, center, dist, radius, force);
+    });
+    return broken.length;
   }
 
   // TEARDOWN PATLAMA & OYUK AÇMA MOTORU (Hole Carving & Destruction)
@@ -204,6 +321,9 @@ export class VoxelWorld {
 
     let removedCount = 0;
     const tntChainPositions = [];
+
+    // Zemin üst katmanını kır (taban kayası etkilenmez)
+    const groundBroken = this.breakGround(blastPos, blastRadius, force);
 
     // Patlama yarıçapındaki ızgara koordinat sınırları
     const minIx = Math.floor((blastPos.x - blastRadius) / VOXEL_SIZE);
@@ -226,7 +346,7 @@ export class VoxelWorld {
           const distSq = dx * dx + dy * dy + dz * dz;
 
           if (distSq <= r2) {
-            v.active = false;
+            this._kill(v);
             removedCount++;
 
             // InstancedMesh'ten kaldır (Görünmez yap)
@@ -252,9 +372,9 @@ export class VoxelWorld {
       }
     }
 
-    this.destroyedVoxels += removedCount;
 
     // Skor ve ses
+    removedCount += groundBroken;
     if (removedCount > 0 && this.onScoreGain) {
       const score = Math.max(1, Math.round(removedCount * 12 / VOLUME_RATIO));
       this.onScoreGain(score, `+${score} VOXEL PARÇALANDI!`);
@@ -283,6 +403,16 @@ export class VoxelWorld {
       if (!seen.has(key)) seen.set(key, p);
     });
     return Array.from(seen.values());
+  }
+
+  // Çekiç yere vurdu: küçük bir alanda üst katman kırılır (alt katman kırılmaz)
+  hammerGround(point) {
+    const n = this.breakGround(point, 0.7, 60);
+    if (n > 0) {
+      sound.playHammerHit();
+      if (this.onScoreGain) this.onScoreGain(Math.max(1, Math.round(n * 10 / VOLUME_RATIO)), '+ZEMİN KIRILDI');
+    }
+    return n;
   }
 
   // TEARDOWN ÇEKİÇ VURUŞU (Maddesine göre az hasar veren darbe)
@@ -344,7 +474,7 @@ export class VoxelWorld {
 
     for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
       const v = candidates[i].v;
-      v.active = false;
+      this._kill(v);
       removedCount++;
 
       if (v.instanceIdx !== -1) {
@@ -359,7 +489,6 @@ export class VoxelWorld {
       }
     }
 
-    this.destroyedVoxels += removedCount;
 
     // Tahta kırılınca ahşap kırılma sesi, diğerlerinde standart darbe sesi
     if (hitMaterial.isWood) {
@@ -428,7 +557,7 @@ export class VoxelWorld {
       const ironBreak = Math.max(1, Math.round(gunPower * 1.5 * VOLUME_RATIO));
       for (let i = 0; i < Math.min(candidates.length, ironBreak); i++) {
         const v = candidates[i].v;
-        v.active = false;
+        this._kill(v);
         removedCount++;
         if (v.instanceIdx !== -1) {
           const mesh = v.mesh;
@@ -446,7 +575,7 @@ export class VoxelWorld {
       const maxBreak = Math.max(2, Math.round((12 * gunPower * VOLUME_RATIO) / hardness));
       for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
         const v = candidates[i].v;
-        v.active = false;
+        this._kill(v);
         removedCount++;
         if (v.instanceIdx !== -1) {
           const mesh = v.mesh;
@@ -469,7 +598,6 @@ export class VoxelWorld {
       }
     }
 
-    this.destroyedVoxels += removedCount;
     if (removedCount > 0 && this.onScoreGain) {
       const score = Math.max(1, Math.round(removedCount * 15 / VOLUME_RATIO));
       this.onScoreGain(score, `+${score} KURŞUN (${hitMaterial.name})`);
@@ -509,7 +637,7 @@ export class VoxelWorld {
             const dz = v.z - pos.z;
             if (dx * dx + dy * dy + dz * dz > r2) continue;
 
-            v.active = false;
+            this._kill(v);
             removedCount++;
             if (v.instanceIdx !== -1) {
               const mesh = v.mesh;
@@ -524,7 +652,6 @@ export class VoxelWorld {
       }
     }
 
-    this.destroyedVoxels += removedCount;
     if (removedCount > 0 && this.onScoreGain) {
       const score = Math.max(1, Math.round(removedCount * 20 / VOLUME_RATIO));
       this.onScoreGain(score, `+${score} LAZER KESİM!`);
@@ -583,9 +710,20 @@ export class VoxelWorld {
 
   // Döngü Güncellemesi
   update(dt) {
+    this.terrain.flush();
     for (let i = this.dynamicDebris.length - 1; i >= 0; i--) {
       const d = this.dynamicDebris[i];
       d.life -= dt;
+
+      // Sağlam üst katmanın üstünde dur (fizik yalnız taban kayasını bilir; çukurlara serbestçe düşer)
+      const b = d.body;
+      if (this.terrain.topIntactAt(b.position.x, b.position.z) &&
+          b.position.y - VOXEL_SIZE / 2 < GROUND_Y && b.position.y > BEDROCK_Y) {
+        b.position.y = GROUND_Y + VOXEL_SIZE / 2;
+        if (b.velocity.y < 0) b.velocity.y *= -0.25;
+        b.velocity.x *= 0.85;
+        b.velocity.z *= 0.85;
+      }
 
       // Pozisyon ve rotasyonu Cannon fiziğiyle eşitle
       d.mesh.position.copy(d.body.position);

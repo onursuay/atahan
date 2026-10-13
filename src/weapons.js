@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
+import { GROUND_Y, BEDROCK_Y } from './terrain.js';
 
 // Teardown Silah ve Patlama Sistemi
 export class WeaponSystem {
@@ -142,6 +143,24 @@ export class WeaponSystem {
           }
         }
         if (hit) continue;
+
+        // Sağlam zemin üst katmanına çarptı mı? (fizik yalnız alttaki taban kayasını bilir)
+        const ter = this.voxelWorld.terrain;
+        if (to.y < GROUND_Y + 0.1 && to.y > BEDROCK_Y && ter.topIntactAt(to.x, to.z)) {
+          if (p.weaponInfo.bounce) {
+            if (p.body.velocity.y < 0) {
+              p.body.position.y = GROUND_Y + 0.15;
+              p.body.velocity.y *= -0.4;
+              p.body.velocity.x *= 0.8;
+              p.body.velocity.z *= 0.8;
+              sound.playBlockHit();
+            }
+          } else {
+            p.mesh.position.set(to.x, GROUND_Y + 0.05, to.z);
+            this.explode(p);
+            continue;
+          }
+        }
         p.prevPos = { x: to.x, y: to.y, z: to.z };
       }
 
