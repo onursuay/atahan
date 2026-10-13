@@ -332,6 +332,12 @@ class SoundEngine {
     this.playNoise(0.05, 0.15, 5000);
   }
 
+  // Jetpack alevi (kısa tıslama)
+  playJet() {
+    if (this.muted || !this.ctx) return;
+    this.playNoise(0.12, 0.12, 900);
+  }
+
   // Bomba bip sesi (pitch yükseldikçe daha tiz)
   playBeep(pitch = 1) {
     if (this.muted || !this.ctx) return;

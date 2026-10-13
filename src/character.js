@@ -29,6 +29,10 @@ const WATER_BOUND = 185;     // deniz düzleminin (380x380) kenarından biraz i�
 const WATER_ENTER_DEPTH = 0.25;   // ayak tabanı yüzeyin en az bu kadar altındaysa yüzme moduna geçilir
 const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)
 const FLOAT_DEPTH_UP = 0.45; // Space basılıyken daha yüksekte yüzer
+const JET_ACC = 46;          // jetpack itki ivmesi (yerçekimi 25'i aşar)
+const JET_MAX_UP = 9;        // en yüksek yükselme hızı (m/s)
+const JET_SECONDS = 7;       // dolu yakıtla havada kalma süresi
+const JET_DRAG = 0.11;       // itki bırakılınca hava direnci (hızın karesiyle): düşüş ~15 m/s'de dengelenir
 const STEP_UP_MAX = 0.5;     // otomatik çıkılabilen en yüksek basamak (m)
 const WATER_SPEED_MUL = 0.55;
 const WATER_HOP_SPEED = 11;  // kıyıya çıkarken zıplama hızı
@@ -53,7 +57,12 @@ export class Character {
     this.blockedHoriz = false;
     this.lastBlocked = false;
     this.vel = new THREE.Vector3();
-    this.knock = new THREE.Vector3();   // patlama savrulması (yatay, zamanla söner)     // kendi hızımız (gövde kinematik, Cannon hareket ettirmez)
+    this.knock = new THREE.Vector3();
+    this.fuel = 1;          // jetpack yakıtı (0..1)
+    this.jetting = false;
+    this.usedJet = false;   // itki kullanıldı: bırakınca hava direnci uygulanır
+    this.airTime = 0;
+    this.jetTick = 0;   // patlama savrulması (yatay, zamanla söner)     // kendi hızımız (gövde kinematik, Cannon hareket ettirmez)
     this.spawn = { x: 0, y: 3, z: 26 };
     this.walkCycle = 0;
     this.stepTimer = 0;
@@ -421,6 +430,20 @@ export class Character {
 
     this.knock.multiplyScalar(Math.exp(-4 * dt));
 
+    // Jetpack: havadayken Space basılı tutulursa itki; yakıt bitince ya da bırakınca düşüş
+    this.airTime = this.isGrounded ? 0 : this.airTime + dt;
+    this.jetting = !!inputState.jump && !this.isGrounded && this.airTime > 0.18 &&
+      this.fuel > 0 && !this.inWater;
+    if (this.isGrounded || this.inWater) { this.usedJet = false; this.fuel = Math.min(1, this.fuel + dt * 0.5); }
+    if (this.jetting) {
+      this.jetTick -= dt;
+      if (this.jetTick <= 0) {
+        this.jetTick = 0.03;
+        this.particleSystem.createThrusterTrail(this._feetPosition());
+        if (Math.random() < 0.25) sound.playJet();
+      }
+    }
+
     // Voxel çarpışması, yerçekimi, zıplama ve su fiziği
     this._stepPhysics(dt, inputState);
 
@@ -579,6 +602,16 @@ export class Character {
         this.vel.y += ((depth - target) * 18 - this.vel.y * 4) * h;
       } else {
         this.vel.y = Math.max(-MAX_FALL, this.vel.y - GRAVITY * h);
+      }
+
+      // Jetpack itkisi ve bırakınca hava direnci
+      if (this.jetting) {
+        this.vel.y = Math.min(JET_MAX_UP, this.vel.y + JET_ACC * h);
+        this.fuel = Math.max(0, this.fuel - h / JET_SECONDS);
+        this.usedJet = true;
+      } else if (this.usedJet && !this.isGrounded && !this.inWater) {
+        const v = this.vel.y;
+        this.vel.y -= Math.sign(v) * v * v * JET_DRAG * h;
       }
 
       // Zıplama (karada) / kıyıya tırmanma (suda duvara dayanıp Space)

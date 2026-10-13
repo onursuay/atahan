@@ -16,6 +16,7 @@ import { getGrassTopTexture } from './textures.js';
 
 let scene, camera, renderer;
 let physicsWorld;
+let hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
 let currentScore = 0;
@@ -149,6 +150,9 @@ function init() {
     const p = character.mesh.position;
     const dx = p.x - pos.x, dy = p.y + 1 - pos.y, dz = p.z - pos.z;
     const d = Math.hypot(dx, dy, dz), reach = radius * 1.8;
+    // Yakın patlamada hasar: merkezde ağır, uzaklaştıkça hafif
+    const dmgReach = radius * 1.3;
+    if (d < dmgReach) damagePlayer((1 - d / dmgReach) * (radius * 24 + 25));
     if (d > reach || d < 0.01) return;
     const k = (1 - d / reach) * Math.min(1, force / 300) * 16;   // m/s
     character.applyKnock((dx / d) * k, Math.max(0, dy / d) * k * 0.7 + k * 0.25, (dz / d) * k);
@@ -221,6 +225,34 @@ function createWorldArena() {
   }
 }
 
+function damagePlayer(amount) {
+  if (performance.now() < invulnUntil || amount <= 0) return;
+  hp -= amount;
+  lastHitT = performance.now();
+  screenShake = Math.max(screenShake, Math.min(0.8, amount / 80));
+  if (hp <= 0) respawnPlayer();
+}
+
+// Ölünce spawn noktasında yeniden doğar; dünya, yıkım ve puan olduğu gibi kalır
+function respawnPlayer() {
+  hp = 100;
+  invulnUntil = performance.now() + 1500;
+  const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
+  character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+  character.fuel = 1; character.knock.set(0, 0, 0);
+  const f = document.getElementById('death-flash');
+  f.style.transition = 'none'; f.style.opacity = '0.85';
+  requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = 'opacity 1.4s ease-out'; f.style.opacity = '0'; }));
+}
+
+function updateVitals(dt) {
+  if (hp < 100 && performance.now() - lastHitT > 5000) hp = Math.min(100, hp + 8 * dt); // yavaş iyileşme
+  document.getElementById('hp-bar').style.width = `${Math.max(0, hp)}%`;
+  document.getElementById('hp-text').innerText = Math.max(0, Math.round(hp));
+  document.getElementById('jet-bar').style.width = `${Math.round(character.fuel * 100)}%`;
+  document.getElementById('jet-bar').style.background = character.jetting ? '#fde047' : '#38bdf8';
+}
+
 let fountainTimer = 0;
 function updateFountains(dt) {
   fountainTimer += dt;
@@ -273,6 +305,7 @@ function updateGame(dt) {
   bombs.update(dt);
   planes.update(dt);
   updateFountains(dt);
+  updateVitals(dt);
   updateWaves(dt);
   handWeapons.update(dt, {
     moving: character.isGrounded && !character.inWater &&
