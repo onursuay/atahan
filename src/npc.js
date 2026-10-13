@@ -8,7 +8,7 @@ import { GROUND_Y, BEDROCK_Y } from './terrain.js';
 // gelince sağa/sola dönüp yürümeye devam ederler. Roket/patlama, minigun, ışın kılıcı ve çekiçle
 // vurulabilirler (küplere dağılırlar, gore yok). Bir süre sonra başka yerde yenisi doğar.
 // ─────────────────────────────────────────────────────────────────────────────
-const NPC_COUNT = 60;
+const NPC_COUNT = 80;
 const HALF_W = 0.22;
 const HEIGHT = 1.55;
 const SPEED = 2.0;

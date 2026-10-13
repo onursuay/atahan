@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
 import { Terrain, GROUND_Y, BEDROCK_Y } from './terrain.js';
+import { CollapseSystem } from './collapse.js';
 
 export const VOXEL_SIZE = 0.25; // Teardown tarzı minik küp boyutu (eskisinin yarısı)
 
@@ -57,6 +58,7 @@ export class VoxelWorld {
     this.chunkMeshes = [];
     this.rimMeshes = {};     // çukur kenarı küpleri için (zemin malzemesi başına dinamik)
     this.terrain = new Terrain(scene, physicsWorld);
+    this.collapse = new CollapseSystem(this);
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
     this.dynamicDebris = [];
@@ -276,6 +278,7 @@ export class VoxelWorld {
     v.active = false;
     if (v.groundCell === undefined) {
       this.destroyedVoxels++;
+      this.collapse.queue(v); // bağlantısı kopan parçalar düşer
       return;
     }
     // Kenar küpünün diğer sırası ve altındaki üst katman hücresi birlikte gider
@@ -751,6 +754,7 @@ export class VoxelWorld {
   // Döngü Güncellemesi
   update(dt) {
     this.terrain.flush();
+    this.collapse.update(dt);
     for (let i = this.dynamicDebris.length - 1; i >= 0; i--) {
       const d = this.dynamicDebris[i];
       d.life -= dt;
@@ -786,6 +790,7 @@ export class VoxelWorld {
     this.voxels.clear();
     this._disposeChunkMeshes();
     this.terrain.clear();
+    this.collapse.clear();
 
     // Uçuşan döküntüleri sil
     this.dynamicDebris.forEach(d => {

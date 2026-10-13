@@ -140,6 +140,7 @@ function init() {
   handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   handWeapons.setFirstPerson(firstPerson);
 
+  voxelWorld.collapse.onShake = (v) => { screenShake = Math.max(screenShake, v); };
   bombs = new BombManager(scene, camera, voxelWorld, particleSystem, (s) => { screenShake = s; }, (n) => {
     document.getElementById('detonate-btn').classList.toggle('show', n > 0);
   });
