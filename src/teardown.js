@@ -365,6 +365,7 @@ export class VoxelWorld {
     // Patlama yakınındaki NPC'ler vurulur
     if (this.npcs) this.npcs.hitSphere(blastPos, blastRadius);
     if (this.planes) this.planes.hitSphere(blastPos, blastRadius);
+    if (this.cars) this.cars.hitSphere(blastPos, blastRadius);
 
     // Zemin üst katmanını kır (taban kayası etkilenmez)
     const groundBroken = this.breakGround(blastPos, blastRadius, force);

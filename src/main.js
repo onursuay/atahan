@@ -11,12 +11,13 @@ import { HandWeapons } from './handweapons.js';
 import { NPCManager } from './npc.js';
 import { BombManager } from './bombs.js';
 import { PlaneManager } from './planes.js';
+import { CarManager } from './cars.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
 let scene, camera, renderer;
 let physicsWorld;
-let hp = 100, lastHitT = 0, invulnUntil = 0;
+let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
 let currentScore = 0;
@@ -143,6 +144,12 @@ function init() {
   handWeapons.setFirstPerson(firstPerson);
 
   voxelWorld.collapse.onShake = (v) => { screenShake = Math.max(screenShake, v); };
+  cars = new CarManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (dx, dz, speed) => {
+    character.applyKnock(dx * Math.min(14, 4 + speed * 0.6), 4, dz * Math.min(14, 4 + speed * 0.6));
+    damagePlayer(8 + speed * 1.2);
+  });
+  voxelWorld.cars = cars;
+  handWeapons.cars = cars;
   planes = new PlaneManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (s) => { screenShake = Math.max(screenShake, s); });
   voxelWorld.planes = planes;
   handWeapons.planes = planes;
@@ -304,6 +311,7 @@ function updateGame(dt) {
   npcs.update(dt, character.mesh.position);
   bombs.update(dt);
   planes.update(dt);
+  cars.update(dt, character.mesh.position);
   updateFountains(dt);
   updateVitals(dt);
   updateWaves(dt);
@@ -413,6 +421,7 @@ function loadLevel(index) {
   character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
   npcs.reset();
+  cars.build();
   cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
 
   levelTitleEl.innerText = cfg.title;

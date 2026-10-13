@@ -147,6 +147,12 @@ export class WeaponSystem {
         }
         if (hit) continue;
 
+        // Roket bir arabaya çarptı mı?
+        if (this.voxelWorld.cars) {
+          const ch = this.voxelWorld.cars.segmentHit(new THREE.Vector3(from.x, from.y, from.z), new THREE.Vector3(to.x, to.y, to.z));
+          if (ch) { p.mesh.position.copy(ch.point); this.explode(p); continue; }
+        }
+
         // Roket havadaki uçağa çarptı mı?
         if (this.voxelWorld.planes) {
           const ph = this.voxelWorld.planes.segmentHit(new THREE.Vector3(from.x, from.y, from.z), new THREE.Vector3(to.x, to.y, to.z), 3.2);
