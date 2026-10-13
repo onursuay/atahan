@@ -515,12 +515,12 @@ export class VoxelWorld {
   }
 
   // TABANCA VURUŞU (1 tuşu) — Tahtayı rahatça kırar, demiri biraz kırar
-  gunHit(hitPoint, gunPower = 1.0) {
+  gunHit(hitPoint, gunPower = 1.0, radius = 1.25) {
     const dummy = new THREE.Object3D();
     dummy.scale.set(0, 0, 0);
     dummy.updateMatrix();
 
-    const hitRadius = 1.25; // metre: kurşun biraz daha geniş bir alan etkiler
+    const hitRadius = radius; // metre
     const r2 = hitRadius * hitRadius;
 
     const candidates = [];
@@ -603,6 +603,41 @@ export class VoxelWorld {
       this.onScoreGain(score, `+${score} KURŞUN (${hitMaterial.name})`);
     }
     return { success: true, removedCount, material: hitMaterial };
+  }
+
+  // IŞIN KILICI: noktadaki yarıçap içinde her malzemeyi (demir dahil) keser
+  sweepCut(point, radius) {
+    const r2 = radius * radius;
+    let removed = 0;
+    let tnt = null;
+    const minIx = Math.floor((point.x - radius) / VOXEL_SIZE), maxIx = Math.ceil((point.x + radius) / VOXEL_SIZE);
+    const minIy = Math.floor((point.y - radius) / VOXEL_SIZE), maxIy = Math.ceil((point.y + radius) / VOXEL_SIZE);
+    const minIz = Math.floor((point.z - radius) / VOXEL_SIZE), maxIz = Math.ceil((point.z + radius) / VOXEL_SIZE);
+    for (let ix = minIx; ix <= maxIx; ix++) {
+      for (let iy = minIy; iy <= maxIy; iy++) {
+        for (let iz = minIz; iz <= maxIz; iz++) {
+          const v = this.voxels.get(`${ix},${iy},${iz}`);
+          if (!v || !v.active) continue;
+          const dx = v.x - point.x, dy = v.y - point.y, dz = v.z - point.z;
+          if (dx * dx + dy * dy + dz * dz > r2) continue;
+          this._kill(v);
+          this._hideVoxel(v);
+          removed++;
+          if (v.type.isTNT && !tnt) tnt = new THREE.Vector3(v.x, v.y, v.z);
+          if (this.dynamicDebris.length < this.maxDynamicDebris && Math.random() > 0.8) {
+            this.spawnLooseVoxel(v.x, v.y, v.z, v.type, point, 0.3, radius, 22);
+          }
+        }
+      }
+    }
+    if (tnt) {
+      setTimeout(() => {
+        sound.playTNTExplosion();
+        this.particleSystem.createExplosion(tnt, 8, 0xef4444);
+        this.explode(tnt, 5.0, 320);
+      }, 90);
+    }
+    return removed;
   }
 
   // CYBORG LAZER KESİM (R tuşu) — Ray-march ile hem demiri hem tahtayı rahatça keser

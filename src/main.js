@@ -7,12 +7,13 @@ import { LevelManager } from './levels.js';
 import { ParticleSystem } from './particles.js';
 import { VoxelWorld, VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y } from './terrain.js';
+import { HandWeapons } from './handweapons.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
 let scene, camera, renderer;
 let physicsWorld;
-let character, weaponSystem, levelManager, particleSystem, voxelWorld;
+let handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -72,6 +73,7 @@ function init() {
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.autoClear = false; // silah modeli ikinci geçişte çizilir
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   canvasContainer.appendChild(renderer.domElement);
@@ -133,6 +135,9 @@ function init() {
     screenShake = 0.4;
   });
 
+  handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
+  handWeapons.setFirstPerson(firstPerson);
+
   levelManager = new LevelManager(voxelWorld);
 
   // İlk Bölümü Yükle
@@ -149,7 +154,9 @@ function init() {
     lastTime = now;
 
     updateGame(dt);
+    renderer.clear();
     renderer.render(scene, camera);
+    handWeapons.render(renderer);
   }
   requestAnimationFrame(animate);
 }
@@ -214,6 +221,11 @@ function updateGame(dt) {
 
   // Silahlar ve Parçacıklar
   weaponSystem.update(dt);
+  handWeapons.update(dt, {
+    moving: character.isGrounded && !character.inWater &&
+      (Math.abs(character.vel.x) + Math.abs(character.vel.z)) > 1.5,
+    walkCycle: character.walkCycle
+  });
   particleSystem.update(dt);
 
   // Bulutlar
@@ -229,6 +241,7 @@ function setFirstPerson(on) {
   firstPerson = on;
   eyeY = null;
   character.setFirstPerson(on);
+  if (handWeapons) handWeapons.setFirstPerson(on);
   cameraPitch = on ? Math.min(cameraPitch, 1.3) : Math.max(-0.2, Math.min(0.9, cameraPitch));
   const btn = document.getElementById('btn-camera');
   if (btn) btn.classList.toggle('active', on);
@@ -376,6 +389,19 @@ function triggerLevelWin(pct) {
   }, 1000);
 }
 
+function toggleWeaponMenu() {
+  const bar = document.getElementById('weapon-selector');
+  if (bar.classList.contains('menu-open')) { closeWeaponMenu(true); return; }
+  bar.classList.add('menu-open');
+  handWeapons.fireHeld = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+}
+
+function closeWeaponMenu(relock) {
+  document.getElementById('weapon-selector').classList.remove('menu-open');
+  if (relock && document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
+}
+
 function updateWeaponUI() {
   document.querySelectorAll('.weapon-btn').forEach((btn, idx) => {
     btn.classList.toggle('active', idx === weaponSystem.currentWeapon);
@@ -389,19 +415,35 @@ function updateWeaponUI() {
 
 function fireWeapon() {
   sound.init();
+  const cur = weaponSystem.currentWeapon;
+
+  if (cur === 2) { handWeapons.startSwing(); return; }   // Işın kılıcı: savur
+  if (cur === 1) { handWeapons.fireHeld = true; return; } // Minigun: basılı tutunca ateş
+  if (cur !== 0) return;
 
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
 
   const targetPoint = raycaster.ray.origin.clone().add(raycaster.ray.direction.clone().multiplyScalar(60));
-  const muzzlePos = character.getMuzzleWorldPosition();
+  // Birinci şahısta roket elde görünen silahın namlusundan çıkar
+  const muzzlePos = firstPerson
+    ? handWeapons._handWorld({ x: 0.3, y: -0.26, z: -1.05 })
+    : character.getMuzzleWorldPosition();
   const dir = targetPoint.clone().sub(muzzlePos).normalize();
 
   const success = weaponSystem.shoot(muzzlePos, dir);
   if (success) {
+    handWeapons.onRocketFired();
     updateWeaponUI();
     screenShake = 0.2;
   }
+}
+
+function selectWeapon(idx) {
+  weaponSystem.setWeapon(idx);
+  handWeapons.setWeapon(idx);
+  character.pistolGroup.visible = idx === 0 && character.currentMode !== 'cyborg';
+  updateWeaponUI();
 }
 
 // Bilgisayarın E Tuşuna Basınca Çekiç Vursun (Belli bir mesafeye kadar)
@@ -475,9 +517,11 @@ function setupEventListeners() {
 
     if (key === 'v' || e.code === 'KeyV') setFirstPerson(!firstPerson);
 
-    if (key === '1') { weaponSystem.setWeapon(0); updateWeaponUI(); }
-    if (key === '2') { weaponSystem.setWeapon(1); updateWeaponUI(); }
-    if (key === '3') { weaponSystem.setWeapon(2); updateWeaponUI(); }
+    // TAB: silah menüsü. İmleç serbest kalır, silah çubuğundan tıklayarak seçilir.
+    if (e.code === 'Tab') {
+      e.preventDefault();
+      toggleWeaponMenu();
+    }
   });
 
   window.addEventListener('keyup', (e) => {
@@ -489,7 +533,12 @@ function setupEventListeners() {
     if (e.code === 'Space') inputState.jump = false;
   });
 
+  window.addEventListener('mouseup', (e) => {
+    if (e.button === 0) handWeapons.fireHeld = false;
+  });
+
   canvasContainer.addEventListener('mousedown', (e) => {
+    if (e.target.closest && e.target.closest('.weapon-selector')) return; // silah menüsüne tıklama ateş etmez
     if (e.button === 0) {
       fireWeapon();
     }
@@ -514,8 +563,8 @@ function setupEventListeners() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const wId = parseInt(btn.dataset.weapon);
-      weaponSystem.setWeapon(wId);
-      updateWeaponUI();
+      selectWeapon(wId);
+      closeWeaponMenu(true);
     });
   });
 

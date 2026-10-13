@@ -18,9 +18,9 @@ export class WeaponSystem {
     // Silah Tanımları
     this.currentWeapon = 0;
     this.weapons = [
-      { id: 0, name: 'Delici Roket', ammo: Infinity, speed: 48, radius: 2.2, force: 220, color: 0xff4400, desc: 'Duvarda delik açar' },
-      { id: 1, name: 'Teardown TNT', ammo: 10, speed: 28, radius: 3.8, force: 320, color: 0xef4444, bounce: true, desc: 'Geniş oyuk patlaması' },
-      { id: 2, name: 'Kırıcı Balyoz / Nükleer', ammo: 3, speed: 24, radius: 6.5, force: 600, color: 0x00ffff, desc: 'Tüm katı çökertir' }
+      { id: 0, type: 'rocket', name: 'Delici Roket', ammo: Infinity, speed: 48, radius: 2.2, force: 220, color: 0xff4400, desc: 'Duvarda delik açar' },
+      { id: 1, type: 'minigun', name: 'Minigun', ammo: Infinity, desc: 'Basılı tut: seri ateş' },
+      { id: 2, type: 'saber', name: 'Işın Kılıcı', ammo: Infinity, desc: 'Savur: her şeyi keser' }
     ];
 
     this.cooldown = 0;
@@ -37,6 +37,7 @@ export class WeaponSystem {
     if (this.cooldown > 0) return false;
 
     const w = this.weapons[this.currentWeapon];
+    if (w.type !== 'rocket') return false; // minigun ve kılıç HandWeapons tarafından yönetilir
     if (w.ammo <= 0) return false;
 
     if (w.ammo !== Infinity) {

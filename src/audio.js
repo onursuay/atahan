@@ -332,6 +332,48 @@ class SoundEngine {
     this.playNoise(0.05, 0.15, 5000);
   }
 
+  // Işın kılıcı açılışı (yükselen vızıltı)
+  playSaberOn() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(90, now);
+    osc.frequency.exponentialRampToValueAtTime(330, now + 0.25);
+    gain.gain.setValueAtTime(0.0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 0.36);
+  }
+
+  // Işın kılıcı savurma (alçalan vınlama)
+  playSaberSwing() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(420, now);
+    osc.frequency.exponentialRampToValueAtTime(110, now + 0.4);
+    osc2.type = 'square';
+    osc2.frequency.setValueAtTime(425, now);
+    osc2.frequency.exponentialRampToValueAtTime(112, now + 0.4);
+    gain.gain.setValueAtTime(0.0, now);
+    gain.gain.linearRampToValueAtTime(0.28, now + 0.06);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+    osc.connect(gain); osc2.connect(gain); gain.connect(this.ctx.destination);
+    osc.start(now); osc2.start(now); osc.stop(now + 0.43); osc2.stop(now + 0.43);
+  }
+
+  // Işın kılıcı bir şeyi keserken cızırtı
+  playSaberHit() {
+    if (this.muted || !this.ctx) return;
+    this.playNoise(0.1, 0.22, 4200);
+  }
+
   // Suya giriş / su sıçraması
   playSplash() {
     if (this.muted || !this.ctx) return;

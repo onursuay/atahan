@@ -245,6 +245,22 @@
       color: #333333;
     }
 
+    .w-hint {
+      align-self: center;
+      font-size: 8px;
+      color: #cfcfcf;
+      text-shadow: 1px 1px #000;
+      padding: 0 6px;
+      white-space: nowrap;
+    }
+
+    /* Tab ile menü açılınca: imleç serbest, silah çubuğu öne çıkar */
+    .weapon-selector.menu-open {
+      transform: translateY(-14px) scale(1.12);
+      box-shadow: 0 0 0 3px #ffff55, 4px 4px 0 rgba(0,0,0,0.6);
+      transition: transform 0.15s ease;
+    }
+
     /* İkon Butonlar */
     .quick-actions {
       display: flex;
@@ -474,26 +490,24 @@
     <div class="bottom-bar">
       <div class="panel controls-guide">
         <div><span class="key-badge">W</span> İleri &nbsp;|&nbsp; <span class="key-badge">E</span> Çekiç Vur &nbsp;|&nbsp; <span class="key-badge">A</span><span class="key-badge">S</span><span class="key-badge">D</span> Yönler</div>
-        <div><span class="key-badge">BOŞLUK</span> Zıpla &nbsp;|&nbsp; <span class="key-badge">FARE</span> Nişan Al &nbsp;|&nbsp; <span class="key-badge">SOL TIK</span> Patlat</div>
+        <div><span class="key-badge">BOŞLUK</span> Zıpla &nbsp;|&nbsp; <span class="key-badge">FARE</span> Nişan Al &nbsp;|&nbsp; <span class="key-badge">SOL TIK</span> Ateş / Savur &nbsp;|&nbsp; <span class="key-badge">TAB</span> Silah Menüsü</div>
       </div>
 
       <!-- Minecraft Hotbar -->
-      <div class="weapon-selector">
+      <div class="weapon-selector" id="weapon-selector">
         <button class="weapon-btn active" data-weapon="0" id="w-btn-0">
           <span class="w-name">🚀 ROKET</span>
           <span class="w-ammo" id="w-ammo-0">∞</span>
-          <span class="w-key">[1]</span>
         </button>
         <button class="weapon-btn" data-weapon="1" id="w-btn-1">
-          <span class="w-name">💣 TNT</span>
-          <span class="w-ammo" id="w-ammo-1">10</span>
-          <span class="w-key">[2]</span>
+          <span class="w-name">🔫 MİNİGUN</span>
+          <span class="w-ammo" id="w-ammo-1">∞</span>
         </button>
         <button class="weapon-btn" data-weapon="2" id="w-btn-2">
-          <span class="w-name">💎 MEGA</span>
-          <span class="w-ammo" id="w-ammo-2">3</span>
-          <span class="w-key">[3]</span>
+          <span class="w-name">⚔️ IŞIN KILICI</span>
+          <span class="w-ammo" id="w-ammo-2">∞</span>
         </button>
+        <div class="w-hint" id="w-hint">TAB: silah menüsü</div>
       </div>
     </div>
   </div>

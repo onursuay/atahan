@@ -128,6 +128,26 @@ export class ParticleSystem {
     });
   }
 
+  // Mermi çarpma kıvılcımı
+  createSpark(position) {
+    for (let i = 0; i < 3; i++) {
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.06, 0.06),
+        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xffe08a : 0xffffff })
+      );
+      mesh.position.copy(position);
+      this.scene.add(mesh);
+      this.particles.push({
+        mesh,
+        velocity: new THREE.Vector3((Math.random() - 0.5) * 4, 1 + Math.random() * 3, (Math.random() - 0.5) * 4),
+        gravity: -12,
+        life: 0.25,
+        maxLife: 0.25,
+        scaleSpeed: -2
+      });
+    }
+  }
+
   // Suya giriş / yüzme sırasında sıçrayan mavi-beyaz su küpleri
   createSplash(position, strength = 1) {
     const count = Math.ceil(7 * strength);
