@@ -589,8 +589,8 @@ function fireWeapon() {
   sound.init();
   const cur = weaponSystem.currentWeapon;
 
-  if (cur === 2) { handWeapons.startSwing(); return; }   // Işın kılıcı: savur
-  if (cur === 1) { handWeapons.fireHeld = true; return; } // Minigun: basılı tutunca ateş
+  if (cur === 2) { handWeapons.startSpin(); return; }    // Işın kılıcı: sol tık = çift bıçağı döndür
+  if (cur === 1 || cur === 9) { handWeapons.fireHeld = true; return; } // Minigun / çift minigun: basılı tutunca ateş
   if (cur === 7) { handWeapons.fireHeld = true; return; } // AK-47: otomatik
   if (cur === 5) { handWeapons.fireGun('pistol'); return; }
   if (cur === 6) { handWeapons.fireGun('shotgun'); return; }
@@ -742,15 +742,6 @@ function setupEventListeners() {
       fireWeapon();
     }
   });
-
-  // Sağ tık: ışın kılıcı elindeyken çift bıçağı tam tur döndürür (sol tık = savurma)
-  canvasContainer.addEventListener('mousedown', (e) => {
-    if (e.button !== 2 || inCar || weaponSystem.currentWeapon !== 2) return;
-    if (e.target.closest && e.target.closest('.weapon-selector')) return;
-    sound.init();
-    handWeapons.startSpin();
-  });
-  window.addEventListener('contextmenu', (e) => e.preventDefault());
 
   window.addEventListener('mousemove', (e) => {
     const sensitivity = scopeOn ? 0.0011 : 0.0035;

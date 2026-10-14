@@ -20,13 +20,14 @@ export class WeaponSystem {
     this.weapons = [
       { id: 0, type: 'rocket', name: 'Delici Roket', ammo: Infinity, speed: 48, radius: 2.2, force: 220, color: 0xff4400, desc: 'Duvarda delik açar' },
       { id: 1, type: 'minigun', name: 'Minigun', ammo: Infinity, desc: 'Basılı tut: seri ateş' },
-      { id: 2, type: 'saber', name: 'Işın Kılıcı', ammo: Infinity, desc: 'Savur: her şeyi keser' },
+      { id: 2, type: 'saber', name: 'Işın Kılıcı', ammo: Infinity, desc: 'Tıkla: döndür, her şeyi keser' },
       { id: 3, type: 'timed', name: 'Süreli Bomba', ammo: Infinity, desc: '3 sn sonra patlar' },
       { id: 4, type: 'remote', name: 'Uzaktan Bomba', ammo: Infinity, desc: 'Butonla patlar' },
       { id: 5, type: 'pistol', name: 'Tabanca', ammo: Infinity, desc: 'Tek atış' },
       { id: 6, type: 'shotgun', name: 'Pompalı', ammo: Infinity, desc: 'Saçma' },
       { id: 7, type: 'ak47', name: 'AK-47', ammo: Infinity, desc: 'Otomatik' },
-      { id: 8, type: 'sniper', name: 'Sniper', ammo: Infinity, desc: 'X: nişan al' }
+      { id: 8, type: 'sniper', name: 'Sniper', ammo: Infinity, desc: 'X: nişan al' },
+      { id: 9, type: 'dualminigun', name: 'Çift Minigun', ammo: Infinity, desc: 'Basılı tut: iki elle seri ateş' }
     ];
 
     this.cooldown = 0;

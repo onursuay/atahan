@@ -34,7 +34,7 @@ const SABER_HILT_HALF = 0.19;     // tutacak merkezinden yayıcıya uzaklık (mo
 const SABER_BLADE_LEN = 1.0;      // bir bıçağın görsel uzunluğu
 const SABER_BLADE_SCALE = 2.6;    // bıçağın dünyadaki hasar uzunluğu = görsel × bu
 const SABER_HOLD = { x: 0.26, y: -0.18, z: -1.05 };   // tutacak merkezinin ekrandaki yeri
-const SPIN_TURNS = 4;             // bir sağ tıkta atılan tam tur sayısı
+const SPIN_TURNS = 4;             // bir sol tıkta atılan tam tur sayısı
 const SPIN_TIME = 1.5;            // tüm dönüşün süresi (sn)
 const SPIN_MIN_SPEED = 3;         // m/sn: bu hızın altındaki bıçak ucu hasar vermez
 const SPIN_SAFE_DIST = 1.2;       // kameraya bu kadar yakın noktalar kesilmez (oyuncu/tutacak)
@@ -69,7 +69,7 @@ export class HandWeapons {
     this.mx = 0; this.my = 0;       // son fare hareketi (savurma yönünü belirler)
     this.swingCut = 0;      // bu savuruşta kırılan küp sayısı
     this.swingSoundT = 0;
-    this.saberSpin = null;   // sağ tıkla başlayan tam dönüş: { t, dur, axis, sign }
+    this.saberSpin = null;   // sol tıkla başlayan tam dönüş: { t, dur, axis, sign }
     this.spinQueued = false; // dönüş sürerken gelen tek bir tıklama sırada bekler
     this.spinCut = 0;        // bu dönüşte kırılan küp sayısı
     this.spinLastDir = -1;
@@ -139,7 +139,8 @@ export class HandWeapons {
     this.root.add(g);
   }
 
-  _buildMinigun() {
+  // Tek minigun modeli: { g, barrels, flash }
+  _makeMinigun() {
     const g = new THREE.Group();
     const steel = new THREE.MeshLambertMaterial({ color: 0x4b5563 });
     const dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
@@ -155,35 +156,45 @@ export class HandWeapons {
     belt.position.set(-0.09, 0.0, 0.05);
 
     // Dönen 6 namlu
-    this.barrels = new THREE.Group();
-    this.barrels.position.z = -0.52;
+    const barrels = new THREE.Group();
+    barrels.position.z = -0.52;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
       const b = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.78), steel);
       b.position.set(Math.cos(a) * 0.075, Math.sin(a) * 0.075, 0);
-      this.barrels.add(b);
+      barrels.add(b);
     }
     const shroud = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.07), dark);
     shroud.position.z = -0.28;
     const muzzleRing = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.05), dark);
     muzzleRing.position.z = -0.9;
 
-    this.minigunFlash = new THREE.Mesh(
+    const flash = new THREE.Mesh(
       new THREE.BoxGeometry(0.2, 0.2, 0.08),
       new THREE.MeshBasicMaterial({ color: 0xffd45a })
     );
-    this.minigunFlash.position.z = -0.97;
-    this.minigunFlash.visible = false;
+    flash.position.z = -0.97;
+    flash.visible = false;
 
-    g.add(body, handle, ammo, belt, this.barrels, shroud, muzzleRing, this.minigunFlash);
+    g.add(body, handle, ammo, belt, barrels, shroud, muzzleRing, flash);
     g.position.set(0.28, -0.3, -0.7);
-    this.minigunModel = g;
     this.root.add(g);
+    return { g, barrels, flash };
+  }
+
+  // Sağ el minigunu (tekli minigun ve çift minigunun sağ eli) + sol el minigunu (yalnız çift minigunda; sağın aynası)
+  _buildMinigun() {
+    const r = this._makeMinigun();
+    this.minigunModel = r.g; this.barrels = r.barrels; this.minigunFlash = r.flash;
+    const l = this._makeMinigun();
+    l.g.scale.x = -1;                       // ayna: iki silah simetrik durur
+    l.g.visible = false;
+    this.minigunModel2 = l.g; this.barrels2 = l.barrels; this.minigunFlash2 = l.flash;
   }
 
   _buildSaber() {
     // Pivot = tutacağın ortası; savurma ve dönüş bu noktanın etrafında olur.
-    // saberPivot (konum + savurma) → spinGroup (sağ tık dönüşü) → saber (model eğimi + parçalar)
+    // saberPivot (konum + savurma) → spinGroup (sol tık dönüşü) → saber (model eğimi + parçalar)
     this.saberPivot = new THREE.Group();
     this.saberPivot.position.set(SABER_HOLD.x, SABER_HOLD.y, SABER_HOLD.z);
     this.spinGroup = new THREE.Group();
@@ -272,7 +283,8 @@ export class HandWeapons {
     this._cancelReload();   // silah değişince yarım kalan şarjör değişimi iptal olur
     this._endSpin();
     this.rocketModel.visible = i === 0;
-    this.minigunModel.visible = i === 1;
+    this.minigunModel.visible = i === 1 || i === 9;   // 9: çift minigun
+    this.minigunModel2.visible = i === 9;
     this.saberModel.visible = i === 2;
     this.bombModel.visible = i === 3 || i === 4;
     Object.entries(this.gunModels).forEach(([k, g]) => g.visible = Number(k) === i);
@@ -308,7 +320,7 @@ export class HandWeapons {
     return true;
   }
 
-  // Sağ tık: çift bıçaklı kılıcı elin etrafında SPIN_TURNS tam tur döndürür. Yön her seferinde (öncekinden farklı)
+  // Sol tık: çift bıçaklı kılıcı elin etrafında SPIN_TURNS tam tur döndürür. Yön her seferinde (öncekinden farklı)
   // sağ / sol / yukarı / aşağıdan biri olur ve hafifçe sapar. Dönüş sürerken gelen tıklamalardan
   // yalnızca biri sıraya alınır; bitince hemen başlar. Fazlası yok sayılır.
   startSpin() {
@@ -374,21 +386,29 @@ export class HandWeapons {
     }
     if (this.current === 7 && this.fireHeld) this.fireGun('ak47');
 
-    // Minigun: basılı tutunca namlular dönmeye başlar, hızlanınca ateş eder
-    const targetSpin = this.current === 1 && this.fireHeld ? 1 : 0;
+    // Minigun (1) ve çift minigun (9): basılı tutunca namlular dönmeye başlar, hızlanınca ateş eder.
+    // Çift minigunda iki el de aynı hızda, aynı sesle ve aynı hasarla ateş eder (her el kendi mermisini atar).
+    const mgOn = this.current === 1 || this.current === 9, dual = this.current === 9;
+    const targetSpin = mgOn && this.fireHeld ? 1 : 0;
     this.spin += (targetSpin - this.spin) * Math.min(1, dt / (targetSpin ? MINIGUN_SPINUP : 0.6));
     this.barrelAngle += this.spin * 30 * dt;
-    sound.updateMinigun(this.current === 1 ? this.spin : 0);
+    sound.updateMinigun(mgOn ? this.spin : 0);
     this.barrels.rotation.z = this.barrelAngle;
-    this.minigunModel.position.set(0.28 + swayX, -0.3 - swayY - drop, -0.7 + this.kick * 0.05);
+    this.barrels2.rotation.z = this.barrelAngle;
+    const mgX = dual ? 0.36 : 0.28;
+    this.minigunModel.position.set(mgX + swayX, -0.3 - swayY - drop, -0.7 + this.kick * 0.05);
+    this.minigunModel2.position.set(-mgX + swayX, -0.3 - swayY - drop, -0.7 + this.kick * 0.05);
     this.minigunModel.rotation.z = (Math.random() - 0.5) * 0.01 * this.spin;
+    this.minigunModel2.rotation.z = (Math.random() - 0.5) * 0.01 * this.spin;
     this.minigunFlash.visible = this.flashTimer > 0;
-    if (this.current === 1 && this.fireHeld && this.spin > 0.85) {
+    this.minigunFlash2.visible = dual && this.flashTimer > 0;
+    if (mgOn && this.fireHeld && this.spin > 0.85) {
       this.shotTimer -= dt;
       let guard = 0;
       while (this.shotTimer <= 0 && guard++ < 4) {
         this.shotTimer += 1 / MINIGUN_RATE;
-        this._fireMinigunBullet(ctx);
+        this._fireMinigunBullet(ctx, GUNS.minigun, { x: dual ? 0.34 : 0.26, y: -0.27, z: -1.0 });
+        if (dual) this._fireMinigunBullet(ctx, GUNS.minigun, { x: -0.34, y: -0.27, z: -1.0 });   // sol el
       }
     } else {
       this.shotTimer = Math.min(this.shotTimer, 0);
@@ -411,7 +431,7 @@ export class HandWeapons {
       }
     }
     // Savurma: geriye çek, seçilen yönde hızla salla, yerine dön. Yön yatay, dikey ya da çapraz olabilir.
-    // Tam tur dönüş (sağ tık): yumuşak hızlanıp yavaşlar; dönüş bitince sıradaki tıklama varsa hemen yenisi başlar
+    // Tam tur dönüş (sol tık): yumuşak hızlanıp yavaşlar; dönüş bitince sıradaki tıklama varsa hemen yenisi başlar
     let spinSpeed = 0;
     if (this.saberSpin) {
       const sp = this.saberSpin;
@@ -485,7 +505,7 @@ export class HandWeapons {
   }
 
   // ───────────────────────── Minigun ─────────────────────────
-  _fireMinigunBullet(ctx, o = GUNS.minigun) {
+  _fireMinigunBullet(ctx, o = GUNS.minigun, muzzleOff = { x: 0.26, y: -0.27, z: -1.0 }) {
     const cam = this.camera;
     const fwd = new THREE.Vector3(); cam.getWorldDirection(fwd);
     // Hafif saçılma
@@ -497,7 +517,7 @@ export class HandWeapons {
        .addScaledVector(up, (Math.random() - 0.5) * spread * 2).normalize();
 
     const origin = cam.position.clone();
-    const muzzle = this._handWorld({ x: 0.26, y: -0.27, z: -1.0 });
+    const muzzle = this._handWorld(muzzleOff);
 
     // Işın voxel ızgarasında adım adım ilerler
     const step = VOXEL_SIZE * 0.5;

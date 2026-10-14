@@ -10,8 +10,7 @@ Tarayıcıda çalışan, Three.js ve Cannon-es ile yapılmış, **küplerden (vo
 |---|---|
 | **W A S D** | Yürü (arabadayken: gaz, fren/geri, direksiyon) |
 | **Fare** | Etrafa bak |
-| **Sol tık** | Ateş et / kılıç savur / bomba yerleştir |
-| **Sağ tık** | Işın kılıcı elindeyken: kılıcı tam tur döndür (art arda basılabilir, en fazla bir dönüş sıraya girer) |
+| **Sol tık** | Ateş et / ışın kılıcını döndür / bomba yerleştir |
 | **Boşluk** | Zıpla. Havadayken **basılı tut: jetpack** (arabadayken el freni) |
 | **Tab** | Silah menüsü (imleç serbest kalır, silahı tıklayarak seç) |
 | **E** | Yakındaki arabaya bin / araçtan in. Araç yoksa çekiç vurur |
@@ -28,7 +27,8 @@ Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin göv
 
 - **Delici Roket** — duvarda delik açar, patlamada çevredeki her şeyi etkiler.
 - **Minigun** — basılı tutunca namlular döner, saniyede yaklaşık 18 mermi atar.
-- **Işın Kılıcı** — tutacağın iki ucundan birer bıçak çıkan **çift taraflı** kılıç. **Sol tık** fare hareketine göre yatay, dikey ve çapraz savurur. **Sağ tık** kılıcı elin etrafında 4 tam tur döndürür (~1.5 sn): yön her seferinde (öncekinden farklı) sağ, sol, yukarı ya da aşağı olur ve hafifçe sapar. Dönerken iki bıçağın gerçek konumları taranır; temas ettiği binalar yalnızca bıçağın geçtiği şeritte kesilir ve kopan parçalar bıçağın hareket yönünde savrulup fizikle düşer. Kameraya 1.2 m'den yakın noktalar kesilmez.
+- **Çift Minigun** — minigunun aynısı, iki elde birden: iki silah da aynı sesle, aynı hızda (her biri saniyede ~18 mermi) ve aynı hasarla ateş eder; toplam 36 mermi/sn.
+- **Işın Kılıcı** — tutacağın iki ucundan birer bıçak çıkan **çift taraflı** kılıç. **Sol tık** kılıcı elin etrafında 4 tam tur döndürür (~1.5 sn): yön her seferinde (öncekinden farklı) sağ, sol, yukarı ya da aşağı olur ve hafifçe sapar. Dönüş sürerken gelen tıklamalardan yalnızca biri sıraya girer. Dönerken iki bıçağın gerçek konumları taranır; temas ettiği binalar yalnızca bıçağın geçtiği şeritte kesilir ve kopan parçalar bıçağın hareket yönünde savrulup fizikle düşer. Kameraya 1.2 m'den yakın noktalar kesilmez. Kılıç arabaya da değer (demir iskeleti de keser).
 - **Tabanca**, **Pompalı** (9 saçma), **AK-47** (otomatik), **Sniper** (güçlü ve uzun menzilli).
   Bu dört silahın şarjörü vardır: tabanca 12, pompalı 6, AK-47 30, sniper 5 mermi. Şarjör boşalınca otomatik değişir, **R** ile elle de değiştirilir (değişirken ateş edilemez). Kalan mermi sağ altta görünür; silah değişince yarım kalan değişim iptal olur.
 - **Süreli Bomba** — yerleştirince 3 saniye geri sayar, bip sesi giderek sıklaşır.
