@@ -678,7 +678,9 @@ export class VoxelWorld {
 
   // IŞIN KILICI: noktadaki yarıçap içinde her malzemeyi (demir dahil) keser
   // push (isteğe bağlı): kopan küplere verilecek hız vektörü (ör. dönen bıçağın o noktadaki hareketi)
-  sweepCut(point, radius, push = null) {
+  // stats (isteğe bağlı): { skipIron } verilirse demir küpler kesilmez (stats.hitIron = true olur); kesilen küplerin
+  // toplam sertliği stats.cost'a eklenir (hızlı araç çarpışmasında momentum kaybını hesaplamak için)
+  sweepCut(point, radius, push = null, stats = null) {
     const r2 = radius * radius;
     let removed = 0;
     let tnt = null;
@@ -692,6 +694,11 @@ export class VoxelWorld {
           if (!v || !v.active) continue;
           const dx = v.x - point.x, dy = v.y - point.y, dz = v.z - point.z;
           if (dx * dx + dy * dy + dz * dz > r2) continue;
+          if (stats) {
+            const hd = MATERIAL_HARDNESS[v.type.id] ?? 1.0;
+            if (hd === Infinity && stats.skipIron) { stats.hitIron = true; continue; }
+            stats.cost = (stats.cost || 0) + (hd === Infinity ? 3 : hd);
+          }
           this._kill(v);
           this._hideVoxel(v);
           removed++;

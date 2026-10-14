@@ -15,9 +15,9 @@ const MINIGUN_RANGE = 90;
 const GUNS = {
   minigun: { kind: 'minigun', spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'every' },
   pistol:  { kind: 'pistol', spread: 0.004, power: 0.9,  radius: 0.4,  carDmg: 3, planeDmg: 3, range: 120, sound: 'every', kick: 0.6 },
-  shotgun: { kind: 'shotgun', spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
+  shotgun: { kind: 'shotgun', iron: true, spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
   ak47:    { kind: 'ak47', spread: 0.016, power: 0.6,  radius: 0.45, carDmg: 2, planeDmg: 2, range: 140, sound: 'every', kick: 0.45 },
-  sniper:  { kind: 'sniper', spread: 0.0,   power: 3.0,  radius: 0.7,  carDmg: 14, planeDmg: 25, range: 260, sound: 'every', kick: 1.0 }
+  sniper:  { kind: 'sniper', iron: true, spread: 0.0,   power: 3.0,  radius: 0.7,  carDmg: 14, planeDmg: 25, range: 260, sound: 'every', kick: 1.0 }
 };
 // Şarjör kapasitesi ve şarjör değiştirme süresi (sn). Minigun ve diğer silahlar sınırsızdır.
 const MAG_SIZE = { pistol: 12, shotgun: 6, ak47: 30, sniper: 5 };
@@ -520,7 +520,7 @@ export class HandWeapons {
       const ch = this.cars.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);
       if (ch) {
         this._spawnTracer(muzzle, ch.point);
-        for (let i = 0; i < o.carDmg; i++) this.cars.bulletHit(ch.car);
+        this.cars.bulletHit(ch.car, { dmg: o.carDmg, point: ch.point, iron: !!o.iron });   // yalnız pompalı ve sniper demiri kırar
         if (this.particleSystem.createSpark) this.particleSystem.createSpark(ch.point);
         this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
         this.flashLight.position.copy(muzzle);
@@ -676,6 +676,7 @@ export class HandWeapons {
       const n = this.voxelWorld.sweepCut(pt, SABER_RADIUS);
       cut += n;
       if (this.npcs) this.npcs.hitSphere(pt, SABER_RADIUS + 0.25);
+      if (this.cars) this.cars.bladeHit(pt, SABER_RADIUS);       // ışın kılıcı arabayı (demir dahil) keser
       const gy = this.voxelWorld.terrain.topYAt(pt.x, pt.z);
       if (pt.y <= gy + 0.3 && this.voxelWorld.terrain.topIntactAt(pt.x, pt.z)) {
         this.voxelWorld.breakGround(new THREE.Vector3(pt.x, gy, pt.z), 0.55, 50);
@@ -742,6 +743,7 @@ export class HandWeapons {
       const c = cur[i];
       if (c.distanceToSquared(cam.position) < safe2 || vel[i].length() < SPIN_MIN_SPEED) continue;
       if (this.npcs) this.npcs.hitSphere(c, SPIN_CUT_RADIUS + 0.3);
+      if (this.cars) this.cars.bladeHit(c, SPIN_CUT_RADIUS + 0.3);
       if (this.spinGroundT <= 0) {
         const gy = this.voxelWorld.terrain.topYAt(c.x, c.z);
         if (c.y <= gy + 0.3 && this.voxelWorld.terrain.topIntactAt(c.x, c.z)) {

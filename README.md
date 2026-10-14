@@ -75,7 +75,11 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 ## 🧍 Canlılar ve araçlar
 
 - **NPC insanlar:** rastgele dolaşır, deniz/duvar/çukur kenarında sağa ya da sola döner. Silahlarla, patlamayla ve çekiçle vurulabilir (küplere dağılırlar), bir süre sonra yenisi doğar.
-- **NPC arabalar:** spor, mini ve sedan; farklı renklerde, içlerinde sürücü görünür. Yolda sağ şeritten gider, kavşakta yuvarlak yaylarla döner, otoyola sağdan katılır ve sağdan çıkar. Önüne biri çıkarsa ya da başka araç girerse durur. Birbirine çarpınca hasar alırlar. Mermi ve patlama gövde panellerini koparır; demir iskelet ancak çok ağır hasarda gider.
+- **NPC arabalar (9 tür):** spor, mini, sedan, SUV, pickup, minibüs, kamyon, polis (çakarlı) ve ambulans (haçlı, çakarlı); boyut, hız ve ağırlıkları farklıdır. Yolda sağ şeritten gider, kavşakta yuvarlak yaylarla döner, otoyola sağdan katılır ve sağdan çıkar. Önüne biri çıkarsa ya da başka araç girerse durur. Her araç ön, arka, sol ve sağ olmak üzere **dört bölgeden** oluşur:
+  - Bir bölgeye vurulunca yalnızca o bölge parçalanır (paneller kopar, parçalar savrulur). Diğer bölgeler en fazla **çatlar** (koyulaşır, çatlak çizgileri çıkar), kopmaz. Zaten parçalanmış bölgeye tekrar vurmak hiçbir şeyi değiştirmez.
+  - Ön bölge parçalanınca motor ölür: trafikteki araç durur ve dumanlanır; sürdüğün araç ise yarı hızla gider ve duman çıkarır.
+  - Parçalanan bölgenin altındaki **demir iskelet** yalnızca **pompalı, sniper, roket (ve bomba/TNT patlamaları) ve ışın kılıcı** ile kırılır. Tabanca, AK-47 ve minigun demire işlemez. Demiri iki bölgede kırılan araç yanıp patlar. Yakın patlama paneli ve demiri birlikte kırar, uzak patlama yalnız panelleri koparır.
+  - Araç-araç çarpışmasında çarpışma yönündeki bölge hasar alır (hafif araç ağırdan daha çok hasar alır); demir kırılmaz.
 - **Arabaya binip sürebilirsiniz** (E, W A S D). Hızlı çarpışma binayı kırar, yayaları ezer.
 - **Uçaklar:** Boeing 737 görünümlü yolcu uçakları ara sıra geçer. Roket ya da minigunla vurulursa dumanlı düşer, yere çarpınca geniş çukur ve yıkım bırakır.
 
@@ -87,6 +91,7 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 - **Jetpack:** havadayken Boşluk'u basılı tutun. Yakıt yaklaşık 7 saniye yeter, yerde dolar. Tuşu bırakınca hava direnci yavaşlatır ve düşersiniz.
 - **Su:** denizde yüzülür; kıyıya Boşluk ile tırmanılır. Dalgalar, sıçrama, suya düşen parçaların yüzmesi vardır.
 - Patlama dalgası oyuncuyu savurur.
+- **Araba sürerken momentum:** yeterince hızlı (aracın azami hızının yaklaşık %40'ından fazla) bir araç duvara çarpınca hemen durmaz. Kesilen her küp enerji harcar; araç biraz yavaşlayıp duvarı **delip geçmeye devam eder**. Ağır araçlar (kamyon, ambulans, minibüs) daha az yavaşlar. Daha yavaşsa ya da duvar demirse araç durur ve geri sekir. Çarpan uç (ön, geri giderken arka) hasar alır.
 
 ---
 
@@ -115,7 +120,8 @@ Dünyanın boyutu ve küp sayısı büyük olduğundan (yaklaşık 350.000–450
 | `src/handweapons.js`, `src/weapons.js` | Silahlar, şarjör sistemi ve elde görünen modeller |
 | `src/audio.js` | Prosedürel ses motoru: silah, şarjör, motor, su ve diğer efektler |
 | `src/bombs.js` | Süreli ve uzaktan bombalar |
-| `src/npc.js`, `src/cars.js`, `src/planes.js` | İnsanlar, arabalar, uçaklar |
+| `src/npc.js`, `src/cars.js`, `src/planes.js` | İnsanlar, arabalar (trafik, sürüş, bölgesel hasar, momentum), uçaklar |
+| `src/carmodels.js` | 9 araç tipinin modelleri, bölgeler, demir iskelet ve çatlak çizgileri |
 
 ---
 
