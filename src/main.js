@@ -145,6 +145,8 @@ function init() {
   handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   handWeapons.setFirstPerson(firstPerson);
   handWeapons.onAmmoChange = updateMagUI;
+  handWeapons.arsenal.onShake = (s) => { screenShake = Math.max(screenShake, s); };
+  handWeapons.arsenal.onHint = showWeaponHint;
 
   voxelWorld.collapse.onShake = (v) => { screenShake = Math.max(screenShake, v); };
   cars = new CarManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (dx, dz, speed) => {
@@ -558,6 +560,16 @@ function updateMagUI(info) {
   el.classList.toggle('low', !info.reloading && info.mag <= Math.ceil(info.size * 0.25));
 }
 
+// Yeni silah seçilince kısa kullanım ipucu (alt ortada, 3.2 sn)
+let hintTimer = null;
+function showWeaponHint(text) {
+  const el = document.getElementById('weapon-hint');
+  if (!el) return;
+  el.innerText = text; el.classList.add('on');
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => el.classList.remove('on'), 3200);
+}
+
 function updateWeaponUI() {
   document.querySelectorAll('.weapon-btn').forEach((btn, idx) => {
     btn.classList.toggle('active', idx === weaponSystem.currentWeapon);
@@ -638,6 +650,7 @@ function fireWeapon() {
   if (cur === 5) { handWeapons.fireGun('pistol'); return; }
   if (cur === 6) { handWeapons.fireGun('shotgun'); return; }
   if (cur === 8) { handWeapons.fireGun('sniper'); screenShake = 0.12; return; }
+  if (cur >= 10 && cur <= 15) { handWeapons.arsenal.fire(cur); return; }   // cephanelik: kara delik, yıldırım, eritici, deprem, yıkım topu, testere
   if (cur === 3 || cur === 4) {                           // Bombalar: yerleştir
     if (bombs.place(cur === 3 ? 'timed' : 'remote')) handWeapons.onRocketFired();
     return;
@@ -754,6 +767,9 @@ function setupEventListeners() {
 
     // X: sniper nişangâhı
     if (key === 'x' || e.code === 'KeyX') toggleScope();
+
+    // Z: testere diskinin yönünü değiştir (yatay kat keser / dikey dilim keser)
+    if ((key === 'z' || e.code === 'KeyZ') && !inCar && weaponSystem.currentWeapon === 15) handWeapons.arsenal.toggleSawMode();
 
     if (key === 'v' || e.code === 'KeyV') setFirstPerson(!firstPerson);
 

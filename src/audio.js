@@ -754,6 +754,139 @@ class SoundEngine {
     osc.start(now); osc2.start(now); osc.stop(now + dur); osc2.stop(now + dur);
   }
 
+  // ───────────────────────── Cephanelik (yeni silahlar) ─────────────────────────
+  // Kara delik topu: fırlatma
+  playGravityLaunch() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 0.55, 0.32, 240, 55, 'sine');
+    this._thump(now, 0.4, 0.12, 80, 40, 'sawtooth');
+    this._burst(now, 0.5, 0.16, 'bandpass', 700, 160, 1.6);
+  }
+  // Kütleçekim kuyusu: sürekli alçalan/yükselen uğultu (p: 0..1 ilerleme; perde yükselir)
+  updateWell(on, p = 0) {
+    if (!this.ctx) return;
+    if (!on) { this.stopWell(); return; }
+    const now = this.ctx.currentTime;
+    if (!this.wellLoop) {
+      const ctx = this.ctx, w = {};
+      w.a = ctx.createOscillator(); w.a.type = 'sawtooth'; w.b = ctx.createOscillator(); w.b.type = 'sine';
+      w.f = ctx.createBiquadFilter(); w.f.type = 'lowpass'; w.f.Q.value = 3;
+      w.g = ctx.createGain(); w.g.gain.value = 0;
+      w.a.connect(w.f); w.b.connect(w.f); w.f.connect(w.g); w.g.connect(ctx.destination);
+      w.a.start(now); w.b.start(now);
+      this.wellLoop = w;
+    }
+    const w = this.wellLoop, m = this.muted ? 0 : 1;
+    w.a.frequency.setTargetAtTime(34 + p * 70, now, 0.08);
+    w.b.frequency.setTargetAtTime(52 + p * 190, now, 0.08);
+    w.f.frequency.setTargetAtTime(200 + p * 900, now, 0.08);
+    w.g.gain.setTargetAtTime((0.11 + 0.1 * p) * m, now, 0.08);
+  }
+  stopWell() {
+    const w = this.wellLoop;
+    if (!w) return;
+    this.wellLoop = null;
+    const now = this.ctx.currentTime;
+    w.g.gain.cancelScheduledValues(now); w.g.gain.setTargetAtTime(0, now, 0.05);
+    setTimeout(() => { try { w.a.stop(); w.b.stop(); } catch (_) {} w.g.disconnect(); }, 400);
+  }
+  // Kuyunun çökmesi: çöken ton + gürleyen boşalma
+  playImplosion() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 1.0, 0.55, 280, 26, 'sine');
+    this._thump(now, 0.7, 0.35, 95, 24, 'sawtooth');
+    this._burst(now + 0.05, 0.85, 0.5, 'lowpass', 2600, 110, 0.8);
+  }
+  // Yıldırım bobini: çıtırtılı elektrik atışı
+  playZap() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 3; i++) this._burst(now + i * 0.014, 0.04, 0.15, 'highpass', 3500 + i * 1400, 7000, 1);
+    this._thump(now, 0.07, 0.09, 150, 85, 'square');
+    this._burst(now, 0.09, 0.1, 'bandpass', 1800, 900, 2);
+  }
+  // Eritici: fırlatma, yapışma, cızırdama
+  playMeltFire() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._burst(now, 0.3, 0.22, 'bandpass', 2400, 700, 1.1);
+    this._thump(now, 0.18, 0.18, 420, 110, 'sawtooth');
+  }
+  playMeltHit() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._burst(now, 0.55, 0.26, 'bandpass', 3200, 1200, 1.2);
+    this._thump(now, 0.25, 0.2, 320, 80, 'sawtooth');
+  }
+  playSizzle() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._burst(now, 0.4, 0.07, 'highpass', 5200, 3000, 0.8);
+    this._burst(now, 0.3, 0.05, 'bandpass', 1500, 800, 3);
+  }
+  // Yer sarsıcı: derin gümbürtü + çatırdayan kayalar
+  playQuake() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 1.7, 0.62, 85, 21, 'sine');
+    this._thump(now + 0.04, 0.55, 0.3, 170, 48, 'sawtooth');
+    this._burst(now, 1.5, 0.45, 'lowpass', 520, 55, 0.9);
+    for (let i = 0; i < 6; i++) this._burst(now + 0.25 + i * 0.17, 0.12, 0.14, 'bandpass', 900 + Math.random() * 900, 300, 2);
+  }
+  // Yıkım topu: fırlatma ve çarpma
+  playWreckLaunch() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._burst(now, 0.45, 0.24, 'bandpass', 450, 2300, 0.8);
+    this._thump(now, 0.32, 0.42, 115, 44, 'sine');
+  }
+  playWreckHit(power = 1) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 0.4, 0.38 * power, 125, 36, 'sine');
+    this._burst(now, 0.28, 0.3 * power, 'lowpass', 1600, 200, 0.8);
+    this._thump(now, 0.12, 0.18 * power, 720, 190, 'square');
+  }
+  // Testere diski: fırlatma ve uçarken dönen vızıltı (motion: 0..1 disk hızı)
+  playSawThrow() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._burst(now, 0.28, 0.2, 'bandpass', 900, 3600, 2);
+    this._thump(now, 0.12, 0.14, 900, 300, 'square');
+  }
+  updateSaw(on, motion = 0.6) {
+    if (!this.ctx) return;
+    if (!on) { this.stopSaw(); return; }
+    const now = this.ctx.currentTime;
+    if (!this.sawLoop) {
+      const ctx = this.ctx, w = {};
+      w.a = ctx.createOscillator(); w.a.type = 'sawtooth'; w.b = ctx.createOscillator(); w.b.type = 'square';
+      w.lfo = ctx.createOscillator(); w.lfo.frequency.value = 23; w.lg = ctx.createGain(); w.lg.gain.value = 0.5;
+      w.f = ctx.createBiquadFilter(); w.f.type = 'bandpass'; w.f.Q.value = 2.2;
+      w.g = ctx.createGain(); w.g.gain.value = 0;
+      w.am = ctx.createGain(); w.am.gain.value = 0.55;
+      w.lfo.connect(w.lg); w.lg.connect(w.am.gain);
+      w.a.connect(w.f); w.b.connect(w.f); w.f.connect(w.am); w.am.connect(w.g); w.g.connect(ctx.destination);
+      w.a.start(now); w.b.start(now); w.lfo.start(now);
+      this.sawLoop = w;
+    }
+    const w = this.sawLoop, m = this.muted ? 0 : 1;
+    w.a.frequency.setTargetAtTime(170 + motion * 420, now, 0.05);
+    w.b.frequency.setTargetAtTime(171.5 + motion * 425, now, 0.05);
+    w.f.frequency.setTargetAtTime(700 + motion * 2200, now, 0.05);
+    w.g.gain.setTargetAtTime(0.1 * m, now, 0.05);
+  }
+  stopSaw() {
+    const w = this.sawLoop;
+    if (!w) return;
+    this.sawLoop = null;
+    const now = this.ctx.currentTime;
+    w.g.gain.cancelScheduledValues(now); w.g.gain.setTargetAtTime(0, now, 0.04);
+    setTimeout(() => { try { w.a.stop(); w.b.stop(); w.lfo.stop(); } catch (_) {} w.g.disconnect(); }, 300);
+  }
+
   playSplash() {
     if (this.muted || !this.ctx) return;
     this.playNoise(0.35, 0.3, 1200);

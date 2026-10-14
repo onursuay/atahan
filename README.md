@@ -16,6 +16,7 @@ Tarayıcıda çalışan, Three.js ve Cannon-es ile yapılmış, **küplerden (vo
 | **Tab** | Silah menüsü (imleç serbest kalır, silahı tıklayarak seç) |
 | **E** | Yakındaki arabaya bin / araçtan in. Araç yoksa çekiç vurur |
 | **X** | Sniper nişangâhı (yalnız sniper elindeyken) |
+| **Z** | Testere diskinin yönü: yatay ↔ dikey (yalnız testere elindeyken) |
 | **F** | Yerleştirilmiş uzaktan bombaları patlat |
 | **R** | Şarjör değiştir (tabanca, pompalı, AK-47, sniper) |
 | **V** | Kamera: karakterin gözünden ↔ uzaktan |
@@ -35,6 +36,15 @@ Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin göv
 - **Süreli Bomba** — yerleştirince 3 saniye geri sayar, bip sesi giderek sıklaşır.
 - **Uzaktan Bomba** — yerleştirince bekler; ekrandaki **PATLAT** butonu ya da **F** ile patlar.
 - **Çekiç** (E) — yakın mesafede küçük hasar verir; demir kırılmaz.
+
+### 🧪 Cephanelik: 6 özel silah (Tab menüsünün sonunda; `src/arsenal.js`)
+Tabanca benzeri değiller; her biri dünyayı kendine özgü biçimde yıkar. Hepsi mevcut yıkım sistemini (voxel kesme, zemin kırma, çökme/devrilme) ve araç, kapı, insan, uçak, köprü ipi hasarını kullanır. Mermi sınırı yoktur, her birinin kendi bekleme süresi vardır. Silah seçince alt ortada kısa bir kullanım ipucu çıkar.
+- **🕳️ Kara Delik Topu** — tıkla: yavaş karanlık bir küre fırlar; bir şeye çarpınca (ya da 3 sn sonra) **3.6 sn'lik kütleçekim kuyusu** açar: 11 m çevredeki yapıdan küpleri söker ve merkeze fırlatır, havadaki döküntüyü çeker, insanları emer, zemini yer yer kırar. Sonunda kuyu çöker (içe patlama). Bekleme 4.2 sn.
+- **⚡ Yıldırım Bobini** — sol tık basılı tut: saniyede ~12 zikzaklı yıldırım. Çarptığı yeri (demir dahil) eritip içeri doğru oyar; **iletken şeylere zincirleme sıçrar** (demir küp, araç, insan; 4 sıçrama, yakında iletken yoksa kısa dallanır). Köprü ipini de keser.
+- **🔥 Eritici** — tıkla: yapışan akkor çamur fırlar; çarptığı yerde 6.5 sn boyunca büyüyerek (2.8 m'ye kadar) ve aşağı süzülerek yapıyı eritir, lav damlaları saçar; araç, kapı ve insana da işler. Aynı anda en çok 6 çamur. Bekleme 1 sn.
+- **🌋 Yer Sarsıcı** — tıkla: baktığın yerden **30 m'ye kadar genişleyen şok dalgası**. Zeminin üst katını çatlatır, dalganın geçtiği binaların diplerini ezer (iki yükseklikte kesilir; bu, bina çökmesini/devrilmesini tetikler), insanları ve araçları vurur. Bekleme 3.4 sn.
+- **⚫ Yıkım Topu** — tıkla: ağır demir gülle fırlar; hızına göre **3.5 m'lik tünel** açarak içinden geçer (çarpınca çevreye ek şok dalgası), yere vurunca zıplayıp zemini kırar; 3 sekmeden sonra durur. Bekleme 1.7 sn.
+- **🌀 Testere Diski** — tıkla: büyük dişli **bumerang disk** fırlar, 52 m gider, kesip geri döner ve elinde yakalanır (bu sırada ikinci disk atılamaz). **Z** ile yön seçilir: **yatay** (bir kat hizasından şerit keser; binanın cephesine paralel atarsan cepheyi dilimler) ya da **dikey** (4.4 m'lik dilim keser). Kestikçe yavaşlar, demir daha çok yavaşlatır.
 
 ---
 
@@ -64,7 +74,7 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 - **Bina içleri:** her binanın içi döşelidir (94 binanın tamamında zemin kat dolu): mutfak (tezgâh, evye, ocak, buzdolabı, yemek masası), salon (kanepe, sehpa, TV), yatak odası, banyo; ofislerde masa ve monitörler, dükkânlarda tezgâh ve raflar, otellerde resepsiyon ve odalar, okul/karakol/hastane/itfaiye/AVM için özel iç mekânlar. Alçak binalar dükkân, orta boylular müstakil ev, yüksekler ofis/apartman olarak döşenir; kapı önleri ve merdivenler boş bırakılır; kapı önüne lamba, ağaç ya da çöp kutusu konmaz.
 - **Işıklandırma:** sokak lambaları ve bina/AVM içlerinin tavanındaki lambalar kendi ışığıyla parlayan **Lamba (Işık)** malzemesidir (Altın'dan ayrı bir malzemedir); katlı her binanın her katında ve AVM'nin her katında tavan lambaları vardır.
 - **AVM:** eski AVM'nin yaklaşık 3 katı hacimde (4 kat; kat yüksekliği 6 m, çok katlı balkonlar ve ortada atrium). İç mağazalar şimdilik yapılmadı.
-- **Köprü kabloları** ince tüpler ve silindirlerdir (voxel en az 0.5 m kalın olduğu için kablolar voxel yerine ince nesne olarak çizilir).
+- **Asma köprü** (`src/bridge.js`): ana kablolar kırmızı **küplerdir** (yıkılabilir, basamaklı/pürüzlü eğri); tabliyeyi tutan dikey **ipler** ince silindirdir (voxel en az 0.5 m olurdu). İp mermi, patlama, kılıç, yıldırım gibi şeylerle vurulunca **gerçek ip gibi kopar**: iki parça halinde sarkıp savrulur. Bir ip koptuğunda **köprü sönümlü biçimde hafifçe sallanır** (yalnız görsel; çarpışma sabit kalır). Tabliye kule, kıyı ve sağlam iplerce taşınır (en çok 6 m uzakta asılı kalır); çok sayıda ip kopar ya da tabliye bir noktadan kırılırsa desteksiz kalan kısım kuleden **menteşelenip sarkar, kopar, suya düşer, yavaşça batar ve yok olur**.
 - **Doğu ada:** hastane (beyaz, girişte kırmızı artı), itfaiye, polis merkezi, okul, AVM, otel ve apartman blokları; batı ve doğu kıyı yolları, ortada **otoyol** (her yönde 3 şerit), üstünden geçen **üst geçit** (9.75 m geniş; iki yanındaki rampalar basamaksız, doğrusal eğimlidir, en dik yeri ≈13°; araçlar eğime göre burnunu kaldırır) ve otoyola bağlanan sağa dönüş rampaları; doğuda zengin bölge.
 - **Villa tepesi (köprüden sonra, doğu adanın doğusu):** zengin meydanının doğusunda, **üstü dümdüz** (12 m yükseklikte, yaklaşık 60 × 68 m) yumuşak etekli bir tepe. Sivri tepe yoktur; etek kademeli iner. Meydandan doğuya **düz gidip sola yumuşak bir kavis yapan** (≈105 m, en dik yeri ≈7°) bir yol tepeye çıkar; üst geçit rampası gibi basamaksızdır ve uçları zemine/platoya pürüzsüzce bağlanır. Yol **trafik ağında değildir: araçlar oraya gitmez**. Yol kenarında lambalar, platoda ağaçlar vardır. Tepede **beyaz, kahverengi (ahşap), siyah ve camdan modern bir villa** durur (`src/villa.js`): zemin kat beyaz kutu + cam cephe, üst kat siyah ve doğuya 10 m taşan konsol; güney balkon ve batı çatı terası (cam korkuluk); parlayan mavi **havuz**, şezlonglar, renkli bahçe lambaları; konsol altında ateş çukurlu açık salon. İçeride: salonda üç **ekranlı (Stark tarzı HUD) TV duvarı**, bar (renkli şişeler), mutfak adası, yemek masası ve avize, neon pembe merdiven; üst katta yatak odası, cam banyo, **laboratuvar** (dört ekran, holo masa, vitrinde kırmızı-altın zırh) ve panoramik salon. Renkli LED şeritler ve parlayan küpler (mavi, pembe, mor, yeşil, turuncu ışık malzemeleri) ile aydınlatılmıştır. Villada **tek bir çok zengin adam** yaşar (siyah takım, gümüş saç, gözlük, altın saat): yalnızca villa ve terasında dolaşır, vurulursa 1000 puan verir ve bir dakika sonra yeniden belirir.
 - Yollar iki yönlüdür (her yönde bir şerit). Sokak lambaları, çöp kutuları ve ağaçlar sokak donatımıdır.
@@ -76,7 +86,13 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 
 ### 🧱 Yıkım
 - Her yapı küplerden oluşur; küpler **0,5 m**'dir ve yüzlerine 2×2 ince ızgara dokusu işlenmiştir. Yıkımdaki döküntü parçaları yarım boyutludur.
-- **Yapısal çökme:** zemine bağlı olmayan kısım (ör. ortasından patlatılan binanın üstü) aşağı düşer, yere çarpınca oturur ya da kırılıp dağılır.
+- **Yapısal çökme** (`src/collapse.js`):
+  - Zemine bağlı olmayan kısım (ör. ortasından kesilen binanın üstü) önce **gıcırdar ve kenarlarından döküntü saçar** (büyükse), sonra düşer.
+  - **Düz iniş:** hasar yalnız yere temas eden alt katmanlarda yoğunlaşır ve yukarı doğru hızla azalır; üstteki katlar sağlam kalır. Hız ne kadar fazlaysa o kadar çok küp kırılır. (Testte 20 m'lik kulenin ortası kesildiğinde üst yarının %99-100'ü sağlam kaldı.)
+  - **Yokuş / kısmi destek / eğik düşüş:** parçanın yere ilk değen noktaları ağırlık merkezini taşımıyorsa parça o kenar etrafında **yavaş yavaş devrilir** (üstel hızlanır), çarptığında eğik olduğu için hıza ve açıya göre **iyice parçalanır**.
+  - **Zemine bağlı ama tabanı yıkılmış yapı:** kalan taban ağırlık merkezini taşımıyorsa (alt katın büyük kısmı yıkılmış bina) yapı yavaşça devrilir. Hasarsız şehirde 791 yapının hiçbiri kendiliğinden devrilmez (testle doğrulandı).
+  - **Suya düşen parça** yavaşça batar (0.7 m/sn), yeterince alçalınca yok olur. Su sıçrar.
+  - Dünyada çok az yokuş vardır (villa tepesi, rampalar); yokuşta durmakta olan binanın kaymasını ayrıca simüle etmez: yokuş etkisi düşen parçanın yamuk inmesi ve devrilen yapının tabanı üzerinden çalışır.
 - Zincirleme TNT patlamaları, delik açma, havaya saçılan fizikli döküntüler.
 
 ---
@@ -122,10 +138,12 @@ Dünyanın boyutu ve küp sayısı büyük olduğundan (yaklaşık 350.000–450
 |---|---|
 | `src/main.js` | Oyun döngüsü, kamera, girişler, can, araca binme |
 | `src/teardown.js` | Voxel dünyası, yıkım, döküntü, çökme bağlantısı |
-| `src/collapse.js` | Yapısal çökme (zemine bağlı olmayan parçalar düşer) |
 | `src/terrain.js` | İki katmanlı zemin, tepeler, kırılan çukurlar |
 | `src/levels.js` | Dünya düzeni: adalar, yollar, köprü, binalar, park |
 | `src/villa.js` | Villa tepesi: plato yüksekliği, kavisli yokuş yol, villa (iç/dış), ekran ve ışıklar, zengin sakin |
+| `src/bridge.js` | Asma köprü: ipler (kopma fiziği), sallanma, tabliye destek analizi ve düşüşü |
+| `src/arsenal.js` | Cephanelik: kara delik, yıldırım, eritici, yer sarsıcı, yıkım topu, testere diski |
+| `src/collapse.js` | Yapısal çökme: bağlantı kopması, gıcırdama, devrilme, eğik düşüş, yerel hasar, suya batma |
 | `src/character.js` | Karakter hareketi, voxel çarpışması, yüzme, jetpack |
 | `src/handweapons.js`, `src/weapons.js` | Silahlar, şarjör sistemi ve elde görünen modeller |
 | `src/audio.js` | Prosedürel ses motoru: silah, şarjör, motor, su ve diğer efektler |

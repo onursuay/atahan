@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y } from './terrain.js';
+import { Arsenal } from './arsenal.js';
 
 // Elde taşınan silahlar: ekranın sağ altında görünen silah modelleri (birinci şahıs),
 // minigun (basılı tutunca otomatik ateş) ve ışın kılıcı (savurma ile yıkım).
@@ -101,6 +102,7 @@ export class HandWeapons {
     this._buildSaber();
     this._buildBomb();
     this._buildGuns();
+    this.arsenal = new Arsenal(this);   // 6 yeni silah (kimlik 10-15)
     this.gunCooldown = 0;
     this.scoped = false;
     this.mag = { ...MAG_SIZE };   // her silahın şarjöründeki mermi
@@ -197,6 +199,7 @@ export class HandWeapons {
     this.saberModel.visible = !h && i === 2;
     this.bombModel.visible = !h && (i === 3 || i === 4);
     Object.entries(this.gunModels).forEach(([k, g]) => g.visible = !h && Number(k) === i);
+    if (this.arsenal) this.arsenal.applyVisibility(i);
   }
 
   // Sağ el minigunu (tekli minigun ve çift minigunun sağ eli) + sol el minigunu (yalnız çift minigunda; sağın aynası)
@@ -300,6 +303,7 @@ export class HandWeapons {
     this._cancelReload();   // silah değişince yarım kalan şarjör değişimi iptal olur
     this._endSpin();
     this._applyVisibility();
+    if (this.arsenal) this.arsenal.onSwitch(i);
     if (i !== 8) this.scoped = false;
     if (i === 2) sound.playSaberOn();
     else sound.updateSaberHum(false);
@@ -419,6 +423,9 @@ export class HandWeapons {
     } else {
       this.shotTimer = Math.min(this.shotTimer, 0);
     }
+
+    // Cephanelik (10-15): model, ateş ve mermi/etki güncellemesi
+    this.arsenal.update(dt, ctx, { swayX, swayY, drop });
 
     // Işın kılıcı: hafif parlama + savurma animasyonu
     const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.02);
@@ -676,6 +683,7 @@ export class HandWeapons {
 
   resetAmmo() {
     this._cancelReload();
+    if (this.arsenal) this.arsenal.reset();
     this.mag = { ...MAG_SIZE };
     this._ammoChanged();
   }

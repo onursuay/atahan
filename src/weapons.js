@@ -27,7 +27,13 @@ export class WeaponSystem {
       { id: 6, type: 'shotgun', name: 'Pompalı', ammo: Infinity, desc: 'Saçma' },
       { id: 7, type: 'ak47', name: 'AK-47', ammo: Infinity, desc: 'Otomatik' },
       { id: 8, type: 'sniper', name: 'Sniper', ammo: Infinity, desc: 'X: nişan al' },
-      { id: 9, type: 'dualminigun', name: 'Çift Minigun', ammo: Infinity, desc: 'Basılı tut: iki elle seri ateş' }
+      { id: 9, type: 'dualminigun', name: 'Çift Minigun', ammo: Infinity, desc: 'Basılı tut: iki elle seri ateş' },
+      { id: 10, type: 'gravity', name: 'Kara Delik Topu', ammo: Infinity, desc: 'Kütleçekim kuyusu açar' },
+      { id: 11, type: 'tesla', name: 'Yıldırım Bobini', ammo: Infinity, desc: 'Basılı tut: zincirleme yıldırım' },
+      { id: 12, type: 'melter', name: 'Eritici', ammo: Infinity, desc: 'Yapışan akkor çamur' },
+      { id: 13, type: 'quake', name: 'Yer Sarsıcı', ammo: Infinity, desc: 'Genişleyen şok dalgası' },
+      { id: 14, type: 'wrecker', name: 'Yıkım Topu', ammo: Infinity, desc: 'Ağır demir gülle' },
+      { id: 15, type: 'sawdisc', name: 'Testere Diski', ammo: Infinity, desc: 'Bumerang disk (Z: yön)' }
     ];
 
     this.cooldown = 0;
