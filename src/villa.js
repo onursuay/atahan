@@ -16,6 +16,9 @@ const SKIRT = 37;                                      // plato kenarından zemi
 const ROAD_HALF = 3;                                   // yol yarı genişliği (m)
 const VERGE = 1.5;                                     // yol kenarı düz çim şeridi
 const APRON = { x0: 248, x1: 276, z0: -70, z1: -50 };  // platodaki araç önü asfalt alan
+// Villa çevre duvarı (voxel merkezleri, m): içinde yalnız villa sahibi ve güvenlikler bulunur; güney duvarında araç kapısı vardır
+export const VILLA_WALL = { x0: 240, x1: 312.5, z0: -146, z1: -49.5, gateX0: 255.75, gateW: 8.5 };
+export const insideVillaWalls = (x, z, m = 0) => x > VILLA_WALL.x0 - m && x < VILLA_WALL.x1 + m && z > VILLA_WALL.z0 - m && z < VILLA_WALL.z1 + m;
 
 // Yol ekseni: (186,0) → doğuya düz 36 m → sola R=34 m yay, 80° → plato kenarını geçip ön avluya
 const X0 = 186, SEG1 = 36, R = 34, CX = X0 + SEG1, CZ = -R, TH = 80 * Math.PI / 180;
@@ -326,6 +329,28 @@ export function buildVilla(world) {
   // Malikanenin spor arabası: normal bir spor araç, kırmızı, ortasında beyaz şerit. Ön avluda park etmiştir (binilebilir, trafikte gezmez).
   world.parkedCars = world.parkedCars || [];
   world.parkedCars.push({ kind: 'sport', color: 0xdc2626, livery: { color: 0xffffff, color2: 0xffffff, style: 'center' }, x: 270, z: -61, y: 12.5, heading: -Math.PI / 2 });
+
+  // ── 8b. GÜVENLİKLER (lacivert üniforma, kasket, sarı kol bandı): kapıda, ön girişte ve iki yanda devriyede. Sahipten ayrı tipte. ──
+  world.guards = world.guards || [];
+  const G = (x, z, yaw) => world.guards.push({ x, y: 12.5, z, yaw, pose: 'stand', style: 'guard' });
+  G(253.6, -52.4, 0); G(266.4, -52.4, 0);                          // kapının iki yanı (dışa bakar)
+  G(262, -85, Math.PI);                                              // ön girişin önü (kuzeye, villaya bakar)
+  const patrol = (x, z0, z1) => world.guards.push({ route: [{ x, y: 12.5, z: z0 }, { x, y: 12.5, z: 0.5 * (z0 + z1) }, { x, y: 12.5, z: z1 }], style: 'guard' });
+  patrol(242.2, -60, -134);                                          // batı şeridi
+  patrol(308, -60, -134);                                            // doğu şeridi
+
+  // ── 8c. ÇEVRE DUVARI + ARAÇ KAPISI ──
+  // 4 m beyaz duvar (0.5 m kalın), siyah başlık; güney duvarında 8.5 m'lik otomatik demir kapı (araç yaklaşınca kayar). Kapı direkleri lambalıdır.
+  {
+    const W = VILLA_WALL, ix0 = Math.round(W.x0 / 0.5), ix1 = Math.round(W.x1 / 0.5), iz0 = Math.round(W.z0 / 0.5), iz1 = Math.round(W.z1 / 0.5);
+    const g0 = Math.round(W.gateX0 / 0.5 + 0.5), g1 = g0 + Math.round(W.gateW / 0.5) - 1;
+    const wv = (xa, za, xb, zb, ra, rb, mat) => { for (let x = lo(xa, xb); x <= hi(xa, xb); x++) for (let z = lo(za, zb); z <= hi(za, zb); z++) for (let r = ra; r <= rb; r++) { world.voxels.delete(`${x},${YB + r},${z}`); world.setVoxel(x, YB + r, z, mat); } };
+    for (const [xa, za, xb, zb] of [[ix0, iz0, ix1, iz0], [ix0, iz1, ix1, iz1], [ix0, iz0, ix0, iz1], [ix1, iz0, ix1, iz1]]) { wv(xa, za, xb, zb, 0, 6, WHITE); wv(xa, za, xb, zb, 7, 7, BLACK); }
+    for (let x = ix0 + 20; x < ix1; x += 20) if (x < g0 - 4 || x > g1 + 4) wv(x, iz1 - 1, x, iz1, 0, 8, BLACK);           // payandalar (iç yüz)
+    for (let x = g0; x <= g1; x++) for (let r = 0; r <= 6; r++) world.voxels.delete(`${x},${YB + r},${iz1}`);                // kapı açıklığı (alt 7 satır; üstte siyah başlık kalır)
+    for (const px of [g0 - 2, g1 + 1]) { wv(px, iz1 - 1, px + 1, iz1, 0, 9, BLACK); wv(px, iz1 - 1, px + 1, iz1, 10, 10, WHITE); wv(px, iz1 - 1, px, iz1 - 1, 11, 11, LAMP); }
+    doors.addSliding({ sx: 0.5 * g0 - 0.25 + 0.04, sz: 0.5 * iz1 - 0.15, ax: 1, az: 0, width: 0.5 * (g1 - g0 + 1) - 0.08, height: 3.4, y: Yb(0), gate: true });
+  }
 
   // ── 9. YOL KENARI AYDINLATMASI VE AĞAÇLAR ──
   const col = (x, z, hgt, mat) => { const ix = Math.round(x / 0.5), iz = Math.round(z / 0.5), hq = Math.max(0, Math.round(villaHeight(x, z) / 0.5)); for (let k = 0; k < hgt; k++) { world.voxels.delete(`${ix},${hq + k},${iz}`); world.setVoxel(ix, hq + k, iz, mat); } return [ix, hq, iz]; };

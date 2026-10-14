@@ -14,6 +14,7 @@ import { PlaneManager } from './planes.js';
 import { CarManager } from './cars.js';
 import { DayNight } from './daynight.js';
 import { TrafficLights } from './traffic.js';
+import { PropManager } from './props.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
@@ -22,6 +23,7 @@ let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
+let props;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -135,6 +137,8 @@ function init() {
     addScore(points, text);
     screenShake = 0.35;
   });
+  props = new PropManager(scene, voxelWorld);
+  voxelWorld.props = props;
 
   character = new Character(scene, physicsWorld, particleSystem, voxelWorld);
   setFirstPerson(true);
@@ -309,6 +313,7 @@ function updateGame(dt) {
     const sd = dayNight ? dayNight.dir : new THREE.Vector3(0.45, 0.72, 0.34);   // gündüz güneş, gece ay yönü (gece-gündüz döngüsü)
     sunLight.position.set(sx + sd.x * 118, sd.y * 118, sz + sd.z * 118);
   }
+  props.update(dt);
   if (voxelWorld.traffic) voxelWorld.traffic.update(dt);
   if (dayNight) {
     dayNight.update(dt, camera.position, inCar ? cars.driven : null);
@@ -355,7 +360,7 @@ function updateGame(dt) {
   // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik
   doorActors.length = 0;
   doorActors.push({ x: character.mesh.position.x, y: character.mesh.position.y, z: character.mesh.position.z });
-  for (const n of npcs.npcs) doorActors.push({ x: n.x, y: n.y, z: n.z });
+  for (const n of npcs.npcs) doorActors.push({ x: n.x, y: n.y, z: n.z, npc: true });
   for (const c of cars.cars) if (c.state === 'drive') doorActors.push({ x: c.pos.x, y: c.pos.y, z: c.pos.z });
   voxelWorld.doors.update(dt, doorActors);
   updateCrosshair();
@@ -477,6 +482,8 @@ function loadLevel(index) {
   handWeapons.resetAmmo();
   character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
+  props.clear();
+  for (const s of voxelWorld.propSpawns) props.add(s.kind, s.x, s.y, s.z, s);   // tutulabilir eşyalar (sağ tıkla tutulur)
   npcs.reset();
   voxelWorld.traffic = new TrafficLights(voxelWorld);   // trafik ışıkları (kavşaklarda döngü); arabalar buna uyar
   cars.build();
@@ -641,18 +648,19 @@ function grabDoor() {
   if (document.getElementById('weapon-selector').classList.contains('menu-open')) return;
   // Sağ tık HER ZAMAN el olur (zarar vermez, ateş etmez): kapıya bakıyorsa kapıyı tutar (yumruk), değilse açık el
   rightHeld = true;
-  setCrosshair(voxelWorld.doors.beginDrag(camera) ? 'grab' : 'hand');
+  setCrosshair(voxelWorld.doors.beginDrag(camera) || props.beginGrab(camera) ? 'grab' : 'hand');   // önce kapı, sonra eşya; ikisi de yoksa açık el
 }
 function releaseHand() {
   if (!rightHeld) return;
   rightHeld = false;
   voxelWorld.doors.endDrag();
+  props.endGrab();
   setCrosshair(null);
 }
 // Her karede: kapıya bakıyor muyuz?
 function updateCrosshair() {
   if (rightHeld) return;
-  setCrosshair(!inCar && voxelWorld.doors.aim(camera) ? 'hand' : null);
+  setCrosshair(!inCar && (voxelWorld.doors.aim(camera) || props.aim(camera)) ? 'hand' : null);
 }
 
 function fireWeapon() {
@@ -816,6 +824,7 @@ function setupEventListeners() {
     if (e.button === 2) releaseHand();
   });
   window.addEventListener('blur', releaseHand);
+  window.addEventListener('wheel', (e) => { if (rightHeld && props.held) props.adjustDistance(-Math.sign(e.deltaY) * 0.3); });   // tutulan eşyanın uzaklığı
   window.addEventListener('contextmenu', (e) => e.preventDefault());   // sağ tık menüsü açılmasın: sağ tık = el
 
   canvasContainer.addEventListener('mousedown', (e) => {

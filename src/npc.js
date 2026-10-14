@@ -2,17 +2,18 @@ import * as THREE from 'three';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y, BEDROCK_Y } from './terrain.js';
+import { insideVillaWalls } from './villa.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NPC İNSANLAR: normal insanın İKİ KATI boyunda (3.1 m) voxel devler. Rastgele dolaşırlar; deniz, çukur kenarı veya duvara
+// NPC İNSANLAR: normal insanın bir buçuk katı boyunda (2.5 m) voxel devler. Rastgele dolaşırlar; deniz, çukur kenarı veya duvara
 // gelince sağa/sola dönüp yürümeye devam ederler. Patlama, kılıç, çekiç gibi şeylerle komple küplere dağılırlar.
 // Mermiyle (kurşunla) vurulunca komple dağılmazlar: KAFAYA isabet kafayı parçalar (ten küpleri + kırmızı kan küpleri),
 // gövdeye isabet yaralar; ceset yere yığılır ve bir süre kalır. Bir süre sonra başka yerde yenisi doğar.
 // ─────────────────────────────────────────────────────────────────────────────
 const NPC_COUNT = 80;
-const SCALE = 2;                 // normal insanın iki katı
+const SCALE = 1.6;               // normal insandan bir buçuk kat büyük
 const HALF_W = 0.22 * SCALE;
-const HEIGHT = 3.0;              // çarpışma yüksekliği (model 3.1 m): 3.5 m'lik iç mekan tavanlarına ve 3.0 m'deki tavan lambalarına sığar
+const HEIGHT = 2.5;              // çarpışma yüksekliği (model 2.5 m): 3.5 m'lik iç mekan tavanlarına ve 3.0 m'deki tavan lambalarına sığar
 const SPEED = 2.4;
 const GRAVITY = 25;
 const STEP_UP_MAX = 0.5;
@@ -60,13 +61,16 @@ export class NPCManager {
     this.residentQueue = [];
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
     for (const r of this.voxelWorld.residents || []) this._spawnResident(r);
+    for (const w of this.voxelWorld.workers || []) this._spawnWorker(w);     // şirket kuleleri, banka, restoran çalışanları
+    for (const b of this.voxelWorld.bosses || []) this._spawnBoss(b);       // kulelerin patronları
+    for (const g of this.voxelWorld.guards || []) { if (g.route) this._spawnBoss(g); else this._spawnWorker(g); }   // villa güvenlikleri: nöbetçiler ve devriyeler
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
   _solid(x, feet, z, h = HEIGHT) {
     const t = this.voxelWorld.terrain;
     if (t.solidAt(x, feet, z, HALF_W)) return true;
-    if (this.voxelWorld.doors && this.voxelWorld.doors.blocks(x, feet, z, HALF_W, h)) return true;
+    if (this.voxelWorld.doors && this.voxelWorld.doors.blocks(x, feet, z, HALF_W, h, true)) return true;
 
     const S = VOXEL_SIZE, vox = this.voxelWorld.voxels;
     const ix0 = Math.floor((x - HALF_W + EPS) / S + 0.5), ix1 = Math.floor((x + HALF_W - EPS) / S + 0.5);
@@ -88,10 +92,14 @@ export class NPCManager {
     return this.voxelWorld.terrain.heightAt(x, z) > -Infinity;
   }
 
-  _makeBody(rich = false) {
+  _makeBody(rich = false, style = null) {
     const g = new THREE.Group();
-    // Zengin adam: siyah takım, beyaz gömlek, gümüş saç, koyu gözlük, altın saat
-    const shirt = rich ? 0x0b0d12 : pick(SHIRTS), pants = rich ? 0x0b0d12 : pick(PANTS), skin = rich ? 0xf1c27d : pick(SKINS), hair = rich ? 0xd4d4d8 : pick(HAIRS);
+    // Zengin adam / patron: siyah takım, beyaz gömlek, gümüş saç, koyu gözlük, altın saat
+    // Çalışan tarzları: office (beyaz/açık mavi gömlek, koyu pantolon), bank (mavi yelek), chef (beyaz önlük + aşçı şapkası)
+    const OFFICE = [0xffffff, 0xbfdbfe, 0xe5e7eb, 0xfde68a], DARK = [0x1f2937, 0x374151, 0x111827];
+    const shirt = rich ? 0x0b0d12 : style === 'guard' ? 0x1e3a8a : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
+    const pants = rich ? 0x0b0d12 : style === 'guard' ? 0x0f172a : style ? pick(DARK) : pick(PANTS);
+    const skin = rich ? 0xf1c27d : pick(SKINS), hair = rich ? 0xd4d4d8 : pick(HAIRS);
 
     const head = new THREE.Mesh(GEO.head, mat(skin)); head.position.y = 1.38;
     const hairM = new THREE.Mesh(GEO.hair, mat(hair)); hairM.position.y = 1.58;
@@ -113,8 +121,41 @@ export class NPCManager {
       const watch = new THREE.Mesh(boxGeo(0.16, 0.05, 0.16), mat(0xfacc15)); watch.position.set(0, -0.42, 0); rArm.add(watch);
       g.add(shirtFront, tie, shades);
     }
+    if (style === 'chef') { const hat = new THREE.Mesh(boxGeo(0.34, 0.3, 0.34), mat(0xffffff)); hat.position.y = 1.78; g.add(hat); }
+    if (style === 'guard') {                                     // güvenlik: lacivert üniforma, siyah kasket + altın rozet, telsiz, sarı kol bandı (zengin adamdan ayırt edilsin)
+      const cap = new THREE.Mesh(boxGeo(0.39, 0.12, 0.39), mat(0x0b0d12)); cap.position.y = 1.64; g.add(cap);
+      const brim = new THREE.Mesh(boxGeo(0.32, 0.03, 0.12), mat(0x0b0d12)); brim.position.set(0, 1.58, 0.24); g.add(brim);
+      const badge = new THREE.Mesh(boxGeo(0.08, 0.08, 0.02), mat(0xfacc15)); badge.position.set(0.14, 1.0, 0.126); g.add(badge);
+      const radio = new THREE.Mesh(boxGeo(0.06, 0.12, 0.05), mat(0x111827)); radio.position.set(-0.14, 1.02, 0.13); g.add(radio);
+      const band = new THREE.Mesh(boxGeo(0.17, 0.1, 0.17), mat(0xfacc15)); band.position.set(0, -0.12, 0); lArm.add(band);
+    }
+    if (style === 'bank' || style === 'office') { const tie = new THREE.Mesh(boxGeo(0.05, 0.3, 0.02), mat(style === 'bank' ? 0xfacc15 : 0x1d4ed8)); tie.position.set(0, 0.95, 0.126); g.add(tie); }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
     return { g, lArm, rArm, lLeg, rLeg, head, hairM, colors: [shirt, pants, skin, hair] };
+  }
+
+  // Çalışan (masasında oturan ya da tezgâhta ayakta duran): yürümez, hafifçe çalışır; vurulursa 60 sn sonra aynı yerde yeniden belirir
+  // spec: { x, y, z, yaw, pose: 'sit' | 'stand', style }
+  _spawnWorker(spec) {
+    const body = this._makeBody(false, spec.style || 'office');
+    body.g.scale.setScalar(SCALE);
+    const sit = spec.pose === 'sit', drop = sit ? 0.62 * SCALE - 0.5 : 0;
+    if (sit) { body.lLeg.rotation.x = -Math.PI / 2; body.rLeg.rotation.x = -Math.PI / 2; body.lArm.rotation.x = -1.2; body.rArm.rotation.x = -1.2; }   // bacaklar ileri, kollar klavyede
+    body.g.position.set(spec.x, spec.y - drop, spec.z); body.g.rotation.y = spec.yaw;
+    this.scene.add(body.g);
+    this.npcs.push({ ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0, heading: spec.yaw, turnTimer: 0, pause: 0, cycle: Math.random() * 6, grounded: true,
+      worker: true, sit, drop, respawn: () => this._spawnWorker(spec), value: 100 });
+  }
+
+  // Patron: siyah takımlı dev; rotada (yukarıdan aşağıya, sonra tersine) sürekli gezer. spec: { route: [{x,y,z}], name }
+  _spawnBoss(spec) {
+    const body = spec.style ? this._makeBody(false, spec.style) : this._makeBody(true);      // style: 'guard' → devriye güvenliği; yoksa patron
+    body.g.scale.setScalar(SCALE);
+    const p0 = spec.route[0];
+    body.g.position.set(p0.x, p0.y, p0.z);
+    this.scene.add(body.g);
+    this.npcs.push({ ...body, group: body.g, x: p0.x, y: p0.y, z: p0.z, vy: 0, heading: 0, turnTimer: 0, pause: 0, cycle: 0, grounded: true,
+      route: spec.route, ri: 0, rdir: 1, stuckT: 0, lastX: p0.x, lastZ: p0.z, respawn: () => this._spawnBoss(spec), value: spec.style === 'guard' ? 300 : 500, boss: !spec.style, guard: spec.style === 'guard' });
   }
 
   // Villanın tek sakini: sınırlı bölgede (villa + teras) dolaşır; vurulursa bir dakika sonra yeniden doğar
@@ -146,6 +187,7 @@ export class NPCManager {
       const x = b.minX + Math.random() * (b.maxX - b.minX);
       const z = b.minZ + Math.random() * (b.maxZ - b.minZ);
       if (!t.topIntactAt(x, z)) continue;
+      if (insideVillaWalls(x, z, 3)) continue;                        // villa duvarının içinde yalnız sahibi ve güvenlikleri bulunur
       const gy0 = t.topYAt(x, z);
       if (this.playerPos.distanceTo(new THREE.Vector3(x, gy0, z)) < 12) continue;
       if (this._solid(x, gy0, z)) continue;
@@ -173,7 +215,7 @@ export class NPCManager {
 
     for (let i = this.residentQueue.length - 1; i >= 0; i--) {
       this.residentQueue[i].t -= dt;
-      if (this.residentQueue[i].t <= 0) { const q = this.residentQueue.splice(i, 1)[0]; this._spawnResident(q.spec); }
+      if (this.residentQueue[i].t <= 0) { const q = this.residentQueue.splice(i, 1)[0]; if (q.fn) q.fn(); else this._spawnResident(q.spec); }
     }
     for (let i = this.respawnQueue.length - 1; i >= 0; i--) {
       this.respawnQueue[i] -= dt;
@@ -185,8 +227,14 @@ export class NPCManager {
   }
 
   _step(n, dt) {
-    // Rastgele durma ve yön değiştirme
-    if (n.pause > 0) {
+    if (n.worker) {                                    // çalışan: yerinde durur; oturanlar klavye vuruşu, ayaktakiler hafif sallanma
+      n.cycle += dt * (n.sit ? 7 : 1.5);
+      if (n.sit) { n.lArm.rotation.x = -1.15 + Math.sin(n.cycle) * 0.12; n.rArm.rotation.x = -1.15 + Math.sin(n.cycle + 2) * 0.12; }
+      else { n.lArm.rotation.x = Math.sin(n.cycle) * 0.08; n.rArm.rotation.x = -Math.sin(n.cycle) * 0.08; }
+      return;
+    }
+    if (n.route) this._steerRoute(n, dt);
+    else if (n.pause > 0) {
       n.pause -= dt;
     } else {
       n.turnTimer -= dt;
@@ -203,7 +251,7 @@ export class NPCManager {
       // Önüne bak: deniz, kara dışı veya duvar varsa sağa ya da sola dön
       const ax = n.x + Math.sin(n.heading) * 0.7 * SCALE, az = n.z + Math.cos(n.heading) * 0.7 * SCALE;
       const outside = n.bounds && (ax < n.bounds.minX || ax > n.bounds.maxX || az < n.bounds.minZ || az > n.bounds.maxZ);
-      const blocked = outside || !this._walkableAhead(ax, az) || this._solid(ax, n.y + 0.5, az, HEIGHT - 0.6);   // 0.5 m'ye kadar basamak sayılmaz; tavana değen baş engel sayılmaz
+      const blocked = !n.route && (outside || !this._walkableAhead(ax, az) || this._solid(ax, n.y + 0.5, az, HEIGHT - 0.6));   // 0.5 m'ye kadar basamak sayılmaz; tavana değen baş engel sayılmaz
       if (blocked) {
         const side = Math.random() < 0.5 ? 1 : -1;
         n.heading += side * (1.0 + Math.random() * 1.2);
@@ -236,7 +284,7 @@ export class NPCManager {
     }
     n.y = ny;
     // Denize/boşluğa düştüyse yeniden doğur
-    if (n.y < -3) { this._remove(n); if (n.resident) this.residentQueue.push({ t: 5, spec: n.resident }); else this.respawnQueue.push(1); return; }
+    if (n.y < -3) { this._remove(n); if (n.respawn) this.residentQueue.push({ t: 5, fn: n.respawn }); else if (n.resident) this.residentQueue.push({ t: 5, spec: n.resident }); else this.respawnQueue.push(1); return; }
 
     // Görünüm
     const sw = moving ? Math.sin(n.cycle) * 0.7 : 0;
@@ -244,6 +292,21 @@ export class NPCManager {
     n.lArm.rotation.x = -sw * 0.8; n.rArm.rotation.x = sw * 0.8;
     n.group.position.set(n.x, n.y, n.z);
     n.group.rotation.y = n.heading;
+  }
+
+  // Patron rotası: sıradaki noktaya yürür; varınca sıradakine (uçlarda yön değişir); 3 sn ilerleyemezse noktayı atlar
+  _steerRoute(n, dt) {
+    const t = n.route[n.ri];
+    const dx = t.x - n.x, dz = t.z - n.z, dist = Math.hypot(dx, dz);
+    if (dist < (t.tol || 0.9) && Math.abs(t.y - n.y) < 1.6) {
+      n.ri += n.rdir; if (n.ri >= n.route.length || n.ri < 0) { n.rdir = -n.rdir; n.ri += 2 * n.rdir; }
+      n.stuckT = 0; return;
+    }
+    const want = Math.atan2(dx, dz), err = Math.atan2(Math.sin(want - n.heading), Math.cos(want - n.heading));
+    n.heading += err * Math.min(1, dt * 10);
+    n.pause = Math.abs(err) > 0.6 ? 1 : 0;       // keskin dönüşte yerinde dön (merdiven şeridinden taşmasın)
+    n.stuckT += dt;
+    if (n.stuckT > 1) { if (Math.hypot(n.x - n.lastX, n.z - n.lastZ) < 0.3) { if (n.stuckT > 4) { n.ri += n.rdir; if (n.ri >= n.route.length || n.ri < 0) { n.rdir = -n.rdir; n.ri += 2 * n.rdir; } n.stuckT = 0; } } else { n.stuckT = 0; n.lastX = n.x; n.lastZ = n.z; } }
   }
 
   _tryMove(n, dx, dz) {
@@ -276,7 +339,7 @@ export class NPCManager {
   rayHit(origin, dir, maxDist) {
     let best = null;
     for (const n of this.npcs) {
-      const c = new THREE.Vector3(n.x, n.y + HEIGHT / 2, n.z);
+      const c = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT / 2, n.z);
       const to = c.clone().sub(origin);
       const along = to.dot(dir);
       if (along < 0 || along > maxDist) continue;
@@ -286,7 +349,7 @@ export class NPCManager {
       const vert = Math.abs(closest.y - c.y);
       const horiz = Math.hypot(closest.x - c.x, closest.z - c.z);
       if (horiz <= 0.32 * SCALE && vert <= HEIGHT / 2 && lateral <= 1.0 * SCALE) {
-        if (!best || along < best.dist) best = { dist: along, point: closest, npc: n, head: closest.y >= n.y + HEIGHT * HEAD_FROM };
+        if (!best || along < best.dist) best = { dist: along, point: closest, npc: n, head: closest.y >= n.y - (n.drop || 0) + HEIGHT * HEAD_FROM };
       }
     }
     return best;
@@ -302,7 +365,7 @@ export class NPCManager {
     const at = opt.point || new THREE.Vector3(n.x, n.y + HEIGHT * 0.5, n.z);
     const cube = (x, y, z, color, push, sc = 1.3) => { if (vw.dynamicDebris.length < vw.maxDynamicDebris) vw.spawnLooseVoxel(x, y, z, { color }, from || at, 0.5, 2, 70, push, sc); };
     if (head) {
-      const hp = new THREE.Vector3(n.x, n.y + HEIGHT * 0.86, n.z);
+      const hp = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT * 0.86, n.z);
       for (let i = 0; i < 8; i++) cube(hp.x + (Math.random() - 0.5) * 0.5, hp.y + (Math.random() - 0.5) * 0.5, hp.z + (Math.random() - 0.5) * 0.5, n.colors[2], null, 1.5);   // kafa parçaları (ten)
       for (let i = 0; i < 3; i++) cube(hp.x, hp.y + 0.1, hp.z, n.colors[3], null, 1.3);                                                                                   // saç
       for (let i = 0; i < 16; i++) cube(hp.x + (Math.random() - 0.5) * 0.4, hp.y + (Math.random() - 0.5) * 0.5, hp.z + (Math.random() - 0.5) * 0.4, BLOOD[i % BLOOD.length], null, 0.9);   // kan (kırmızı küpler)
@@ -325,8 +388,9 @@ export class NPCManager {
     if (i >= 0) this.npcs.splice(i, 1);
     const dx = from ? n.x - from.x : Math.sin(n.heading), dz = from ? n.z - from.z : Math.cos(n.heading);
     const l = Math.hypot(dx, dz) || 1;
-    this.corpses.push({ group: n.group, t: 0, dx: dx / l, dz: dz / l, y: n.y });
-    if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
+    this.corpses.push({ group: n.group, t: 0, dx: dx / l, dz: dz / l, y: n.group.position.y });
+    if (n.respawn) this.residentQueue.push({ t: 60, fn: n.respawn });
+    else if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
     else this.respawnQueue.push(RESPAWN_SECONDS);
   }
 
@@ -366,8 +430,9 @@ export class NPCManager {
     if (this.particleSystem.createSpark) this.particleSystem.createSpark(pos);
     sound.playBlockHit();
     this._remove(n);
-    if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
+    if (n.respawn) this.residentQueue.push({ t: 60, fn: n.respawn });
+    else if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
     else this.respawnQueue.push(RESPAWN_SECONDS);
-    if (this.onScore) this.onScore(n.value || 100, n.resident ? '+1000 ZENGİN ADAM VURULDU!' : '+100 NPC VURULDU!');
+    if (this.onScore) this.onScore(n.value || 100, n.resident ? '+1000 ZENGİN ADAM VURULDU!' : n.boss ? '+500 PATRON VURULDU!' : n.guard ? '+300 GÜVENLİK VURULDU!' : '+100 NPC VURULDU!');
   }
 }

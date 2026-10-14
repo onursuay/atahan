@@ -4,6 +4,8 @@ import { ROADS, ROUNDABOUT, ROUNDABOUTS, paintSegments, onRoadFast, roadRects } 
 import { buildVilla, paintVillaRoad, villaHeight, villaRoadProfile } from './villa.js';
 import { Bridge } from './bridge.js';
 import { buildTraffic } from './traffic.js';
+import { furnishMall as furnishMallShops } from './mall.js';
+import { buildSpecialty, isSpecialLot } from './specialty.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ÖLÇEK KATMANI
@@ -172,6 +174,8 @@ export class LevelManager {
     this.world.fountains = [];
     this.world.residents = [];
     this.world.parkedCars = [];
+    this.world.propSpawns = [];  // tutulabilir eşyalar: { kind, x, y, z, yaw, color, hung } (main.js props.js'e aktarır)
+    this.world.workers = []; this.world.bosses = []; this.world.guards = [];
     this.world.lamps = [];       // sokak lambası kafaları (gece ışık havuzları ve gerçek ışık için): { x, y, z, gy }
     const ISL = 166; // zengin bölgenin x kayması (eski birim): doğu yolu (x=186) için 12 birim doğuya alındı
 
@@ -208,6 +212,7 @@ export class LevelManager {
     // 3. BATI ADA: ŞEHİR (eski merkez + batıya genişleme)
     // ==========================================
     const CC = { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD }, BR = { wall: PALETTE.BRICK, floor: PALETTE.WOOD };
+    buildSpecialty(this);                                        // bankalar, fast-food restoranlar, silindir şirket kuleleri (çalışanlar + patron)
     this.buildCityApartment(-72, 1, 8, -54, 32, 26);
     this.buildCityBank(-72, 1, -26, -54, 20, -8);
     this.buildBeachCafe(-70, 1, 28, -56, 9, 52);
@@ -405,7 +410,7 @@ export class LevelManager {
     const place = (ci, za, zb, sign) => {
       const [x1, x2] = cols[ci];
       const zlo = sign > 0 ? za : -zb, zhi = sign > 0 ? zb : -za;
-      if (near(x1, x2, zlo, zhi)) return;
+      if (near(x1, x2, zlo, zhi) || isSpecialLot(x1, x2, zlo, zhi)) return;
       const h = 12 + Math.floor(rnd() * 20);
       const style = rnd() < 0.5 ? CC : BR;
       this.buildTower(x1, 1, zlo, x2, h, zhi, { ...style, side: sign > 0 ? 'z1' : 'z2' });
@@ -622,7 +627,6 @@ export class LevelManager {
     for (let z = z1 + 3; z < z2 - 6; z += 8) {
       w.fillBox(x2 - 3, y1 + 1, z, x2 - 3, y1 + 4, z + 5, PALETTE.GLASS);    // arka duvar mağazaları
       w.fillBox(x2 - 3, y1 + 5, z, x2 - 3, y1 + 6, z + 5, [PALETTE.GOLD, PALETTE.BRICK, PALETTE.ROOF][Math.abs(z >> 3) % 3]);
-      w.fillBox(x1 + 4, y1, z, x1 + 6, y1 + 1, z + 3, PALETTE.WOOD); // tezgâhlar
     }
     // Kat: merkezde atrium boşluğu kalacak şekilde çevre balkon
     const fy = y1 + MALL_FLOOR;
@@ -850,46 +854,10 @@ export class LevelManager {
   furnishMall(x1, y1, z1, x2, y2, z2) {
     const w = this.b;
     const xc = Math.round((x1 + x2) / 2), zc = Math.round((z1 + z2) / 2);
-    const palette = [PALETTE.BRICK, PALETTE.GOLD, PALETTE.GLASS, PALETTE.ROOF, PALETTE.WHITE];
-    // Mağazalar: orta koridorun iki yanında; kuzey ve güney yarılarda, alt ve üst katta
-    const floors = [{ y: y1, base: GROUND_ROW_SUB }, { y: y1 + MALL_FLOOR + 1, base: GROUND_ROW_SUB + K * MALL_FLOOR + 1 }];
-    const halves = [[z1 + 3, zc - 10], [zc + 10, z2 - 3]];
-    let n = 0;
-    floors.forEach(F => halves.forEach(([za, zb]) => {
-      for (let zs = za; zs + 8 <= zb + 1; zs += 9) {
-        [['w', x1 + 3, xc - 4, xc - 4], ['e', xc + 4, x2 - 3, xc + 4]].forEach(([side, xa, xb, xf]) => {
-          const kind = (n++) % 4, col = palette[n % palette.length];
-          const y = F.y, ze = zs + 8;
-          // Mağaza bölme duvarları ve arka duvar (ince, beyaz)
-          w.fillBox(xa, y, zs, xb, y + 4, zs, PALETTE.WHITE);
-          w.fillBox(xa, y, ze, xb, y + 4, ze, PALETTE.WHITE);
-          w.fillBox(side === 'w' ? xa : xb, y, zs, side === 'w' ? xa : xb, y + 4, ze, PALETTE.WHITE);
-          // Koridora bakan cam vitrin + kapı boşluğu + renkli tabela
-          w.fillBox(xf, y, zs, xf, y + 3, ze, PALETTE.GLASS);
-          w.clearBox(xf, y, zs + 3, xf, y + 3, zs + 5);
-          w.fillBox(xf, y + 4, zs, xf, y + 4, ze, col);
-          const bx = side === 'w' ? xa + 1 : xb - 1, ix = side === 'w' ? 1 : -1;
-          if (kind === 0) {            // giyim: askılıklar ve tezgâh
-            for (let z = zs + 2; z < ze - 1; z += 2) { this.furn(F.base, bx, z, bx + ix * 3, z, 8, PALETTE.IRON); this.furn(F.base, bx, z, bx + ix * 3, z, 1, palette[((z % 4) + 4) % 4], 8); }
-            this.furn(F.base, bx + ix * 5, zs + 1, bx + ix * 6, zs + 2, 4, PALETTE.WOOD);
-          } else if (kind === 1) {     // elektronik: raflar ve ekranlar
-            for (let z = zs + 2; z < ze - 1; z += 3) { this.furn(F.base, bx, z, bx + ix * 2, z, 6, PALETTE.IRON); this.furn(F.base, bx, z, bx + ix, z, 2, PALETTE.GLASS, 6); }
-          } else if (kind === 2) {     // restoran: masalar, sandalyeler, tezgâh
-            for (let z = zs + 2; z < ze - 1; z += 3) { this.furn(F.base, bx + ix * 2, z, bx + ix * 3, z + 1, 3, PALETTE.WOOD); this.furn(F.base, bx + ix * 4, z, bx + ix * 4, z, 2, PALETTE.ROOF); }
-            this.furn(F.base, bx, zs + 1, bx, ze - 1, 4, PALETTE.WOOD);
-          } else {                     // oyuncak: renkli kutular
-            for (let z = zs + 2; z < ze - 1; z += 2) for (let x = 0; x < 3; x++) this.furn(F.base, bx + ix * x * 2, z, bx + ix * x * 2, z, 2 + Math.abs(x + z) % 3, palette[Math.abs(x + z) % 5]);
-          }
-        });
-      }
-    }));
+    furnishMallShops(this, x1, y1, z1, x2, y2, z2, MALL_FLOOR);   // dükkânlar, yemek katı, koridor masaları (src/mall.js)
 
-    // Atrium: yemek alanı (masalar + sandalyeler), ağaçlı saksılar
-    for (let z = zc - 6; z <= zc + 6; z += 4) for (let x = x1 + 6; x <= x2 - 8; x += 6) {
-      this.furn(GROUND_ROW_SUB, x, z, x + 1, z + 1, 3, PALETTE.WOOD);
-      this.furn(GROUND_ROW_SUB, x - 1, z, x - 1, z, 2, PALETTE.ROOF); this.furn(GROUND_ROW_SUB, x + 2, z, x + 2, z, 2, PALETTE.ROOF);
-    }
-    [[xc, zc - 8], [xc, zc + 8]].forEach(([x, z]) => { w.fillBox(x - 1, y1, z - 1, x + 1, y1, z + 1, PALETTE.WOOD); this.tree(x, z, 7); });
+    // Atrium: ağaçlı beton saksılar (giriş katındaki kahverengi masa/sandalye/tezgâhlar kaldırıldı)
+    [[xc, zc - 8], [xc, zc + 8]].forEach(([x, z]) => { w.fillBox(x - 1, y1, z - 1, x + 1, y1, z + 1, PALETTE.CONCRETE); this.tree(x, z, 7); });
 
     // İki yürüyen merdiven (cam korkuluklu): atriumdan balkona çıkar. Kuzey yarıya -z, güney yarıya +z yönünde.
     const up = (zStart, dir, xl, xr) => {

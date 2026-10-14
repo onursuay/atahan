@@ -28,6 +28,8 @@ export class DoorSystem {
     this.insetMat = new THREE.MeshLambertMaterial({ color: 0x6b4423 });   // kapı panelleri: kapıdan biraz koyu ahşap
     this.glassMat = new THREE.MeshLambertMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.45 });
     this.frameMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+    this.ironMat = new THREE.MeshLambertMaterial({ color: 0x1f2328 });
+    this.goldMat = new THREE.MeshLambertMaterial({ color: 0xd4a017 });
   }
 
   clear() {
@@ -62,10 +64,25 @@ export class DoorSystem {
   }
 
   // Sürgülü otomatik kapı: (sx,sz) kapı açıklığının başlangıcı; (ax,az) açıklık boyunca birim yön; iki kanat yarım genişlikte
-  addSliding({ sx, sz, ax, az, width, height, y }) {
+  // gate: true → demir araç kapısı (kanatlar çubuklu); yalnız oyuncu ve araçlarla açılır, yayalar için hep kapalıdır
+  addSliding({ sx, sz, ax, az, width, height, y, gate = false }) {
     const root = new THREE.Group();
     const half = width / 2 - 0.05;
+    const mkGate = (cx) => {
+      const g = new THREE.Group();
+      const bar = (w, h, d, x, yy) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), this.ironMat); m.position.set(x, yy, 0); m.castShadow = true; g.add(m); return m; };
+      bar(half, 0.14, 0.1, 0, height - 0.12); bar(half, 0.14, 0.1, 0, 0.2); bar(half, 0.1, 0.1, 0, height * 0.5);
+      bar(0.14, height - 0.1, 0.1, cx > 0 ? -half / 2 + 0.07 : half / 2 - 0.07, height / 2); bar(0.14, height - 0.1, 0.1, cx > 0 ? half / 2 - 0.07 : -half / 2 + 0.07, height / 2);
+      const n = Math.max(3, Math.round(half / 0.32));
+      for (let i = 1; i < n; i++) {
+        const x = -half / 2 + (half * i) / n;
+        bar(0.06, height - 0.3, 0.06, x, height / 2);
+        const tip = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.09), this.goldMat); tip.position.set(x, height - 0.02, 0); g.add(tip);
+      }
+      return g;
+    };
     const mk = (cx) => {
+      if (gate) return mkGate(cx);
       const g = new THREE.Group();
       const glass = new THREE.Mesh(new THREE.BoxGeometry(half, height - 0.1, 0.06), this.glassMat);
       glass.position.set(0, height / 2, 0);
@@ -81,20 +98,20 @@ export class DoorSystem {
     root.position.set(sx, y, sz);
     root.rotation.y = -Math.atan2(az, ax);
     this.group.add(root);
-    const d = { kind: 'sliding', root, a, b, sx, sz, ax, az, width, height, y, open: 0, target: 0, hold: 0, hp: DOOR_HP * 1.5, broken: false, wasMoving: false };
+    const d = { kind: 'sliding', gate, root, a, b, sx, sz, ax, az, width, height, y, open: 0, target: 0, hold: 0, hp: DOOR_HP * (gate ? 6 : 1.5), broken: false, wasMoving: false };
     this._pose(d);
     this.doors.push(d);
     return d;
   }
 
   // Kapı kanatlarının dünyadaki dikdörtgenleri: [başlangıç x, z, yön x, z, uzunluk, kalınlık]
-  _rects(d) {
+  _rects(d, closed = false) {
     if (d.kind === 'hinged') {
       const c = Math.cos(d.angle), s = Math.sin(d.angle);
       const dx = d.ax * c + (-d.az) * s, dz = d.az * c + d.ax * s;
       return [[d.hx, d.hz, dx, dz, d.width, THICK]];
     }
-    const half = d.width / 2, shift = d.open * half;
+    const half = d.width / 2, shift = (closed ? 0 : d.open) * half;
     const px = -d.az, pz = d.ax;                     // açıklığın dik yönü (kanatlar çerçevenin 0.2 m içinde kayar)
     const off = 0.15;
     return [
@@ -131,11 +148,12 @@ export class DoorSystem {
 
   // ── Çarpışma ──
   // Dairesel gövde (x,z,halfW), ayak yüksekliği feetY, boy bodyH kapıya giriyor mu?
-  blocks(x, feetY, z, halfW, bodyH) {
+  // closedGates: yayalar için araç kapıları açıkken de kapalı sayılır
+  blocks(x, feetY, z, halfW, bodyH, closedGates = false) {
     for (const d of this.doors) {
       if (d.broken || !this._near(d, x, z, halfW)) continue;
       if (feetY + bodyH < d.y || feetY > d.y + d.height) continue;
-      for (const r of this._rects(d)) if (this._rectDist(r, x, z) < halfW) return true;
+      for (const r of this._rects(d, closedGates && d.gate)) if (this._rectDist(r, x, z) < halfW) return true;
     }
     return false;
   }
@@ -206,7 +224,7 @@ export class DoorSystem {
     d.root.visible = false;
     const vw = this.vw;
     const rects = this._rects(d);
-    const color = d.kind === 'hinged' ? 0x8a5a2b : 0x7dd3fc;
+    const color = d.kind === 'hinged' ? 0x8a5a2b : d.gate ? 0x1f2328 : 0x7dd3fc;
     const center = new THREE.Vector3();
     rects.forEach(r => center.add(new THREE.Vector3(r[0] + r[2] * r[4] / 2, d.y + d.height / 2, r[1] + r[3] * r[4] / 2)));
     center.multiplyScalar(1 / rects.length);
@@ -291,8 +309,9 @@ export class DoorSystem {
       } else {
         const cx = d.sx + d.ax * d.width / 2, cz = d.sz + d.az * d.width / 2;
         let near = false;
-        for (const a of actors) if (Math.abs(a.y - d.y) < 3.5 && Math.hypot(a.x - cx, a.z - cz) < d.width * 0.5 + 3.2) { near = true; break; }
-        d.hold = near ? 1.4 : Math.max(0, d.hold - dt);                  // yaklaşan yoksa 1.4 sn sonra kapanır
+        const reach = d.width * 0.5 + (d.gate ? 9 : 3.2);                // araç kapısı uzaktan açılır (araç hızlı gelir)
+        for (const a of actors) if (!(d.gate && a.npc) && Math.abs(a.y - d.y) < 3.5 && Math.hypot(a.x - cx, a.z - cz) < reach) { near = true; break; }
+        d.hold = near ? (d.gate ? 2.5 : 1.4) : Math.max(0, d.hold - dt);                  // yaklaşan yoksa 1.4 sn sonra kapanır
         d.target = d.hold > 0 ? 1 : 0;
         const prev = d.open;
         d.open += Math.sign(d.target - d.open) * Math.min(Math.abs(d.target - d.open), dt * 1.3);

@@ -58,7 +58,14 @@ export const PALETTE = {
   LAMP_PINK:   { id: 15, color: 0xf472b6, name: 'Pembe Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xf472b6 },
   LAMP_GREEN:  { id: 16, color: 0x4ade80, name: 'Yeşil Işık', canBreakWithHammer: true, isLamp: true, emissive: 0x4ade80 },
   LAMP_PURPLE: { id: 17, color: 0xa78bfa, name: 'Mor Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xa78bfa },
-  LAMP_ORANGE: { id: 18, color: 0xfb923c, name: 'Turuncu Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xfb923c }
+  LAMP_ORANGE: { id: 18, color: 0xfb923c, name: 'Turuncu Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xfb923c },
+  // Banka ve şirket binaları için düz (ışıksız) renkler
+  BLUE:     { id: 19, color: 0x2563eb, name: 'Mavi', canBreakWithHammer: true },
+  NAVY:     { id: 20, color: 0x1e3a8a, name: 'Lacivert', canBreakWithHammer: true },
+  ORANGE:   { id: 21, color: 0xf97316, name: 'Turuncu', canBreakWithHammer: true },
+  DGREEN:   { id: 22, color: 0x15803d, name: 'Koyu Yeşil', canBreakWithHammer: true },
+  RED:      { id: 23, color: 0xdc2626, name: 'Kırmızı', canBreakWithHammer: true },
+  YELLOW:   { id: 24, color: 0xfacc15, name: 'Sarı', canBreakWithHammer: true }
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
@@ -78,7 +85,8 @@ export const MATERIAL_HARDNESS = {
   [PALETTE.GOLD.id]: 1.0,     // Altın
   [PALETTE.LAMP.id]: 0.4,     // Lamba: cam gibi kolay kırılır
   [PALETTE.BLACK.id]: 1.6,    // Siyah (villa): beton gibi
-  [PALETTE.LAMP_BLUE.id]: 0.4, [PALETTE.LAMP_PINK.id]: 0.4, [PALETTE.LAMP_GREEN.id]: 0.4, [PALETTE.LAMP_PURPLE.id]: 0.4, [PALETTE.LAMP_ORANGE.id]: 0.4
+  [PALETTE.LAMP_BLUE.id]: 0.4, [PALETTE.LAMP_PINK.id]: 0.4, [PALETTE.LAMP_GREEN.id]: 0.4, [PALETTE.LAMP_PURPLE.id]: 0.4, [PALETTE.LAMP_ORANGE.id]: 0.4,
+  [PALETTE.BLUE.id]: 1.3, [PALETTE.NAVY.id]: 1.3, [PALETTE.ORANGE.id]: 1.3, [PALETTE.DGREEN.id]: 1.3, [PALETTE.RED.id]: 1.3, [PALETTE.YELLOW.id]: 1.2
 };
 
 export class VoxelWorld {
@@ -101,6 +109,7 @@ export class VoxelWorld {
     this.doors = new DoorSystem(scene, this);   // bina kapıları (menteşeli) ve AVM otomatik kapıları
     this.decor = [];                            // voxel olmayan süs nesneleri (ör. köprü kabloları); seviye silinince kaldırılır
     this.collapse = new CollapseSystem(this);
+    this.props = null;                          // tutulabilir eşyalar (props.js): patlama onları savurur
     this.bridge = null;                         // asma köprü sistemi (ipler, sallanma, kopma); seviye kurulumunda oluşur
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
@@ -409,6 +418,7 @@ export class VoxelWorld {
     if (this.planes) this.planes.hitSphere(blastPos, blastRadius);
     if (this.cars) this.cars.hitSphere(blastPos, blastRadius);
     this.doors.explode(blastPos, blastRadius);    // yakındaki kapılar kırılır
+    if (this.props) this.props.impulse(blastPos, blastRadius, force);   // yakındaki eşyalar savrulur
     if (this.bridge) this.bridge.hitSphere(blastPos, blastRadius);   // köprü iplerini koparır
 
     // Zemin üst katmanını kır (taban kayası etkilenmez)

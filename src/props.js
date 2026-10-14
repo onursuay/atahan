@@ -1,0 +1,249 @@
+import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { sound } from './audio.js';
+import { VOXEL_SIZE } from './teardown.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TUTULABİLİR EŞYALAR (Teardown'daki gibi el mekaniği): askıdaki kıyafetler, sandalyeler, kutular, şişeler, minderler, saksılar...
+//  • Sağ tık basılı: nişangâhın baktığı eşyayı eldeki gibi tutar ve önünde taşırsın; fareyle yön verirsin, tekerlekle uzaklığı ayarlarsın.
+//  • Bırakınca (sağ tık) elindeki hızla düşer ya da fırlar. Eşyalar voxel zemine, duvara ve eşyaya çarpar; patlama onları savurur.
+//  • Her eşya türü tek bir InstancedMesh'te çizilir (çok sayıda eşya ucuzdur); fizik yalnız hareket eden eşyalar için çalışır.
+//  • Sağ tık hiçbir şeye zarar vermez.
+// ─────────────────────────────────────────────────────────────────────────────
+const S = VOXEL_SIZE;
+const GRAV = 22;
+const EPS = 1e-4;
+const CAP = 220;                  // tür başına en çok eşya
+
+const parts = (list) => mergeGeometries(list.map(([w, h, d, x, y, z, c]) => {
+  const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z);
+  const col = new THREE.Color(c), n = g.attributes.position.count, a = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) { a[i * 3] = col.r; a[i * 3 + 1] = col.g; a[i * 3 + 2] = col.b; }
+  g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+  return g;
+}), false);
+
+// Eşya türleri: yarı boyutlar (çarpışma kutusu), model parçaları (merkeze göre [w,h,d,x,y,z,renk]); tint: örnek rengiyle boyanır (taban beyaz)
+const KINDS = {
+  shirt: { half: [0.32, 0.34, 0.07], tint: true, mass: 0.6, geo: () => parts([
+    [0.5, 0.52, 0.09, 0, -0.04, 0, 0xffffff], [0.2, 0.2, 0.09, -0.34, 0.09, 0, 0xffffff], [0.2, 0.2, 0.09, 0.34, 0.09, 0, 0xffffff],
+    [0.16, 0.05, 0.1, 0, 0.23, 0, 0x2a2a30], [0.05, 0.1, 0.04, 0, 0.3, 0, 0x6b7280], [0.5, 0.025, 0.025, 0, 0.27, 0, 0x6b7280]]) },
+  jacket: { half: [0.34, 0.4, 0.09], tint: true, mass: 0.9, geo: () => parts([
+    [0.56, 0.66, 0.11, 0, -0.08, 0, 0xffffff], [0.2, 0.5, 0.11, -0.38, -0.05, 0, 0xffffff], [0.2, 0.5, 0.11, 0.38, -0.05, 0, 0xffffff],
+    [0.04, 0.6, 0.12, 0, -0.08, 0, 0x2a2a30], [0.05, 0.1, 0.04, 0, 0.36, 0, 0x6b7280], [0.56, 0.025, 0.025, 0, 0.32, 0, 0x6b7280]]) },
+  pants: { half: [0.22, 0.45, 0.07], tint: true, mass: 0.7, geo: () => parts([
+    [0.2, 0.7, 0.09, -0.12, -0.12, 0, 0xffffff], [0.2, 0.7, 0.09, 0.12, -0.12, 0, 0xffffff], [0.44, 0.12, 0.1, 0, 0.26, 0, 0xffffff],
+    [0.05, 0.12, 0.04, 0, 0.4, 0, 0x6b7280], [0.4, 0.025, 0.025, 0, 0.36, 0, 0x6b7280]]) },
+  chair: { half: [0.27, 0.46, 0.27], tint: true, mass: 3, geo: () => parts([
+    [0.5, 0.07, 0.5, 0, 0, 0, 0xffffff], [0.5, 0.5, 0.06, 0, 0.3, -0.22, 0xffffff],
+    ...[[-0.21, -0.21], [0.21, -0.21], [-0.21, 0.21], [0.21, 0.21]].map(([x, z]) => [0.06, 0.42, 0.06, x, -0.24, z, 0x3a3f47])]) },
+  box: { half: [0.27, 0.22, 0.27], tint: false, mass: 2, geo: () => parts([[0.54, 0.44, 0.54, 0, 0, 0, 0xb08b5a], [0.56, 0.04, 0.12, 0, 0.23, 0, 0xd6b98a], [0.55, 0.03, 0.55, 0, -0.2, 0, 0x8a6a3e]]) },
+  bottle: { half: [0.07, 0.22, 0.07], tint: true, mass: 0.4, geo: () => parts([[0.13, 0.28, 0.13, 0, -0.07, 0, 0xffffff], [0.06, 0.16, 0.06, 0, 0.15, 0, 0xffffff], [0.07, 0.04, 0.07, 0, 0.25, 0, 0x2a2a30]]) },
+  cushion: { half: [0.26, 0.09, 0.26], tint: true, mass: 0.5, geo: () => parts([[0.5, 0.15, 0.5, 0, 0, 0, 0xffffff], [0.2, 0.17, 0.2, 0, 0, 0, 0xe5e7eb]]) },
+  plant: { half: [0.2, 0.36, 0.2], tint: false, mass: 2, geo: () => parts([[0.3, 0.26, 0.3, 0, -0.22, 0, 0xb4532a], [0.1, 0.22, 0.1, 0, 0.0, 0, 0x4d7c2f], [0.38, 0.26, 0.38, 0, 0.2, 0, 0x3f8f3a], [0.22, 0.2, 0.22, 0, 0.38, 0, 0x4fae45]]) },
+  tray: { half: [0.28, 0.12, 0.2], tint: false, mass: 0.6, geo: () => parts([
+    [0.56, 0.03, 0.4, 0, -0.1, 0, 0xdc2626], [0.2, 0.05, 0.2, -0.12, -0.065, 0, 0xe9b85a], [0.2, 0.04, 0.2, -0.12, -0.02, 0, 0x7c2d12], [0.2, 0.025, 0.2, -0.12, 0.01, 0, 0x4d9a3a],
+    [0.2, 0.05, 0.2, -0.12, 0.04, 0, 0xe9b85a], [0.12, 0.14, 0.1, 0.17, -0.02, 0.06, 0xfacc15], [0.1, 0.11, 0.1, 0.17, -0.03, -0.1, 0xefefef]]) },
+  pizzabox: { half: [0.27, 0.05, 0.27], tint: false, mass: 0.5, geo: () => parts([[0.54, 0.08, 0.54, 0, 0, 0, 0xf3f4f6], [0.3, 0.085, 0.3, 0, 0, 0, 0xdc2626]]) },
+  teddy: { half: [0.2, 0.3, 0.16], tint: true, mass: 0.7, geo: () => parts([
+    [0.3, 0.32, 0.22, 0, -0.1, 0, 0xffffff], [0.26, 0.24, 0.24, 0, 0.16, 0, 0xffffff], [0.09, 0.09, 0.06, -0.1, 0.3, 0, 0xffffff], [0.09, 0.09, 0.06, 0.1, 0.3, 0, 0xffffff],
+    [0.08, 0.2, 0.1, -0.2, -0.08, 0, 0xffffff], [0.08, 0.2, 0.1, 0.2, -0.08, 0, 0xffffff], [0.1, 0.1, 0.03, 0, 0.14, 0.13, 0x2a2a30]]) },
+  book: { half: [0.17, 0.08, 0.12], tint: true, mass: 0.4, geo: () => parts([[0.34, 0.07, 0.24, 0, -0.045, 0, 0xffffff], [0.32, 0.07, 0.22, 0, 0.025, 0, 0xe5e7eb], [0.34, 0.06, 0.24, 0, 0.09, 0, 0xffffff]]) }
+};
+// Dışarıdan eşya yerleştirirken zemine oturtmak için: türün yarı yüksekliği (m)
+export const PROP_HALF = Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.half[1]]));
+const PALETTE_TINT = [0xdc2626, 0x2563eb, 0x16a34a, 0xf59e0b, 0x9333ea, 0x0891b2, 0xe11d48, 0xf97316, 0x111827, 0xf3f4f6, 0xfacc15, 0x84cc16];
+
+export class PropManager {
+  constructor(scene, voxelWorld) {
+    this.scene = scene; this.vw = voxelWorld;
+    this.group = new THREE.Group(); scene.add(this.group);
+    this.kinds = {};
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    for (const [name, k] of Object.entries(KINDS)) {
+      const mesh = new THREE.InstancedMesh(k.geo(), mat, CAP);
+      mesh.count = 0; mesh.frustumCulled = false; mesh.castShadow = true; mesh.receiveShadow = true;
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 3).fill(1), 3);
+      this.group.add(mesh);
+      this.kinds[name] = { mesh, half: new THREE.Vector3(...k.half), tint: k.tint, mass: k.mass };
+    }
+    this.props = [];
+    this.held = null; this.holdDist = 2.2; this.cam = null;
+    this.tmpQ = new THREE.Quaternion(); this.tmpE = new THREE.Euler(); this.tmpM = new THREE.Matrix4(); this.one = new THREE.Vector3(1, 1, 1);
+  }
+
+  clear() {
+    this.held = null; this.props = [];
+    for (const k of Object.values(this.kinds)) k.mesh.count = 0;
+  }
+
+  // opts: { yaw, color, hung (askıda sabit), awake (havadan düşecek) }
+  add(kind, x, y, z, opts = {}) {
+    const k = this.kinds[kind];
+    if (!k || k.mesh.count >= CAP) return null;
+    const p = {
+      kind, k, idx: k.mesh.count++, pos: new THREE.Vector3(x, y, z), vel: new THREE.Vector3(), yaw: opts.yaw || 0, roll: 0, pitch: 0, spin: 0,
+      half: k.half, held: false, hung: !!opts.hung, sleep: !opts.awake, still: 0, grounded: false
+    };
+    if (k.tint) { const c = new THREE.Color(opts.color ?? PALETTE_TINT[Math.floor(Math.random() * PALETTE_TINT.length)]); k.mesh.setColorAt(p.idx, c); k.mesh.instanceColor.needsUpdate = true; }
+    this.props.push(p);
+    this._upload(p);
+    return p;
+  }
+
+  _upload(p) {
+    this.tmpE.set(p.pitch, p.yaw, p.roll, 'YXZ'); this.tmpQ.setFromEuler(this.tmpE);
+    this.tmpM.compose(p.pos, this.tmpQ, this.one);
+    p.k.mesh.setMatrixAt(p.idx, this.tmpM); p.k.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // Kutu (merkez p, yarı boyut h) voxel/zemin/kapıya giriyor mu?
+  _solid(x, y, z, h) {
+    const vw = this.vw, t = vw.terrain;
+    const feet = y - h.y, hw = Math.max(h.x, h.z);
+    if (t.solidAt(x, feet + 0.02, z, hw)) return true;
+    if (vw.doors && vw.doors.blocks(x, feet, z, hw, h.y * 2)) return true;
+    const ix0 = Math.floor((x - h.x + EPS) / S + 0.5), ix1 = Math.floor((x + h.x - EPS) / S + 0.5);
+    const iz0 = Math.floor((z - h.z + EPS) / S + 0.5), iz1 = Math.floor((z + h.z - EPS) / S + 0.5);
+    const iy0 = Math.floor((feet + 0.02) / S), iy1 = Math.floor((y + h.y - EPS) / S);
+    for (let ix = ix0; ix <= ix1; ix++) for (let iy = iy0; iy <= iy1; iy++) for (let iz = iz0; iz <= iz1; iz++) {
+      const v = vw.voxels.get(`${ix},${iy},${iz}`);
+      if (v && v.active) return true;
+    }
+    return false;
+  }
+
+  // ── Tutma ──
+  _rayAabb(o, d, p, h) {
+    let tmin = 0, tmax = 1e9;
+    for (const a of ['x', 'y', 'z']) {
+      const lo = p.pos[a] - h[a] - 0.12, hi = p.pos[a] + h[a] + 0.12;
+      if (Math.abs(d[a]) < 1e-9) { if (o[a] < lo || o[a] > hi) return -1; continue; }
+      let t1 = (lo - o[a]) / d[a], t2 = (hi - o[a]) / d[a];
+      if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
+      tmin = Math.max(tmin, t1); tmax = Math.min(tmax, t2);
+      if (tmin > tmax) return -1;
+    }
+    return tmin;
+  }
+
+  // Bakılan eşya (en yakın, duvar arkasında değil): { prop, dist } ya da null
+  pick(camera, reach = 4.6) {
+    const o = camera.position, d = new THREE.Vector3(); camera.getWorldDirection(d);
+    let best = null;
+    for (const p of this.props) {
+      const t = this._rayAabb(o, d, p, p.half);
+      if (t >= 0 && t <= reach && (!best || t < best.dist)) best = { prop: p, dist: t };
+    }
+    if (!best) return null;
+    // arada duvar/zemin var mı?
+    for (let s = 0.3; s < best.dist - 0.2; s += 0.25) {
+      const q = o.clone().addScaledVector(d, s);
+      const v = this.vw.voxels.get(`${Math.round(q.x / S)},${Math.round((q.y - S / 2) / S)},${Math.round(q.z / S)}`);
+      if (v && v.active) return null;
+    }
+    return best;
+  }
+
+  aim(camera) { return !this.held && !!this.pick(camera); }
+
+  beginGrab(camera) {
+    const r = this.pick(camera);
+    if (!r) return false;
+    const p = r.prop;
+    p.held = true; p.hung = false; p.sleep = false; p.still = 0;
+    this.held = p; this.cam = camera; this.holdDist = THREE.MathUtils.clamp(r.dist, 1.2, 3.4);
+    sound.playWoodHit && sound.playWoodHit();
+    return true;
+  }
+
+  endGrab() {
+    if (!this.held) return;
+    this.held.held = false; this.held.sleep = false; this.held.still = 0;
+    this.held = null;
+  }
+
+  adjustDistance(delta) { this.holdDist = THREE.MathUtils.clamp(this.holdDist + delta, 1.0, 4.2); }
+
+  // Patlama: yakındaki eşyaları savurur
+  impulse(center, radius, force) {
+    for (const p of this.props) {
+      const d = p.pos.distanceTo(center);
+      if (d > radius * 1.6) continue;
+      const k = (1 - d / (radius * 1.6)) * force / Math.max(0.5, p.k.mass);
+      const dir = p.pos.clone().sub(center).normalize(); dir.y = Math.abs(dir.y) * 0.5 + 0.6;
+      p.vel.addScaledVector(dir, k * 0.12); p.hung = false; p.sleep = false; p.still = 0; p.spin = (Math.random() - 0.5) * 12;
+    }
+  }
+
+  // ── Güncelleme ──
+  update(dt) {
+    // Uyuyan eşyaların altındaki zemin/döşeme yok olduysa (kırıldıysa) uyandır: her karede birkaçı denetlenir
+    const n = this.props.length;
+    for (let k = 0; k < 6 && n; k++) {
+      this.rr = ((this.rr || 0) + 1) % n;
+      const p = this.props[this.rr];
+      if (p.sleep && !p.held && !p.hung && !this._solid(p.pos.x, p.pos.y - 0.06, p.pos.z, p.half)) { p.sleep = false; p.still = 0; }
+    }
+    for (const p of this.props) {
+      if (p.sleep && !p.held) continue;
+      if (p.hung && !p.held) continue;
+      if (p.held) this._stepHeld(p, dt); else this._stepFree(p, dt);
+      this._upload(p);
+    }
+  }
+
+  _stepHeld(p, dt) {
+    const cam = this.cam, d = new THREE.Vector3(); cam.getWorldDirection(d);
+    const target = cam.position.clone().addScaledVector(d, this.holdDist); target.y -= 0.15;
+    const want = target.sub(p.pos);
+    if (want.length() > 7) { this.endGrab(); return; }
+    p.vel.copy(want.multiplyScalar(14));
+    const sp = p.vel.length(); if (sp > 22) p.vel.multiplyScalar(22 / sp);
+    this._move(p, dt, false);
+    // kamera yönüne doğru dön, eğiklik sönsün
+    const yawT = Math.atan2(d.x, d.z) + Math.PI;
+    p.yaw += Math.atan2(Math.sin(yawT - p.yaw), Math.cos(yawT - p.yaw)) * Math.min(1, dt * 8);
+    p.pitch *= Math.exp(-6 * dt); p.roll *= Math.exp(-6 * dt);
+  }
+
+  _stepFree(p, dt) {
+    p.vel.y = Math.max(-40, p.vel.y - GRAV * dt);
+    const hit = this._move(p, dt, true);
+    if (p.grounded) {
+      const f = Math.pow(0.02, dt);
+      p.vel.x *= f; p.vel.z *= f; p.spin *= Math.pow(0.05, dt);
+      p.pitch *= Math.exp(-10 * dt); p.roll *= Math.exp(-10 * dt);
+    } else { p.pitch += p.spin * dt * 0.6; p.roll += p.spin * dt * 0.4; }
+    p.yaw += p.spin * dt;
+    if (hit > 3.5 && sound.playWoodHit) sound.playWoodHit();
+    if (p.vel.lengthSq() < 0.01 && p.grounded) { p.still += dt; if (p.still > 0.6) { p.sleep = true; p.vel.set(0, 0, 0); p.spin = 0; p.pitch = p.roll = 0; } } else p.still = 0;
+    if (p.pos.y < -6) { p.pos.set(0, -100, 0); p.sleep = true; this._upload(p); }
+  }
+
+  // Eksen eksen hareket; çarpma hızını döndürür (ses için)
+  _move(p, dt, gravity) {
+    let impact = 0; p.grounded = false;
+    for (const [a, i] of [['x', 0], ['z', 2], ['y', 1]]) {
+      const delta = p.vel[a] * dt;
+      if (delta === 0) continue;
+      const np = p.pos.clone(); np[a] += delta;
+      if (!this._solid(np.x, np.y, np.z, p.half)) { p.pos[a] = np[a]; continue; }
+      // küçük basamak (yalnız yatay harekette): 0.3 m yukarı çık
+      if (a !== 'y' && !this._solid(np.x, np.y + 0.3, np.z, p.half) && !this._solid(p.pos.x, p.pos.y + 0.3, p.pos.z, p.half)) { p.pos.x = np.x; p.pos.z = np.z; p.pos.y += 0.3; continue; }
+      // çarpmadan önceki en uzak noktaya kadar ilerle (havada asılı boşluk kalmasın)
+      let lo = 0, hi = 1;
+      for (let k = 0; k < 6; k++) { const m = (lo + hi) / 2, q = p.pos.clone(); q[a] += delta * m; if (this._solid(q.x, q.y, q.z, p.half)) hi = m; else lo = m; }
+      p.pos[a] += delta * lo;
+      impact = Math.max(impact, Math.abs(p.vel[a]));
+      if (a === 'y' && p.vel.y < 0) p.grounded = true;
+      p.vel[a] = gravity ? -p.vel[a] * 0.22 : 0;
+      if (Math.abs(p.vel[a]) < 0.6) p.vel[a] = 0;
+    }
+    if (gravity && !p.grounded) {                                  // ayak altında zemin var mı (küçük sıçramalarda yanlış havada kalmasın)
+      if (this._solid(p.pos.x, p.pos.y - 0.04, p.pos.z, p.half) && p.vel.y <= 0) p.grounded = true;
+    }
+    return impact;
+  }
+}
