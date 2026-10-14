@@ -203,28 +203,6 @@ class SoundEngine {
     osc.stop(now + 0.1);
   }
 
-  // Karakter yürüme sesi (Adım)
-  playStep() {
-    if (this.muted || !this.ctx) return;
-    const now = this.ctx.currentTime;
-
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(80 + Math.random() * 20, now);
-    osc.frequency.exponentialRampToValueAtTime(30, now + 0.08);
-
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.08);
-  }
-
   // Karakter zıplama sesi
   playJump() {
     if (this.muted || !this.ctx) return;
@@ -413,10 +391,12 @@ class SoundEngine {
     const sp = Math.min(1, Math.abs(speedRatio));
     const th = throttle ? 1 : 0;
     const on = this.muted ? 0 : 1;
-    const rpm = 30 + sp * 85 + th * 12;                        // temel frekans (Hz)
+    // Temel frekans (Hz). UYARI: osilatörler ve ateşleme titreşimi rpm'in TAM katları olmalı (1, 1/2, 1/2);
+    // oran tam değilse aralarında 1-3 Hz'lik yavaş vuruntu oluşur ve rölantide ayak sesi gibi "tup, tup" duyulur.
+    const rpm = 48 + sp * 85 + th * 12;
     e.osc1.frequency.setTargetAtTime(rpm, now, 0.08);
     e.osc2.frequency.setTargetAtTime(rpm * 0.5, now, 0.08);
-    e.fire.frequency.setTargetAtTime(rpm * 0.45, now, 0.08);   // silindir ateşleme titreşimi
+    e.fire.frequency.setTargetAtTime(rpm * 0.5, now, 0.08);    // silindir ateşleme titreşimi (osc2 ile faz kilitli)
     e.engFilter.frequency.setTargetAtTime(260 + sp * 700 + th * 450, now, 0.1);
     e.engGain.gain.setTargetAtTime((0.10 + th * 0.07 + sp * 0.04) * on, now, 0.1);
     e.exhaustGain.gain.setTargetAtTime((0.03 + th * 0.10) * on, now, 0.08);
@@ -441,7 +421,7 @@ class SoundEngine {
     e.engGain = ctx.createGain(); e.engGain.gain.value = 0;
     const pulse = ctx.createGain(); pulse.gain.value = 0.65;   // tremolo ortalaması
     e.fire = ctx.createOscillator(); e.fire.type = 'sine';
-    const fireDepth = ctx.createGain(); fireDepth.gain.value = 0.35;
+    const fireDepth = ctx.createGain(); fireDepth.gain.value = 0.2;
     e.fire.connect(fireDepth); fireDepth.connect(pulse.gain);
     e.osc1.connect(pulse); e.osc2.connect(pulse);
     pulse.connect(e.engFilter); e.engFilter.connect(e.engGain); e.engGain.connect(out);
