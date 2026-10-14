@@ -257,8 +257,8 @@ export class LevelManager {
     this.buildHospital(144, 1, 50, 176, 14, 118);                                   // çok büyük beyaz hastane (kırmızı artılı)
     this.buildMall(143, 1, -127, 180, 34, -50);                                     // devasa AVM (38x78, 4 kat, kat yüksekliği 6 m)
     this.buildFireStation(80, 1, 52, 108, 14, 82);                                  // itfaiye istasyonu
-    this.buildTower(82, 1, 96, 106, 12, 120, { ...CC, side: 'z1', sign: true });     // polis merkezi
-    this.buildTower(80, 1, 8, 108, 12, 38, { ...BR, side: 'z1' });                   // okul
+    this.buildTower(82, 1, 96, 106, 12, 120, { ...CC, side: 'z1', sign: true, interior: 'police' });     // polis merkezi
+    this.buildTower(80, 1, 8, 108, 12, 38, { ...BR, side: 'z1', interior: 'school' });                   // okul
     this.buildTower(80, 1, -38, 108, 26, -8, { ...CC, side: 'z2' });                 // iş merkezi
     this.buildTower(80, 1, -82, 108, 20, -50, { ...BR, side: 'z1', interior: 'hotel' });  // otel
     this.buildTower(82, 1, -122, 106, 24, -96, { ...CC, side: 'z2' });               // apartmanlar
@@ -524,6 +524,7 @@ export class LevelManager {
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
     this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE);
     this.addStairs(x1, y1, z1, x2, y2, z2);
+    this.furnishHospital(x1, y1, z1, x2, y2, z2);
     // Resepsiyon, bekleme koltukları, koridor duvarları ve hasta yatakları
     w.fillBox(x1 + 3, y1, zc - 6, x1 + 6, y1 + 1, zc + 6, PALETTE.WOOD);
     for (let z = z1 + 5; z < z2 - 3; z += 8) {
@@ -557,6 +558,7 @@ export class LevelManager {
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'z1');
     this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD, 1);
     this.addStairs(x1, y1, z1, x2, y2, z2);
+    this.furnishFire(x1, y1, z1, x2, y2, z2);
   }
 
   // AVM: kocaman alışveriş merkezi; cam cephe, merkezi atrium, mağaza vitrinleri, camlı çatı ve sütunlar
@@ -590,7 +592,7 @@ export class LevelManager {
       w.fillBox(x1 + 2, fk + 1, zc + 9, x2 - 2, fk + 1, zc + 9, PALETTE.GLASS);
     }
     this.addMallLights(x1, y1, z1, x2, y2, z2);
-    this.addStairs(x1, y1, z1, x2, y2, z2, MALL_FLOOR);
+    this.furnishMall(x1, y1, z1, x2, y2, z2);
     // Çatıda geniş cam ışıklık
     w.fillBox(x1 + 8, y2, zc - 6, x2 - 8, y2, zc + 6, PALETTE.GLASS);
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
@@ -722,6 +724,17 @@ export class LevelManager {
         }
         return;
       }
+      if (kind === 'school') {      // sınıf: sıralar, öğretmen masası, kara tahta
+        for (let z = za + 1; z < zb - 3; z += 4) for (let x = xa; x + 2 <= xb; x += 4) { F(b, x, z, x + 1, z, 3, PALETTE.WOOD); F(b, x, z + 1, x, z + 1, 2, PALETTE.ROOF); }
+        F(b, xa, zb, xb, zb, 7, PALETTE.IRON); F(b, xa + 1, zb - 1, xb - 1, zb - 1, 1, PALETTE.WOOD, 0);
+        return;
+      }
+      if (kind === 'police') {      // karakol: masalar, dosya dolapları, demir parmaklıklı nezarethane
+        for (let x = xa; x + 3 <= xb; x += 5) { F(b, x, za + 2, x + 2, za + 3, 3, PALETTE.WOOD); F(b, x + 1, za + 2, x + 1, za + 2, 2, PALETTE.IRON, 3); }
+        for (let z = zb - 8; z <= zb - 1; z += 2) F(b, xb - 2, z, xb - 2, z, 14, PALETTE.IRON);   // parmaklıklar
+        F(b, xb - 2, zb - 8, xb, zb - 8, 14, PALETTE.IRON); F(b, xb - 1, zb - 6, xb - 1, zb - 4, 2, PALETTE.WOOD);
+        return;
+      }
       // Mutfak: arka duvar boyunca tezgâh, ocak, buzdolabı; ortada yemek masası ve sandalyeler
       if (xb - xa >= 10 && (kind !== 'hotel')) {
         F(b, xa, zb - 1, xa + 6, zb, 4, PALETTE.WOOD);                     // tezgâh
@@ -767,6 +780,102 @@ export class LevelManager {
         F(b, xb - 1, za + 4, xb - 1, za + 4, 3, PALETTE.WHITE);
       }
     });
+  }
+
+  // ── AVM İÇİ: mağaza sıraları (iki kat), orta koridor, yemek alanı, ağaçlı atrium ve iki yürüyen merdiven ──
+  furnishMall(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    const xc = Math.round((x1 + x2) / 2), zc = Math.round((z1 + z2) / 2);
+    const palette = [PALETTE.BRICK, PALETTE.GOLD, PALETTE.GLASS, PALETTE.ROOF, PALETTE.WHITE];
+    // Mağazalar: orta koridorun iki yanında; kuzey ve güney yarılarda, alt ve üst katta
+    const floors = [{ y: y1, base: GROUND_ROW_SUB }, { y: y1 + MALL_FLOOR + 1, base: GROUND_ROW_SUB + K * MALL_FLOOR + 1 }];
+    const halves = [[z1 + 3, zc - 10], [zc + 10, z2 - 3]];
+    let n = 0;
+    floors.forEach(F => halves.forEach(([za, zb]) => {
+      for (let zs = za; zs + 8 <= zb + 1; zs += 9) {
+        [['w', x1 + 3, xc - 4, xc - 4], ['e', xc + 4, x2 - 3, xc + 4]].forEach(([side, xa, xb, xf]) => {
+          const kind = (n++) % 4, col = palette[n % palette.length];
+          const y = F.y, ze = zs + 8;
+          // Mağaza bölme duvarları ve arka duvar (ince, beyaz)
+          w.fillBox(xa, y, zs, xb, y + 4, zs, PALETTE.WHITE);
+          w.fillBox(xa, y, ze, xb, y + 4, ze, PALETTE.WHITE);
+          w.fillBox(side === 'w' ? xa : xb, y, zs, side === 'w' ? xa : xb, y + 4, ze, PALETTE.WHITE);
+          // Koridora bakan cam vitrin + kapı boşluğu + renkli tabela
+          w.fillBox(xf, y, zs, xf, y + 3, ze, PALETTE.GLASS);
+          w.clearBox(xf, y, zs + 3, xf, y + 3, zs + 5);
+          w.fillBox(xf, y + 4, zs, xf, y + 4, ze, col);
+          const bx = side === 'w' ? xa + 1 : xb - 1, ix = side === 'w' ? 1 : -1;
+          if (kind === 0) {            // giyim: askılıklar ve tezgâh
+            for (let z = zs + 2; z < ze - 1; z += 2) { this.furn(F.base, bx, z, bx + ix * 3, z, 8, PALETTE.IRON); this.furn(F.base, bx, z, bx + ix * 3, z, 1, palette[((z % 4) + 4) % 4], 8); }
+            this.furn(F.base, bx + ix * 5, zs + 1, bx + ix * 6, zs + 2, 4, PALETTE.WOOD);
+          } else if (kind === 1) {     // elektronik: raflar ve ekranlar
+            for (let z = zs + 2; z < ze - 1; z += 3) { this.furn(F.base, bx, z, bx + ix * 2, z, 6, PALETTE.IRON); this.furn(F.base, bx, z, bx + ix, z, 2, PALETTE.GLASS, 6); }
+          } else if (kind === 2) {     // restoran: masalar, sandalyeler, tezgâh
+            for (let z = zs + 2; z < ze - 1; z += 3) { this.furn(F.base, bx + ix * 2, z, bx + ix * 3, z + 1, 3, PALETTE.WOOD); this.furn(F.base, bx + ix * 4, z, bx + ix * 4, z, 2, PALETTE.ROOF); }
+            this.furn(F.base, bx, zs + 1, bx, ze - 1, 4, PALETTE.WOOD);
+          } else {                     // oyuncak: renkli kutular
+            for (let z = zs + 2; z < ze - 1; z += 2) for (let x = 0; x < 3; x++) this.furn(F.base, bx + ix * x * 2, z, bx + ix * x * 2, z, 2 + Math.abs(x + z) % 3, palette[Math.abs(x + z) % 5]);
+          }
+        });
+      }
+    }));
+
+    // Atrium: yemek alanı (masalar + sandalyeler), ağaçlı saksılar
+    for (let z = zc - 6; z <= zc + 6; z += 4) for (let x = x1 + 6; x <= x2 - 8; x += 6) {
+      this.furn(GROUND_ROW_SUB, x, z, x + 1, z + 1, 3, PALETTE.WOOD);
+      this.furn(GROUND_ROW_SUB, x - 1, z, x - 1, z, 2, PALETTE.ROOF); this.furn(GROUND_ROW_SUB, x + 2, z, x + 2, z, 2, PALETTE.ROOF);
+    }
+    [[xc, zc - 8], [xc, zc + 8]].forEach(([x, z]) => { w.fillBox(x - 1, y1, z - 1, x + 1, y1, z + 1, PALETTE.WOOD); this.tree(x, z, 7); });
+
+    // İki yürüyen merdiven (cam korkuluklu): atriumdan balkona çıkar. Kuzey yarıya -z, güney yarıya +z yönünde.
+    const up = (zStart, dir, xl, xr) => {
+      for (let j = 0; j < 19; j++) {
+        const z = Math.round(K * zStart) + dir * j;
+        w.raw(Math.round(K * xl) - 1, GROUND_ROW_SUB, z, Math.round(K * xr) + 1, GROUND_ROW_SUB + j, z, PALETTE.IRON);
+      }
+      [xl - 0.4, xr + 0.4].forEach(x => w.raw(Math.round(K * x), GROUND_ROW_SUB + 1, Math.round(K * zStart), Math.round(K * x), GROUND_ROW_SUB + 20, Math.round(K * zStart) + dir * 18, PALETTE.GLASS));
+    };
+    up(zc + 2, 1, xc - 7, xc - 5);
+    up(zc - 2, -1, xc + 5, xc + 7);
+    // Atrium çevresindeki balkon boşlukları yürüyen merdivenin üstüne denk gelen kısımlarda açık kalır
+  }
+
+  // ── HASTANE İÇİ: bekleme salonu, eczane, ameliyathane, ambulans ──
+  furnishHospital(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    const zc = Math.round((z1 + z2) / 2), B = GROUND_ROW_SUB;
+    // Bekleme koltukları (girişin iki yanında sıralar)
+    for (let r = 0; r < 3; r++) for (const sg of [-1, 1]) {
+      this.furn(B, x1 + 7 + r * 3, zc + sg * 9, x1 + 7 + r * 3, zc + sg * 15, 2, PALETTE.BRICK);
+      this.furn(B, x1 + 8 + r * 3, zc + sg * 9, x1 + 8 + r * 3, zc + sg * 15, 4, PALETTE.BRICK);
+    }
+    // Eczane tezgâhı ve ilaç rafları
+    this.furn(B, x2 - 12, zc - 6, x2 - 12, zc + 6, 4, PALETTE.WOOD);
+    for (let z = zc - 5; z <= zc + 5; z += 2) this.furn(B, x2 - 4, z, x2 - 4, z, 8, PALETTE.GLASS);
+    // Ameliyathane (kuzeydoğu köşe): ameliyat masası, lamba, aletler
+    const ox = x2 - 10, oz = z1 + 6;
+    this.furn(B, ox, oz, ox + 2, oz + 4, 3, PALETTE.WHITE);
+    this.furn(B, ox + 1, oz + 1, ox + 1, oz + 2, 1, PALETTE.GLASS, 14);
+    this.furn(B, ox + 1, oz + 2, ox + 1, oz + 2, 14, PALETTE.IRON);
+    this.furn(B, ox + 4, oz, ox + 4, oz + 2, 4, PALETTE.IRON);
+    // Hasta odalarına perde ve serum askısı
+    for (let z = z1 + 5; z < z2 - 3; z += 8) {
+      this.furn(B, x1 + 17, z + 1, x1 + 17, z + 5, 7, PALETTE.GLASS);
+      this.furn(B, x1 + 13, z + 2, x1 + 13, z + 2, 9, PALETTE.IRON);
+    }
+    // Ambulans: giriş sundurmasının altında (beyaz gövde, kırmızı şerit ve artı)
+    const ax = x1 - 3, az = zc + 8;
+    w.raw(Math.round(K * ax) - 3, B, Math.round(K * az) - 5, Math.round(K * ax) + 3, B + 5, Math.round(K * az) + 5, PALETTE.WHITE);
+    w.rawReplace(Math.round(K * ax) - 3, B + 2, Math.round(K * az) - 5, Math.round(K * ax) + 3, B + 2, Math.round(K * az) + 5, PALETTE.BRICK);
+    w.raw(Math.round(K * ax) - 2, B + 6, Math.round(K * az) - 2, Math.round(K * ax) + 2, B + 6, Math.round(K * az) + 2, PALETTE.GLASS);
+  }
+
+  // ── İTFAİYE İÇİ: soyunma dolapları, ranza yatakları, mutfak masası ──
+  furnishFire(x1, y1, z1, x2, y2, z2) {
+    const B = GROUND_ROW_SUB;
+    for (let x = x1 + 3; x < x2 - 8; x += 2) this.furn(B, x, z2 - 1, x, z2 - 1, 8, PALETTE.IRON);     // dolaplar
+    for (let k = 0; k < 3; k++) { const bx = x1 + 3 + k * 6; this.furn(B, bx, z2 - 8, bx + 2, z2 - 5, 2, PALETTE.WOOD); this.furn(B, bx, z2 - 8, bx + 2, z2 - 5, 1, PALETTE.BRICK, 5); this.furn(B, bx, z2 - 8, bx + 2, z2 - 5, 2, PALETTE.WOOD, 8); }
+    this.furn(B, x2 - 14, z1 + 6, x2 - 10, z1 + 8, 3, PALETTE.WOOD);                                   // yemek masası
   }
 
   // Her 6 satırda (4.5 m) bir kat döşemesi
