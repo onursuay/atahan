@@ -219,6 +219,13 @@ export class DoorSystem {
     if (d.kind === 'hinged') sound.playWoodHit(); else sound.playBlockHit();
   }
 
+  // Nişangâhın hedeflediği, tutulabilir (menteşeli) kapı; yoksa null. Nişangâh bununla ele dönüşür.
+  aim(camera) {
+    const dir = new THREE.Vector3(); camera.getWorldDirection(dir);
+    const hit = this.rayHit(camera.position, dir, REACH);
+    return hit && hit.door.kind === 'hinged' ? hit.door : null;
+  }
+
   // ── Sağ tıkla sürükleme ──
   // Kameranın baktığı menteşeli kapıyı (menzil içinde) tutar. Bulunursa true.
   beginDrag(camera) {

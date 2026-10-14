@@ -56,6 +56,12 @@
       box-shadow: 0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000;
     }
 
+    /* Kapıya bakınca nişangâh küçük bir ele döner; kapıyı tutarken yumruk olur */
+    #crosshair.hand::before, #crosshair.hand::after, #crosshair.grab::before, #crosshair.grab::after { display: none; }
+    #crosshair.hand, #crosshair.grab { width: 26px; height: 26px; background-size: contain; background-repeat: no-repeat; background-position: center; filter: drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+    #crosshair.hand { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><g fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'><path d='M8 11V4.5a1.3 1.3 0 0 1 2.6 0V10h.4V3.5a1.3 1.3 0 0 1 2.6 0V10h.4V4.5a1.3 1.3 0 0 1 2.6 0V11h.4V7.5a1.3 1.3 0 0 1 2.6 0V15c0 4-2.5 7-6.500 7h-1C9.500 22 8 20.500 6.500 18L3 13a1.400 1.400 0 0 1 2.200-1.700L8 14z'/></g></svg>"); }
+    #crosshair.grab { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><g fill='white' stroke='black' stroke-width='1.2' stroke-linejoin='round'><path d='M6 11a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1h1.200a1.800 1.800 0 0 1 1.800 1.800V15c0 4-2.500 7-6.500 7h-3.500C7.500 22 5.500 19.500 5.500 16.500z'/><path d='M8 9V7.500a1.400 1.400 0 0 1 2.800 0V9M11 9V6.800a1.400 1.400 0 0 1 2.800 0V9M14 9V7.500a1.400 1.400 0 0 1 2.600 0V9' fill='none'/></g></svg>"); }
+
     #crosshair::before {
       width: 18px;
       height: 3px;

@@ -339,6 +339,7 @@ function updateGame(dt) {
   for (const n of npcs.npcs) doorActors.push({ x: n.x, y: n.y, z: n.z });
   for (const c of cars.cars) if (c.state === 'drive') doorActors.push({ x: c.pos.x, y: c.pos.y, z: c.pos.z });
   voxelWorld.doors.update(dt, doorActors);
+  updateCrosshair();
   updateFountains(dt);
   updateVitals(dt);
   updateWaves(dt);
@@ -593,27 +594,33 @@ function toggleScope() {
   document.getElementById('scope').classList.toggle('on', scopeOn);
 }
 
-// Sağ tık: tek bir çıplak el (silahlar gizlenir, ateş edilmez, hasar verilmez). Kapıya bakarken basılı tutup SÜRÜKLEYİNCE kapı açılır;
-// tek tıklama bir şey yapmaz.
+// Sağ tık: kapıya bakarken basılı tutup SÜRÜKLEYİNCE kapı açılır (tek tıklama bir şey yapmaz). Nişangâh kapıya bakınca küçük bir
+// ele döner; kapıyı tutarken yumruk olur. Kapı tutulurken ateş edilmez.
 let rightHeld = false;
-function grabHand() {
+const crosshairEl = document.getElementById('crosshair');
+function setCrosshair(mode) {
+  crosshairEl.classList.toggle('hand', mode === 'hand');
+  crosshairEl.classList.toggle('grab', mode === 'grab');
+}
+function grabDoor() {
   if (inCar || rightHeld) return;
   if (document.getElementById('weapon-selector').classList.contains('menu-open')) return;
-  rightHeld = true;
-  if (scopeOn) toggleScope();
-  handWeapons.setHandMode(true);
-  if (voxelWorld.doors.beginDrag(camera)) handWeapons.setHandGrip(true);
+  if (voxelWorld.doors.beginDrag(camera)) { rightHeld = true; setCrosshair('grab'); }
 }
 function releaseHand() {
   if (!rightHeld) return;
   rightHeld = false;
   voxelWorld.doors.endDrag();
-  handWeapons.setHandGrip(false);
-  handWeapons.setHandMode(false);
+  setCrosshair(null);
+}
+// Her karede: kapıya bakıyor muyuz?
+function updateCrosshair() {
+  if (rightHeld) return;
+  setCrosshair(!inCar && voxelWorld.doors.aim(camera) ? 'hand' : null);
 }
 
 function fireWeapon() {
-  if (inCar || rightHeld) return;   // el modunda ateş yok
+  if (inCar || rightHeld) return;   // kapı tutulurken ateş yok
   sound.init();
   const cur = weaponSystem.currentWeapon;
 
@@ -776,14 +783,13 @@ function setupEventListeners() {
     if (e.button === 0) {
       fireWeapon();
     }
-    if (e.button === 2) grabHand();
+    if (e.button === 2) grabDoor();
   });
 
   window.addEventListener('mousemove', (e) => {
     // Kapı tutulurken fare bakışı değil kapıyı sürükler
     if (voxelWorld.doors.drag) {
       voxelWorld.doors.dragMove(e.movementX, e.movementY, camera);
-      handWeapons.handDrag(e.movementX, e.movementY);
       return;
     }
     const sensitivity = scopeOn ? 0.0011 : 0.0035;

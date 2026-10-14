@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import { PALETTE } from './teardown.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -10,7 +11,8 @@ import { PALETTE } from './teardown.js';
 const K = 3;          // 1 eski birim = 3 küçük küp (0.75 m)
 const UNIT_M = 0.75;  // 1 eski birimin metre karşılığı
 const WALL_T = 1;     // duvar/döşeme kalınlığı (küp)
-const MAX_FLOORS = 2;  // iç döşemesi yapılan en üst kat
+const MAX_FLOORS = 2;
+const MALL_FLOOR = 8;  // AVM'de kat yüksekliği (satır): 6 m; diğer binalarda 6 satır = 4.5 m  // iç döşemesi yapılan en üst kat
 const GROUND_ROW_SUB = 2; // y=0.5 m: zemin üstü, 1. satırın alt sınırı (küp indeksi)
 
 const GROUND_MATS = new Set([PALETTE.CONCRETE, PALETTE.SAND, PALETTE.ASPHALT, PALETTE.WOOD, PALETTE.GRASS]);
@@ -104,19 +106,36 @@ class ScaledBuilder {
   // Zeminden başlayan, tek eksende ince (duvar düzleminde), en az 3 satır yüksekliğindeki her açıklık GERÇEK kapı olur:
   // geniş (≥6 birim = 4.5 m) açıklıklar sürgülü otomatik kapı (AVM, hastane, itfaiye garajı), diğerleri menteşeli kapı.
   _doorway(minX, minY, minZ, maxX, maxY, maxZ) {
-    const doors = this.world.doors;
+    const w = this.world, doors = w.doors;
     if (!doors || minY !== 1 || maxY - minY < 3) return;
-    const x0 = (K * minX - 1) * 0.25, x1 = (K * maxX + 2) * 0.25, z0 = (K * minZ - 1) * 0.25, z1 = (K * maxZ + 2) * 0.25;
-    const y = (GROUND_ROW_SUB + K * (minY - 1)) * 0.25, height = (maxY - minY + 1) * UNIT_M;
-    let width, spec;
-    if (minZ === maxZ && maxX > minX) { width = x1 - x0; spec = { hx: x0, hz: (z0 + z1) / 2, sx: x0, sz: (z0 + z1) / 2, ax: 1, az: 0 }; }       // duvar x boyunca
-    else if (minX === maxX && maxZ > minZ) { width = z1 - z0; spec = { hx: (x0 + x1) / 2, hz: z0, sx: (x0 + x1) / 2, sz: z0, ax: 0, az: 1 }; }  // duvar z boyunca
-    else return;
-    if (width < 1.2) return;
-    // Voxel ızgarası 0.5 m olduğundan açıklık hesaplanandan biraz dar çıkabilir: kapı kenarlardan 0.15 m içeri alınır
-    const inset = 0.15, ox = spec.ax * inset, oz = spec.az * inset;
-    if (maxX - minX >= 6 || maxZ - minZ >= 6) doors.addSliding({ ...spec, sx: spec.sx + ox, sz: spec.sz + oz, width: width - 2 * inset, height: height - 0.1, y: y + 0.02 });
-    else doors.addHinged({ ...spec, hx: spec.hx + ox, hz: spec.hz + oz, width: width - 2 * inset, height: height - 0.1, y: y + 0.02 });
+    let alongX;
+    if (minZ === maxZ && maxX > minX) alongX = true; else if (minX === maxX && maxZ > minZ) alongX = false; else return;
+    // Açıklığın voxel aralığı (removeBox ile aynı dönüşüm: x/z yuvarlama, y kat)
+    const qh = (a) => Math.floor((a + 1) / 2), qv = (a) => Math.floor(a / 2);
+    const X0 = qh(this._x0(minX)), X1 = qh(this._x1(maxX)), Z0 = qh(this._z0(minZ)), Z1 = qh(this._z1(maxZ));
+    const Y0 = qv(this._y0(minY)), Y1 = qv(this._y1(maxY));
+    const A0 = alongX ? X0 : Z0, A1 = alongX ? X1 : Z1, T0 = alongX ? Z0 : X0, T1 = alongX ? Z1 : X1;   // A: açıklık boyunca, T: duvar kalınlığı
+    const cnt = A1 - A0 + 1, hv = Y1 - Y0 + 1;
+    if (cnt < 2 || hv < 3) return;
+    // Büyük açıklıklar (AVM, hastane, garaj) iki kanatlı sürgülü otomatik kapı: 4 m x 3 m. Diğerleri normal menteşeli kapı: 1-1.5 m x 2.5 m.
+    const big = maxX - minX >= 6 || maxZ - minZ >= 6 || maxY - minY >= 6;
+    const dn = big ? Math.min(cnt, 8) : Math.min(cnt, cnt % 2 === 0 ? 2 : 3);
+    const dh = Math.min(hv, big ? 6 : 5);
+    const S0 = A0 + Math.floor((cnt - dn) / 2);
+    // Açıklığın kapıdan artan kısmı komşu duvarın malzemesiyle doldurulur (kapı bir duvar deliğine değil, duvara oturur)
+    const key = (a, y, t) => alongX ? `${a},${y},${t}` : `${t},${y},${a}`;
+    const probe = (a) => { for (let t = T0; t <= T1; t++) { const v = w.voxels.get(key(a, Y0 + 1, t)); if (v) return v.type; } return null; };
+    const type = probe(A0 - 1) || probe(A1 + 1) || PALETTE.CONCRETE;
+    for (let a = A0; a <= A1; a++) for (let y = Y0; y <= Y1; y++) {
+      if (a >= S0 && a < S0 + dn && y < Y0 + dh) continue;
+      for (let t = T0; t <= T1; t++) { if (alongX) w.setVoxel(a, y, t, type); else w.setVoxel(t, y, a, type); }
+    }
+    // Gerçek kapı nesnesi (metre): voxel i'nin merkezi i*0.5; y satırı [iy*0.5, (iy+1)*0.5]
+    const aStart = S0 * 0.5 - 0.25, tMid = ((T0 + T1) / 2) * 0.5, inset = 0.04;
+    const width = dn * 0.5 - 2 * inset, height = dh * 0.5 - 0.05, y = Y0 * 0.5;
+    const spec = alongX ? { x: aStart + inset, z: tMid, ax: 1, az: 0 } : { x: tMid, z: aStart + inset, ax: 0, az: 1 };
+    if (big) doors.addSliding({ sx: spec.x, sz: spec.z, ax: spec.ax, az: spec.az, width, height, y });
+    else doors.addHinged({ hx: spec.x, hz: spec.z, ax: spec.ax, az: spec.az, width, height, y });
   }
 
   // Doğrudan küçük küp koordinatlarıyla
@@ -236,7 +255,7 @@ export class LevelManager {
     // 4. DOĞU ADA: ŞEHİR BLOKLARI (köprüden sonra) — hastane, itfaiye, polis, okul, AVM, apartmanlar
     // ==========================================
     this.buildHospital(144, 1, 50, 176, 14, 118);                                   // çok büyük beyaz hastane (kırmızı artılı)
-    this.buildMall(143, 1, -127, 180, 25, -50);                                     // devasa AVM (38x78, 4 kat)
+    this.buildMall(143, 1, -127, 180, 34, -50);                                     // devasa AVM (38x78, 4 kat, kat yüksekliği 6 m)
     this.buildFireStation(80, 1, 52, 108, 14, 82);                                  // itfaiye istasyonu
     this.buildTower(82, 1, 96, 106, 12, 120, { ...CC, side: 'z1', sign: true });     // polis merkezi
     this.buildTower(80, 1, 8, 108, 12, 38, { ...BR, side: 'z1' });                   // okul
@@ -331,20 +350,32 @@ export class LevelManager {
       if (x >= T2) { const t = (x - T2) / (X1 - T2); return TOP + (endY - TOP) * t - 24 * t * (1 - t); }
       const t = (x - T1) / (T2 - T1); return TOP - 4 * (TOP - endY - 8) * t * (1 - t);
     };
-    for (let x = X0; x <= X1; x++) {
-      const y = Math.round(yAt(x));
-      for (const sz of [-ZL, ZL]) w.raw(x, y, sz - 1, x, y + 1, sz, PALETTE.BRICK);
+    this._bridgeCables(X0, X1, ZL, ZD, DECK_TOP, T1, T2, yAt);   // kablo ve askılar: ince tüpler (voxel olsalardı en az 0.5 m kalın olurdu)
+    for (let x = X0 + 24; x < X1 - 20; x += 30) { this.lampSub(x, ZD - 2, DECK_TOP + 1, 0, -1); this.lampSub(x + 15, -ZD + 2, DECK_TOP + 1, 0, 1); }
+  }
+
+  // Köprünün ana kabloları (iki yanda sarkan eğri tüp) ve dikey askıları (ince silindir + tabliyeye yatay konsol). Yalnız görsel.
+  _bridgeCables(X0, X1, ZL, ZD, DECK_TOP, T1, T2, yAt) {
+    const F = 0.25;   // 1 küçük küp = 0.25 m
+    const cableMat = new THREE.MeshLambertMaterial({ color: 0xb91c1c }), hangMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+    const g = new THREE.Group();
+    for (const sz of [-ZL, ZL]) {
+      const pts = [];
+      for (let x = X0; x <= X1; x += 2) pts.push(new THREE.Vector3(x * F, (Math.round(yAt(x)) + 1) * F, sz * F));
+      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.13, 6, false), cableMat));
     }
-    // Dikey askılar ve tabliyeye bağlayan konsollar
     for (let x = X0 + 10; x < X1 - 9; x += 10) {
       if (Math.abs(x - T1) < 4 || Math.abs(x - T2) < 4) continue;
-      const y = Math.round(yAt(x));
+      const yTop = (Math.round(yAt(x)) + 1) * F, yBot = (DECK_TOP + 1) * F, h = yTop - yBot;
       for (const sz of [-ZL, ZL]) {
-        w.raw(x, DECK_TOP + 1, sz, x, y - 1, sz, PALETTE.IRON);
-        w.raw(x, DECK_TOP + 1, Math.min(sz, Math.sign(sz) * ZD), x, DECK_TOP + 1, Math.max(sz, Math.sign(sz) * ZD), PALETTE.IRON);
+        const hang = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, h, 5), hangMat);
+        hang.position.set(x * F, yBot + h / 2, sz * F); g.add(hang);
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, (ZL - ZD) * F), hangMat);   // askıdan tabliye kenarına konsol
+        arm.position.set(x * F, yBot, Math.sign(sz) * (ZD + (ZL - ZD) / 2) * F); g.add(arm);
       }
     }
-    for (let x = X0 + 24; x < X1 - 20; x += 30) { this.lampSub(x, ZD - 2, DECK_TOP + 1, 0, -1); this.lampSub(x + 15, -ZD + 2, DECK_TOP + 1, 0, 1); }
+    this.world.scene.add(g);
+    this.world.decor.push(g);
   }
 
   // ── Sokak donatımı ──
@@ -546,20 +577,20 @@ export class LevelManager {
       w.fillBox(x1 + 4, y1, z, x1 + 6, y1 + 1, z + 3, PALETTE.WOOD); // tezgâhlar
     }
     // Kat: merkezde atrium boşluğu kalacak şekilde çevre balkon
-    const fy = y1 + 6;
+    const fy = y1 + MALL_FLOOR;
     w.fillBox(x1 + 2, fy, z1 + 2, x2 - 2, fy, zc - 9, PALETTE.CONCRETE);
     w.fillBox(x1 + 2, fy, zc + 9, x2 - 2, fy, z2 - 2, PALETTE.CONCRETE);
     w.fillBox(x1 + 2, fy + 1, zc - 9, x2 - 2, fy + 1, zc - 9, PALETTE.GLASS); // balkon korkulukları
     w.fillBox(x1 + 2, fy + 1, zc + 9, x2 - 2, fy + 1, zc + 9, PALETTE.GLASS);
-    for (let k = 2; y1 + 6 * k < y2 - 2; k++) {   // AVM büyüdü: üst katlar da aynı balkon düzeniyle (atrium boşluğu aynı)
-      const fk = y1 + 6 * k;
+    for (let k = 2; y1 + MALL_FLOOR * k < y2 - 2; k++) {   // AVM büyüdü: üst katlar da aynı balkon düzeniyle (atrium boşluğu aynı)
+      const fk = y1 + MALL_FLOOR * k;
       w.fillBox(x1 + 2, fk, z1 + 2, x2 - 2, fk, zc - 9, PALETTE.CONCRETE);
       w.fillBox(x1 + 2, fk, zc + 9, x2 - 2, fk, z2 - 2, PALETTE.CONCRETE);
       w.fillBox(x1 + 2, fk + 1, zc - 9, x2 - 2, fk + 1, zc - 9, PALETTE.GLASS);
       w.fillBox(x1 + 2, fk + 1, zc + 9, x2 - 2, fk + 1, zc + 9, PALETTE.GLASS);
     }
     this.addMallLights(x1, y1, z1, x2, y2, z2);
-    this.addStairs(x1, y1, z1, x2, y2, z2);
+    this.addStairs(x1, y1, z1, x2, y2, z2, MALL_FLOOR);
     // Çatıda geniş cam ışıklık
     w.fillBox(x1 + 8, y2, zc - 6, x2 - 8, y2, zc + 6, PALETTE.GLASS);
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
@@ -650,21 +681,22 @@ export class LevelManager {
 
   // Kat döşemeleri arasında iç merdiven: zeminden 1. kata, oradan 2. kata (her kat 4.75 m = 19 basamak).
   // Merdiven boşluğu duvar kenarında durur; döşemede üstündeki baş boşluğu açılır.
-  addStairs(x1, y1, z1, x2, y2, z2) {
+  addStairs(x1, y1, z1, x2, y2, z2, floorRows = 6) {
     const w = this.b;
+    const fr = K * floorRows, sl = fr + 1;      // kat yüksekliği (küçük küp) ve kat başına basamak sayısı
     let n = 0;
-    while (n < MAX_FLOORS && y1 + 6 * (n + 1) < y2 - 2) n++;
+    while (n < MAX_FLOORS && y1 + floorRows * (n + 1) < y2 - 2) n++;
     const depthFine = K * (z2 - z1) + 3;
-    n = Math.min(n, Math.floor((depthFine - 14) / 19));
+    n = Math.min(n, Math.floor((depthFine - 14) / sl));
     if (n < 1) return;
     const xw0 = K * (x2 - 4) - 1, xw1 = K * (x2 - 2) + 1;
     let zs = K * z1 - 1 + 9;   // duvardan 2.25 m içeride başlar: önünde durup basamağa çıkacak boşluk kalır
     for (let f = 0; f < n; f++) {
-      const slab = GROUND_ROW_SUB + 18 * (f + 1);                 // üst katın döşeme satırı
-      const start = f === 0 ? GROUND_ROW_SUB : GROUND_ROW_SUB + 18 * f + 1; // alt katın yürüme satırı
-      w.rawClear(xw0, slab, zs, xw1, slab, zs + 19);              // üstteki baş boşluğu
-      for (let j = 0; j < 19; j++) w.raw(xw0, start, zs + j, xw1, start + j, zs + j, PALETTE.WOOD);
-      zs += 19;
+      const slab = GROUND_ROW_SUB + fr * (f + 1);                 // üst katın döşeme satırı
+      const start = f === 0 ? GROUND_ROW_SUB : GROUND_ROW_SUB + fr * f + 1; // alt katın yürüme satırı
+      w.rawClear(xw0, slab, zs, xw1, slab, zs + sl);              // üstteki baş boşluğu
+      for (let j = 0; j < sl; j++) w.raw(xw0, start, zs + j, xw1, start + j, zs + j, PALETTE.WOOD);
+      zs += sl;
     }
   }
 
@@ -762,8 +794,8 @@ export class LevelManager {
   addMallLights(x1, y1, z1, x2, y2, z2) {
     const w = this.b, zc = Math.round((z1 + z2) / 2);
     const put = (x, z, yc) => { const sx = Math.round(K * x), sz = Math.round(K * z); w.raw(sx - 1, yc, sz - 1, sx + 1, yc, sz + 1, PALETTE.LAMP); };
-    for (let k = 1; y1 + 6 * k < y2 - 2; k++) {
-      const r = y1 + 6 * k;
+    for (let k = 1; y1 + MALL_FLOOR * k < y2 - 2; k++) {
+      const r = y1 + MALL_FLOOR * k;
       const yc = w._y0(r) - 1;
       for (let x = x1 + 4; x <= x2 - 4; x += 6) for (let z = z1 + 4; z <= z2 - 4; z += 6) if (Math.abs(z - zc) >= 10) put(x, z, yc);
     }

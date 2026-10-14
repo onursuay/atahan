@@ -91,6 +91,7 @@ export class VoxelWorld {
     this.rimMeshes = {};     // çukur kenarı küpleri için (zemin malzemesi başına dinamik)
     this.terrain = new Terrain(scene, physicsWorld);
     this.doors = new DoorSystem(scene, this);   // bina kapıları (menteşeli) ve AVM otomatik kapıları
+    this.decor = [];                            // voxel olmayan süs nesneleri (ör. köprü kabloları); seviye silinince kaldırılır
     this.collapse = new CollapseSystem(this);
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
@@ -884,6 +885,8 @@ export class VoxelWorld {
     this.terrain.clear();
     this.collapse.clear();
     this.doors.clear();
+    this.decor.forEach(o => { this.scene.remove(o); o.traverse(m => { if (m.geometry) m.geometry.dispose(); }); });
+    this.decor = [];
 
     // Uçuşan döküntüleri sil
     this.dynamicDebris.forEach(d => {
