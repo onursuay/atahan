@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './config.js';
 import { TYPES, SPAWN_WEIGHTS, ZONE_NAMES, buildCar, glassMat, zoneOfLocal, randomLivery } from './carmodels.js';
-import { graphRoads, ringNodes } from './cityplan.js';
+import { graphRoads, ringNodes, ROUNDABOUTS } from './cityplan.js';
 const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yüz 0.5 m)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,13 +65,17 @@ export class CarManager {
       }
     });
     // Göbek: 8 köşeli tek yönlü halka (saat yönünün tersi); dört yol halkanın köşelerine açılır
-    const rn = ringNodes(), ringRoad = { id: this.roads.length, name: 'gobek', lanes: 1, off: 0, noMerge: false, ring: true, a: [0, 0], b: [0, 0] };
-    for (let k = 0; k < rn.length; k++) {
-      const A = node(rn[k].x, rn[k].z), B = node(rn[(k + 1) % rn.length].x, rn[(k + 1) % rn.length].z);
-      const len = Math.hypot(B.x - A.x, B.z - A.z);
-      const e = { from: A, to: B, len, d: [(B.x - A.x) / len, (B.z - A.z) / len], road: ringRoad };
-      A.out.push(e); this.edges.push(e);   // yalnız ileri yön: halka tek yönlüdür
-    }
+    ROUNDABOUTS.forEach((g, gi) => {
+      const rn = ringNodes(g), ringRoad = { id: this.roads.length + gi, name: 'gobek' + gi, lanes: 1, off: 0, noMerge: false, ring: true, a: [0, 0], b: [0, 0] };
+      for (let k = 0; k < rn.length; k++) {
+        const A = node(rn[k].x, rn[k].z), B = node(rn[(k + 1) % rn.length].x, rn[(k + 1) % rn.length].z);
+        const len = Math.hypot(B.x - A.x, B.z - A.z);
+        const e = { from: A, to: B, len, d: [(B.x - A.x) / len, (B.z - A.z) / len], road: ringRoad };
+        A.out.push(e); this.edges.push(e);   // yalnız ileri yön: halka tek yönlüdür
+      }
+    });
+    // Trafik ışıklı kavşaklar: düğüme sinyal bağlanır (traffic.js). Işıklı yere yaklaşan araç kırmızıda/sarıda durma çizgisinde bekler.
+    for (const sg of this.vw.signals || []) { const n = this.nodes.get(key(sg.x * U, sg.z * U)); if (n) n.signal = sg; }
     while (this.cars.length < CAR_COUNT) if (!this._spawn()) break;
     for (const p of this.vw.parkedCars || []) this._addParked(p);   // seviyenin sabit park etmiş arabaları (ör. villanın kırmızı spor arabası)
   }
@@ -366,7 +370,7 @@ export class CarManager {
       if (car.state === 'drive') {
         this._drive(car, dt);
         // Kilitlenme çözücü: kavşakta birbirini bekleyen araçlar 15 sn'den uzun kıpırdamazsa kaldırılır ve yeniden doğar
-        car.stuckT = car.speed < 0.3 && !this._personAhead(car) ? (car.stuckT || 0) + dt : 0;
+        car.stuckT = car.speed < 0.3 && !this._personAhead(car) && !car.atSignal ? (car.stuckT || 0) + dt : 0;
         if (car.stuckT > 15) { this.scene.remove(car.g); this.cars.splice(i, 1); this.respawn.push(1); continue; }
       }
       else if (car.state === 'parked') { car.life += dt; if (car.life > 150 && !car.permanent) { this.scene.remove(car.g); this.cars.splice(i, 1); this.respawn.push(3); continue; } }
@@ -471,6 +475,19 @@ export class CarManager {
       limit = 0; car.waitT = (car.waitT || 0) + dt;
       if (car.waitT > 3) { car.waitT = 0; car.ignoreT = 2; }
     } else car.waitT = 0;
+    // Trafik ışığı: kırmızıda (ve duramayacak kadar yakın değilse sarıda) durma çizgisinde (kavşağın 9.5 m önünde) bekler
+    car.atSignal = false;
+    const sig = car.edge.to.signal, tr = this.vw.traffic;
+    if (sig && tr && !car.turn && !car.edge.road.ring) {
+      const room = car.edge.len - car.s - 9.5;
+      if (room > -1.5 && room < 16) {
+        const st = tr.stateFor(sig, car.edge);
+        if (st !== 'green' && (st === 'red' || room > (car.speed * car.speed) / 10)) {
+          limit = Math.min(limit, room < 2.5 ? 0 : room * 1.4);
+          car.atSignal = true;
+        }
+      }
+    }
     const turning = !!car.turn;
     const cap = turning ? Math.min(limit, 8) : limit;
     car.speed += (cap - car.speed) * Math.min(1, dt * (cap < car.speed ? 3.5 : 1.4));

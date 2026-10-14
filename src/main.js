@@ -13,6 +13,7 @@ import { BombManager } from './bombs.js';
 import { PlaneManager } from './planes.js';
 import { CarManager } from './cars.js';
 import { DayNight } from './daynight.js';
+import { TrafficLights } from './traffic.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
@@ -308,6 +309,7 @@ function updateGame(dt) {
     const sd = dayNight ? dayNight.dir : new THREE.Vector3(0.45, 0.72, 0.34);   // gündüz güneş, gece ay yönü (gece-gündüz döngüsü)
     sunLight.position.set(sx + sd.x * 118, sd.y * 118, sz + sd.z * 118);
   }
+  if (voxelWorld.traffic) voxelWorld.traffic.update(dt);
   if (dayNight) {
     dayNight.update(dt, camera.position, inCar ? cars.driven : null);
     clockT -= dt;
@@ -476,6 +478,7 @@ function loadLevel(index) {
   character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
   npcs.reset();
+  voxelWorld.traffic = new TrafficLights(voxelWorld);   // trafik ışıkları (kavşaklarda döngü); arabalar buna uyar
   cars.build();
   // Gece-gündüz: 10 dk gündüz, 10 dk gece; her seviye yüklemesinde gündüzün başından başlar
   if (dayNight) dayNight.dispose();

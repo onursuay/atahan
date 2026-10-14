@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { PALETTE } from './teardown.js';
-import { ROADS, ROUNDABOUT, paintSegments, onRoadFast, roadRects } from './cityplan.js';
+import { ROADS, ROUNDABOUT, ROUNDABOUTS, paintSegments, onRoadFast, roadRects } from './cityplan.js';
 import { buildVilla, paintVillaRoad, villaHeight, villaRoadProfile } from './villa.js';
 import { Bridge } from './bridge.js';
+import { buildTraffic } from './traffic.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ÖLÇEK KATMANI
@@ -191,7 +192,7 @@ export class LevelManager {
 
     // Yollar: asfalt cityplan.js tanımından boyanır (trafik ağı da aynı tanımdan kurulur)
     for (const r of ROADS) for (const sg of paintSegments(r)) w.fillBox(sg.x0, 0, sg.z0, sg.x1, 0, sg.z1, PALETTE.ASPHALT);
-    this.buildRoundaboutGround();
+    ROUNDABOUTS.forEach(g => this.buildRoundaboutGround(g));
     paintVillaRoad(this.world.terrain, PALETTE.ASPHALT);        // tepeye çıkan kavisli yol + ön avlu
 
     // Otoyol orta bariyeri (kavşaklarda boşluk) ve çift kollu aydınlatma (otoyol z=±134 caddelerinde biter)
@@ -249,7 +250,8 @@ export class LevelManager {
 
     this.buildPark(-72, 72, -52, 128);
     this.buildNewDistricts();
-    this.buildRoundaboutCenter();
+    ROUNDABOUTS.forEach(g => this.buildRoundaboutCenter(g));
+    buildTraffic(this);                                          // trafik ışıkları ve yol tabelaları: yolun kenarında
     buildVilla(this.world);                                      // doğudaki tepede çok zengin bir adamın villası
     this.buildSite(-81, -124, -53, -74);
 
@@ -360,8 +362,8 @@ export class LevelManager {
   }
 
   // ── GÖBEK (yuvarlak kavşak): halka asfaltı + orta ada zemini ──
-  buildRoundaboutGround() {
-    const g = ROUNDABOUT, w = this.b;
+  buildRoundaboutGround(g) {
+    const w = this.b;
     const rows = (r, mat) => { for (let dz = -r; dz <= r; dz++) { const half = Math.floor(Math.sqrt(r * r - dz * dz)); w.fillBox(g.cx - half, 0, g.cz + dz, g.cx + half, 0, g.cz + dz, mat); } };
     rows(g.rOuter, PALETTE.ASPHALT);                 // halka yolu (dış yarıçap 22)
     rows(g.rIsland + 1, PALETTE.CONCRETE);           // ada bordürü
@@ -369,8 +371,8 @@ export class LevelManager {
   }
 
   // Göbeğin ortası: çeşme, anıt, ağaçlar; halkanın dışında lambalar
-  buildRoundaboutCenter() {
-    const g = ROUNDABOUT, w = this.b;
+  buildRoundaboutCenter(g) {
+    const w = this.b;
     this.fountain(g.cx, g.cz);
     for (let i = 0; i < 8; i++) {
       const a = i * Math.PI / 4 + Math.PI / 8;
@@ -399,8 +401,7 @@ export class LevelManager {
     const cols = [[-161, -137], [-119, -97], [-79, -57], [-41, -33], [-21, -15]];
     const lots = [[168, 191], [209, 231], [235, 257]];                 // z bantları (kuzey için işaret çevrilir)
     const existing = [[142, 164, [0, 1, 3, 4]]];                       // z 142..164'te A, B, D, E sütunları zaten dolu; yalnız C boş
-    const g = ROUNDABOUT, clear = g.rOuter + 8;
-    const near = (x1, x2, z1, z2) => { const dx = Math.max(x1 - g.cx, 0, g.cx - x2), dz = Math.max(Math.min(z1, z2) - g.cz, 0, g.cz - Math.max(z1, z2)); return Math.hypot(dx, dz) < clear; };
+    const near = (x1, x2, z1, z2) => ROUNDABOUTS.some(g => { const dx = Math.max(x1 - g.cx, 0, g.cx - x2), dz = Math.max(Math.min(z1, z2) - g.cz, 0, g.cz - Math.max(z1, z2)); return Math.hypot(dx, dz) < g.rOuter + 8; });
     const place = (ci, za, zb, sign) => {
       const [x1, x2] = cols[ci];
       const zlo = sign > 0 ? za : -zb, zhi = sign > 0 ? zb : -za;
