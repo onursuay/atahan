@@ -289,7 +289,7 @@ export class LevelManager {
     this.buildLuxuryMansion(48 + ISL, 1, -14, 64 + ISL, 18, 14);
     this.buildLuxuryBoutique(48 + ISL, 1, 16, 62 + ISL, 14, 28);
     this.buildTower(48 + ISL, 1, -30, 57 + ISL, 14, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' });
-    this.buildTower(59 + ISL, 1, -30, 66 + ISL, 26, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' });
+    this.buildTower(62 + ISL, 1, -30, 69 + ISL, 26, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' });   // komşu kuleyle 5 birim boşluk (kapıdan girilsin)
     for (let z = -60; z <= 60; z += 20) { this.tree(239, z, 7); this.lamp(207, z + 4, 0, 0); }
   }
 
@@ -426,8 +426,14 @@ export class LevelManager {
   }
 
   // ── Sokak donatımı ──
+  // Kapı önü (2.5 m): lamba, çöp kutusu, ağaç konmaz; kapıdan girilebilsin
+  _nearDoor(x, z, r = 2.5) {
+    const mx = x * 0.75, mz = z * 0.75;
+    return this.world.doors.doors.some(d => { const cx = (d.kind === 'hinged' ? d.hx : d.sx) + d.ax * d.width / 2, cz = (d.kind === 'hinged' ? d.hz : d.sz) + d.az * d.width / 2; return Math.hypot(cx - mx, cz - mz) < r + d.width / 2; });
+  }
+
   lamp(x, z, dx = 0, dz = 0, both = false, onRoadOk = false) {
-    if (this.b.blocked(x, z, 0) || (!onRoadOk && onRoadFast(x, z, 0))) return;   // lamba bina içine ya da yolun üstüne konmaz
+    if (this.b.blocked(x, z, 0) || (!onRoadOk && onRoadFast(x, z, 0)) || this._nearDoor(x, z)) return;   // lamba bina içine ya da yolun üstüne konmaz
     this.lampSub(Math.round(K * x), Math.round(K * z), GROUND_ROW_SUB, dx, dz, both);
   }
 
@@ -453,14 +459,14 @@ export class LevelManager {
   }
 
   trashBin(x, z) {
-    if (this.b.blocked(x, z, 0) || onRoadFast(x, z, 0)) return;   // çöp kutusu yolun üstüne konmaz
+    if (this.b.blocked(x, z, 0) || onRoadFast(x, z, 0) || this._nearDoor(x, z)) return;   // çöp kutusu yolun üstüne konmaz
     const w = this.b, sx = Math.round(K * x), sz = Math.round(K * z);
     w.raw(sx, GROUND_ROW_SUB, sz, sx + 1, GROUND_ROW_SUB + 3, sz + 1, PALETTE.IRON);
     w.raw(sx, GROUND_ROW_SUB + 4, sz, sx + 1, GROUND_ROW_SUB + 4, sz + 1, PALETTE.WOOD);
   }
 
   tree(x, z, h) {
-    if (this.b.blocked(x, z, 1) || onRoadFast(x, z, 2)) return;   // ağaç taçı yola taşmasın (2 birim pay)
+    if (this.b.blocked(x, z, 1) || onRoadFast(x, z, 2) || this._nearDoor(x, z, 3)) return;   // ağaç taçı yola taşmasın (2 birim pay)
     const w = this.b;
     w.fillBox(x, 1, z, x, h - 2, z, PALETTE.WOOD);
     w.fillBox(x - 1, h - 3, z - 1, x + 1, h - 1, z + 1, PALETTE.GRASS);
@@ -757,10 +763,13 @@ export class LevelManager {
 
   furnish(x1, y1, z1, x2, y2, z2, kind) {
     const W = x2 - x1, D = z2 - z1;
-    if (!kind || W < 9 || D < 9) return;
+    if (W < 6 || D < 8) return;
+    // Tür verilmediyse yüksekliğe göre: alçak = dükkân, orta = müstakil ev, yüksek = ofis, çok yüksek = apartman
+    if (!kind) { const hRows = y2 - y1; kind = hRows >= 20 ? 'apt' : hRows >= 12 ? 'office' : hRows >= 8 ? 'house' : 'shop'; }
     const bases = [GROUND_ROW_SUB];
     if (y1 + 6 < y2 - 2) bases.push(GROUND_ROW_SUB + 19);           // 1. kat döşemesinin üstü
-    const xa = x1 + 3, xb = x2 - 6, za = z1 + 4, zb = z2 - 2;       // kullanılabilir alan (kapıdan ve merdivenden uzak)
+    if (y1 + 12 < y2 - 2) bases.push(GROUND_ROW_SUB + 37);          // 2. kat döşemesinin üstü
+    const xa = x1 + 2, xb = x2 - 5, za = z1 + 4, zb = z2 - 2;       // kullanılabilir alan (kapıdan ve merdivenden uzak)
     const F = (b, ...a) => this.furn(b, ...a);
     bases.forEach((b, fi) => {
       if (kind === 'office') {
@@ -782,48 +791,62 @@ export class LevelManager {
         F(b, xb - 2, zb - 8, xb, zb - 8, 14, PALETTE.IRON); F(b, xb - 1, zb - 6, xb - 1, zb - 4, 2, PALETTE.WOOD);
         return;
       }
-      // Mutfak: arka duvar boyunca tezgâh, ocak, buzdolabı; ortada yemek masası ve sandalyeler
-      if (xb - xa >= 10 && (kind !== 'hotel')) {
-        F(b, xa, zb - 1, xa + 6, zb, 4, PALETTE.WOOD);                     // tezgâh
-        F(b, xa, zb - 1, xa + 6, zb, 1, PALETTE.WHITE, 4);                 // tezgâh üstü
-        F(b, xa + 2, zb - 1, xa + 3, zb, 1, PALETTE.GLASS, 5);             // evye
-        F(b, xa + 7, zb - 1, xa + 8, zb, 4, PALETTE.IRON);                 // ocak
-        F(b, xa + 7, zb - 1, xa + 8, zb, 1, PALETTE.ROOF, 4);              // ocak gözleri
-        F(b, xa + 9, zb - 1, xa + 10, zb, 9, PALETTE.WHITE);               // buzdolabı
-        F(b, xa + 1, zb - 6, xa + 4, zb - 4, 3, PALETTE.WOOD);             // yemek masası
-        F(b, xa, zb - 5, xa, zb - 5, 2, PALETTE.ROOF); F(b, xa + 5, zb - 5, xa + 5, zb - 5, 2, PALETTE.ROOF); // sandalyeler
-      }
-      // Yatak odası: yatak, yastık, battaniye, dolap ve komodin
-      const bz = za + 1;
-      if (kind === 'hotel') {
-        for (let k = 0; k < 2; k++) {
-          const bx = xa + k * 6;
-          F(b, bx, bz, bx + 2, bz + 3, 2, PALETTE.WOOD);
-          F(b, bx, bz, bx + 2, bz, 1, PALETTE.WHITE, 2);
-          F(b, bx, bz + 1, bx + 2, bz + 3, 1, k ? PALETTE.GOLD : PALETTE.BRICK, 2);
-          F(b, bx + 3, bz, bx + 3, bz, 2, PALETTE.WOOD);
-        }
-        F(b, xa, zb - 1, xa + 3, zb, 8, PALETTE.ROOF);                     // dolap
-        F(b, xa + 5, zb, xa + 8, zb, 3, PALETTE.IRON); F(b, xa + 5, zb, xa + 8, zb, 1, PALETTE.GLASS, 3); // TV
+      const aw = xb - xa;                                                    // kullanılabilir genişlik (≥1)
+      const mn = (v) => Math.min(v, xb);                                     // eşyayı genişliğe sığdır
+      // DÜKKÂN: tezgâh + kasa, arka duvarda raflar, ortada vitrinler
+      if (kind === 'shop') {
+        F(b, xa, za + 3, mn(xa + 5), za + 3, 4, PALETTE.WOOD); F(b, xa, za + 3, mn(xa + 5), za + 3, 1, PALETTE.WHITE, 4);   // tezgâh
+        F(b, xa + 1, za + 3, xa + 1, za + 3, 2, PALETTE.IRON, 5);                                                          // kasa
+        for (let z = zb - 8; z < zb; z += 3) F(b, xa, z, xb, z, 8, PALETTE.IRON);                                          // raflar
+        for (let z = zb - 8; z < zb; z += 3) for (let x = xa; x <= xb; x += 2) F(b, x, z, x, z, 1, [PALETTE.GOLD, PALETTE.BRICK, PALETTE.ROOF][(x + z + 3000) % 3], 3 + ((x + z) % 3) * 2);
         return;
       }
-      F(b, xa, bz, xa + 2, bz + 3, 2, PALETTE.WOOD);                      // yatak
-      F(b, xa, bz, xa + 2, bz, 1, PALETTE.WHITE, 2);                       // yastık
-      F(b, xa, bz + 1, xa + 2, bz + 3, 1, PALETTE.BRICK, 2);               // battaniye
-      F(b, xa + 3, bz, xa + 3, bz, 2, PALETTE.WOOD);                       // komodin
-      F(b, xa + 5, bz, xa + 6, bz + 1, 8, PALETTE.ROOF);                   // gardırop
-      // Salon: koltuk takımı, sehpa, televizyon
-      const lz = Math.round((za + zb) / 2) - 1;
-      if (xb - xa >= 8) {
-        F(b, xa, lz, xa + 3, lz + 1, 2, PALETTE.BRICK);                    // kanepe
-        F(b, xa, lz + 1, xa + 3, lz + 1, 3, PALETTE.BRICK);                // sırtlık
-        F(b, xa + 1, lz - 3, xa + 2, lz - 2, 2, PALETTE.WOOD);             // sehpa
-        F(b, xa, lz - 7, xa + 3, lz - 7, 2, PALETTE.IRON);                 // TV sehpası
-        F(b, xa + 1, lz - 7, xa + 2, lz - 7, 2, PALETTE.GLASS, 2);         // ekran
+      // Mutfak (arka duvar): tezgâh + evye + ocak + buzdolabı; yer varsa yemek masası ve sandalyeler
+      const zk = zb - 1, kl = Math.min(aw, 10);
+      if (kind !== 'hotel' && kl >= 4) {
+        F(b, xa, zk, xa + Math.min(5, kl - 1), zb, 4, PALETTE.WOOD);                   // tezgâh
+        F(b, xa, zk, xa + Math.min(5, kl - 1), zb, 1, PALETTE.WHITE, 4);               // tezgâh üstü
+        F(b, xa + 1, zk, xa + 2, zb, 1, PALETTE.GLASS, 5);                              // evye
+        if (kl >= 7) { F(b, xa + 6, zk, xa + 7, zb, 4, PALETTE.IRON); F(b, xa + 6, zk, xa + 7, zb, 1, PALETTE.ROOF, 4); }   // ocak + gözler
+        if (kl >= 9) F(b, xa + 8, zk, xa + 9, zb, 9, PALETTE.WHITE);                    // buzdolabı
+        if (aw >= 4) {
+          F(b, xa + 1, zb - 6, mn(xa + 3), zb - 4, 3, PALETTE.WOOD);                    // yemek masası
+          F(b, xa, zb - 5, xa, zb - 5, 2, PALETTE.ROOF); F(b, mn(xa + 4), zb - 5, mn(xa + 4), zb - 5, 2, PALETTE.ROOF);   // sandalyeler
+        }
       }
-      // Banyo: küvet ve klozet
-      if (xb - xa >= 10 && fi === 0) {
-        F(b, xb - 4, za, xb, za + 1, 2, PALETTE.WHITE);
+      // Otel: resepsiyon (zemin) ya da oda: iki yatak, dolap, TV
+      const bz = za + 1;
+      if (kind === 'hotel') {
+        if (fi === 0) { F(b, xa, za + 2, mn(xa + 6), za + 3, 4, PALETTE.WOOD); F(b, xa, za + 2, mn(xa + 6), za + 3, 1, PALETTE.GOLD, 4); F(b, xa + 1, za + 2, xa + 1, za + 2, 2, PALETTE.IRON, 5); }
+        for (let k = 0; k < 2 && xa + k * 6 + 2 <= xb; k++) {
+          const bx = xa + k * 6;
+          F(b, bx, bz + 4, bx + 2, bz + 7, 2, PALETTE.WOOD);
+          F(b, bx, bz + 4, bx + 2, bz + 4, 1, PALETTE.WHITE, 2);
+          F(b, bx, bz + 5, bx + 2, bz + 7, 1, k ? PALETTE.GOLD : PALETTE.BRICK, 2);
+          F(b, bx + 3, bz + 4, bx + 3, bz + 4, 2, PALETTE.WOOD);
+        }
+        F(b, xa, zb - 1, mn(xa + 3), zb, 8, PALETTE.ROOF);                              // dolap
+        if (aw >= 7) { F(b, xa + 5, zb, mn(xa + 8), zb, 3, PALETTE.IRON); F(b, xa + 5, zb, mn(xa + 8), zb, 1, PALETTE.GLASS, 3); }   // TV
+        return;
+      }
+      // Yatak odası (ön): yatak, yastık, battaniye, komodin, gardırop
+      F(b, xa, bz, mn(xa + 2), bz + 3, 2, PALETTE.WOOD);                      // yatak
+      F(b, xa, bz, mn(xa + 2), bz, 1, PALETTE.WHITE, 2);                       // yastık
+      F(b, xa, bz + 1, mn(xa + 2), bz + 3, 1, PALETTE.BRICK, 2);               // battaniye
+      if (aw >= 4) F(b, xa + 3, bz, xa + 3, bz, 2, PALETTE.WOOD);              // komodin
+      if (aw >= 6) F(b, xa + 5, bz, mn(xa + 6), bz + 1, 8, PALETTE.ROOF);      // gardırop
+      // Salon (orta): kanepe, sehpa, televizyon + sehpası
+      const lz = Math.round((za + zb) / 2) - 1;
+      if (aw >= 3) {
+        F(b, xa, lz, mn(xa + 3), lz + 1, 2, PALETTE.BRICK);                    // kanepe
+        F(b, xa, lz + 1, mn(xa + 3), lz + 1, 3, PALETTE.BRICK);                // sırtlık
+        F(b, xa + 1, lz - 3, mn(xa + 2), lz - 2, 2, PALETTE.WOOD);             // sehpa
+        F(b, xa, lz - 7, mn(xa + 3), lz - 7, 2, PALETTE.IRON);                 // TV sehpası
+        F(b, xa + 1, lz - 7, mn(xa + 2), lz - 7, 2, PALETTE.GLASS, 2);         // ekran
+      }
+      // Banyo: küvet ve klozet (zemin kat)
+      if (aw >= 6 && fi === 0) {
+        F(b, xb - 3, za, xb, za + 1, 2, PALETTE.WHITE);
         F(b, xb - 1, za + 4, xb - 1, za + 4, 3, PALETTE.WHITE);
       }
     });
