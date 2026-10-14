@@ -4,19 +4,23 @@ import { VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y, BEDROCK_Y } from './terrain.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NPC İNSANLAR: karakterden küçük voxel insanlar. Rastgele dolaşırlar; deniz, çukur kenarı veya duvara
-// gelince sağa/sola dönüp yürümeye devam ederler. Roket/patlama, minigun, ışın kılıcı ve çekiçle
-// vurulabilirler (küplere dağılırlar, gore yok). Bir süre sonra başka yerde yenisi doğar.
+// NPC İNSANLAR: normal insanın İKİ KATI boyunda (3.1 m) voxel devler. Rastgele dolaşırlar; deniz, çukur kenarı veya duvara
+// gelince sağa/sola dönüp yürümeye devam ederler. Patlama, kılıç, çekiç gibi şeylerle komple küplere dağılırlar.
+// Mermiyle (kurşunla) vurulunca komple dağılmazlar: KAFAYA isabet kafayı parçalar (ten küpleri + kırmızı kan küpleri),
+// gövdeye isabet yaralar; ceset yere yığılır ve bir süre kalır. Bir süre sonra başka yerde yenisi doğar.
 // ─────────────────────────────────────────────────────────────────────────────
 const NPC_COUNT = 80;
-const HALF_W = 0.22;
-const HEIGHT = 1.55;
-const SPEED = 2.0;
+const SCALE = 2;                 // normal insanın iki katı
+const HALF_W = 0.22 * SCALE;
+const HEIGHT = 3.0;              // çarpışma yüksekliği (model 3.1 m): 3.5 m'lik iç mekan tavanlarına ve 3.0 m'deki tavan lambalarına sığar
+const SPEED = 2.4;
 const GRAVITY = 25;
 const STEP_UP_MAX = 0.5;
 const EPS = 1e-4;
 const RESPAWN_SECONDS = 6;
-const HIT_RADIUS = 0.45; // mermi/kılıç isabet yarıçapı (gövde etrafı)
+const HIT_RADIUS = 0.45 * SCALE; // mermi/kılıç isabet yarıçapı (gövde etrafı)
+const HEAD_FROM = 0.74;          // boyun bu oranından yukarısı kafa sayılır
+const BLOOD = [0xb91c1c, 0x991b1b, 0xdc2626, 0x7f1d1d];
 
 const SHIRTS = [0xdc2626, 0x2563eb, 0x16a34a, 0xf59e0b, 0x9333ea, 0x0891b2, 0xe11d48, 0x65a30d, 0xf97316, 0x475569];
 const PANTS = [0x1e293b, 0x334155, 0x44403c, 0x1d4ed8, 0x3f3f46];
@@ -44,11 +48,13 @@ export class NPCManager {
     this.npcs = [];
     this.respawnQueue = [];
     this.residentQueue = [];   // öldürülen sakinler (villanın zengin adamı): [{ t, spec }]
+    this.corpses = [];         // kurşunla vurulup yere yığılan cesetler: { group, t, dir }
     this.playerPos = new THREE.Vector3();
   }
 
   reset() {
     this.npcs.forEach(n => this.scene.remove(n.group));
+    this.corpses.forEach(c => this.scene.remove(c.group)); this.corpses = [];
     this.npcs = [];
     this.respawnQueue = [];
     this.residentQueue = [];
@@ -57,15 +63,15 @@ export class NPCManager {
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
-  _solid(x, feet, z) {
+  _solid(x, feet, z, h = HEIGHT) {
     const t = this.voxelWorld.terrain;
     if (t.solidAt(x, feet, z, HALF_W)) return true;
-    if (this.voxelWorld.doors && this.voxelWorld.doors.blocks(x, feet, z, HALF_W, HEIGHT)) return true;
+    if (this.voxelWorld.doors && this.voxelWorld.doors.blocks(x, feet, z, HALF_W, h)) return true;
 
     const S = VOXEL_SIZE, vox = this.voxelWorld.voxels;
     const ix0 = Math.floor((x - HALF_W + EPS) / S + 0.5), ix1 = Math.floor((x + HALF_W - EPS) / S + 0.5);
     const iz0 = Math.floor((z - HALF_W + EPS) / S + 0.5), iz1 = Math.floor((z + HALF_W - EPS) / S + 0.5);
-    const iy0 = Math.floor((feet + EPS) / S), iy1 = Math.floor((feet + HEIGHT - EPS) / S);
+    const iy0 = Math.floor((feet + EPS) / S), iy1 = Math.floor((feet + h - EPS) / S);
     for (let ix = ix0; ix <= ix1; ix++) {
       for (let iy = iy0; iy <= iy1; iy++) {
         for (let iz = iz0; iz <= iz1; iz++) {
@@ -108,16 +114,25 @@ export class NPCManager {
       g.add(shirtFront, tie, shades);
     }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    return { g, lArm, rArm, lLeg, rLeg, colors: [shirt, pants, skin, hair] };
+    return { g, lArm, rArm, lLeg, rLeg, head, hairM, colors: [shirt, pants, skin, hair] };
   }
 
   // Villanın tek sakini: sınırlı bölgede (villa + teras) dolaşır; vurulursa bir dakika sonra yeniden doğar
   _spawnResident(spec) {
     const body = this._makeBody(true);
-    body.g.position.set(spec.x, spec.y, spec.z);
+    body.g.scale.setScalar(SCALE);
+    // Eşyaların içinde doğmasın: istenen noktaya en yakın boş yeri ara (0.5 m adımlı halkalar, 4 m'ye kadar)
+    let sx = spec.x, sz = spec.z;
+    search: for (let r = 0; r <= 4; r += 0.5) for (let a = 0; a < (r === 0 ? 1 : 16); a++) {
+      const x = spec.x + Math.cos(a * Math.PI / 8) * r, z = spec.z + Math.sin(a * Math.PI / 8) * r;
+      if (this._solid(x, spec.y, z) || this._solid(x + 0.5, spec.y, z) || this._solid(x - 0.5, spec.y, z) || this._solid(x, spec.y, z + 0.5) || this._solid(x, spec.y, z - 0.5)) continue;
+      if (spec.bounds && (x < spec.bounds.minX || x > spec.bounds.maxX || z < spec.bounds.minZ || z > spec.bounds.maxZ)) continue;
+      sx = x; sz = z; break search;
+    }
+    body.g.position.set(sx, spec.y, sz);
     this.scene.add(body.g);
     this.npcs.push({
-      ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0,
+      ...body, group: body.g, x: sx, y: spec.y, z: sz, vy: 0,
       heading: Math.random() * Math.PI * 2, turnTimer: 2 + Math.random() * 3, pause: 1, cycle: 0, grounded: true,
       resident: spec, bounds: spec.bounds, value: 1000
     });
@@ -135,11 +150,12 @@ export class NPCManager {
       if (this.playerPos.distanceTo(new THREE.Vector3(x, gy0, z)) < 12) continue;
       if (this._solid(x, gy0, z)) continue;
       // Çevresi açık mı (bina içinde ya da duvarın dibinde doğmasın)
-      if (this._solid(x + 0.6, gy0, z) || this._solid(x - 0.6, gy0, z) ||
-          this._solid(x, gy0, z + 0.6) || this._solid(x, gy0, z - 0.6)) continue;
+      if (this._solid(x + 1.2, gy0, z) || this._solid(x - 1.2, gy0, z) ||
+          this._solid(x, gy0, z + 1.2) || this._solid(x, gy0, z - 1.2)) continue;
 
       const gy = t.topYAt(x, z);
       const body = this._makeBody();
+      body.g.scale.setScalar(SCALE);
       body.g.position.set(x, gy, z);
       this.scene.add(body.g);
       this.npcs.push({
@@ -165,6 +181,7 @@ export class NPCManager {
     }
 
     for (const n of this.npcs) this._step(n, dt);
+    this._updateCorpses(dt);
   }
 
   _step(n, dt) {
@@ -184,9 +201,9 @@ export class NPCManager {
     if (moving) {
       const dx = Math.sin(n.heading) * SPEED * dt, dz = Math.cos(n.heading) * SPEED * dt;
       // Önüne bak: deniz, kara dışı veya duvar varsa sağa ya da sola dön
-      const ax = n.x + Math.sin(n.heading) * 0.7, az = n.z + Math.cos(n.heading) * 0.7;
+      const ax = n.x + Math.sin(n.heading) * 0.7 * SCALE, az = n.z + Math.cos(n.heading) * 0.7 * SCALE;
       const outside = n.bounds && (ax < n.bounds.minX || ax > n.bounds.maxX || az < n.bounds.minZ || az > n.bounds.maxZ);
-      const blocked = outside || !this._walkableAhead(ax, az) || this._solid(ax, n.y + 0.5, az);
+      const blocked = outside || !this._walkableAhead(ax, az) || this._solid(ax, n.y + 0.5, az, HEIGHT - 0.6);   // 0.5 m'ye kadar basamak sayılmaz; tavana değen baş engel sayılmaz
       if (blocked) {
         const side = Math.random() < 0.5 ? 1 : -1;
         n.heading += side * (1.0 + Math.random() * 1.2);
@@ -268,14 +285,63 @@ export class NPCManager {
       // Gövde yüksekliğine göre uzun bir kapsül gibi: yatay mesafe + dikey tolerans
       const vert = Math.abs(closest.y - c.y);
       const horiz = Math.hypot(closest.x - c.x, closest.z - c.z);
-      if (horiz <= 0.32 && vert <= HEIGHT / 2 && lateral <= 1.0) {
-        if (!best || along < best.dist) best = { dist: along, point: closest, npc: n };
+      if (horiz <= 0.32 * SCALE && vert <= HEIGHT / 2 && lateral <= 1.0 * SCALE) {
+        if (!best || along < best.dist) best = { dist: along, point: closest, npc: n, head: closest.y >= n.y + HEIGHT * HEAD_FROM };
       }
     }
     return best;
   }
 
-  killNpc(n, from) { this._kill(n, from); }
+  // from: kaynak noktası. opt.bullet: kurşun isabeti (komple dağılmaz); opt.head: kafaya mı; opt.point: isabet noktası
+  killNpc(n, from, opt = null) { if (opt && opt.bullet) this._shoot(n, from, opt); else this._kill(n, from); }
+
+  // Kurşun isabeti: kafaya ise kafa parçalanır (ten + kan küpleri), değilse gövde yaralanır; ceset yere yığılır
+  _shoot(n, from, opt) {
+    if (!this.npcs.includes(n)) return;
+    const vw = this.voxelWorld, head = !!opt.head;
+    const at = opt.point || new THREE.Vector3(n.x, n.y + HEIGHT * 0.5, n.z);
+    const cube = (x, y, z, color, push, sc = 1.3) => { if (vw.dynamicDebris.length < vw.maxDynamicDebris) vw.spawnLooseVoxel(x, y, z, { color }, from || at, 0.5, 2, 70, push, sc); };
+    if (head) {
+      const hp = new THREE.Vector3(n.x, n.y + HEIGHT * 0.86, n.z);
+      for (let i = 0; i < 8; i++) cube(hp.x + (Math.random() - 0.5) * 0.5, hp.y + (Math.random() - 0.5) * 0.5, hp.z + (Math.random() - 0.5) * 0.5, n.colors[2], null, 1.5);   // kafa parçaları (ten)
+      for (let i = 0; i < 3; i++) cube(hp.x, hp.y + 0.1, hp.z, n.colors[3], null, 1.3);                                                                                   // saç
+      for (let i = 0; i < 16; i++) cube(hp.x + (Math.random() - 0.5) * 0.4, hp.y + (Math.random() - 0.5) * 0.5, hp.z + (Math.random() - 0.5) * 0.4, BLOOD[i % BLOOD.length], null, 0.9);   // kan (kırmızı küpler)
+      n.head.visible = false; n.hairM.visible = false;
+      // boyun kütüğünde kırmızı kan: kafanın yerine kırmızı bir küp
+      const stump = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.2), mat(BLOOD[0])); stump.position.set(0, 1.2, 0); n.group.add(stump);
+      if (this.onScore) this.onScore(250, '+250 KAFA ATIŞI!');
+    } else {
+      for (let i = 0; i < 6; i++) cube(at.x + (Math.random() - 0.5) * 0.3, at.y + (Math.random() - 0.5) * 0.3, at.z + (Math.random() - 0.5) * 0.3, BLOOD[i % BLOOD.length], null, 0.8);
+      if (this.onScore) this.onScore(100, '+100 NPC VURULDU!');
+    }
+    if (this.particleSystem.createSpark) this.particleSystem.createSpark(at);
+    sound.playBlockHit();
+    this._corpse(n, from);
+  }
+
+  // Ceset: duran NPC yere yığılır (0.55 sn), 9 sn kalır, sonra kalkar; yenisi doğar
+  _corpse(n, from) {
+    const i = this.npcs.indexOf(n);
+    if (i >= 0) this.npcs.splice(i, 1);
+    const dx = from ? n.x - from.x : Math.sin(n.heading), dz = from ? n.z - from.z : Math.cos(n.heading);
+    const l = Math.hypot(dx, dz) || 1;
+    this.corpses.push({ group: n.group, t: 0, dx: dx / l, dz: dz / l, y: n.y });
+    if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
+    else this.respawnQueue.push(RESPAWN_SECONDS);
+  }
+
+  _updateCorpses(dt) {
+    for (let i = this.corpses.length - 1; i >= 0; i--) {
+      const c = this.corpses[i]; c.t += dt;
+      const u = Math.min(1, c.t / 0.55), fall = u * u * (3 - 2 * u);
+      // vurulduğu yönün tersine (arkaya) devrilir: ağırlık merkezi yer seviyesine iner
+      c.group.rotation.set(0, c.group.rotation.y, 0);
+      const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(c.dz, 0, -c.dx), fall * Math.PI / 2 * 0.98);   // kurşunun geldiği yönün tersine devrilir
+      c.group.quaternion.premultiply(q);
+      c.group.position.y = c.y + fall * 0.25;
+      if (c.t > 9) { this.scene.remove(c.group); this.corpses.splice(i, 1); }
+    }
+  }
 
   _remove(n) {
     this.scene.remove(n.group);
@@ -285,16 +351,16 @@ export class NPCManager {
 
   _kill(n, from) {
     if (!this.npcs.includes(n)) return;
-    const pos = new THREE.Vector3(n.x, n.y + 0.8, n.z);
-    // Parçalara dağıl: giysi ve ten renginde küçük küpler fırlar
+    const pos = new THREE.Vector3(n.x, n.y + 0.8 * SCALE, n.z);
+    // Parçalara dağıl: giysi ve ten renginde küçük küpler fırlar (komple parçalanma: patlama, kılıç, çekiç)
     const vw = this.voxelWorld;
-    const parts = 9;
+    const parts = 16;
     for (let i = 0; i < parts; i++) {
       if (vw.dynamicDebris.length >= vw.maxDynamicDebris) break;
       const type = { color: n.colors[i % n.colors.length] };
       vw.spawnLooseVoxel(
-        pos.x + (Math.random() - 0.5) * 0.3, n.y + 0.3 + Math.random() * 1.1, pos.z + (Math.random() - 0.5) * 0.3,
-        type, from || pos, 0.5, 2, 90
+        pos.x + (Math.random() - 0.5) * 0.6, n.y + 0.5 + Math.random() * 2.2, pos.z + (Math.random() - 0.5) * 0.6,
+        i % 4 === 3 ? { color: BLOOD[i % BLOOD.length] } : type, from || pos, 0.5, 2, 90, null, 1.4
       );
     }
     if (this.particleSystem.createSpark) this.particleSystem.createSpark(pos);

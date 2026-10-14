@@ -170,13 +170,14 @@ export class LevelManager {
     this.b = w;
     this.world.fountains = [];
     this.world.residents = [];
+    this.world.parkedCars = [];
     const ISL = 166; // zengin bölgenin x kayması (eski birim): doğu yolu (x=186) için 12 birim doğuya alındı
 
     // ==========================================
     // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi) — yollar cityplan.js'ten gelir
     // ==========================================
     w.fillBox(78, 0, -165, 247, 0, 165, PALETTE.GRASS);         // doğu ada çimi (zengin bölgenin kuzeyi/güneyi)
-    w.fillBox(248, 0, -230, 470, 0, 230, PALETTE.GRASS);        // zengin meydanının doğusu: villa tepesi
+    w.fillBox(248, 0, -260, 500, 0, 260, PALETTE.GRASS);        // zengin meydanının doğusu: villa tepesi
     this._setHills();
     w.fillBox(-184, 0, -285, -12, 0, 285, PALETTE.CONCRETE);    // batı ada: kuzey/güney 120, batıya 30 birim genişledi
     w.fillBox(-192, 0, -285, -185, 0, 285, PALETTE.SAND);       // batı kumsalı

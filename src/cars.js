@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './config.js';
-import { TYPES, SPAWN_WEIGHTS, ZONE_NAMES, buildCar, glassMat, zoneOfLocal } from './carmodels.js';
+import { TYPES, SPAWN_WEIGHTS, ZONE_NAMES, buildCar, glassMat, zoneOfLocal, randomLivery } from './carmodels.js';
 import { graphRoads, ringNodes } from './cityplan.js';
 const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yüz 0.5 m)
 
@@ -73,6 +73,20 @@ export class CarManager {
       A.out.push(e); this.edges.push(e);   // yalnız ileri yön: halka tek yönlüdür
     }
     while (this.cars.length < CAR_COUNT) if (!this._spawn()) break;
+    for (const p of this.vw.parkedCars || []) this._addParked(p);   // seviyenin sabit park etmiş arabaları (ör. villanın kırmızı spor arabası)
+  }
+
+  // Sabit park etmiş araç: trafikte değil, kaybolmaz; binilebilir. p: { kind, color, livery, x, y, z, heading }
+  _addParked(p) {
+    const g = buildCar(p.kind, p.color, p.livery || null);
+    this.scene.add(g);
+    const T = TYPES[p.kind];
+    const fwd = new THREE.Vector3(Math.cos(p.heading), 0, Math.sin(p.heading));
+    const car = { g, kind: p.kind, T, zones: g.userData.zones, edge: null, s: 0, lane: 0, speed: 0, target: 0, state: 'parked', turn: null, next: null, smoke: 0, life: 0, permanent: true, pos: new THREE.Vector3(p.x, p.y, p.z), fwd, heading: p.heading };
+    g.traverse(o => { if (o.userData.person) o.visible = false; });   // park etmiş araçta sürücü yok
+    this._place(car, 1, -p.heading);
+    this.cars.push(car);
+    return car;
   }
 
   _lanePoint(e, s, lane) {
@@ -92,7 +106,7 @@ export class CarManager {
       const r = Math.random(); let acc = 0, kind = 'sedan';
       for (const [k, w] of SPAWN_WEIGHTS) { acc += w; if (r < acc) { kind = k; break; } }
       const color = kind === 'mini' || kind === 'van' ? pick(PASTELS) : pick(COLORS);
-      const g = buildCar(kind, color);
+      const g = buildCar(kind, color, randomLivery(kind, color));
       this.scene.add(g);
       const T = TYPES[kind];
       const car = { g, kind, T, zones: g.userData.zones, edge: e, s, lane, speed: 0, target: rnd(T.speed[0], T.speed[1]), state: 'drive', turn: null, next: null, smoke: 0, life: 0, pos: pos.clone(), fwd: new THREE.Vector3(e.d[0], 0, e.d[1]) };
@@ -355,7 +369,7 @@ export class CarManager {
         car.stuckT = car.speed < 0.3 && !this._personAhead(car) ? (car.stuckT || 0) + dt : 0;
         if (car.stuckT > 15) { this.scene.remove(car.g); this.cars.splice(i, 1); this.respawn.push(1); continue; }
       }
-      else if (car.state === 'parked') { car.life += dt; if (car.life > 150) { this.scene.remove(car.g); this.cars.splice(i, 1); this.respawn.push(3); continue; } }
+      else if (car.state === 'parked') { car.life += dt; if (car.life > 150 && !car.permanent) { this.scene.remove(car.g); this.cars.splice(i, 1); this.respawn.push(3); continue; } }
       else {
         car.life += dt;
         car.smoke -= dt;

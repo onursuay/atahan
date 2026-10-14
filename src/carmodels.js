@@ -124,8 +124,37 @@ const BODY = {
   }
 };
 
+// Gövde renginden farklı, ona yakışan şerit renkleri (rastgele seçilir): kırmızıya mavi/beyaz, maviye beyaz/sarı vb.
+const STRIPES = [0xffffff, 0x111827, 0x2563eb, 0x16a34a, 0xfacc15, 0xdc2626, 0x06b6d4, 0xf97316];
+export function randomLivery(kind, color) {
+  const sport = kind === 'sport';
+  if (!(sport ? Math.random() < 0.7 : ['mini', 'sedan', 'suv', 'pickup'].includes(kind) && Math.random() < 0.3)) return null;
+  const c = new THREE.Color(color);
+  const far = STRIPES.filter(h => { const d = new THREE.Color(h); return Math.abs(d.r - c.r) + Math.abs(d.g - c.g) + Math.abs(d.b - c.b) > 0.9; });
+  const main = pick(far.length ? far : STRIPES), second = pick(far.length ? far : STRIPES);
+  const style = sport ? pick(['center', 'center', 'double', 'center+side', 'double+side']) : 'side';
+  return { color: main, color2: Math.random() < 0.4 ? second : main, style };
+}
+
+// Gövde üstüne ince şerit panelleri (bölgeye atanır, panelle birlikte kopar). Yalnız spor araçta merkez şeritler; diğerlerinde yan bant.
+function addLivery(add, kind, T, lv) {
+  const m1 = lam(lv.color), m2 = lam(lv.color2);
+  const side = lv.style.includes('side') || kind !== 'sport';
+  if (kind === 'sport' && lv.style.startsWith('center')) {
+    const ws = 0.34;
+    [[1.6, 1.035, 1.0], [0.4, 0.76, 2.0], [1.0, 1.285, -0.2], [1.2, 0.76, -1.6]].forEach(([len, y, x]) => add(box(len, 0.02, ws), m1, x, y, 0));
+  } else if (kind === 'sport' && lv.style.startsWith('double')) {
+    for (const sz of [-1, 1]) [[1.6, 1.035, 1.0], [0.4, 0.76, 2.0], [1.0, 1.285, -0.2], [1.2, 0.76, -1.6]].forEach(([len, y, x]) => add(box(len, 0.02, 0.13), sz < 0 ? m1 : m2, x, y, sz * 0.14));
+  }
+  if (side) {
+    const y = kind === 'sport' ? 0.55 : kind === 'suv' ? 0.95 : kind === 'pickup' ? 0.8 : 0.66;
+    for (const sz of [-1, 1]) add(box(T.len * 0.9, 0.09, 0.022), m2, 0, y, sz * (T.wid / 2 + 0.012));
+  }
+}
+
 // Araç modeli. Dönen grubun userData.zones: bölge başına { parts, iron, hp, max, ironHp, ironMax, state, ironBroken }
-export function buildCar(kind, color) {
+// livery: null ya da { color, color2, style } (bkz. randomLivery)
+export function buildCar(kind, color, livery = null) {
   const T = TYPES[kind], g = new THREE.Group();
   g.rotation.order = 'YZX';   // önce yönelim (y), sonra aracın kendi ekseninde eğim (z: rampada burun kalkar)
   const body = lam(color);
@@ -137,6 +166,7 @@ export function buildCar(kind, color) {
   };
   const extra = {};
   BODY[kind](add, T, body, color, extra);
+  if (livery) addLivery(add, kind, T, livery);
 
   // Yan etekler: her aracın sol ve sağ bölgesinde kopabilecek en az bir panel olsun
   for (const sz of [-1, 1]) add(box(T.len * 0.45, 0.28, 0.06), body, 0, 0.42, sz * (T.wid / 2 - 0.03));

@@ -625,7 +625,9 @@ function setCrosshair(mode) {
 function grabDoor() {
   if (inCar || rightHeld) return;
   if (document.getElementById('weapon-selector').classList.contains('menu-open')) return;
-  if (voxelWorld.doors.beginDrag(camera)) { rightHeld = true; setCrosshair('grab'); }
+  // Sağ tık HER ZAMAN el olur (zarar vermez, ateş etmez): kapıya bakıyorsa kapıyı tutar (yumruk), değilse açık el
+  rightHeld = true;
+  setCrosshair(voxelWorld.doors.beginDrag(camera) ? 'grab' : 'hand');
 }
 function releaseHand() {
   if (!rightHeld) return;

@@ -11,7 +11,7 @@ import { PALETTE } from './teardown.js';
 //  • Konumlar metre cinsindendir (dünya koordinatı); voxel indeksi = metre / 0.5.
 // ─────────────────────────────────────────────────────────────────────────────
 export const H = 12;                                   // plato yüksekliği (m)
-export const PLATEAU = { x0: 236, x1: 296, z0: -116, z1: -48 };
+export const PLATEAU = { x0: 236, x1: 314, z0: -148, z1: -48 };
 const SKIRT = 37;                                      // plato kenarından zemine inen eğim genişliği (m)
 const ROAD_HALF = 3;                                   // yol yarı genişliği (m)
 const VERGE = 1.5;                                     // yol kenarı düz çim şeridi
@@ -122,19 +122,29 @@ function hudTexture(kind) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function buildVilla(world) {
   const { WHITE, WOOD, BLACK, GLASS, CONCRETE, GRASS, IRON, GOLD, BRICK, LAMP, LAMP_BLUE, LAMP_PINK, LAMP_GREEN, LAMP_PURPLE, LAMP_ORANGE } = PALETTE;
-  const OXV = 484, OZV = -228, YB = 25;           // yerel (0,0,0): x=242 m, z=-114 m, taban satırı y=12.5 m (plato yüzeyi)
+  const OXV = 484, OZV = -278, YB = 25;           // yerel (0,0,0): x=242 m, z=-139 m, taban satırı y=12.5 m (plato yüzeyi)
+  // Villa ilk tasarımın yatayda 1.25 katıdır: tasarım koordinatları (u, w) hücre sınırlarından büyütülür, satırlar (yükseklik) aynıdır.
+  // Bir tasarım hücresi 1 ya da 2 voxel olur; komşu parçalar aynı sınır tablosunu kullandığı için dikiş/boşluk kalmaz.
+  const SC = 1.25;
+  const bnd = (a) => Math.round(a * SC);
+  const rng = (a0, a1) => { const l = Math.min(a0, a1), h = Math.max(a0, a1); return [bnd(l), Math.max(bnd(l), bnd(h + 1) - 1)]; };
   const vx = (u) => OXV + u, vz = (w) => OZV + w;
-  const X = (u) => 0.5 * (OXV + u), Z = (w) => 0.5 * (OZV + w), Yb = (r) => 0.5 * (YB + r);   // voxel merkezi / alt yüz (m)
+  const Yb = (r) => 0.5 * (YB + r);                                                      // satır r'nin alt yüzü (m)
+  const Xs = (u) => 0.5 * (OXV + bnd(u)) - 0.25, Zs = (w) => 0.5 * (OZV + bnd(w)) - 0.25;   // hücrenin başlangıç kenarı (m)
+  const Xc = (u) => 0.5 * (OXV + (bnd(u) + bnd(u + 1) - 1) / 2), Zc = (w) => 0.5 * (OZV + (bnd(w) + bnd(w + 1) - 1) / 2);   // hücre ortası
+  const Xe = (u) => 0.5 * (OXV + bnd(u + 1) - 1) + 0.25, Ze = (w) => 0.5 * (OZV + bnd(w + 1) - 1) + 0.25;                    // hücrenin bitiş yüzü
   const lo = Math.min, hi = Math.max;
 
   const put = (u0, r0, w0, u1, r1, w1, mat) => {
-    for (let u = lo(u0, u1); u <= hi(u0, u1); u++) for (let r = lo(r0, r1); r <= hi(r0, r1); r++) for (let w = lo(w0, w1); w <= hi(w0, w1); w++) {
+    const [ua, ub] = rng(u0, u1), [wa, wb] = rng(w0, w1);
+    for (let u = ua; u <= ub; u++) for (let r = lo(r0, r1); r <= hi(r0, r1); r++) for (let w = wa; w <= wb; w++) {
       world.voxels.delete(`${vx(u)},${YB + r},${vz(w)}`);
       world.setVoxel(vx(u), YB + r, vz(w), mat);
     }
   };
   const clr = (u0, r0, w0, u1, r1, w1) => {
-    for (let u = lo(u0, u1); u <= hi(u0, u1); u++) for (let r = lo(r0, r1); r <= hi(r0, r1); r++) for (let w = lo(w0, w1); w <= hi(w0, w1); w++) world.voxels.delete(`${vx(u)},${YB + r},${vz(w)}`);
+    const [ua, ub] = rng(u0, u1), [wa, wb] = rng(w0, w1);
+    for (let u = ua; u <= ub; u++) for (let r = lo(r0, r1); r <= hi(r0, r1); r++) for (let w = wa; w <= wb; w++) world.voxels.delete(`${vx(u)},${YB + r},${vz(w)}`);
   };
   // Cam cephe (x ekseni boyunca, sabit w) ve (z ekseni boyunca, sabit u): siyah çıtalı
   const glassW = (u0, u1, w, r0, r1) => { put(u0, r0, w, u1, r1, w, GLASS); for (let u = u0; u <= u1; u += 7) put(u, r0, w, u, r1, w, BLACK); put(u1, r0, w, u1, r1, w, BLACK); put(u0, r1, w, u1, r1, w, BLACK); };
@@ -144,19 +154,19 @@ export function buildVilla(world) {
   // Kapılar: openings kendi voxel aralığında açılır, gerçek kapı nesnesi eklenir
   const doors = world.doors;
   const hinged = (axis, a0, a1, t, r0, r1) => {      // axis 'u': açıklık u boyunca (duvar w=t); 'w': w boyunca (duvar u=t)
-    const dn = a1 - a0 + 1, y = Yb(r0), height = (r1 - r0 + 1) * 0.5 - 0.05, width = dn * 0.5 - 0.08;
-    if (axis === 'u') { clr(a0, r0, t, a1, r1, t); doors.addHinged({ hx: X(a0) - 0.25 + 0.04, hz: Z(t), ax: 1, az: 0, width, height, y }); }
-    else { clr(t, r0, a0, t, r1, a1); doors.addHinged({ hx: X(t), hz: Z(a0) - 0.25 + 0.04, ax: 0, az: 1, width, height, y }); }
+    const dn = bnd(a1 + 1) - bnd(a0), y = Yb(r0), height = (r1 - r0 + 1) * 0.5 - 0.05, width = dn * 0.5 - 0.08;
+    if (axis === 'u') { clr(a0, r0, t, a1, r1, t); doors.addHinged({ hx: Xs(a0) + 0.04, hz: Zc(t), ax: 1, az: 0, width, height, y }); }
+    else { clr(t, r0, a0, t, r1, a1); doors.addHinged({ hx: Xc(t), hz: Zs(a0) + 0.04, ax: 0, az: 1, width, height, y }); }
   };
   const sliding = (axis, a0, a1, t, r0, r1) => {
-    const dn = a1 - a0 + 1, y = Yb(r0), height = (r1 - r0 + 1) * 0.5 - 0.05, width = dn * 0.5 - 0.08;
-    if (axis === 'u') { clr(a0, r0, t, a1, r1, t); doors.addSliding({ sx: X(a0) - 0.25 + 0.04, sz: Z(t), ax: 1, az: 0, width, height, y }); }
-    else { clr(t, r0, a0, t, r1, a1); doors.addSliding({ sx: X(t), sz: Z(a0) - 0.25 + 0.04, ax: 0, az: 1, width, height, y }); }
+    const dn = bnd(a1 + 1) - bnd(a0), y = Yb(r0), height = (r1 - r0 + 1) * 0.5 - 0.05, width = dn * 0.5 - 0.08;
+    if (axis === 'u') { clr(a0, r0, t, a1, r1, t); doors.addSliding({ sx: Xs(a0) + 0.04, sz: Zc(t), ax: 1, az: 0, width, height, y }); }
+    else { clr(t, r0, a0, t, r1, a1); doors.addSliding({ sx: Xc(t), sz: Zs(a0) + 0.04, ax: 0, az: 1, width, height, y }); }
   };
 
   // ── 1. PODYUM, HAVUZ, TERAS ──
   put(4, 0, 0, 100, 0, 76, CONCRETE);                       // villa + havuz terası (plato yüzeyinin 0.5 m üstü)
-  put(36, 0, 77, 44, 0, 88, CONCRETE);                      // giriş yürüyüş yolu (ön avlu asfaltına bağlanır)
+  put(36, 0, 77, 44, 0, 108, CONCRETE);                     // giriş yürüyüş yolu (ön avlu asfaltına uzanır)
   put(5, 0, 33, 74, 0, 74, WOOD);                           // zemin kat iç döşemesi: ahşap
   put(8, 0, 46, 16, 0, 62, WHITE);                           // salon halısı
 
@@ -275,11 +285,11 @@ export function buildVilla(world) {
   put(29, 15, 70, 94, 15, 70, LAMP_PURPLE);
 
   // ── 6. KAPILAR ──
-  hinged('u', 39, 41, 75, 1, 5);                // giriş (ön, güney)
-  sliding('u', 22, 29, 32, 1, 6);               // havuz terasına cam sürgülü
-  sliding('w', 54, 61, 75, 1, 6);               // konsol altı salona
-  sliding('u', 56, 63, 71, 9, 14);              // üst kattan balkona
-  hinged('w', 62, 64, 28, 9, 13);               // üst kattan batı çatı terasına
+  hinged('u', 39, 41, 75, 1, 7);                // giriş (ön, güney): 3.5 m yüksek (devler geçsin)
+  sliding('u', 22, 29, 32, 1, 7);               // havuz terasına cam sürgülü
+  sliding('w', 54, 61, 75, 1, 7);               // konsol altı salona
+  sliding('u', 56, 63, 71, 9, 15);              // üst kattan balkona
+  hinged('w', 62, 64, 28, 9, 15);               // üst kattan batı çatı terasına
 
   // ── 7. STARK EKRANLARI + IŞIKLAR (voxel olmayan nesneler) ──
   const g = new THREE.Group();
@@ -293,26 +303,29 @@ export function buildVilla(world) {
     grp.position.set(x, y, z); grp.rotation.y = rotY; g.add(grp);
   };
   // Salon: batı duvarında büyük TV + iki yan ekran (duvarın iç yüzü x≈244.25, +x'e bakar)
-  screen(244.32, Yb(1) + 2.5, Z(54), 4.8, 2.0, Math.PI / 2, 'tv');
-  screen(244.32, Yb(1) + 2.5, Z(54) - 4.2, 2.4, 1.6, Math.PI / 2, 'reactor');
-  screen(244.32, Yb(1) + 2.5, Z(54) + 4.2, 2.4, 1.6, Math.PI / 2, 'chart');
+  screen(Xe(4) + 0.07, Yb(1) + 2.5, Zc(54), 6.0, 2.0, Math.PI / 2, 'tv');
+  screen(Xe(4) + 0.07, Yb(1) + 2.5, Zc(54) - 5.3, 3.0, 1.6, Math.PI / 2, 'reactor');
+  screen(Xe(4) + 0.07, Yb(1) + 2.5, Zc(54) + 5.3, 3.0, 1.6, Math.PI / 2, 'chart');
   // Laboratuvar: kuzey duvarında dört ekran (iç yüz z≈-95.75, +z'ye bakar)
-  [['reactor', 58], ['chart', 67], ['map', 76], ['reactor', 85]].forEach(([k, u]) => screen(X(u), Yb(9) + 2.3, Z(36) + 0.28, 3.6, 2.0, 0, k));
+  [['reactor', 58], ['chart', 67], ['map', 76], ['reactor', 85]].forEach(([k, u]) => screen(Xc(u), Yb(9) + 2.3, Ze(36) + 0.03, 4.4, 2.0, 0, k));
   // Renkli noktasal ışıklar: havuz, salon, laboratuvar, konsol altı
   const pl = (color, intensity, dist, x, y, z) => { const l = new THREE.PointLight(color, intensity, dist, 2); l.position.set(x, y, z); g.add(l); };
-  pl(0x22d3ee, 40, 22, X(46), Yb(1) + 1.2, Z(14));
-  pl(0xffd9a0, 28, 16, X(24), Yb(6), Z(54));
-  pl(0x38bdf8, 30, 16, X(72), Yb(13), Z(52));
-  pl(0xf472b6, 30, 18, X(86), Yb(6), Z(54));
+  pl(0x22d3ee, 40, 26, Xc(46), Yb(1) + 1.2, Zc(14));
+  pl(0xffd9a0, 28, 20, Xc(24), Yb(6), Zc(54));
+  pl(0x38bdf8, 30, 20, Xc(72), Yb(13), Zc(52));
+  pl(0xf472b6, 30, 22, Xc(86), Yb(6), Zc(54));
   world.scene.add(g);
   world.decor.push(g);
 
   // ── 8. SAKİN: tek bir çok zengin adam ──
   world.residents = world.residents || [];
   world.residents.push({
-    kind: 'rich', x: X(14), z: Z(54), y: Yb(1),
-    bounds: { minX: 244.6, maxX: 291, minZ: -113, maxZ: -77.2 }
+    kind: 'rich', x: Xc(14), z: Zc(54), y: Yb(1),
+    bounds: { minX: Xe(4) + 0.5, maxX: Xs(100) - 0.5, minZ: Zs(0) + 0.6, maxZ: Zs(75) - 0.5 }   // villa + havuz terası + konsol altı salon
   });
+  // Malikanenin spor arabası: normal bir spor araç, kırmızı, ortasında beyaz şerit. Ön avluda park etmiştir (binilebilir, trafikte gezmez).
+  world.parkedCars = world.parkedCars || [];
+  world.parkedCars.push({ kind: 'sport', color: 0xdc2626, livery: { color: 0xffffff, color2: 0xffffff, style: 'center' }, x: 270, z: -61, y: 12.5, heading: -Math.PI / 2 });
 
   // ── 9. YOL KENARI AYDINLATMASI VE AĞAÇLAR ──
   const col = (x, z, hgt, mat) => { const ix = Math.round(x / 0.5), iz = Math.round(z / 0.5), hq = Math.max(0, Math.round(villaHeight(x, z) / 0.5)); for (let k = 0; k < hgt; k++) { world.voxels.delete(`${ix},${hq + k},${iz}`); world.setVoxel(ix, hq + k, iz, mat); } return [ix, hq, iz]; };
@@ -327,7 +340,7 @@ export function buildVilla(world) {
     world.voxels.delete(`${ix},${hq + 7},${iz}`); world.setVoxel(ix, hq + 7, iz, LAMP);
   }
   // Plato çevresi ağaçları (gövde + yaprak topu)
-  const trees = [[238, -108], [238, -90], [238, -70], [238, -52], [294, -110], [294, -90], [294, -70], [294, -56], [290, -52], [282, -56]];
+  const trees = [[238, -144], [238, -122], [238, -100], [238, -80], [238, -62], [238, -52], [311, -144], [311, -122], [311, -100], [311, -80], [311, -62], [311, -52], [292, -54], [302, -56]];
   for (const [x, z] of trees) {
     const [ix, hq, iz] = col(x, z, 9, WOOD);
     for (let dx = -2; dx <= 2; dx++) for (let dy = 0; dy <= 3; dy++) for (let dz = -2; dz <= 2; dz++) {

@@ -612,7 +612,7 @@ export class HandWeapons {
       const nh = this.npcs.rayHit(origin, dir, hitDist);
       if (nh) {
         this._spawnTracer(muzzle, nh.point);
-        this.npcs.killNpc(nh.npc, origin);
+        this.npcs.killNpc(nh.npc, origin, { bullet: true, head: nh.head, point: nh.point });   // kurşun: kafa parçalanır, gövde yaralanır
         this.flashTimer = 0.04;
         this.kick = Math.min(1, this.kick + 0.35);
         this.flashLight.position.copy(muzzle);
