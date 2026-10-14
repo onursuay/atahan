@@ -50,7 +50,8 @@ export const PALETTE = {
   SAND:     { id: 8, color: 0xfde047, name: 'Kum (Sahil)', canBreakWithHammer: true },
   ASPHALT:  { id: 9, color: 0x1e293b, name: 'Asfalt (Yol)', canBreakWithHammer: true },
   WHITE:    { id: 11, color: 0xf2f2ef, name: 'Beyaz Duvar', canBreakWithHammer: true },
-  GRASS:    { id: 10, color: 0x4f8f3a, name: 'Çim (Tepe)', canBreakWithHammer: true, isGrass: true }
+  GRASS:    { id: 10, color: 0x4f8f3a, name: 'Çim (Tepe)', canBreakWithHammer: true, isGrass: true },
+  LAMP:     { id: 12, color: 0xfff0a8, name: 'Lamba (Işık)', canBreakWithHammer: true, isLamp: true }   // lambalar ve iç aydınlatma: parlar (Altın'dan ayrı malzeme)
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
@@ -67,7 +68,8 @@ export const MATERIAL_HARDNESS = {
   [PALETTE.IRON.id]: Infinity,// 2. Madde: Demir - çekiçle kesinlikle kırılamaz
   [PALETTE.ROOF.id]: 0.9,     // Çatı
   [PALETTE.TNT.id]: 0.5,      // TNT
-  [PALETTE.GOLD.id]: 1.0      // Altın
+  [PALETTE.GOLD.id]: 1.0,     // Altın
+  [PALETTE.LAMP.id]: 0.4      // Lamba: cam gibi kolay kırılır
 };
 
 export class VoxelWorld {
@@ -110,7 +112,9 @@ export class VoxelWorld {
         color: 0xffffff,
         map: makeCubeTexture(matDef),
         transparent: matDef.id === PALETTE.GLASS.id,
-        opacity: matDef.id === PALETTE.GLASS.id ? 0.7 : 1.0
+        opacity: matDef.id === PALETTE.GLASS.id ? 0.7 : 1.0,
+        // Lamba küpleri kendi ışığıyla parlar (gece/gölgede de görünür)
+        ...(matDef.isLamp ? { emissive: new THREE.Color(0xffe9a0), emissiveIntensity: 0.95 } : {})
       });
     });
   }

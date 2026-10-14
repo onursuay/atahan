@@ -13,7 +13,7 @@ const MINIGUN_RANGE = 90;
 
 // Hitscan silah özellikleri: saçılma, voxel gücü/yarıçapı, araç/uçak hasarı, menzil
 const GUNS = {
-  minigun: { kind: 'minigun', spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'every' },
+  minigun: { kind: 'minigun', iron: true, spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'every' },
   pistol:  { kind: 'pistol', spread: 0.004, power: 0.9,  radius: 0.4,  carDmg: 3, planeDmg: 3, range: 120, sound: 'every', kick: 0.6 },
   shotgun: { kind: 'shotgun', iron: true, spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
   ak47:    { kind: 'ak47', spread: 0.016, power: 0.6,  radius: 0.45, carDmg: 2, planeDmg: 2, range: 140, sound: 'every', kick: 0.45 },
@@ -34,8 +34,12 @@ const SABER_HILT_HALF = 0.19;     // tutacak merkezinden yayıcıya uzaklık (mo
 const SABER_BLADE_LEN = 1.0;      // bir bıçağın görsel uzunluğu
 const SABER_BLADE_SCALE = 2.6;    // bıçağın dünyadaki hasar uzunluğu = görsel × bu
 const SABER_HOLD = { x: 0.26, y: -0.18, z: -1.05 };   // tutacak merkezinin ekrandaki yeri
-const SPIN_TURNS = 4;             // bir sol tıkta atılan tam tur sayısı
-const SPIN_TIME = 1.5;            // tüm dönüşün süresi (sn)
+const SPIN_TIME = 2.5;            // tek tıkla başlayan dönüşün süresi (sn)
+// Dönüş üç eksende BİRLEŞİK yapılır (sağ-sol, yukarı-aşağı ve ileri-geri tekerlek): her eksende tam tur sayısı bu aralıklardan seçilir.
+// Tur sayıları tam sayı olduğundan dönüş bitince kılıç tam yerine oturur.
+const SPIN_TURNS_Y = [4, 5, 6];   // sağ-sol (dikey eksen)
+const SPIN_TURNS_X = [2, 3, 4];   // yukarı-aşağı (yatay eksen)
+const SPIN_TURNS_Z = [1, 2, 3];   // öne doğru tekerlek (derinlik ekseni)
 const SPIN_MIN_SPEED = 3;         // m/sn: bu hızın altındaki bıçak ucu hasar vermez
 const SPIN_SAFE_DIST = 1.2;       // kameraya bu kadar yakın noktalar kesilmez (oyuncu/tutacak)
 const SPIN_CUT_RADIUS = 0.38;
@@ -69,7 +73,9 @@ export class HandWeapons {
     this.mx = 0; this.my = 0;       // son fare hareketi (savurma yönünü belirler)
     this.swingCut = 0;      // bu savuruşta kırılan küp sayısı
     this.swingSoundT = 0;
-    this.saberSpin = null;   // sol tıkla başlayan tam dönüş: { t, dur, axis, sign }
+    this.saberSpin = null;   // sol tıkla başlayan birleşik dönüş: { t, dur, ty, tx, tz }
+    this._ay = new THREE.Vector3(0, 1, 0); this._ax = new THREE.Vector3(1, 0, 0); this._az = new THREE.Vector3(0, 0, 1);
+    this._qa = new THREE.Quaternion(); this._qb = new THREE.Quaternion(); this._qc = new THREE.Quaternion();
     this.spinQueued = false; // dönüş sürerken gelen tek bir tıklama sırada bekler
     this.spinCut = 0;        // bu dönüşte kırılan küp sayısı
     this.spinLastDir = -1;
@@ -320,23 +326,17 @@ export class HandWeapons {
     return true;
   }
 
-  // Sol tık: çift bıçaklı kılıcı elin etrafında SPIN_TURNS tam tur döndürür. Yön her seferinde (öncekinden farklı)
-  // sağ / sol / yukarı / aşağıdan biri olur ve hafifçe sapar. Dönüş sürerken gelen tıklamalardan
-  // yalnızca biri sıraya alınır; bitince hemen başlar. Fazlası yok sayılır.
+  // Sol tık: çift bıçaklı kılıcı BİR tıkla ~2.5 sn boyunca sürekli döndürür: sağ-sol, yukarı-aşağı ve ileri doğru
+  // dönüşler birleşik (kılıç her yöne takla atar). Yönler (±) her tıkta rastgele seçilir. Dönüş sürerken gelen
+  // tıklamalardan yalnızca biri sıraya alınır; bitince hemen başlar. Fazlası yok sayılır.
   startSpin() {
     if (this.current !== 2 || this.swingT >= 0) return false;
     if (this.saberSpin) { this.spinQueued = true; return true; }
-    let dir;
-    do { dir = Math.floor(Math.random() * 4); } while (dir === this.spinLastDir);
-    this.spinLastDir = dir;
-    // 0 sağ, 1 sol: dikey eksen etrafında; 2 yukarı, 3 aşağı: yatay eksen etrafında
-    const axis = dir < 2 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-    const sign = [-1, 1, 1, -1][dir];
-    axis.applyAxisAngle(new THREE.Vector3(0, 0, 1), (Math.random() - 0.5) * 0.52);   // ±15° sapma
-    this.saberSpin = { t: 0, dur: SPIN_TIME * (0.92 + Math.random() * 0.16), axis, sign, turns: SPIN_TURNS };
+    const pickOf = (arr) => arr[Math.floor(Math.random() * arr.length)] * (Math.random() < 0.5 ? -1 : 1);
+    this.saberSpin = { t: 0, dur: SPIN_TIME, ty: pickOf(SPIN_TURNS_Y), tx: pickOf(SPIN_TURNS_X), tz: pickOf(SPIN_TURNS_Z) };
     this.spinCut = 0;
     this.spinPrev = null;
-    sound.playSaberSpin(this.saberSpin.dur, SPIN_TURNS);
+    sound.playSaberSpin(SPIN_TIME, Math.abs(this.saberSpin.ty));
     return true;
   }
 
@@ -438,7 +438,9 @@ export class HandWeapons {
       sp.t += dt;
       const u = Math.min(1, sp.t / sp.dur);
       const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // ease-in-out cubic
-      this.spinGroup.quaternion.setFromAxisAngle(sp.axis, sp.sign * Math.PI * 2 * sp.turns * e);
+      const T2 = Math.PI * 2 * e;
+      const qy = this._qa.setFromAxisAngle(this._ay, T2 * sp.ty), qx = this._qb.setFromAxisAngle(this._ax, T2 * sp.tx), qz = this._qc.setFromAxisAngle(this._az, T2 * sp.tz);
+      this.spinGroup.quaternion.copy(qy).multiply(qx).multiply(qz);   // üç eksenin birleşimi
       if (u >= 1) {
         if (this.spinCut > 0 && this.onScore) {
           const pts = Math.max(1, Math.round(this.spinCut * 14 / 8));

@@ -217,7 +217,7 @@ export class LevelManager {
     // 4. DOĞU ADA: ŞEHİR BLOKLARI (köprüden sonra) — hastane, itfaiye, polis, okul, AVM, apartmanlar
     // ==========================================
     this.buildHospital(144, 1, 50, 176, 14, 118);                                   // çok büyük beyaz hastane (kırmızı artılı)
-    this.buildMall(143, 1, -126, 177, 12, -56);                                     // kocaman AVM
+    this.buildMall(143, 1, -127, 180, 25, -50);                                     // devasa AVM (38x78, 4 kat)
     this.buildFireStation(80, 1, 52, 108, 14, 82);                                  // itfaiye istasyonu
     this.buildTower(82, 1, 96, 106, 12, 120, { ...CC, side: 'z1', sign: true });     // polis merkezi
     this.buildTower(80, 1, 8, 108, 12, 38, { ...BR, side: 'z1' });                   // okul
@@ -345,13 +345,13 @@ export class LevelManager {
     const arm = (ddx, ddz) => {
       const ex = sx + ddx * 7, ez = sz + ddz * 7, y = base + 19;
       w.raw(Math.min(sx, ex), y, Math.min(sz, ez), Math.max(sx, ex), y, Math.max(sz, ez), PALETTE.IRON);
-      w.raw(ex - 1, y, ez - 1, ex + 1, y, ez + 1, PALETTE.GOLD);
+      w.raw(ex - 1, y, ez - 1, ex + 1, y, ez + 1, PALETTE.LAMP);
       w.raw(ex - 1, y - 1, ez - 1, ex + 1, y - 1, ez + 1, PALETTE.GLASS);
     };
     if (dx !== 0 || dz !== 0) { arm(dx, dz); if (both) arm(-dx, -dz); }
     else {
       w.raw(sx - 1, base + 20, sz - 1, sx + 1, base + 21, sz + 1, PALETTE.GLASS);
-      w.raw(sx - 1, base + 22, sz - 1, sx + 1, base + 22, sz + 1, PALETTE.GOLD);
+      w.raw(sx - 1, base + 22, sz - 1, sx + 1, base + 22, sz + 1, PALETTE.LAMP);
     }
   }
 
@@ -532,6 +532,14 @@ export class LevelManager {
     w.fillBox(x1 + 2, fy, zc + 9, x2 - 2, fy, z2 - 2, PALETTE.CONCRETE);
     w.fillBox(x1 + 2, fy + 1, zc - 9, x2 - 2, fy + 1, zc - 9, PALETTE.GLASS); // balkon korkulukları
     w.fillBox(x1 + 2, fy + 1, zc + 9, x2 - 2, fy + 1, zc + 9, PALETTE.GLASS);
+    for (let k = 2; y1 + 6 * k < y2 - 2; k++) {   // AVM büyüdü: üst katlar da aynı balkon düzeniyle (atrium boşluğu aynı)
+      const fk = y1 + 6 * k;
+      w.fillBox(x1 + 2, fk, z1 + 2, x2 - 2, fk, zc - 9, PALETTE.CONCRETE);
+      w.fillBox(x1 + 2, fk, zc + 9, x2 - 2, fk, z2 - 2, PALETTE.CONCRETE);
+      w.fillBox(x1 + 2, fk + 1, zc - 9, x2 - 2, fk + 1, zc - 9, PALETTE.GLASS);
+      w.fillBox(x1 + 2, fk + 1, zc + 9, x2 - 2, fk + 1, zc + 9, PALETTE.GLASS);
+    }
+    this.addMallLights(x1, y1, z1, x2, y2, z2);
     this.addStairs(x1, y1, z1, x2, y2, z2);
     // Çatıda geniş cam ışıklık
     w.fillBox(x1 + 8, y2, zc - 6, x2 - 8, y2, zc + 6, PALETTE.GLASS);
@@ -716,6 +724,34 @@ export class LevelManager {
     // En çok 3 kat döşemesi: üst katlara çıkılmadığı için küp sayısı makul tutulur
     for (let k = fromFloor; k <= MAX_FLOORS && y1 + 6 * k < y2 - 2; k++) {
       w.fillBox(x1 + 1, y1 + 6 * k, z1 + 1, x2 - 1, y1 + 6 * k, z2 - 1, mat);
+    }
+    this.addCeilingLights(x1, y1, z1, x2, y2, z2, fromFloor);
+  }
+
+  // Bina içi aydınlatma: her katın tavanına (üst kat döşemesinin hemen altına) 0.75 m'lik parlayan LAMBA plakaları.
+  // Tavan lambaları 7 birim (5.25 m) aralıkla, duvar ve merdiven boşluğundan uzak dizilir.
+  addCeilingLights(x1, y1, z1, x2, y2, z2, fromFloor = 1) {
+    const w = this.b;
+    const put = (x, z, yc) => { const sx = Math.round(K * x), sz = Math.round(K * z); w.raw(sx - 1, yc, sz - 1, sx + 1, yc, sz + 1, PALETTE.LAMP); };
+    const levels = [];
+    for (let k = fromFloor; k <= MAX_FLOORS && y1 + 6 * k < y2 - 2; k++) levels.push(w._y0(y1 + 6 * k) - 1);   // üst kat döşemesinin altı
+    levels.push(w._y1(y2) - 1);                                                                                  // çatının altı
+    for (const yc of levels) for (let x = x1 + 4; x <= x2 - 4; x += 7) for (let z = z1 + 4; z <= z2 - 4; z += 7) put(x, z, yc);
+  }
+
+  // AVM aydınlatması: her kat ve çatı; atrium boşluğunun üstüne balkon lambası konmaz
+  addMallLights(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, zc = Math.round((z1 + z2) / 2);
+    const put = (x, z, yc) => { const sx = Math.round(K * x), sz = Math.round(K * z); w.raw(sx - 1, yc, sz - 1, sx + 1, yc, sz + 1, PALETTE.LAMP); };
+    for (let k = 1; y1 + 6 * k < y2 - 2; k++) {
+      const r = y1 + 6 * k;
+      const yc = w._y0(r) - 1;
+      for (let x = x1 + 4; x <= x2 - 4; x += 6) for (let z = z1 + 4; z <= z2 - 4; z += 6) if (Math.abs(z - zc) >= 10) put(x, z, yc);
+    }
+    const yr = w._y1(y2) - 1;           // çatı: camlı ışıklığın (atrium üstü) altı hariç her yer
+    for (let x = x1 + 4; x <= x2 - 4; x += 6) for (let z = z1 + 4; z <= z2 - 4; z += 6) {
+      if (Math.abs(z - zc) < 8 && x >= x1 + 7 && x <= x2 - 7) continue;
+      put(x, z, yr);
     }
   }
 

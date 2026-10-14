@@ -28,7 +28,7 @@ Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin göv
 - **Delici Roket** — duvarda delik açar, patlamada çevredeki her şeyi etkiler.
 - **Minigun** — basılı tutunca namlular döner, saniyede yaklaşık 18 mermi atar.
 - **Çift Minigun** — minigunun aynısı, iki elde birden: iki silah da aynı sesle, aynı hızda (her biri saniyede ~18 mermi) ve aynı hasarla ateş eder; toplam 36 mermi/sn.
-- **Işın Kılıcı** — tutacağın iki ucundan birer bıçak çıkan **çift taraflı** kılıç. **Sol tık** kılıcı elin etrafında 4 tam tur döndürür (~1.5 sn): yön her seferinde (öncekinden farklı) sağ, sol, yukarı ya da aşağı olur ve hafifçe sapar. Dönüş sürerken gelen tıklamalardan yalnızca biri sıraya girer. Dönerken iki bıçağın gerçek konumları taranır; temas ettiği binalar yalnızca bıçağın geçtiği şeritte kesilir ve kopan parçalar bıçağın hareket yönünde savrulup fizikle düşer. Kameraya 1.2 m'den yakın noktalar kesilmez. Kılıç arabaya da değer (demir iskeleti de keser).
+- **Işın Kılıcı** — tutacağın iki ucundan birer bıçak çıkan **çift taraflı** kılıç. **Sol tık (tek tıklama)** kılıcı ~2.5 sn boyunca sürekli döndürür: sağ-sol, yukarı-aşağı ve ileri doğru dönüşler birleşiktir, kılıç her yöne takla atar (her eksende birkaç tam tur; bitince tam yerine oturur). Dönüş sürerken gelen tıklamalardan yalnızca biri sıraya girer. Dönerken iki bıçağın gerçek konumları taranır; temas ettiği binalar yalnızca bıçağın geçtiği şeritte kesilir ve kopan parçalar bıçağın hareket yönünde savrulup fizikle düşer. Kameraya 1.2 m'den yakın noktalar kesilmez. Kılıç arabaya da değer (demir iskeleti de keser).
 - **Tabanca**, **Pompalı** (9 saçma), **AK-47** (otomatik), **Sniper** (güçlü ve uzun menzilli).
   Bu dört silahın şarjörü vardır: tabanca 12, pompalı 6, AK-47 30, sniper 5 mermi. Şarjör boşalınca otomatik değişir, **R** ile elle de değiştirilir (değişirken ateş edilemez). Kalan mermi sağ altta görünür; silah değişince yarım kalan değişim iptal olur.
 - **Süreli Bomba** — yerleştirince 3 saniye geri sayar, bip sesi giderek sıklaşır.
@@ -57,6 +57,8 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 
 - **İki ada** ve aralarında **kırmızı asma köprü** (basamaklı kuleler, kablolar, askılar).
 - **Batı ada:** şehir merkezi, kumsal ve iskeleler, büyük park (çeşme, gölet, çardak, çocuk parkı), market, çarşı, banka, kafe, depo, konut sitesi (çitli, kapılı), apartmanlar ve ofisler.
+- **Işıklandırma:** sokak lambaları ve bina/AVM içlerinin tavanındaki lambalar kendi ışığıyla parlayan **Lamba (Işık)** malzemesidir (Altın'dan ayrı bir malzemedir); katlı her binanın her katında ve AVM'nin her katında tavan lambaları vardır.
+- **AVM:** eski AVM'nin yaklaşık 2.4 katı hacimde (38×78 küp-birim, 4 kat; çok katlı balkonlar ve ortada atrium). İç mağazalar şimdilik yapılmadı.
 - **Doğu ada:** hastane (beyaz, girişte kırmızı artı), itfaiye, polis merkezi, okul, AVM, otel ve apartman blokları; ortada **otoyol** (her yönde 3 şerit), üstünden geçen **üst geçit** (9.75 m geniş; iki yanındaki rampalar basamaksız, doğrusal eğimlidir, en dik yeri ≈13°; araçlar eğime göre burnunu kaldırır) ve otoyola bağlanan sağa dönüş rampaları; doğuda zengin bölge.
 - Yollar iki yönlüdür (her yönde bir şerit). Sokak lambaları, çöp kutuları ve ağaçlar sokak donatımıdır.
 - Binaların içine girilir; içlerinde merdiven ve mobilya (mutfak, yatak odası, salon, banyo, otel odaları, ofis masaları) vardır.
@@ -78,7 +80,7 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 - **NPC arabalar (9 tür):** spor, mini, sedan, SUV, pickup, minibüs, kamyon, polis (çakarlı) ve ambulans (haçlı, çakarlı); boyut, hız ve ağırlıkları farklıdır. Yolda sağ şeritten gider, kavşakta yuvarlak yaylarla döner, otoyola sağdan katılır ve sağdan çıkar. Önüne biri çıkarsa ya da başka araç girerse durur. Her araç ön, arka, sol ve sağ olmak üzere **dört bölgeden** oluşur:
   - Bir bölgeye vurulunca yalnızca o bölge parçalanır: paneller kopar ve **orta boy parçalar** (0.3–0.75 m, panelin boyutuna göre) halinde savrulur. Diğer bölgeler etkilenmez, çatlak efekti yoktur. Zaten parçalanmış bölgeye tekrar vurmak hiçbir şeyi değiştirmez.
   - Ön bölge parçalanınca motor ölür: trafikteki araç durur ve dumanlanır; sürdüğün araç ise yarı hızla gider ve duman çıkarır.
-  - Parçalanan bölgenin altındaki **demir iskelet** yalnızca **pompalı, sniper, roket (ve bomba/TNT patlamaları) ve ışın kılıcı** ile kırılır. Tabanca, AK-47 ve minigun demire işlemez. Demiri iki bölgede kırılan araç yanıp patlar. Yakın patlama paneli ve demiri birlikte kırar, uzak patlama yalnız panelleri koparır.
+  - Parçalanan bölgenin altındaki **demir iskelet** yalnızca güçlü silahlarla kırılır: **minigun, çift minigun, pompalı, sniper, roket (ve bomba/TNT patlamaları) ve ışın kılıcı**. Tabanca ve AK-47 demire işlemez. Demiri iki bölgede kırılan araç yanıp patlar. Yakın patlama paneli ve demiri birlikte kırar, uzak patlama yalnız panelleri koparır.
   - Araç-araç çarpışmasında çarpışma yönündeki bölge hasar alır (hafif araç ağırdan daha çok hasar alır); demir kırılmaz.
 - **Arabaya binip sürebilirsiniz** (E, W A S D). Hızlı çarpışma binayı kırar, yayaları ezer.
 - **Uçaklar:** Boeing 737 görünümlü yolcu uçakları ara sıra geçer. Roket ya da minigunla vurulursa dumanlı düşer, yere çarpınca geniş çukur ve yıkım bırakır.
