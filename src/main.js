@@ -743,6 +743,15 @@ function setupEventListeners() {
     }
   });
 
+  // Sağ tık: ışın kılıcı elindeyken çift bıçağı tam tur döndürür (sol tık = savurma)
+  canvasContainer.addEventListener('mousedown', (e) => {
+    if (e.button !== 2 || inCar || weaponSystem.currentWeapon !== 2) return;
+    if (e.target.closest && e.target.closest('.weapon-selector')) return;
+    sound.init();
+    handWeapons.startSpin();
+  });
+  window.addEventListener('contextmenu', (e) => e.preventDefault());
+
   window.addEventListener('mousemove', (e) => {
     const sensitivity = scopeOn ? 0.0011 : 0.0035;
     if (handWeapons) { handWeapons.mx += e.movementX; handWeapons.my += e.movementY; }

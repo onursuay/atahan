@@ -24,30 +24,16 @@ class SoundEngine {
     return this.muted;
   }
 
-  // Roket / Mermi fırlatma sesi
+  // Roket / bazuka fırlatma: namludan çıkış çatlaması, gürleyen itki ve uzaklaşan tıslama.
+  // Patlama sesi çarpma anında ayrıca (playExplosion) çalar.
   playShoot() {
     if (this.muted || !this.ctx) return;
     const now = this.ctx.currentTime;
-    
-    // Yüksek frekanstan düşen synthesizer tonu
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(380, now);
-    osc.frequency.exponentialRampToValueAtTime(70, now + 0.18);
-    
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
-    
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-    
-    osc.start(now);
-    osc.stop(now + 0.2);
-
-    // Hafif gürültü pufu
-    this.playNoise(0.12, 0.25, 400);
+    this._burst(now, 0.05, 0.45, 'highpass', 2600, 1200, 0.7);          // çıkış çatlaması
+    this._thump(now, 0.32, 0.65, 130, 38, 'sine');                       // itki darbesi
+    this._burst(now, 0.22, 0.5, 'lowpass', 2200, 220, 0.8);              // yanma gürlemesi
+    this._burst(now + 0.04, 0.7, 0.30, 'bandpass', 500, 2200, 0.9);      // yükselerek uzaklaşan tıslama
+    this._thump(now + 0.02, 0.5, 0.12, 70, 140, 'sawtooth');             // motor ağzı vızıltısı
   }
 
   // Çekiç Savurma Sesi (Whoosh)
@@ -176,6 +162,12 @@ class SoundEngine {
 
     // Patlama gürültüsü
     this.playNoise(duration, 0.7 * intensity, 800);
+
+    // Büyük patlamalarda (roket vb.) keskin çatlama ve uzayan alçak gürleme
+    if (intensity >= 1.0) {
+      this._burst(now, 0.06, 0.45, 'highpass', 3000, 1500, 0.7);
+      this._burst(now + 0.08, duration * 1.6, 0.28, 'lowpass', 450, 55, 0.6);
+    }
   }
 
   // TNT Zincirleme Patlama sesi
@@ -336,7 +328,7 @@ class SoundEngine {
     shotgun: { crack: [0.060, 0.70, 1800], body: [0.30, 0.85, 3000, 160], thump: [0.26, 0.75, 130, 34],  tail: [0.80, 0.28, 900] },
     ak47:    { crack: [0.040, 0.50, 2800], body: [0.11, 0.55, 3400, 300], thump: [0.10, 0.50, 190, 60],  tail: [0.35, 0.13, 1300] },
     sniper:  { crack: [0.070, 0.85, 2200], body: [0.38, 0.90, 3200, 140], thump: [0.40, 0.85, 95, 26],   tail: [1.50, 0.34, 800] },
-    minigun: { crack: [0.030, 0.30, 2800], body: [0.07, 0.35, 3400, 400], thump: [0.07, 0.30, 200, 70],  tail: [0.20, 0.07, 1500] }
+    minigun: { crack: [0.030, 0.40, 3000], body: [0.08, 0.50, 3200, 350], thump: [0.08, 0.45, 170, 55],  tail: [0.14, 0.05, 1400] }
   };
 
   playGunShot(kind = 'pistol') {
@@ -575,46 +567,148 @@ class SoundEngine {
     osc.start(now); osc.stop(now + 0.08);
   }
 
-  // Işın kılıcı açılışı (yükselen vızıltı)
+  // Işın kılıcı açılışı: yükselen enerji vızıltısı + kısa elektrik çıtırtısı
   playSaberOn() {
     if (this.muted || !this.ctx) return;
-    const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(90, now);
-    osc.frequency.exponentialRampToValueAtTime(330, now + 0.25);
-    gain.gain.setValueAtTime(0.0, now);
-    gain.gain.linearRampToValueAtTime(0.25, now + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-    osc.connect(gain); gain.connect(this.ctx.destination);
-    osc.start(now); osc.stop(now + 0.36);
+    const ctx = this.ctx, now = ctx.currentTime;
+    const osc = ctx.createOscillator(), osc2 = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter(), gain = ctx.createGain();
+    osc.type = 'sawtooth'; osc2.type = 'sawtooth';
+    osc.frequency.setValueAtTime(70, now);  osc.frequency.exponentialRampToValueAtTime(330, now + 0.4);
+    osc2.frequency.setValueAtTime(73, now); osc2.frequency.exponentialRampToValueAtTime(336, now + 0.4);
+    filter.type = 'lowpass'; filter.Q.value = 3;
+    filter.frequency.setValueAtTime(250, now); filter.frequency.exponentialRampToValueAtTime(3200, now + 0.4);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.26, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+    osc.connect(filter); osc2.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc2.start(now); osc.stop(now + 0.52); osc2.stop(now + 0.52);
+    this._burst(now + 0.02, 0.18, 0.16, 'bandpass', 3500, 6000, 3);         // çıtırtı
+    this._thump(now, 0.2, 0.25, 90, 45, 'sine');
   }
 
-  // Işın kılıcı savurma (alçalan vınlama)
+  // Işın kılıcı savurma: hızlı "vııın" (perde yükselip alçalır)
   playSaberSwing() {
     if (this.muted || !this.ctx) return;
-    const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const osc2 = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    const ctx = this.ctx, now = ctx.currentTime;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(420, now);
-    osc.frequency.exponentialRampToValueAtTime(110, now + 0.4);
-    osc2.type = 'square';
-    osc2.frequency.setValueAtTime(425, now);
-    osc2.frequency.exponentialRampToValueAtTime(112, now + 0.4);
-    gain.gain.setValueAtTime(0.0, now);
-    gain.gain.linearRampToValueAtTime(0.28, now + 0.06);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
-    osc.connect(gain); osc2.connect(gain); gain.connect(this.ctx.destination);
-    osc.start(now); osc2.start(now); osc.stop(now + 0.43); osc2.stop(now + 0.43);
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(520, now + 0.14);
+    osc.frequency.exponentialRampToValueAtTime(130, now + 0.42);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.2, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.44);
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1400;
+    osc.connect(f); f.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.46);
+    this._burst(now, 0.4, 0.12, 'bandpass', 900, 500, 1.5);
   }
 
-  // Işın kılıcı bir şeyi keserken cızırtı
+  // Çift bıçağın tam tur dönüşü: kulaklara doğru yaklaşıp uzaklaşan iki "vııın" (Doppler)
+  playSaberSpin(dur = 0.65) {
+    if (this.muted || !this.ctx) return;
+    const ctx = this.ctx, now = ctx.currentTime;
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(480, now + dur * 0.25);
+    osc.frequency.exponentialRampToValueAtTime(140, now + dur * 0.5);
+    osc.frequency.exponentialRampToValueAtTime(480, now + dur * 0.75);
+    osc.frequency.exponentialRampToValueAtTime(110, now + dur);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + dur * 0.15);
+    gain.gain.setValueAtTime(0.22, now + dur * 0.8);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1600;
+    osc.connect(f); f.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + dur + 0.02);
+    this._burst(now, dur, 0.14, 'bandpass', 700, 1400, 1.2);
+  }
+
+  // Işın kılıcı bir şeyi keserken: kıvılcım cızırtısı + tiz elektrik "zzt"
   playSaberHit() {
     if (this.muted || !this.ctx) return;
-    this.playNoise(0.1, 0.22, 4200);
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 3; i++) this._burst(now + i * 0.035, 0.05, 0.22, 'highpass', 3500 + i * 700, 2500, 1);
+    this._thump(now, 0.14, 0.12, 1900, 700, 'sawtooth');
+    this._burst(now, 0.12, 0.14, 'lowpass', 900, 200, 0.7);
+  }
+
+  // Elde tutulan çift bıçağın sürekli vızıltısı: iki hafif ayarsız osilatör (vuruntu), harekete göre perde yükselir.
+  // motion: 0..1 (kılıcın o anki hızı). active=false ise ses kapanır.
+  updateSaberHum(active, motion = 0) {
+    if (!this.ctx) return;
+    if (!active) { this.stopSaberHum(); return; }
+    const now = this.ctx.currentTime;
+    if (!this.saberHum) this.saberHum = this._buildSaberHum();
+    const h = this.saberHum, m = Math.min(1, motion), on = this.muted ? 0 : 1;
+    const pitch = 1 + m * 0.5;
+    h.oscs[0].frequency.setTargetAtTime(104 * pitch, now, 0.05);
+    h.oscs[1].frequency.setTargetAtTime(108.5 * pitch, now, 0.05);   // ~4.5 Hz vuruntu
+    h.oscs[2].frequency.setTargetAtTime(208 * pitch, now, 0.05);
+    h.filter.frequency.setTargetAtTime(500 + m * 1500, now, 0.06);
+    h.gain.gain.setTargetAtTime((0.05 + m * 0.07) * on, now, 0.06);
+  }
+
+  _buildSaberHum() {
+    const ctx = this.ctx, h = {};
+    h.oscs = ['sawtooth', 'sawtooth', 'square'].map(t => { const o = ctx.createOscillator(); o.type = t; return o; });
+    h.filter = ctx.createBiquadFilter(); h.filter.type = 'lowpass'; h.filter.Q.value = 2; h.filter.frequency.value = 500;
+    h.gain = ctx.createGain(); h.gain.gain.value = 0;
+    h.oscs.forEach(o => o.connect(h.filter));
+    h.filter.connect(h.gain); h.gain.connect(ctx.destination);
+    const t = ctx.currentTime;
+    h.oscs.forEach(o => o.start(t));
+    return h;
+  }
+
+  stopSaberHum() {
+    const h = this.saberHum;
+    if (!h) return;
+    this.saberHum = null;
+    const now = this.ctx.currentTime;
+    h.gain.gain.cancelScheduledValues(now);
+    h.gain.gain.setTargetAtTime(0, now, 0.05);
+    setTimeout(() => { h.oscs.forEach(o => { try { o.stop(); } catch (_) {} }); h.gain.disconnect(); }, 400);
+  }
+
+  // ───────────────────────── Minigun motoru ─────────────────────────
+  // Namlular dönerken sürekli mekanik vızıltı (hız = perde). spin: 0..1. Çok küçükse kapanır.
+  updateMinigun(spin) {
+    if (!this.ctx) return;
+    if (spin < 0.02) { this.stopMinigun(); return; }
+    const now = this.ctx.currentTime;
+    if (!this.minigunLoop) this.minigunLoop = this._buildMinigun();
+    const m = this.minigunLoop, on = this.muted ? 0 : 1;
+    m.whine.frequency.setTargetAtTime(55 + spin * 200, now, 0.05);
+    m.gear.frequency.setTargetAtTime(18 + spin * 120, now, 0.05);     // dişli takırtısı
+    m.filter.frequency.setTargetAtTime(300 + spin * 1500, now, 0.05);
+    m.gain.gain.setTargetAtTime(spin * 0.16 * on, now, 0.05);
+  }
+
+  _buildMinigun() {
+    const ctx = this.ctx, m = {};
+    m.whine = ctx.createOscillator(); m.whine.type = 'sawtooth';
+    m.gear = ctx.createOscillator(); m.gear.type = 'square';
+    const gearGain = ctx.createGain(); gearGain.gain.value = 0.5;
+    m.filter = ctx.createBiquadFilter(); m.filter.type = 'lowpass'; m.filter.Q.value = 1.5;
+    m.gain = ctx.createGain(); m.gain.gain.value = 0;
+    m.whine.connect(m.filter); m.gear.connect(gearGain); gearGain.connect(m.filter);
+    m.filter.connect(m.gain); m.gain.connect(ctx.destination);
+    const t = ctx.currentTime;
+    m.whine.start(t); m.gear.start(t);
+    return m;
+  }
+
+  stopMinigun() {
+    const m = this.minigunLoop;
+    if (!m) return;
+    this.minigunLoop = null;
+    const now = this.ctx.currentTime;
+    m.gain.gain.cancelScheduledValues(now);
+    m.gain.gain.setTargetAtTime(0, now, 0.06);
+    setTimeout(() => { try { m.whine.stop(); m.gear.stop(); } catch (_) {} m.gain.disconnect(); }, 500);
   }
 
   // Suya giriş / su sıçraması

@@ -677,7 +677,8 @@ export class VoxelWorld {
   }
 
   // IŞIN KILICI: noktadaki yarıçap içinde her malzemeyi (demir dahil) keser
-  sweepCut(point, radius) {
+  // push (isteğe bağlı): kopan küplere verilecek hız vektörü (ör. dönen bıçağın o noktadaki hareketi)
+  sweepCut(point, radius, push = null) {
     const r2 = radius * radius;
     let removed = 0;
     let tnt = null;
@@ -695,8 +696,8 @@ export class VoxelWorld {
           this._hideVoxel(v);
           removed++;
           if (v.type.isTNT && !tnt) tnt = new THREE.Vector3(v.x, v.y, v.z);
-          if (this.dynamicDebris.length < this.maxDynamicDebris && Math.random() > 0.8) {
-            this.spawnLooseVoxel(v.x, v.y, v.z, v.type, point, 0.3, radius, 22);
+          if (this.dynamicDebris.length < this.maxDynamicDebris && Math.random() > (push ? 0.5 : 0.8)) {
+            this.spawnLooseVoxel(v.x, v.y, v.z, v.type, point, 0.3, radius, 22, push);
           }
         }
       }
@@ -766,7 +767,7 @@ export class VoxelWorld {
   }
 
 
-  spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce) {
+  spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce, push = null) {
     // Görsel Küp
     const mat = new THREE.MeshLambertMaterial({ color: matType.color });
     const mesh = new THREE.Mesh(this.debrisGeo, mat);
@@ -791,6 +792,7 @@ export class VoxelWorld {
       dir.y * impulse + Math.random() * 5,
       dir.z * impulse + (Math.random() - 0.5) * 4
     );
+    if (push) body.velocity.set(body.velocity.x + push.x * 0.7, body.velocity.y + push.y * 0.7, body.velocity.z + push.z * 0.7);
     body.angularVelocity.set(
       (Math.random() - 0.5) * 15,
       (Math.random() - 0.5) * 15,

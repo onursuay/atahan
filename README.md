@@ -11,6 +11,7 @@ Tarayıcıda çalışan, Three.js ve Cannon-es ile yapılmış, **küplerden (vo
 | **W A S D** | Yürü (arabadayken: gaz, fren/geri, direksiyon) |
 | **Fare** | Etrafa bak |
 | **Sol tık** | Ateş et / kılıç savur / bomba yerleştir |
+| **Sağ tık** | Işın kılıcı elindeyken: kılıcı tam tur döndür (art arda basılabilir, en fazla bir dönüş sıraya girer) |
 | **Boşluk** | Zıpla. Havadayken **basılı tut: jetpack** (arabadayken el freni) |
 | **Tab** | Silah menüsü (imleç serbest kalır, silahı tıklayarak seç) |
 | **E** | Yakındaki arabaya bin / araçtan in. Araç yoksa çekiç vurur |
@@ -27,7 +28,7 @@ Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin göv
 
 - **Delici Roket** — duvarda delik açar, patlamada çevredeki her şeyi etkiler.
 - **Minigun** — basılı tutunca namlular döner, saniyede yaklaşık 18 mermi atar.
-- **Işın Kılıcı** — fare hareketine göre yatay, dikey ve çapraz savurur; bıçağın geçtiği yerdeki her şeyi (demir dahil) keser.
+- **Işın Kılıcı** — tutacağın iki ucundan birer bıçak çıkan **çift taraflı** kılıç. **Sol tık** fare hareketine göre yatay, dikey ve çapraz savurur. **Sağ tık** kılıcı elin etrafında tam tur döndürür: yön her seferinde (öncekinden farklı) sağ, sol, yukarı ya da aşağı olur ve hafifçe sapar. Dönerken iki bıçağın gerçek konumları taranır; temas ettiği binalar yalnızca bıçağın geçtiği şeritte kesilir ve kopan parçalar bıçağın hareket yönünde savrulup fizikle düşer. Kameraya 1.2 m'den yakın noktalar kesilmez.
 - **Tabanca**, **Pompalı** (9 saçma), **AK-47** (otomatik), **Sniper** (güçlü ve uzun menzilli).
   Bu dört silahın şarjörü vardır: tabanca 12, pompalı 6, AK-47 30, sniper 5 mermi. Şarjör boşalınca otomatik değişir, **R** ile elle de değiştirilir (değişirken ateş edilemez). Kalan mermi sağ altta görünür; silah değişince yarım kalan değişim iptal olur.
 - **Süreli Bomba** — yerleştirince 3 saniye geri sayar, bip sesi giderek sıklaşır.
@@ -41,10 +42,14 @@ Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin göv
 Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki 🔊 düğmesi hepsini kapatır.
 
 - **Silahlar:** tabanca, pompalı, AK-47, sniper ve minigunun ateş sesleri birbirinden farklıdır; pompalıda her atıştan sonra sürgü sesi gelir.
+- **Minigun:** namlular dönmeye başlayınca yükselen mekanik motor vızıltısı; atışlar sürekli ve güçlü bir "brrrt" olarak duyulur. Bırakınca motor yavaşça susar.
+- **Bazuka (roket):** fırlatırken gürleyen itki ve uzaklaşan tıslama; çarpınca keskin çatlama ve uzayan gürlemeli patlama.
+- **Işın kılıcı:** açılırken yükselen enerji vızıltısı, elde tutarken iki bıçağın vuruntulu sürekli vızıltısı (harekete göre perdesi yükselir), savurma ve dönüşte "vııın", bir şeyi keserken kıvılcım cızırtısı. Sürekli sesler tek örneklidir; silah değişince ya da arabaya binince kapanır.
 - **Şarjör:** şarjör mandalı, düşen şarjör, yeni şarjörün oturması ve sürgü sesi (pompalıda kovanların tek tek sürülmesi).
 - **Araba:** sürdüğün arabada hıza göre yükselen motor sesi, gazda egzoz gürlemesi, tekerlek/yol gürültüsü ve frende lastik cızırtısı. Trafikteki arabalar sessizdir.
 - **Su:** yüzerken sürekli şapırtı; hareket ettikçe güçlenir. Suya girişte ayrıca sıçrama sesi gelir.
 - Yürürken ayak sesi **yoktur**.
+- Hazır ses dosyası kullanılmaz; tüm sesler kodla sentezlendiği için telif/lisans konusu yoktur.
 
 ---
 

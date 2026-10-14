@@ -13,7 +13,7 @@ const MINIGUN_RANGE = 90;
 
 // Hitscan silah özellikleri: saçılma, voxel gücü/yarıçapı, araç/uçak hasarı, menzil
 const GUNS = {
-  minigun: { kind: 'minigun', spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'skip' },
+  minigun: { kind: 'minigun', spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'every' },
   pistol:  { kind: 'pistol', spread: 0.004, power: 0.9,  radius: 0.4,  carDmg: 3, planeDmg: 3, range: 120, sound: 'every', kick: 0.6 },
   shotgun: { kind: 'shotgun', spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
   ak47:    { kind: 'ak47', spread: 0.016, power: 0.6,  radius: 0.45, carDmg: 2, planeDmg: 2, range: 140, sound: 'every', kick: 0.45 },
@@ -26,6 +26,20 @@ const WEAPON_KIND = { 1: 'minigun', 5: 'pistol', 6: 'shotgun', 7: 'ak47', 8: 'sn
 const SABER_SWING_TIME = 0.42;
 const SABER_REACH = 3.2;       // metre: kılıç etkisi
 const SABER_RADIUS = 0.42;
+
+// Çift bıçaklı kılıç: tutacak ortada, iki ucundan birer bıçak çıkar.
+// Görsel model elde küçük çizilir; çarpışma için bıçaklar tutacak merkezinden SABER_BLADE_SCALE kat büyütülür
+// (eski tek bıçağın 3.2 m erişimiyle uyumlu).
+const SABER_HILT_HALF = 0.19;     // tutacak merkezinden yayıcıya uzaklık (model birimi)
+const SABER_BLADE_LEN = 1.0;      // bir bıçağın görsel uzunluğu
+const SABER_BLADE_SCALE = 2.6;    // bıçağın dünyadaki hasar uzunluğu = görsel × bu
+const SABER_HOLD = { x: 0.26, y: -0.18, z: -1.05 };   // tutacak merkezinin ekrandaki yeri
+const SPIN_TIME = 0.65;           // bir tam dönüşün süresi (sn)
+const SPIN_MIN_SPEED = 3;         // m/sn: bu hızın altındaki bıçak ucu hasar vermez
+const SPIN_SAFE_DIST = 1.2;       // kameraya bu kadar yakın noktalar kesilmez (oyuncu/tutacak)
+const SPIN_CUT_RADIUS = 0.38;
+const SPIN_CUT_BUDGET = 600;      // kare başına en çok kesilecek küp
+const SPIN_SAMPLES = 9;           // bıçak başına örnek nokta
 
 const lerp = THREE.MathUtils.lerp;
 
@@ -54,6 +68,14 @@ export class HandWeapons {
     this.mx = 0; this.my = 0;       // son fare hareketi (savurma yönünü belirler)
     this.swingCut = 0;      // bu savuruşta kırılan küp sayısı
     this.swingSoundT = 0;
+    this.saberSpin = null;   // sağ tıkla başlayan tam dönüş: { t, dur, axis, sign }
+    this.spinQueued = false; // dönüş sürerken gelen tek bir tıklama sırada bekler
+    this.spinCut = 0;        // bu dönüşte kırılan küp sayısı
+    this.spinLastDir = -1;
+    this.spinPrev = null;    // önceki karede bıçak örnek noktaları (dünya)
+    this.spinHitT = 0;       // çarpma sesi/kıvılcım aralığı
+    this.spinGroundT = 0;    // zemin kırma aralığı
+    this.saberMotion = 0;    // 0..1 kılıç hızı (ses perdesi için)
     this.tracers = [];
 
     // ── Silah modeli sahnesi (ana sahneden ayrı çizilir) ──
@@ -159,46 +181,50 @@ export class HandWeapons {
   }
 
   _buildSaber() {
-    // Pivot: elin bulunduğu nokta; savurma bu noktanın etrafında döner
+    // Pivot = tutacağın ortası; savurma ve dönüş bu noktanın etrafında olur.
+    // saberPivot (konum + savurma) → spinGroup (sağ tık dönüşü) → saber (model eğimi + parçalar)
     this.saberPivot = new THREE.Group();
-    this.saberPivot.position.set(0.34, -0.36, -0.5);
+    this.saberPivot.position.set(SABER_HOLD.x, SABER_HOLD.y, SABER_HOLD.z);
+    this.spinGroup = new THREE.Group();
+    this.saberPivot.add(this.spinGroup);
 
     const saber = new THREE.Group();
-    saber.rotation.x = -1.1; // bıçak ileri ve yukarı bakar
+    saber.rotation.x = -0.5;   // hafif öne eğik: iki bıçak da ekranda dengeli görünür
+    saber.rotation.z = -0.5;
+    this.saberBody = saber;
 
     const metal = new THREE.MeshLambertMaterial({ color: 0x9ca3af });
     const dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
-    const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), metal);
-    hilt.position.y = 0.0;
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.058, 0.12, 0.058), dark);
-    grip.position.y = -0.05;
-    const emitter = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.045, 0.075), metal);
-    emitter.position.y = 0.17;
+    const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.05, SABER_HILT_HALF * 2, 0.05), metal);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.13, 0.06), dark);
+    saber.add(hilt, grip);
 
-    this.bladeCore = new THREE.Mesh(
-      new THREE.BoxGeometry(0.03, 1.15, 0.03),
-      new THREE.MeshBasicMaterial({ color: 0xe8fbff })
-    );
-    this.bladeCore.position.y = 0.2 + 0.575;
-    this.bladeHalo = new THREE.Mesh(
-      new THREE.BoxGeometry(0.085, 1.2, 0.085),
-      new THREE.MeshBasicMaterial({
-        color: 0x3aa8ff, transparent: true, opacity: 0.42,
-        blending: THREE.AdditiveBlending, depthWrite: false
-      })
-    );
-    this.bladeHalo.position.y = 0.2 + 0.6;
-    this.bladeHalo2 = new THREE.Mesh(
-      new THREE.BoxGeometry(0.15, 1.24, 0.15),
-      new THREE.MeshBasicMaterial({
-        color: 0x1d7bff, transparent: true, opacity: 0.16,
-        blending: THREE.AdditiveBlending, depthWrite: false
-      })
-    );
-    this.bladeHalo2.position.y = 0.2 + 0.62;
+    // İki yayıcı + iki bıçak (çekirdek + iki ışıma katmanı); +1 ön, -1 arka bıçak
+    this.bladeHalos = [];
+    for (const sign of [1, -1]) {
+      const emitter = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.045, 0.075), metal);
+      emitter.position.y = sign * (SABER_HILT_HALF - 0.01);
+      const mid = SABER_HILT_HALF + SABER_BLADE_LEN / 2;
+      const core = new THREE.Mesh(
+        new THREE.BoxGeometry(0.03, SABER_BLADE_LEN, 0.03),
+        new THREE.MeshBasicMaterial({ color: 0xe8fbff })
+      );
+      core.position.y = sign * mid;
+      const halo = new THREE.Mesh(
+        new THREE.BoxGeometry(0.085, SABER_BLADE_LEN + 0.05, 0.085),
+        new THREE.MeshBasicMaterial({ color: 0x3aa8ff, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      halo.position.y = sign * (mid + 0.01);
+      const halo2 = new THREE.Mesh(
+        new THREE.BoxGeometry(0.15, SABER_BLADE_LEN + 0.08, 0.15),
+        new THREE.MeshBasicMaterial({ color: 0x1d7bff, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      halo2.position.y = sign * (mid + 0.02);
+      this.bladeHalos.push([halo, 0.42], [halo2, 0.16]);
+      saber.add(emitter, core, halo, halo2);
+    }
 
-    saber.add(hilt, grip, emitter, this.bladeCore, this.bladeHalo, this.bladeHalo2);
-    this.saberPivot.add(saber);
+    this.spinGroup.add(saber);
     this.saberModel = this.saberPivot;
     this.root.add(this.saberPivot);
   }
@@ -243,6 +269,7 @@ export class HandWeapons {
     this.fireHeld = false;
     this.swingT = -1;
     this._cancelReload();   // silah değişince yarım kalan şarjör değişimi iptal olur
+    this._endSpin();
     this.rocketModel.visible = i === 0;
     this.minigunModel.visible = i === 1;
     this.saberModel.visible = i === 2;
@@ -250,6 +277,7 @@ export class HandWeapons {
     Object.entries(this.gunModels).forEach(([k, g]) => g.visible = Number(k) === i);
     if (i !== 8) this.scoped = false;
     if (i === 2) sound.playSaberOn();
+    else sound.updateSaberHum(false);
     if (i !== 2) this.saberLight.intensity = 0;
     this._ammoChanged();
   }
@@ -277,6 +305,33 @@ export class HandWeapons {
     }
     sound.playSaberSwing();
     return true;
+  }
+
+  // Sağ tık: çift bıçaklı kılıcı elin etrafında tam tur döndürür. Yön her seferinde (öncekinden farklı)
+  // sağ / sol / yukarı / aşağıdan biri olur ve hafifçe sapar. Dönüş sürerken gelen tıklamalardan
+  // yalnızca biri sıraya alınır; bitince hemen başlar. Fazlası yok sayılır.
+  startSpin() {
+    if (this.current !== 2 || this.swingT >= 0) return false;
+    if (this.saberSpin) { this.spinQueued = true; return true; }
+    let dir;
+    do { dir = Math.floor(Math.random() * 4); } while (dir === this.spinLastDir);
+    this.spinLastDir = dir;
+    // 0 sağ, 1 sol: dikey eksen etrafında; 2 yukarı, 3 aşağı: yatay eksen etrafında
+    const axis = dir < 2 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const sign = [-1, 1, 1, -1][dir];
+    axis.applyAxisAngle(new THREE.Vector3(0, 0, 1), (Math.random() - 0.5) * 0.52);   // ±15° sapma
+    this.saberSpin = { t: 0, dur: SPIN_TIME * (0.92 + Math.random() * 0.16), axis, sign };
+    this.spinCut = 0;
+    this.spinPrev = null;
+    sound.playSaberSpin(this.saberSpin.dur);
+    return true;
+  }
+
+  _endSpin() {
+    this.saberSpin = null;
+    this.spinQueued = false;
+    this.spinPrev = null;
+    if (this.spinGroup) this.spinGroup.quaternion.identity();
   }
 
   update(dt, ctx) {
@@ -322,6 +377,7 @@ export class HandWeapons {
     const targetSpin = this.current === 1 && this.fireHeld ? 1 : 0;
     this.spin += (targetSpin - this.spin) * Math.min(1, dt / (targetSpin ? MINIGUN_SPINUP : 0.6));
     this.barrelAngle += this.spin * 30 * dt;
+    sound.updateMinigun(this.current === 1 ? this.spin : 0);
     this.barrels.rotation.z = this.barrelAngle;
     this.minigunModel.position.set(0.28 + swayX, -0.3 - swayY - drop, -0.7 + this.kick * 0.05);
     this.minigunModel.rotation.z = (Math.random() - 0.5) * 0.01 * this.spin;
@@ -339,8 +395,7 @@ export class HandWeapons {
 
     // Işın kılıcı: hafif parlama + savurma animasyonu
     const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.02);
-    this.bladeHalo.material.opacity = 0.42 * pulse;
-    this.bladeHalo2.material.opacity = 0.16 * pulse;
+    for (const [halo, base] of this.bladeHalos) halo.material.opacity = base * pulse;
     let swingU = 0;
     if (this.swingT >= 0) {
       this.swingT += dt / SABER_SWING_TIME;
@@ -355,6 +410,25 @@ export class HandWeapons {
       }
     }
     // Savurma: geriye çek, seçilen yönde hızla salla, yerine dön. Yön yatay, dikey ya da çapraz olabilir.
+    // Tam tur dönüş (sağ tık): yumuşak hızlanıp yavaşlar; dönüş bitince sıradaki tıklama varsa hemen yenisi başlar
+    let spinSpeed = 0;
+    if (this.saberSpin) {
+      const sp = this.saberSpin;
+      sp.t += dt;
+      const u = Math.min(1, sp.t / sp.dur);
+      const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // ease-in-out cubic
+      this.spinGroup.quaternion.setFromAxisAngle(sp.axis, sp.sign * Math.PI * 2 * e);
+      if (u >= 1) {
+        if (this.spinCut > 0 && this.onScore) {
+          const pts = Math.max(1, Math.round(this.spinCut * 14 / 8));
+          this.onScore(pts, `+${pts} IŞIN KILICI!`);
+        }
+        const again = this.spinQueued;
+        this._endSpin();
+        if (again) this.startSpin();
+      }
+    }
+
     const sCur = swingU <= 0 ? 0
       : swingU < 0.2 ? lerp(0, -1.15, swingU / 0.2)
       : swingU < 0.8 ? lerp(-1.15, 1, (swingU - 0.2) / 0.6)
@@ -363,19 +437,29 @@ export class HandWeapons {
     const ox = dx * sCur, oy = dy * sCur;
     const arc = Math.sin(swingU * Math.PI);
     this.saberPivot.position.set(
-      0.2 + swayX + ox * 0.42,
-      -0.36 - swayY - drop + oy * 0.28 - arc * 0.05,
-      -0.5 - arc * 0.14
+      SABER_HOLD.x + swayX + ox * 0.42,
+      SABER_HOLD.y - swayY - drop + oy * 0.28 - arc * 0.05,
+      SABER_HOLD.z - arc * 0.14
     );
     this.saberPivot.rotation.z = swingU > 0 ? 0.42 - ox * 1.05 : -0.18;
     this.saberPivot.rotation.x = swingU > 0 ? -oy * 0.85 : 0;
     this.saberPivot.rotation.y = swingU > 0 ? ox * 0.25 : 0;
 
+    // Dönüş hasarı: bıçakların gerçek konumundan (iki bıçak da)
+    this.spinHitT -= dt; this.spinGroundT -= dt;
+    if (this.saberSpin) spinSpeed = this._spinDamage(dt);
+    else this.spinPrev = null;
+
+    // Kılıç hızı → vızıltının perdesi (yumuşatılmış)
+    const motionTarget = Math.min(1, Math.max(spinSpeed / 25, this.swingT >= 0 ? 0.55 : 0));
+    this.saberMotion += (motionTarget - this.saberMotion) * Math.min(1, dt * 12);
+    sound.updateSaberHum(this.current === 2 && this.visible, this.saberMotion);
+
     // Kılıç ışığı dünyayı mavi aydınlatır
     if (this.current === 2 && this.visible) {
       const fwd = new THREE.Vector3(); cam.getWorldDirection(fwd);
       this.saberLight.position.copy(cam.position).addScaledVector(fwd, 1.4);
-      this.saberLight.intensity = 1.4 * pulse + (this.swingT >= 0 ? 0.8 : 0);
+      this.saberLight.intensity = 1.4 * pulse + (this.swingT >= 0 || this.saberSpin ? 0.8 : 0);
     } else {
       this.saberLight.intensity = 0;
     }
@@ -603,6 +687,75 @@ export class HandWeapons {
     }
     this.swingSoundT -= 1 / 60;
     this.swingCut += cut;
+  }
+
+  // Dönüş hasarı: iki bıçağın modelden alınan GERÇEK konumları her karede örneklenir; önceki kare ile bu kare
+  // arasındaki yol ara adımlarla taranır (hızlı dönüşte duvarın içinden "atlamasın). Kopan küpler bıçağın o
+  // noktadaki hareket yönünde savrulur. Kameraya yakın noktalar atlanır, kare başına kesim bütçesi vardır.
+  // Dönen değer: en hızlı bıçak noktasının hızı (m/sn).
+  _spinDamage(dt) {
+    const cam = this.camera;
+    this.root.updateMatrixWorld(true);
+    const centerV = new THREE.Vector3().setFromMatrixPosition(this.saberPivot.matrixWorld);
+
+    // Örnek noktalar: model uzayı → büyütülmüş → dünya
+    const cur = [];
+    for (const sign of [1, -1]) {
+      for (let i = 0; i < SPIN_SAMPLES; i++) {
+        const f = (i + 0.5) / SPIN_SAMPLES;
+        const v = this.saberBody.localToWorld(new THREE.Vector3(0, sign * (SABER_HILT_HALF + f * SABER_BLADE_LEN), 0));
+        v.sub(centerV).multiplyScalar(SABER_BLADE_SCALE).add(centerV);
+        cur.push(v.applyQuaternion(cam.quaternion).add(cam.position));
+      }
+    }
+    const prev = this.spinPrev || cur;
+    this.spinPrev = cur;
+    if (prev === cur) return 0;
+
+    const safe2 = SPIN_SAFE_DIST * SPIN_SAFE_DIST;
+    let maxSpeed = 0, maxDist = 0;
+    const vel = cur.map((c, i) => {
+      const v = c.clone().sub(prev[i]).divideScalar(Math.max(dt, 1e-3));
+      const sp = v.length();
+      if (sp > maxSpeed) maxSpeed = sp;
+      maxDist = Math.max(maxDist, sp * dt);
+      if (sp > 28) v.multiplyScalar(28 / sp);   // savrulma hızı sınırlı
+      return v;
+    });
+    if (maxSpeed < SPIN_MIN_SPEED) return maxSpeed;
+
+    const steps = Math.min(10, Math.max(1, Math.ceil(maxDist / 0.35)));
+    let budget = SPIN_CUT_BUDGET, cutNow = 0, hitPoint = null;
+    const pt = new THREE.Vector3();
+    for (let j = 1; j <= steps && budget > 0; j++) {
+      for (let i = 0; i < cur.length && budget > 0; i++) {
+        if (vel[i].length() < SPIN_MIN_SPEED) continue;
+        pt.lerpVectors(prev[i], cur[i], j / steps);
+        if (pt.distanceToSquared(cam.position) < safe2) continue;
+        const n = this.voxelWorld.sweepCut(pt, SPIN_CUT_RADIUS, vel[i]);
+        if (n > 0) { cutNow += n; budget -= n; if (!hitPoint) hitPoint = pt.clone(); }
+      }
+    }
+    // NPC'ler ve zemin yalnız güncel konumda kontrol edilir (zemin seyrek kırılır)
+    for (let i = 0; i < cur.length; i++) {
+      const c = cur[i];
+      if (c.distanceToSquared(cam.position) < safe2 || vel[i].length() < SPIN_MIN_SPEED) continue;
+      if (this.npcs) this.npcs.hitSphere(c, SPIN_CUT_RADIUS + 0.3);
+      if (this.spinGroundT <= 0) {
+        const gy = this.voxelWorld.terrain.topYAt(c.x, c.z);
+        if (c.y <= gy + 0.3 && this.voxelWorld.terrain.topIntactAt(c.x, c.z)) {
+          this.voxelWorld.breakGround(new THREE.Vector3(c.x, gy, c.z), 0.55, 50);
+          this.spinGroundT = 0.12;
+        }
+      }
+    }
+    this.spinCut += cutNow;
+    if (hitPoint && this.spinHitT <= 0) {
+      sound.playSaberHit();
+      if (this.particleSystem.createSpark) this.particleSystem.createSpark(hitPoint);
+      this.spinHitT = 0.12;
+    }
+    return maxSpeed;
   }
 
   // ───────────────────────── Çizim ─────────────────────────
