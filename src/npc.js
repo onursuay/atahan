@@ -19,8 +19,10 @@ const GRAVITY = 25;
 const STEP_UP_MAX = 0.5;
 const EPS = 1e-4;
 const RESPAWN_SECONDS = 6;
+const CULL_DIST = 120;           // bu mesafeden uzaktaki NPC'ler görünmez (çizim maliyeti)
 const HIT_RADIUS = 0.45 * SCALE; // mermi/kılıç isabet yarıçapı (gövde etrafı)
 const HEAD_FROM = 0.74;          // boyun bu oranından yukarısı kafa sayılır
+const BAG_COLORS = [0xdc2626, 0x2563eb, 0xf59e0b, 0x16a34a, 0xe879f9, 0xf3f4f6, 0x111827, 0xfacc15, 0x0891b2];
 const BLOOD = [0xb91c1c, 0x991b1b, 0xdc2626, 0x7f1d1d];
 
 const SHIRTS = [0xdc2626, 0x2563eb, 0x16a34a, 0xf59e0b, 0x9333ea, 0x0891b2, 0xe11d48, 0x65a30d, 0xf97316, 0x475569];
@@ -92,12 +94,13 @@ export class NPCManager {
     return this.voxelWorld.terrain.heightAt(x, z) > -Infinity;
   }
 
-  _makeBody(rich = false, style = null) {
+  // o: { shirt (hex), hat: 'cap' | 'chef', hatColor, bag (hex: elde alışveriş poşeti) }
+  _makeBody(rich = false, style = null, o = {}) {
     const g = new THREE.Group();
     // Zengin adam / patron: siyah takım, beyaz gömlek, gümüş saç, koyu gözlük, altın saat
     // Çalışan tarzları: office (beyaz/açık mavi gömlek, koyu pantolon), bank (mavi yelek), chef (beyaz önlük + aşçı şapkası)
     const OFFICE = [0xffffff, 0xbfdbfe, 0xe5e7eb, 0xfde68a], DARK = [0x1f2937, 0x374151, 0x111827];
-    const shirt = rich ? 0x0b0d12 : style === 'guard' ? 0x1e3a8a : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
+    const shirt = rich ? 0x0b0d12 : o.shirt != null ? o.shirt : style === 'guard' ? 0x1e3a8a : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
     const pants = rich ? 0x0b0d12 : style === 'guard' ? 0x0f172a : style ? pick(DARK) : pick(PANTS);
     const skin = rich ? 0xf1c27d : pick(SKINS), hair = rich ? 0xd4d4d8 : pick(HAIRS);
 
@@ -121,7 +124,16 @@ export class NPCManager {
       const watch = new THREE.Mesh(boxGeo(0.16, 0.05, 0.16), mat(0xfacc15)); watch.position.set(0, -0.42, 0); rArm.add(watch);
       g.add(shirtFront, tie, shades);
     }
-    if (style === 'chef') { const hat = new THREE.Mesh(boxGeo(0.34, 0.3, 0.34), mat(0xffffff)); hat.position.y = 1.78; g.add(hat); }
+    if (o.hat === 'chef' || style === 'chef') { const hat = new THREE.Mesh(boxGeo(0.34, 0.3, 0.34), mat(0xffffff)); hat.position.y = 1.78; g.add(hat); }
+    else if (o.hat === 'cap') {                                  // beyzbol şapkası (dükkânın rengi)
+      const hc = o.hatColor ?? shirt;
+      const cap = new THREE.Mesh(boxGeo(0.38, 0.11, 0.38), mat(hc)); cap.position.y = 1.65; g.add(cap);
+      const brim = new THREE.Mesh(boxGeo(0.3, 0.03, 0.14), mat(hc)); brim.position.set(0, 1.59, 0.25); g.add(brim);
+    }
+    if (o.bag != null) {                                         // alışveriş poşeti: sağ elde sarkar
+      const bag = new THREE.Mesh(boxGeo(0.22, 0.28, 0.1), mat(o.bag)); bag.position.set(0.02, -0.62, 0.1); rArm.add(bag);
+      const handle = new THREE.Mesh(boxGeo(0.1, 0.05, 0.02), mat(0x2a2a30)); handle.position.set(0.02, -0.46, 0.1); rArm.add(handle);
+    }
     if (style === 'guard') {                                     // güvenlik: lacivert üniforma, siyah kasket + altın rozet, telsiz, sarı kol bandı (zengin adamdan ayırt edilsin)
       const cap = new THREE.Mesh(boxGeo(0.39, 0.12, 0.39), mat(0x0b0d12)); cap.position.y = 1.64; g.add(cap);
       const brim = new THREE.Mesh(boxGeo(0.32, 0.03, 0.12), mat(0x0b0d12)); brim.position.set(0, 1.58, 0.24); g.add(brim);
@@ -137,14 +149,14 @@ export class NPCManager {
   // Çalışan (masasında oturan ya da tezgâhta ayakta duran): yürümez, hafifçe çalışır; vurulursa 60 sn sonra aynı yerde yeniden belirir
   // spec: { x, y, z, yaw, pose: 'sit' | 'stand', style }
   _spawnWorker(spec) {
-    const body = this._makeBody(false, spec.style || 'office');
-    body.g.scale.setScalar(SCALE);
-    const sit = spec.pose === 'sit', drop = sit ? 0.62 * SCALE - 0.5 : 0;
+    const k = spec.k || 1, body = this._makeBody(false, spec.style || 'office', spec);
+    body.g.scale.setScalar(SCALE * k);
+    const sit = spec.pose === 'sit', drop = sit ? Math.max(0, 0.62 * SCALE * k - 0.5) : 0;
     if (sit) { body.lLeg.rotation.x = -Math.PI / 2; body.rLeg.rotation.x = -Math.PI / 2; body.lArm.rotation.x = -1.2; body.rArm.rotation.x = -1.2; }   // bacaklar ileri, kollar klavyede
     body.g.position.set(spec.x, spec.y - drop, spec.z); body.g.rotation.y = spec.yaw;
     this.scene.add(body.g);
     this.npcs.push({ ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0, heading: spec.yaw, turnTimer: 0, pause: 0, cycle: Math.random() * 6, grounded: true,
-      worker: true, sit, drop, respawn: () => this._spawnWorker(spec), value: 100 });
+      worker: true, sit, drop, k, eat: !!spec.eat, cycleOff: Math.random() * 6, respawn: () => this._spawnWorker(spec), value: 100 });
   }
 
   // Patron: siyah takımlı dev; rotada (yukarıdan aşağıya, sonra tersine) sürekli gezer. spec: { route: [{x,y,z}], name }
@@ -160,8 +172,8 @@ export class NPCManager {
 
   // Villanın tek sakini: sınırlı bölgede (villa + teras) dolaşır; vurulursa bir dakika sonra yeniden doğar
   _spawnResident(spec) {
-    const body = this._makeBody(true);
-    body.g.scale.setScalar(SCALE);
+    const k = spec.k || 1, rich = spec.kind === 'rich', body = rich ? this._makeBody(true) : this._makeBody(false, spec.style || null, spec);   // 'rich': villa sahibi; diğerleri: AVM'de gezen müşteriler
+    body.g.scale.setScalar(SCALE * k);
     // Eşyaların içinde doğmasın: istenen noktaya en yakın boş yeri ara (0.5 m adımlı halkalar, 4 m'ye kadar)
     let sx = spec.x, sz = spec.z;
     search: for (let r = 0; r <= 4; r += 0.5) for (let a = 0; a < (r === 0 ? 1 : 16); a++) {
@@ -175,7 +187,7 @@ export class NPCManager {
     this.npcs.push({
       ...body, group: body.g, x: sx, y: spec.y, z: sz, vy: 0,
       heading: Math.random() * Math.PI * 2, turnTimer: 2 + Math.random() * 3, pause: 1, cycle: 0, grounded: true,
-      resident: spec, bounds: spec.bounds, value: 1000
+      resident: spec, bounds: spec.bounds, value: rich ? 1000 : 100, k
     });
   }
 
@@ -196,7 +208,7 @@ export class NPCManager {
           this._solid(x, gy0, z + 1.2) || this._solid(x, gy0, z - 1.2)) continue;
 
       const gy = t.topYAt(x, z);
-      const body = this._makeBody();
+      const body = this._makeBody(false, null, Math.random() < 0.22 ? { bag: pick(BAG_COLORS) } : {});   // her beşinden biri elinde alışveriş poşetiyle (AVM'den çıkmış gibi)
       body.g.scale.setScalar(SCALE);
       body.g.position.set(x, gy, z);
       this.scene.add(body.g);
@@ -222,14 +234,19 @@ export class NPCManager {
       if (this.respawnQueue[i] <= 0) { this.respawnQueue.splice(i, 1); this._spawn(); }
     }
 
-    for (const n of this.npcs) this._step(n, dt);
+    for (const n of this.npcs) {
+      this._step(n, dt);
+      const dx = n.x - playerPos.x, dy = n.y - playerPos.y, dz = n.z - playerPos.z;
+      n.group.visible = dx * dx + dy * dy + dz * dz < CULL_DIST * CULL_DIST;   // uzaktaki insanlar çizilmez (yüzlerce çalışan/müşteri var)
+    }
     this._updateCorpses(dt);
   }
 
   _step(n, dt) {
     if (n.worker) {                                    // çalışan: yerinde durur; oturanlar klavye vuruşu, ayaktakiler hafif sallanma
       n.cycle += dt * (n.sit ? 7 : 1.5);
-      if (n.sit) { n.lArm.rotation.x = -1.15 + Math.sin(n.cycle) * 0.12; n.rArm.rotation.x = -1.15 + Math.sin(n.cycle + 2) * 0.12; }
+      if (n.eat) { n.lArm.rotation.x = -1.1; n.rArm.rotation.x = -1.3 - 1.1 * Math.max(0, Math.sin(n.cycle * 0.3 + n.cycleOff)); }   // yemek yer: sağ elini ağzına götürür
+      else if (n.sit) { n.lArm.rotation.x = -1.15 + Math.sin(n.cycle) * 0.12; n.rArm.rotation.x = -1.15 + Math.sin(n.cycle + 2) * 0.12; }
       else { n.lArm.rotation.x = Math.sin(n.cycle) * 0.08; n.rArm.rotation.x = -Math.sin(n.cycle) * 0.08; }
       return;
     }
@@ -339,7 +356,7 @@ export class NPCManager {
   rayHit(origin, dir, maxDist) {
     let best = null;
     for (const n of this.npcs) {
-      const c = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT / 2, n.z);
+      const k = n.k || 1, c = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT * k / 2, n.z);
       const to = c.clone().sub(origin);
       const along = to.dot(dir);
       if (along < 0 || along > maxDist) continue;
@@ -348,8 +365,8 @@ export class NPCManager {
       // Gövde yüksekliğine göre uzun bir kapsül gibi: yatay mesafe + dikey tolerans
       const vert = Math.abs(closest.y - c.y);
       const horiz = Math.hypot(closest.x - c.x, closest.z - c.z);
-      if (horiz <= 0.32 * SCALE && vert <= HEIGHT / 2 && lateral <= 1.0 * SCALE) {
-        if (!best || along < best.dist) best = { dist: along, point: closest, npc: n, head: closest.y >= n.y - (n.drop || 0) + HEIGHT * HEAD_FROM };
+      if (horiz <= 0.32 * SCALE * k && vert <= HEIGHT * k / 2 && lateral <= 1.0 * SCALE * k) {
+        if (!best || along < best.dist) best = { dist: along, point: closest, npc: n, head: closest.y >= n.y - (n.drop || 0) + HEIGHT * k * HEAD_FROM };
       }
     }
     return best;
@@ -365,7 +382,7 @@ export class NPCManager {
     const at = opt.point || new THREE.Vector3(n.x, n.y + HEIGHT * 0.5, n.z);
     const cube = (x, y, z, color, push, sc = 1.3) => { if (vw.dynamicDebris.length < vw.maxDynamicDebris) vw.spawnLooseVoxel(x, y, z, { color }, from || at, 0.5, 2, 70, push, sc); };
     if (head) {
-      const hp = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT * 0.86, n.z);
+      const hp = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT * (n.k || 1) * 0.86, n.z);
       for (let i = 0; i < 8; i++) cube(hp.x + (Math.random() - 0.5) * 0.5, hp.y + (Math.random() - 0.5) * 0.5, hp.z + (Math.random() - 0.5) * 0.5, n.colors[2], null, 1.5);   // kafa parçaları (ten)
       for (let i = 0; i < 3; i++) cube(hp.x, hp.y + 0.1, hp.z, n.colors[3], null, 1.3);                                                                                   // saç
       for (let i = 0; i < 16; i++) cube(hp.x + (Math.random() - 0.5) * 0.4, hp.y + (Math.random() - 0.5) * 0.5, hp.z + (Math.random() - 0.5) * 0.4, BLOOD[i % BLOOD.length], null, 0.9);   // kan (kırmızı küpler)
@@ -433,6 +450,6 @@ export class NPCManager {
     if (n.respawn) this.residentQueue.push({ t: 60, fn: n.respawn });
     else if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
     else this.respawnQueue.push(RESPAWN_SECONDS);
-    if (this.onScore) this.onScore(n.value || 100, n.resident ? '+1000 ZENGİN ADAM VURULDU!' : n.boss ? '+500 PATRON VURULDU!' : n.guard ? '+300 GÜVENLİK VURULDU!' : '+100 NPC VURULDU!');
+    if (this.onScore) this.onScore(n.value || 100, n.resident && n.resident.kind === 'rich' ? '+1000 ZENGİN ADAM VURULDU!' : n.boss ? '+500 PATRON VURULDU!' : n.guard ? '+300 GÜVENLİK VURULDU!' : '+100 NPC VURULDU!');
   }
 }

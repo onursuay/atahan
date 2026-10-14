@@ -623,24 +623,16 @@ export class LevelManager {
     w.fillBox(x1, y1 + 1, zc + 7, x1, y2 - 4, z2 - 3, PALETTE.GLASS);
     w.fillBox(x1, y1 + 8, zc - 8, x1, y1 + 10, zc + 8, PALETTE.GOLD);        // AVM tabelası
     // Sütunlar (kafes düzeninde), mağaza vitrinleri duvarlar boyunca
-    for (let x = x1 + 6; x < x2 - 3; x += 9) for (let z = z1 + 6; z < z2 - 3; z += 9) w.fillBox(x, y1, z, x, y2 - 2, z, PALETTE.IRON);
+    for (let x = x1 + 6; x < x2 - 3; x += 9) for (let z = z1 + 6; z < z2 - 3; z += 9) {
+      if (Math.abs(x - Math.round((x1 + x2) / 2)) <= 10 && Math.abs(z - zc) <= 9) continue;      // orta meydan ve merdiven şeritlerinde sütun yok
+      w.fillBox(x, y1, z, x, y2 - 2, z, PALETTE.IRON);
+    }
     for (let z = z1 + 3; z < z2 - 6; z += 8) {
       w.fillBox(x2 - 3, y1 + 1, z, x2 - 3, y1 + 4, z + 5, PALETTE.GLASS);    // arka duvar mağazaları
       w.fillBox(x2 - 3, y1 + 5, z, x2 - 3, y1 + 6, z + 5, [PALETTE.GOLD, PALETTE.BRICK, PALETTE.ROOF][Math.abs(z >> 3) % 3]);
     }
-    // Kat: merkezde atrium boşluğu kalacak şekilde çevre balkon
-    const fy = y1 + MALL_FLOOR;
-    w.fillBox(x1 + 2, fy, z1 + 2, x2 - 2, fy, zc - 9, PALETTE.CONCRETE);
-    w.fillBox(x1 + 2, fy, zc + 9, x2 - 2, fy, z2 - 2, PALETTE.CONCRETE);
-    w.fillBox(x1 + 2, fy + 1, zc - 9, x2 - 2, fy + 1, zc - 9, PALETTE.GLASS); // balkon korkulukları
-    w.fillBox(x1 + 2, fy + 1, zc + 9, x2 - 2, fy + 1, zc + 9, PALETTE.GLASS);
-    for (let k = 2; y1 + MALL_FLOOR * k < y2 - 2; k++) {   // AVM büyüdü: üst katlar da aynı balkon düzeniyle (atrium boşluğu aynı)
-      const fk = y1 + MALL_FLOOR * k;
-      w.fillBox(x1 + 2, fk, z1 + 2, x2 - 2, fk, zc - 9, PALETTE.CONCRETE);
-      w.fillBox(x1 + 2, fk, zc + 9, x2 - 2, fk, z2 - 2, PALETTE.CONCRETE);
-      w.fillBox(x1 + 2, fk + 1, zc - 9, x2 - 2, fk + 1, zc - 9, PALETTE.GLASS);
-      w.fillBox(x1 + 2, fk + 1, zc + 9, x2 - 2, fk + 1, zc + 9, PALETTE.GLASS);
-    }
+    // Katlar: zemin kat hariç her kat TAM döşemelidir (ortada atrium boşluğu yok); katlar arası geçiş merdivenleri mall.js'te açılır
+    for (let k = 1; y1 + MALL_FLOOR * k < y2 - 2; k++) w.fillBox(x1 + 2, y1 + MALL_FLOOR * k, z1 + 2, x2 - 2, y1 + MALL_FLOOR * k, z2 - 2, PALETTE.CONCRETE);
     this.addMallLights(x1, y1, z1, x2, y2, z2);
     this.furnishMall(x1, y1, z1, x2, y2, z2);
     // Çatıda geniş cam ışıklık
@@ -859,17 +851,6 @@ export class LevelManager {
     // Atrium: ağaçlı beton saksılar (giriş katındaki kahverengi masa/sandalye/tezgâhlar kaldırıldı)
     [[xc, zc - 8], [xc, zc + 8]].forEach(([x, z]) => { w.fillBox(x - 1, y1, z - 1, x + 1, y1, z + 1, PALETTE.CONCRETE); this.tree(x, z, 7); });
 
-    // İki yürüyen merdiven (cam korkuluklu): atriumdan balkona çıkar. Kuzey yarıya -z, güney yarıya +z yönünde.
-    const up = (zStart, dir, xl, xr) => {
-      for (let j = 0; j < 19; j++) {
-        const z = Math.round(K * zStart) + dir * j;
-        w.raw(Math.round(K * xl) - 1, GROUND_ROW_SUB, z, Math.round(K * xr) + 1, GROUND_ROW_SUB + j, z, PALETTE.IRON);
-      }
-      [xl - 0.4, xr + 0.4].forEach(x => w.raw(Math.round(K * x), GROUND_ROW_SUB + 1, Math.round(K * zStart), Math.round(K * x), GROUND_ROW_SUB + 20, Math.round(K * zStart) + dir * 18, PALETTE.GLASS));
-    };
-    up(zc + 2, 1, xc - 7, xc - 5);
-    up(zc - 2, -1, xc + 5, xc + 7);
-    // Atrium çevresindeki balkon boşlukları yürüyen merdivenin üstüne denk gelen kısımlarda açık kalır
   }
 
   // ── HASTANE İÇİ: bekleme salonu, eczane, ameliyathane, ambulans ──

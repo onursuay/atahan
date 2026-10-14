@@ -18,43 +18,60 @@ const SHOPS = {
   spor: ['SPOR', 0xea580c, 0xffffff], kozmetik: ['GÜZELLİK', 0xdb2777, 0xffffff], eczane: ['ECZANE', 0x15803d, 0xffffff], mobilya: ['MOBİLYA', 0x92400e, 0xffffff],
   doner: ['DÖNER EVİ', 0xb91c1c, 0xfde68a], lahmacun: ['LAHMACUN', 0x9a3412, 0xffffff], pizza: ['PİZZA', 0xdc2626, 0xffffff], burger: ['BURGER', 0xdc2626, 0xfacc15],
   kebap: ['ŞİŞ KEBAP', 0x7c2d12, 0xfef3c7], tavuk: ['KIZARMIŞ TAVUK', 0xfacc15, 0xb91c1c], dondurma: ['DONDURMA', 0xf472b6, 0xffffff], kahve: ['KAHVE', 0x3f2a1d, 0xfef3c7],
-  baklava: ['BAKLAVA & TATLI', 0xca8a04, 0x3f1d0b], kumpir: ['KUMPİR', 0xd97706, 0xffffff], sushi: ['SUSHI', 0x111827, 0xf87171], cigkofte: ['ÇİĞ KÖFTE', 0x15803d, 0xfef08a]
+  donut: ['DONAT', 0xec4899, 0xffffff], baklava: ['BAKLAVA & TATLI', 0xca8a04, 0x3f1d0b], kumpir: ['KUMPİR', 0xd97706, 0xffffff], sushi: ['SUSHI', 0x111827, 0xf87171], cigkofte: ['ÇİĞ KÖFTE', 0x15803d, 0xfef08a]
 };
-// Kat başına dükkân sırası (12 dükkân: kuzey yarı 3+3, güney yarı 3+3)
+// Kat başına dükkân sırası (12 yuva): her yarıda [büyük dükkân, büyük dükkân, küçük kafe] × (batı, doğu). Yemek katında büyük dükkânlar da yemekçidir.
 const PLAN = [
-  ['tisort', 'elektronik', 'ayakkabi', 'market', 'oyuncak', 'kitap', 'kozmetik', 'mucevher', 'jean', 'spor', 'eczane', 'kahve'],
-  ['jean', 'tisort', 'spor', 'mobilya', 'elektronik', 'oyuncak', 'mucevher', 'kozmetik', 'ayakkabi', 'kitap', 'tisort', 'market'],
-  ['kozmetik', 'tisort', 'ayakkabi', 'jean', 'spor', 'mobilya', 'tisort', 'elektronik', 'oyuncak', 'jean', 'kitap', 'eczane'],
-  ['doner', 'lahmacun', 'pizza', 'burger', 'kebap', 'tavuk', 'dondurma', 'kahve', 'baklava', 'kumpir', 'sushi', 'cigkofte']
+  ['tisort', 'elektronik', 'ayakkabi', 'market', 'kahve', 'donut', 'oyuncak', 'kitap', 'kozmetik', 'mucevher', 'donut', 'dondurma'],
+  ['jean', 'tisort', 'spor', 'mobilya', 'donut', 'kahve', 'elektronik', 'oyuncak', 'mucevher', 'kozmetik', 'kahve', 'dondurma'],
+  ['eczane', 'tisort', 'ayakkabi', 'jean', 'dondurma', 'donut', 'spor', 'market', 'kitap', 'elektronik', 'kahve', 'kahve'],
+  ['doner', 'lahmacun', 'pizza', 'burger', 'kahve', 'donut', 'kebap', 'tavuk', 'sushi', 'baklava', 'dondurma', 'kahve']
 ];
+const FOOD = new Set(['doner', 'lahmacun', 'pizza', 'burger', 'kebap', 'tavuk', 'dondurma', 'kahve', 'baklava', 'kumpir', 'sushi', 'cigkofte', 'donut']);
+const KITCHEN_HAT = new Set(['doner', 'lahmacun', 'pizza', 'burger', 'kebap', 'tavuk', 'baklava', 'kumpir', 'sushi', 'cigkofte']);
+// Dükkânın tezgâhlarına/raflarına serpiştirilen tutulabilir ürünler (sağ tık eli): [tür, adet]
+const PRODUCTS = {
+  tisort: [['bag', 3], ['shirt', 3], ['gift', 2]], jean: [['bag', 3], ['pants', 3], ['shoe', 3]], elektronik: [['phone', 9], ['laptop', 4], ['gift', 2]],
+  ayakkabi: [['shoe', 16], ['box', 3]], market: [['can', 18], ['bottle', 8], ['box', 4], ['bag', 3]], oyuncak: [['teddy', 4], ['toycar', 7], ['ball', 4], ['gift', 3]],
+  kitap: [['book', 12]], mucevher: [['gift', 7]], spor: [['dumbbell', 9], ['ball', 6], ['shoe', 4], ['bottle', 3]], kozmetik: [['bottle', 9], ['gift', 4]],
+  eczane: [['bottle', 8], ['gift', 5]], mobilya: [['cushion', 3], ['plant', 3], ['book', 2]],
+  doner: [['wrap', 7], ['tray', 2], ['can', 4]], lahmacun: [['lahmacun', 8], ['can', 3]], pizza: [['pizzaslice', 10], ['pizzabox', 3], ['can', 3]],
+  burger: [['burger', 9], ['can', 5], ['tray', 2]], kebap: [['wrap', 7], ['tray', 2], ['can', 3]], tavuk: [['bucket', 5], ['can', 4]],
+  dondurma: [['icecream', 8]], kahve: [['coffee', 10], ['donut', 4]], baklava: [['sweet', 9]], kumpir: [['tray', 3], ['can', 3]],
+  sushi: [['sushi', 8]], cigkofte: [['wrap', 7]], donut: [['donut', 18], ['coffee', 5]]
+};
 
 export function furnishMall(lm, x1, y1, z1, x2, y2, z2, MALL_FLOOR) {
-  const kit = new Kit(lm.world);
+  const kit = new Kit(lm.world), world = lm.world, vox = world.voxels;
+  world.workers = world.workers || []; world.residents = world.residents || [];
   const bX = (u) => Math.round(1.5 * (u - 0.5)), bZ = bX;        // eski birim hücre sınırı → voxel indeksi
   const xc = Math.round((x1 + x2) / 2), zc = Math.round((z1 + z2) / 2);
+  const cxV = bX(xc), czV = bZ(zc);
   const floors = []; for (let k = 0; y1 + MALL_FLOOR * k < y2 - 2; k++) floors.push(k);
-  const halves = [[z1 + 3, zc - 10], [zc + 10, z2 - 3]];
+  const halves = [[z1 + 3, zc - 8], [zc + 8, z2 - 3]];
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
 
   floors.forEach(k => {
     let n = 0;
     halves.forEach(([za, zb]) => {
-      for (let zs = za; zs + 8 <= zb + 1; zs += 9) {
-        const hasNext = zs + 9 + 8 <= zb + 1;
-        ['w', 'e'].forEach(side => {
-          const type = PLAN[Math.min(k, 3)][n % 12]; n++;
-          buildSlot(k, side, zs, hasNext, type);
-        });
-      }
+      const sizes = [11, 11, zb - za + 1 - 22];                  // iki büyük dükkân (7.5 m) + bir küçük kafe (3-4 m)
+      let zs = za;
+      sizes.forEach((pitch, si) => {
+        ['w', 'e'].forEach(side => buildSlot(k, side, zs, pitch, si < 2, PLAN[Math.min(k, 3)][n++], si === 2));
+        zs += pitch;
+      });
     });
   });
   corridorFurniture();
+  plazaAndStairs();
 
   // ── Dükkân bölmesi ──
-  function buildSlot(k, side, zs, hasNext, type) {
+  function buildSlot(k, side, zs, pitch, hasNext, type, cafe) {
     const xa = side === 'w' ? x1 + 3 : xc + 4, xb = side === 'w' ? xc - 4 : x2 - 3, xf = side === 'w' ? xb : xa;
     const Xi0 = side === 'w' ? bX(xa + 1) : bX(xf + 1), Xi1 = side === 'w' ? bX(xf) - 1 : bX(xb) - 1;
-    const Zi0 = bZ(zs + 1), Zi1 = hasNext ? bZ(zs + 9) - 1 : bZ(zs + 8) - 1;
-    const D = Xi1 - Xi0 + 1, W = Zi1 - Zi0 + 1, F = FLOOR_ROWS[Math.min(k, 3)], top = Math.min(CEIL[Math.min(k, 3)], F + 11);
+    const Zi0 = bZ(zs + 1), Zi1 = hasNext ? bZ(zs + pitch) - 1 : bZ(zs + pitch - 1) - 1;
+    const D = Xi1 - Xi0 + 1, W = Zi1 - Zi0 + 1, F = FLOOR_ROWS[Math.min(k, 3)];
     const ix = (d) => side === 'w' ? Xi0 + d : Xi1 - d;
     const info = SHOPS[type];
     const s = {
@@ -70,7 +87,7 @@ export function furnishMall(lm, x1, y1, z1, x2, y2, z2, MALL_FLOOR) {
     const wallTop = F + 8;
     kit.put(backX0, F, Zi0, backX1, wallTop, Zi1, P.WHITE);                                         // arka duvar
     kit.put(Math.min(backX0, frontX1), F, bZ(zs), Math.max(backX1, frontX1), wallTop, Zi0 - 1, P.WHITE);   // yan bölme (güney ucu)
-    if (!hasNext) kit.put(Math.min(backX0, frontX1), F, Zi1 + 1, Math.max(backX1, frontX1), wallTop, bZ(zs + 9) - 1, P.WHITE);
+    if (!hasNext) kit.put(Math.min(backX0, frontX1), F, Zi1 + 1, Math.max(backX1, frontX1), wallTop, bZ(zs + pitch) - 1, P.WHITE);
     kit.put(frontX0, F, Zi0, frontX1, F + 6, Zi1, P.GLASS);                                          // cam vitrin
     for (let v = 0; v < W; v += 4) kit.put(frontX0, F, Zi0 + v, frontX1, F + 6, Zi0 + v, P.BLACK);   // çıtalar
     kit.put(frontX0, F + 6, Zi0, frontX1, F + 6, Zi1, P.BLACK);
@@ -81,24 +98,113 @@ export function furnishMall(lm, x1, y1, z1, x2, y2, z2, MALL_FLOOR) {
     kit.sign(info[0], { bg: info[1], fg: info[2], w: Math.min(6.4, W * 0.5 - 0.4), h: 0.9 }, sx, 0.5 * (F + 7) + 0.5, 0.25 * (Zi0 + Zi1), side === 'w' ? Math.PI / 2 : -Math.PI / 2);
     // Aydınlatma: arka duvar üstünde ışık şeridi ve iki sarkan lamba
     kit.put(backX0, wallTop, Zi0, backX1, wallTop, Zi1, P.LAMP);
-    [[5, 3], [5, W - 4], [10, 3], [10, W - 4]].forEach(([d, v]) => s.b(d, d, v, v, 8, 8, P.LAMP));
+    [[5, 3], [5, W - 4], [10, 3], [10, W - 4]].forEach(([d, v]) => { if (v > 0 && v < W) s.b(d, d, v, v, 8, 8, P.LAMP); });
     SHOP[type](s);
+    sprinkle(s, PRODUCTS[type] || []);
+    staff(s, info, type, cafe);
+  }
+
+  // Tezgâh/raf üstlerine tutulabilir ürünler: yeterince boş, üstü açık yüzeyleri bulup serpiştirir
+  function sprinkle(s, list) {
+    const spots = [];
+    for (let d = 0; d < s.D - 2; d++) for (let v = 1; v < s.W - 1; v++) {
+      const ixv = Math.round(s.wx(d) / 0.5), izv = Math.round(s.wz(v) / 0.5);
+      for (let r = 6; r >= 0; r--) {
+        const here = vox.get(`${ixv},${s.F + r},${izv}`);
+        if (!here) continue;
+        if (here.type === P.LAMP || here.type === P.LAMP_BLUE || here.type === P.LAMP_GREEN || here.type === P.LAMP_PINK || here.type === P.LAMP_PURPLE || here.type === P.LAMP_ORANGE) break;
+        if (!vox.has(`${ixv},${s.F + r + 1},${izv}`) && !vox.has(`${ixv},${s.F + r + 2},${izv}`)) spots.push({ d, v, r });
+        break;
+      }
+    }
+    for (let i = spots.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [spots[i], spots[j]] = [spots[j], spots[i]]; }
+    let at = 0;
+    for (const [kind, count] of list) for (let c = 0; c < count && at < spots.length; c++, at++) {
+      const sp = spots[at];
+      kit.prop(kind, s.wx(sp.d) + rnd(-0.06, 0.06), 0.5 * (s.F + sp.r + 1), s.wz(sp.v) + rnd(-0.06, 0.06), { yaw: Math.random() * Math.PI * 2 });
+    }
+  }
+
+  // Dükkân çalışanı: dükkânın renginde tişört, bazılarında şapka; tezgâh başında hareketsiz bekler
+  function staff(s, info, type, cafe) {
+    const food = FOOD.has(type);
+    const pref = cafe ? [Math.min(4, s.D - 4), s.W / 2] : food ? [5, s.W / 2] : [4, s.W - 4];
+    const free = (d, v) => {
+      const x = s.wx(d), z = s.wz(v), hw = 0.38;
+      for (let ixv = Math.floor((x - hw) / 0.5 + 0.5); ixv <= Math.floor((x + hw) / 0.5 + 0.5); ixv++)
+        for (let izv = Math.floor((z - hw) / 0.5 + 0.5); izv <= Math.floor((z + hw) / 0.5 + 0.5); izv++)
+          for (let r = 0; r <= 4; r++) if (vox.has(`${ixv},${s.F + r},${izv}`)) return false;
+      return true;
+    };
+    const cands = [];
+    for (let d = 1; d <= s.D - 4; d++) for (let v = 1; v <= s.W - 2; v++) cands.push([d, v, Math.hypot(d - pref[0], (v - pref[1]) * 1.5)]);
+    cands.sort((a, b) => a[2] - b[2]);
+    const c = cands.find(([d, v]) => free(d, v));
+    if (!c) return;
+    const hat = cafe ? 'cap' : Math.random() < 0.55 ? (KITCHEN_HAT.has(type) ? 'chef' : 'cap') : null;
+    world.workers.push({ x: s.wx(c[0]), y: 0.5 * s.F, z: s.wz(c[1]), yaw: s.side === 'w' ? Math.PI / 2 : -Math.PI / 2, pose: 'stand', style: 'shop', shirt: info[1], hat, hatColor: info[1] });
+  }
+
+  // ── Masa + sandalyeler + oturan yiyiciler (çocuklar dahil) ──
+  function diningTable(ix, iz, F, full) {
+    const cx = 0.5 * ix, cz = 0.5 * iz, topY = 0.5 * (F + 3);
+    kit.put(ix, F, iz, ix, F + 1, iz, P.IRON); kit.put(ix - 1, F + 2, iz - 1, ix + 1, F + 2, iz + 1, P.WHITE);
+    [[-1.1, 0], [1.1, 0], [0, -1.1], [0, 1.1]].forEach(([dx, dz], i) => {
+      const yaw = Math.atan2(-dx, -dz);                                       // masaya bakar
+      kit.prop('chair', cx + dx, 0.5 * F, cz + dz, { yaw: yaw + Math.PI, color: i % 2 ? 0x111827 : 0xf3f4f6 });
+      if (Math.random() < (full ? 0.85 : 0.5)) {
+        const kid = Math.random() < 0.3;
+        world.workers.push({ x: cx + dx, y: 0.5 * F, z: cz + dz, yaw, pose: 'sit', style: 'diner', eat: true, k: kid ? 0.65 : 1 });
+        kit.prop(pickOne(['burger', 'burger', 'pizzaslice', 'tray', 'coffee', 'donut']), cx + dx * 0.4, topY, cz + dz * 0.4, { yaw: Math.random() * 6 });   // önündeki yemek
+      }
+    });
   }
 
   // ── Ortak koridor: yemek katında masalar ve sandalyeler; diğer katlarda bankolar. Giriş katının kahverengi masaları YOK. ──
   function corridorFurniture() {
     const top = floors.length - 1, F = FLOOR_ROWS[Math.min(top, 3)];
-    // yemek katı: koridorun batı kenarında masa + sandalyeler (siyah/beyaz plastik)
     halves.forEach(([za, zb]) => {
-      for (let z = za + 3; z <= zb - 3; z += 6) {
-        const ix = bX(xc - 3), iz = bZ(z), cx = 0.5 * ix, cz = 0.5 * iz;
-        kit.put(ix, F, iz, ix, F, iz, P.IRON); kit.put(ix, F + 1, iz, ix, F + 1, iz, P.IRON); kit.put(ix - 1, F + 2, iz - 1, ix + 1, F + 2, iz + 1, P.WHITE);   // masa: ayak + beyaz tabla
-        [[-1.1, 0], [1.1, 0], [0, -1.1], [0, 1.1]].forEach(([dx, dz], i) => kit.prop('chair', cx + dx, 0.5 * F, cz + dz, { yaw: Math.atan2(-dx, -dz) + Math.PI, color: i % 2 ? 0x111827 : 0xf3f4f6 }));
-        kit.prop('tray', cx, 0.5 * (F + 3), cz, { yaw: Math.random() * 3 });
+      for (let z = za + 3; z <= zb - 3; z += 6) diningTable(bX(xc - 3), bZ(z), F, true);   // yemek katı: koridorun batı kenarında masalar
+    });
+    // doğu kenarda dinlenme bankı (beyaz) ve saksı (her katta)
+    floors.forEach(k => {
+      const Fk = FLOOR_ROWS[Math.min(k, 3)];
+      halves.forEach(([za, zb]) => { const ix = bX(xc + 3), iz = bZ(Math.round((za + zb) / 2)); kit.put(ix, Fk, iz - 2, ix + 1, Fk, iz + 2, P.WHITE); kit.prop('plant', 0.5 * ix, 0.5 * (Fk + 1), 0.5 * (iz + 3)); });
+    });
+  }
+
+  // ── Orta meydan (eski atriumun yeri, artık her katta düz zemin) + katlar arası merdivenler + gezen müşteriler ──
+  function plazaAndStairs() {
+    const xMin = bX(x1 + 3), xMax = bX(x2 - 3), zMin = bZ(z1 + 3), zMax = bZ(z2 - 3);
+    // Katlar arası iki merdiven (karşılıklı yönlü): her geçişte döşemede delik açılır
+    for (let k = 0; k < floors.length - 1; k++) {
+      const F0 = FLOOR_ROWS[Math.min(k, 3)], F1 = FLOOR_ROWS[Math.min(k + 1, 3)], R = F1 - F0;
+      // Çift katlarda orta şeritler (batıda +z, doğuda −z), tek katlarda dış şeritler (ters yön): üst üste binmezler, çıkış ucu bir sonrakinin başlangıcına yakındır
+      (k % 2 === 0 ? [[-6, -1, 1], [1, 6, -1]] : [[-12, -7, -1], [7, 12, 1]]).forEach(([xa, xb, dir]) => {
+        const zStart = dir > 0 ? czV - Math.floor(R / 2) : czV + Math.floor(R / 2);
+        kit.clr(cxV + xa, F1 - 1, Math.min(zStart, zStart + dir * (R - 1)), cxV + xb, F1 - 1, Math.max(zStart, zStart + dir * (R - 1)));   // döşeme deliği
+        for (let j = 1; j <= R; j++) {
+          const z = zStart + dir * (j - 1);
+          kit.put(cxV + xa + 1, F0, z, cxV + xb - 1, F0 + j - 1, z, P.WHITE);                              // basamak sütunu
+          kit.put(cxV + xa + 1, F0 + j - 1, z, cxV + xb - 1, F0 + j - 1, z, j % 2 ? P.LAMP_BLUE : P.IRON);   // basamak yüzü (şeritli)
+          [cxV + xa, cxV + xb].forEach(rx => kit.put(rx, F0 + j, z, rx, F0 + j + 1, z, P.GLASS));            // cam korkuluk
+        }
+      });
+    }
+    // Her katta masalar (yemek katında 8, diğerlerinde 4) ve oturan müşteriler
+    floors.forEach(k => {
+      const F = FLOOR_ROWS[Math.min(k, 3)], food = k === floors.length - 1;
+      const spots = food ? [[-18, -8], [-18, 0], [-18, 8], [18, -8], [18, 0], [18, 8], [0, -9], [0, 9]] : [[-18, -8], [-18, 8], [18, -8], [18, 8]];
+      spots.forEach(([dx, dz]) => diningTable(cxV + dx, czV + dz, F, food));
+      // gezen müşteriler (elinde alışveriş poşetiyle), arada çocuklar
+      const walkers = food ? 7 : 5;
+      for (let i = 0; i < walkers; i++) {
+        const kid = Math.random() < 0.25;
+        world.residents.push({ kind: 'shopper', x: 0.5 * (cxV + Math.round(rnd(-22, 22))), z: 0.5 * (czV + Math.round(rnd(-9, 9))), y: 0.5 * F, k: kid ? 0.65 : 1,
+          bag: kid ? undefined : pickOne([0xdc2626, 0x2563eb, 0xf59e0b, 0x16a34a, 0xe879f9, 0xf3f4f6, 0xfacc15, 0x0891b2]),
+          bounds: { minX: 0.5 * xMin + 1, maxX: 0.5 * xMax - 1, minZ: 0.5 * zMin + 1, maxZ: 0.5 * zMax - 1 } });
       }
     });
-    // doğu kenarda dinlenme bankı (beyaz) ve saksı
-    halves.forEach(([za, zb]) => { const ix = bX(xc + 3), iz = bZ(Math.round((za + zb) / 2)); kit.put(ix, F, iz - 2, ix + 1, F, iz + 2, P.WHITE); kit.prop('plant', 0.5 * ix, 0.5 * (F + 1), 0.5 * (iz + 3)); });
   }
 }
 
@@ -249,7 +355,14 @@ const SHOP = {
     s.b(0, 0, 1, s.W - 2, 5, 7, P.ROOF); for (let v = 2; v < s.W - 2; v += 3) s.b(0, 0, v, v + 1, 6, 6, P.GOLD);
     counter(s, 6, 7, 1, s.W - 2, P.WHITE, P.ROOF, 1);
     for (let v = 2; v < s.W - 2; v += 2) s.b(6, 6, v, v, 2, 2, [P.WHITE, P.BRICK, P.GOLD][v % 3]);   // fincanlar ve pastalar
-    [3, 6, 9].forEach(v => { s.b(9, 9, v, v, 0, 1, P.IRON); s.b(9, 9, v, v, 2, 2, P.ROOF); s.prop('chair', 10.5, v, 0, { color: 0x3f2a1d }); });   // bar taburesi + sandalye
+    [3, 6, 9].filter(v => v < s.W - 2).forEach(v => { s.b(9, 9, v, v, 0, 1, P.IRON); s.b(9, 9, v, v, 2, 2, P.ROOF); s.prop('chair', 10.5, v, 0, { color: 0x3f2a1d }); });   // bar taburesi + sandalye
+  },
+  donut(s) {                                                                             // donat dükkânı: pembe pano, raflarda donatlar, vitrinli tezgâh
+    kitchenBack(s);
+    s.b(0, 0, 1, s.W - 2, 3, 7, P.LAMP_PINK); for (let v = 2; v < s.W - 2; v += 3) { s.b(0, 0, v, v + 1, 4, 5, P.WHITE); s.b(0, 0, v + 1, v + 1, 4, 4, P.ROOF); }   // pembe pano + donat çizimleri
+    [1, 3].forEach(r => s.b(1, 2, 1, s.W - 2, r + 2, r + 2, P.WHITE));                    // arka raflar (donat dizilir)
+    counter(s, 6, 7, 1, s.W - 2, P.GLASS, P.LAMP_PINK, 1); s.b(6, 6, 1, s.W - 2, 3, 3, P.GLASS);   // cam vitrinli tezgâh
+    register(s, 7, 1);
   },
   baklava(s) {
     kitchenBack(s); menu(s, 2, s.W - 3, P.ROOF);
