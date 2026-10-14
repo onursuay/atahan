@@ -557,15 +557,6 @@ function triggerLevelWin(pct) {
   }, 1000);
 }
 
-function toggleWeaponMenu() {
-  releaseHand();
-  const bar = document.getElementById('weapon-selector');
-  if (bar.classList.contains('menu-open')) { closeWeaponMenu(true); return; }
-  bar.classList.add('menu-open');
-  handWeapons.fireHeld = false;
-  if (document.pointerLockElement) document.exitPointerLock();
-}
-
 function closeWeaponMenu(relock) {
   document.getElementById('weapon-selector').classList.remove('menu-open');
   if (relock && document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
@@ -592,6 +583,11 @@ function showWeaponHint(text) {
 }
 
 function updateWeaponUI() {
+  const now = document.getElementById('weapon-now');
+  if (now) {
+    const cw = weaponSystem.currentWeapon, nameEl = document.querySelector(`#w-btn-${cw} .w-name`), a = weaponSystem.weapons[cw].ammo;
+    now.innerText = `${nameEl ? nameEl.innerText : ''}   ${a === Infinity ? '∞' : a}   (${cw + 1}/${weaponSystem.weapons.length})`;
+  }
   document.querySelectorAll('.weapon-btn').forEach((btn, idx) => {
     btn.classList.toggle('active', idx === weaponSystem.currentWeapon);
     const ammoEl = document.getElementById(`w-ammo-${idx}`);
@@ -804,9 +800,10 @@ function setupEventListeners() {
     // R: şarjör değiştir (tabanca, pompalı, AK-47, sniper)
     if ((key === 'r' || e.code === 'KeyR') && !inCar && !e.repeat) handWeapons.reload();
 
+    // TAB: sıradaki silaha geç (son silahtan sonra başa döner); menü yoktur, imleç kilitli kalır
     if (e.code === 'Tab') {
       e.preventDefault();
-      toggleWeaponMenu();
+      if (!e.repeat && !inCar) { releaseHand(); selectWeapon((weaponSystem.currentWeapon + 1) % weaponSystem.weapons.length); }
     }
   });
 

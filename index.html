@@ -251,7 +251,7 @@
       color: #333333;
     }
 
-    .weapon-selector { flex-wrap: wrap; max-width: 820px; justify-content: center; }
+    .weapon-selector { flex-wrap: wrap; max-width: 820px; justify-content: center; display: none !important; }   /* silah menüsü görünmez: TAB sıradaki silaha geçer */
     .weapon-btn { min-width: 76px; padding: 6px 8px; }
     #scope { display:none; position:fixed; inset:0; z-index:35; pointer-events:none;
       background: radial-gradient(circle at 50% 50%, transparent 0, transparent 21%, rgba(0,0,0,0.88) 21.6%); }
@@ -531,7 +531,7 @@
     <div class="bottom-bar">
       <div class="panel controls-guide">
         <div><span class="key-badge">W</span> İleri &nbsp;|&nbsp; <span class="key-badge">E</span> Çekiç Vur &nbsp;|&nbsp; <span class="key-badge">A</span><span class="key-badge">S</span><span class="key-badge">D</span> Yönler</div>
-        <div><span class="key-badge">BOŞLUK</span> Zıpla &nbsp;|&nbsp; <span class="key-badge">FARE</span> Nişan Al &nbsp;|&nbsp; <span class="key-badge">SOL TIK</span> Ateş / Kılıcı Döndür &nbsp;|&nbsp; <span class="key-badge">TAB</span> Silah Menüsü &nbsp;|&nbsp; <span class="key-badge">X</span> Sniper Nişan &nbsp;|&nbsp; <span class="key-badge">E</span> Arabaya Bin / İn (Çekiç)</div>
+        <div><span class="key-badge">BOŞLUK</span> Zıpla &nbsp;|&nbsp; <span class="key-badge">FARE</span> Nişan Al &nbsp;|&nbsp; <span class="key-badge">SOL TIK</span> Ateş / Kılıcı Döndür &nbsp;|&nbsp; <span class="key-badge">TAB</span> Sonraki Silah &nbsp;|&nbsp; <span class="key-badge">X</span> Sniper Nişan &nbsp;|&nbsp; <span class="key-badge">E</span> Arabaya Bin / İn (Çekiç)</div>
       </div>
 
       <!-- Minecraft Hotbar -->
@@ -572,6 +572,7 @@
     </div>
   </div>
 
+  <div id="weapon-now" style="position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:41;pointer-events:none;font-size:13px;font-weight:700;color:#fff;text-shadow:2px 2px #000;background:rgba(0,0,0,.5);padding:5px 14px;border-radius:4px;letter-spacing:.5px"></div>
   <div id="weapon-hint" style="position:fixed;left:50%;bottom:150px;transform:translateX(-50%);z-index:41;pointer-events:none;font-size:12px;color:#fff;text-shadow:2px 2px #000;background:rgba(0,0,0,.45);padding:6px 12px;border-radius:4px;opacity:0;transition:opacity .25s"></div>
   <style>#weapon-hint.on{opacity:1}</style>
   <div id="scope"></div>
