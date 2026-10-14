@@ -76,7 +76,7 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 
 - **NPC insanlar:** rastgele dolaşır, deniz/duvar/çukur kenarında sağa ya da sola döner. Silahlarla, patlamayla ve çekiçle vurulabilir (küplere dağılırlar), bir süre sonra yenisi doğar.
 - **NPC arabalar (9 tür):** spor, mini, sedan, SUV, pickup, minibüs, kamyon, polis (çakarlı) ve ambulans (haçlı, çakarlı); boyut, hız ve ağırlıkları farklıdır. Yolda sağ şeritten gider, kavşakta yuvarlak yaylarla döner, otoyola sağdan katılır ve sağdan çıkar. Önüne biri çıkarsa ya da başka araç girerse durur. Her araç ön, arka, sol ve sağ olmak üzere **dört bölgeden** oluşur:
-  - Bir bölgeye vurulunca yalnızca o bölge parçalanır (paneller kopar, parçalar savrulur). Diğer bölgeler en fazla **çatlar** (koyulaşır, çatlak çizgileri çıkar), kopmaz. Zaten parçalanmış bölgeye tekrar vurmak hiçbir şeyi değiştirmez.
+  - Bir bölgeye vurulunca yalnızca o bölge parçalanır: paneller kopar ve **orta boy parçalar** (0.3–0.75 m, panelin boyutuna göre) halinde savrulur. Diğer bölgeler etkilenmez, çatlak efekti yoktur. Zaten parçalanmış bölgeye tekrar vurmak hiçbir şeyi değiştirmez.
   - Ön bölge parçalanınca motor ölür: trafikteki araç durur ve dumanlanır; sürdüğün araç ise yarı hızla gider ve duman çıkarır.
   - Parçalanan bölgenin altındaki **demir iskelet** yalnızca **pompalı, sniper, roket (ve bomba/TNT patlamaları) ve ışın kılıcı** ile kırılır. Tabanca, AK-47 ve minigun demire işlemez. Demiri iki bölgede kırılan araç yanıp patlar. Yakın patlama paneli ve demiri birlikte kırar, uzak patlama yalnız panelleri koparır.
   - Araç-araç çarpışmasında çarpışma yönündeki bölge hasar alır (hafif araç ağırdan daha çok hasar alır); demir kırılmaz.
@@ -121,7 +121,7 @@ Dünyanın boyutu ve küp sayısı büyük olduğundan (yaklaşık 350.000–450
 | `src/audio.js` | Prosedürel ses motoru: silah, şarjör, motor, su ve diğer efektler |
 | `src/bombs.js` | Süreli ve uzaktan bombalar |
 | `src/npc.js`, `src/cars.js`, `src/planes.js` | İnsanlar, arabalar (trafik, sürüş, bölgesel hasar, momentum), uçaklar |
-| `src/carmodels.js` | 9 araç tipinin modelleri, bölgeler, demir iskelet ve çatlak çizgileri |
+| `src/carmodels.js` | 9 araç tipinin modelleri, bölgeler ve demir iskelet |
 
 ---
 

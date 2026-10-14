@@ -3,8 +3,8 @@ import * as THREE from 'three';
 // ─────────────────────────────────────────────────────────────────────────────
 // ARAÇ TİPLERİ VE MODELLERİ (+x ileri; boyutlar metre)
 // Her aracın gövdesi dört BÖLGEYE ayrılır: ön, arka, sol, sağ. Her bölgenin kendi gövde panelleri, demir iskelet
-// parçaları, canı ve durumu vardır (sağlam → çatlak → parçalanmış). Hasar yalnız çarpılan bölgeyi parçalar;
-// diğer bölgeler en fazla çatlar. Parçalanmış bölgenin demiri yalnızca özel silahlarla kırılır (bkz. cars.js).
+// parçaları, canı ve durumu vardır (sağlam → parçalanmış). Hasar yalnız çarpılan bölgeyi parçalar;
+// diğer bölgeler etkilenmez. Parçalanmış bölgenin demiri yalnızca özel silahlarla kırılır (bkz. cars.js).
 // ─────────────────────────────────────────────────────────────────────────────
 // mass: göreli kütle (çarpışmada momentum). zhp: bölge panel canı. wr: tekerlek yarıçapı.
 // seatX/seatY: sürücünün kabindeki yeri.
@@ -124,7 +124,7 @@ const BODY = {
   }
 };
 
-// Araç modeli. Dönen grubun userData.zones: bölge başına { parts, iron, cracks, hp, max, ironHp, ironMax, state, ironBroken }
+// Araç modeli. Dönen grubun userData.zones: bölge başına { parts, iron, hp, max, ironHp, ironMax, state, ironBroken }
 export function buildCar(kind, color) {
   const T = TYPES[kind], g = new THREE.Group();
   g.rotation.order = 'YZX';   // önce yönelim (y), sonra aracın kendi ekseninde eğim (z: rampada burun kalkar)
@@ -159,7 +159,7 @@ export function buildCar(kind, color) {
 
   // Bölgeler
   const zones = {};
-  for (const n of ZONE_NAMES) zones[n] = { name: n, parts: [], iron: [], cracks: [], hp: T.zhp, max: T.zhp, ironHp: T.zhp * 1.5, ironMax: T.zhp * 1.5, state: 'ok', ironBroken: false };
+  for (const n of ZONE_NAMES) zones[n] = { name: n, parts: [], iron: [], hp: T.zhp, max: T.zhp, ironHp: T.zhp * 1.5, ironMax: T.zhp * 1.5, state: 'ok', ironBroken: false };
   let alt = 0;
   for (const m of panels) {
     const centered = Math.abs(m.position.z) < 0.08 && Math.abs(m.position.x) < T.len * 0.25;
@@ -184,26 +184,4 @@ export function buildCar(kind, color) {
   g.userData.zones = zones;
   g.userData.lights = extra.lights || null;
   return g;
-}
-
-// Bölgenin dış yüzeyine çatlak çizgileri ekler (görünmez başlar; çatlayınca gösterilir)
-export function addCracks(g, T, name) {
-  const mat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
-  const out = [];
-  const rnd = (a, b) => a + Math.random() * (b - a);
-  for (let i = 0; i < 6; i++) {
-    const len = rnd(0.25, 0.6), a = rnd(0, Math.PI), y = rnd(0.45, Math.min(1.3, T.h * 0.7));
-    let mesh;
-    if (name === 'front' || name === 'rear') {
-      mesh = new THREE.Mesh(box(0.03, len, 0.03), mat);
-      mesh.position.set((name === 'front' ? 1 : -1) * (T.len / 2 + 0.03), y, rnd(-T.wid * 0.38, T.wid * 0.38));
-      mesh.rotation.x = a;
-    } else {
-      mesh = new THREE.Mesh(box(len, 0.03, 0.03), mat);
-      mesh.position.set(rnd(-T.len * 0.3, T.len * 0.3), y, (name === 'left' ? 1 : -1) * (T.wid / 2 + 0.03));
-      mesh.rotation.z = a;
-    }
-    g.add(mesh); out.push(mesh);
-  }
-  return out;
 }

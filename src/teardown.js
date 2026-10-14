@@ -774,18 +774,20 @@ export class VoxelWorld {
   }
 
 
-  spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce, push = null) {
+  // scale (isteğe bağlı): döküntü küpünün büyüklük çarpanı (1 = 0.25 m; araç parçaları için daha büyük)
+  spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce, push = null, scale = 1) {
     // Görsel Küp
     const mat = new THREE.MeshLambertMaterial({ color: matType.color });
     const mesh = new THREE.Mesh(this.debrisGeo, mat);
+    if (scale !== 1) mesh.scale.setScalar(scale);
     mesh.position.set(x, y, z);
     mesh.castShadow = true;
     this.scene.add(mesh);
 
     // Fizik Gövdesi
     const body = new CANNON.Body({
-      mass: 1.2,
-      shape: this.cubeShape,
+      mass: 1.2 * scale,
+      shape: scale === 1 ? this.cubeShape : new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 4 * scale, VOXEL_SIZE / 4 * scale, VOXEL_SIZE / 4 * scale)),
       position: new CANNON.Vec3(x, y, z),
       linearDamping: 0.15,
       angularDamping: 0.2

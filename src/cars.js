@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './config.js';
-import { TYPES, SPAWN_WEIGHTS, ZONE_NAMES, buildCar, addCracks, glassMat, zoneOfLocal } from './carmodels.js';
+import { TYPES, SPAWN_WEIGHTS, ZONE_NAMES, buildCar, glassMat, zoneOfLocal } from './carmodels.js';
 const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yüz 0.5 m)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,8 +21,6 @@ const pick = (a) => a[Math.floor(Math.random() * a.length)];
 // Hasar ayarları
 const COST_K = 1.0;          // momentum: kesilen küplerin sertliği → hız karesi kaybı (kütleye bölünür)
 const PLOW_MIN_FRAC = 0.4;   // araç azami hızının bu kadarından hızlıysa duvarı delip geçer (altında durur)
-const CRACK_AT = 0.65;       // bölge canı bu orana inince çatlar
-const COLLATERAL_MIN = 0.55; // komşu bölgeler en çok bu orana kadar çatlar (kırılmaz)
 const WRECK_IRON_ZONES = 2;  // demiri kırılan bölge sayısı bu olunca araç yanıp patlar
 
 export class CarManager {
@@ -179,7 +177,7 @@ export class CarManager {
   rayHit(origin, dir, maxDist) { return this.segmentHit(origin, origin.clone().addScaledVector(dir, maxDist)); }
 
   // ── HASAR: bölgesel (ön / arka / sol / sağ) ──
-  // Her bölge: sağlam → çatlak → parçalanmış. Hasar yalnız çarpılan bölgeyi parçalar; komşu bölgeler en fazla çatlar.
+  // Her bölge: sağlam → parçalanmış. Hasar yalnız çarpılan bölgeyi parçalar; diğer bölgeler etkilenmez.
   // Parçalanmış bölgeye panel hasarı etki etmez. Parçalanmış bölgenin DEMİR iskeleti yalnız demir kırabilen silahlarla
   // (pompalı, sniper, roket/patlama, ışın kılıcı) kırılır. Demiri iki bölgede kırılan araç yanıp patlar.
 
@@ -214,7 +212,7 @@ export class CarManager {
     this._zoneDamage(car, point ? this._zoneAt(car, point) : 'front', amt, iron);
   }
 
-  _zoneDamage(car, name, amt, iron, noCollateral = false) {
+  _zoneDamage(car, name, amt, iron) {
     const z = car.zones[name];
     if (!z || amt <= 0 || car.state === 'wreck') return;
     car.smoke = 0;
@@ -222,8 +220,6 @@ export class CarManager {
       z.hp -= amt;
       let excess = 0;
       if (z.hp <= 0) { excess = -z.hp; z.hp = 0; this._shatter(car, name); }
-      else if (z.hp <= z.max * CRACK_AT && z.state === 'ok') this._crack(car, name);
-      if (!noCollateral) this._collateral(car, name, amt);
       if (excess > 0 && iron) this._ironDamage(car, name, excess);     // güçlü silah panelden artan hasarı demire geçirir
     } else if (iron) {
       this._ironDamage(car, name, amt);
@@ -231,46 +227,31 @@ export class CarManager {
     this._afterDamage(car);
   }
 
-  // Komşu bölgeler yalnız çatlar: canları COLLATERAL_MIN altına inmez, parçalanmaz
-  _collateral(car, from, amt) {
-    for (const n of ZONE_NAMES) {
-      if (n === from) continue;
-      const z = car.zones[n];
-      if (z.state === 'shattered') continue;
-      const floor = z.max * COLLATERAL_MIN;
-      if (z.hp > floor) z.hp = Math.max(floor, z.hp - amt * 0.5);
-      if (z.state === 'ok' && z.hp <= z.max * CRACK_AT) this._crack(car, n);
+  // Parça boyutu: panelin kendi boyutuna göre ORTA boy (0.3–0.75 m); büyük panel iki parça verir, küçük (far, etek) tek parça
+  _pieces(m, car, color, scale0 = 0.3) {
+    const gp = m.geometry.parameters || {};
+    const dim = Math.max(gp.width || 0.3, gp.height || 0.3, gp.depth || 0.3);
+    const size = THREE.MathUtils.clamp(dim * scale0, 0.3, 0.75);
+    const count = dim > 1.5 ? 2 : 1;
+    const wp = car.g.localToWorld(m.position.clone());
+    const vw = this.vw;
+    for (let i = 0; i < count && vw.dynamicDebris.length < vw.maxDynamicDebris; i++) {
+      vw.spawnLooseVoxel(wp.x + (Math.random() - 0.5) * 0.5, wp.y + Math.random() * 0.4, wp.z + (Math.random() - 0.5) * 0.5,
+        { color }, car.pos, 0.6, 3, 70, null, size / 0.25);
     }
+    return wp;
   }
 
-  _crack(car, name) {
-    const z = car.zones[name];
-    z.state = 'cracked';
-    for (const m of z.parts) {
-      if (!m.userData.own) { m.material = m.material.clone(); m.userData.own = true; }
-      if (m.material.color) m.material.color.multiplyScalar(0.72);
-    }
-    z.cracks = addCracks(car.g, car.T, name);
-    sound.playBlockHit();
-  }
-
-  // Bölgenin panelleri kopar ve savrulur; altındaki demir iskelet ortaya çıkar
+  // Bölgenin panelleri kopar ve orta boy parçalar halinde savrulur; altındaki demir iskelet ortaya çıkar
   _shatter(car, name) {
     const z = car.zones[name];
     z.state = 'shattered'; z.hp = 0;
-    z.cracks.forEach(c => { c.visible = false; });
-    const vw = this.vw;
     let cx = 0, cy = 0, cz = 0, n = 0;
     for (const m of z.parts) {
       if (!m.visible) continue;
       m.visible = false;
-      const wp = car.g.localToWorld(m.position.clone());
+      const wp = this._pieces(m, car, m.material.color ? m.material.color.getHex() : 0x888888);
       cx += wp.x; cy += wp.y; cz += wp.z; n++;
-      const col = m.material.color ? m.material.color.getHex() : 0x888888;
-      for (let i = 0; i < 2 && vw.dynamicDebris.length < vw.maxDynamicDebris; i++) {
-        vw.spawnLooseVoxel(wp.x + (Math.random() - 0.5) * 0.5, wp.y + Math.random() * 0.4, wp.z + (Math.random() - 0.5) * 0.5,
-          { color: col }, car.pos, 0.6, 3, 70);
-      }
     }
     if (n && this.ps.createSpark) this.ps.createSpark(new THREE.Vector3(cx / n, cy / n, cz / n));
     sound.playBlockHit();
@@ -290,10 +271,7 @@ export class CarManager {
     for (const m of z.iron) {
       if (!m.visible) continue;
       m.visible = false;
-      const wp = car.g.localToWorld(m.position.clone());
-      for (let i = 0; i < 2 && vw.dynamicDebris.length < vw.maxDynamicDebris; i++) {
-        vw.spawnLooseVoxel(wp.x, wp.y + Math.random() * 0.3, wp.z, { color: 0x3b4350 }, car.pos, 0.6, 3, 80);
-      }
+      const wp = this._pieces(m, car, 0x3b4350, 0.25);
       if (this.ps.createSpark) this.ps.createSpark(wp);
     }
     sound.playIronHit();
@@ -336,7 +314,7 @@ export class CarManager {
         const wx = c.pos.x + f.x * lx - f.z * lz, wz = c.pos.z + f.z * lx + f.x * lz;
         const d = Math.hypot(wx - center.x, c.pos.y + 0.7 - center.y, wz - center.z);
         const power = 1 - d / (radius * 1.1 + 2.5);
-        if (power > 0) this._zoneDamage(c, n, 45 * power, true, true);
+        if (power > 0) this._zoneDamage(c, n, 45 * power, true);
         if (c.state === 'wreck') break;
       }
     });
