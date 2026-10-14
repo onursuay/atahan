@@ -98,6 +98,25 @@ class ScaledBuilder {
   clearBox(minX, minY, minZ, maxX, maxY, maxZ) {
     this.world.removeBox(this._x0(minX), this._y0(minY), this._z0(minZ),
       this._x1(maxX), this._y1(maxY), this._z1(maxZ));
+    this._doorway(minX, minY, minZ, maxX, maxY, maxZ);
+  }
+
+  // Zeminden başlayan, tek eksende ince (duvar düzleminde), en az 3 satır yüksekliğindeki her açıklık GERÇEK kapı olur:
+  // geniş (≥6 birim = 4.5 m) açıklıklar sürgülü otomatik kapı (AVM, hastane, itfaiye garajı), diğerleri menteşeli kapı.
+  _doorway(minX, minY, minZ, maxX, maxY, maxZ) {
+    const doors = this.world.doors;
+    if (!doors || minY !== 1 || maxY - minY < 3) return;
+    const x0 = (K * minX - 1) * 0.25, x1 = (K * maxX + 2) * 0.25, z0 = (K * minZ - 1) * 0.25, z1 = (K * maxZ + 2) * 0.25;
+    const y = (GROUND_ROW_SUB + K * (minY - 1)) * 0.25, height = (maxY - minY + 1) * UNIT_M;
+    let width, spec;
+    if (minZ === maxZ && maxX > minX) { width = x1 - x0; spec = { hx: x0, hz: (z0 + z1) / 2, sx: x0, sz: (z0 + z1) / 2, ax: 1, az: 0 }; }       // duvar x boyunca
+    else if (minX === maxX && maxZ > minZ) { width = z1 - z0; spec = { hx: (x0 + x1) / 2, hz: z0, sx: (x0 + x1) / 2, sz: z0, ax: 0, az: 1 }; }  // duvar z boyunca
+    else return;
+    if (width < 1.2) return;
+    // Voxel ızgarası 0.5 m olduğundan açıklık hesaplanandan biraz dar çıkabilir: kapı kenarlardan 0.15 m içeri alınır
+    const inset = 0.15, ox = spec.ax * inset, oz = spec.az * inset;
+    if (maxX - minX >= 6 || maxZ - minZ >= 6) doors.addSliding({ ...spec, sx: spec.sx + ox, sz: spec.sz + oz, width: width - 2 * inset, height: height - 0.1, y: y + 0.02 });
+    else doors.addHinged({ ...spec, hx: spec.hx + ox, hz: spec.hz + oz, width: width - 2 * inset, height: height - 0.1, y: y + 0.02 });
   }
 
   // Doğrudan küçük küp koordinatlarıyla
@@ -816,7 +835,7 @@ export class LevelManager {
     // Giriş kapısı (kuzey/güney yüzünde, caddeye bakan z1 tarafı)
     const doorX = Math.round((x1 + x2) / 2);
     w.clearBox(doorX - 1, y1, z1, doorX + 1, y1 + 4, z1);
-    w.fillBox(doorX - 1, y1, z1, doorX - 1, y1 + 3, z1, PALETTE.WOOD); // Tahta kapı kanadı
+    // (sabit tahta kapı kanadı kaldırıldı: giriş artık gerçek, açılıp kapanan kapıdır)
 
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'z1');
     this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);

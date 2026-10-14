@@ -1,3 +1,4 @@
+import { DoorSystem } from './doors.js';
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { sound } from './audio.js';
@@ -89,6 +90,7 @@ export class VoxelWorld {
     this.chunkMeshes = [];
     this.rimMeshes = {};     // çukur kenarı küpleri için (zemin malzemesi başına dinamik)
     this.terrain = new Terrain(scene, physicsWorld);
+    this.doors = new DoorSystem(scene, this);   // bina kapıları (menteşeli) ve AVM otomatik kapıları
     this.collapse = new CollapseSystem(this);
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
@@ -396,6 +398,7 @@ export class VoxelWorld {
     if (this.npcs) this.npcs.hitSphere(blastPos, blastRadius);
     if (this.planes) this.planes.hitSphere(blastPos, blastRadius);
     if (this.cars) this.cars.hitSphere(blastPos, blastRadius);
+    this.doors.explode(blastPos, blastRadius);    // yakındaki kapılar kırılır
 
     // Zemin üst katmanını kır (taban kayası etkilenmez)
     const groundBroken = this.breakGround(blastPos, blastRadius, force);
@@ -880,6 +883,7 @@ export class VoxelWorld {
     this._disposeChunkMeshes();
     this.terrain.clear();
     this.collapse.clear();
+    this.doors.clear();
 
     // Uçuşan döküntüleri sil
     this.dynamicDebris.forEach(d => {

@@ -57,6 +57,7 @@ export class NPCManager {
   _solid(x, feet, z) {
     const t = this.voxelWorld.terrain;
     if (t.solidAt(x, feet, z, HALF_W)) return true;
+    if (this.voxelWorld.doors && this.voxelWorld.doors.blocks(x, feet, z, HALF_W, HEIGHT)) return true;
 
     const S = VOXEL_SIZE, vox = this.voxelWorld.voxels;
     const ix0 = Math.floor((x - HALF_W + EPS) / S + 0.5), ix1 = Math.floor((x + HALF_W - EPS) / S + 0.5);

@@ -547,6 +547,28 @@ class SoundEngine {
     osc.start(now); osc.stop(now + 0.08);
   }
 
+  // Kapı sesleri: tutma (menteşe gıcırtısı), çarpma/kapanma ve sürgülü otomatik kapı
+  playDoorGrab() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._click(now, 800, 0.22);
+    this._burst(now + 0.02, 0.16, 0.08, 'bandpass', 600, 1100, 4);     // hafif menteşe gıcırtısı
+  }
+
+  playDoorHit(strength = 0.5) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 0.16, 0.22 + 0.3 * strength, 150, 55, 'triangle');
+    this._burst(now, 0.1, 0.1 + 0.2 * strength, 'lowpass', 1400, 200, 0.8);
+  }
+
+  playDoorSlide() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._burst(now, 0.6, 0.1, 'bandpass', 500, 1500, 1.2);            // sürgü motoru
+    this._thump(now, 0.5, 0.05, 90, 140, 'sawtooth');
+  }
+
   // Işın kılıcı açılışı: yükselen enerji vızıltısı + kısa elektrik çıtırtısı
   playSaberOn() {
     if (this.muted || !this.ctx) return;

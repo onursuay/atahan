@@ -11,6 +11,7 @@ Tarayıcıda çalışan, Three.js ve Cannon-es ile yapılmış, **küplerden (vo
 | **W A S D** | Yürü (arabadayken: gaz, fren/geri, direksiyon) |
 | **Fare** | Etrafa bak |
 | **Sol tık** | Ateş et / ışın kılıcını döndür / bomba yerleştir |
+| **Sağ tık (basılı tut)** | Tek bir çıplak **el** belirir (silahlar gizlenir, ateş edilmez, hasar verilmez). Kapıya bakarken basılı tutup fareyi **sürükleyince** kapı açılır/kapanır; tek tıklama bir şey yapmaz |
 | **Boşluk** | Zıpla. Havadayken **basılı tut: jetpack** (arabadayken el freni) |
 | **Tab** | Silah menüsü (imleç serbest kalır, silahı tıklayarak seç) |
 | **E** | Yakındaki arabaya bin / araçtan in. Araç yoksa çekiç vurur |
@@ -57,6 +58,7 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 
 - **İki ada** ve aralarında **kırmızı asma köprü** (basamaklı kuleler, kablolar, askılar).
 - **Batı ada:** şehir merkezi, kumsal ve iskeleler, büyük park (çeşme, gölet, çardak, çocuk parkı), market, çarşı, banka, kafe, depo, konut sitesi (çitli, kapılı), apartmanlar ve ofisler.
+- **Kapılar:** bina girişleri artık gerçek, menteşeli kapılardır (açısı ve eylemsizliği vardır; kapalıyken oyuncuyu ve yayaları engeller). Açmak için kapıya bakıp **sağ tuşu basılı tutarak fareyi sürükleyin** (sağa/yukarı = it, sola/aşağı = çek; bırakınca kapı biraz daha gidip durur). Kapılar **kırılabilir**: mermi, roket/patlama, çekiç (E), ışın kılıcı ve yeterince hızlı araç kapıyı orta boy parçalara ayırır. **Geniş girişler (AVM, hastane, itfaiye garajı) iki kanatlı sürgülü otomatik kapıdır**: oyuncu, yaya ya da araç yaklaşınca yanlara kayarak açılır, uzaklaşınca kapanır.
 - **Işıklandırma:** sokak lambaları ve bina/AVM içlerinin tavanındaki lambalar kendi ışığıyla parlayan **Lamba (Işık)** malzemesidir (Altın'dan ayrı bir malzemedir); katlı her binanın her katında ve AVM'nin her katında tavan lambaları vardır.
 - **AVM:** eski AVM'nin yaklaşık 2.4 katı hacimde (38×78 küp-birim, 4 kat; çok katlı balkonlar ve ortada atrium). İç mağazalar şimdilik yapılmadı.
 - **Doğu ada:** hastane (beyaz, girişte kırmızı artı), itfaiye, polis merkezi, okul, AVM, otel ve apartman blokları; ortada **otoyol** (her yönde 3 şerit), üstünden geçen **üst geçit** (9.75 m geniş; iki yanındaki rampalar basamaksız, doğrusal eğimlidir, en dik yeri ≈13°; araçlar eğime göre burnunu kaldırır) ve otoyola bağlanan sağa dönüş rampaları; doğuda zengin bölge.
@@ -123,6 +125,7 @@ Dünyanın boyutu ve küp sayısı büyük olduğundan (yaklaşık 350.000–450
 | `src/audio.js` | Prosedürel ses motoru: silah, şarjör, motor, su ve diğer efektler |
 | `src/bombs.js` | Süreli ve uzaktan bombalar |
 | `src/npc.js`, `src/cars.js`, `src/planes.js` | İnsanlar, arabalar (trafik, sürüş, bölgesel hasar, momentum), uçaklar |
+| `src/doors.js` | Menteşeli ve sürgülü otomatik kapılar: fizik, çarpışma, kırılma, sağ tıkla sürükleme |
 | `src/carmodels.js` | 9 araç tipinin modelleri, bölgeler ve demir iskelet |
 
 ---

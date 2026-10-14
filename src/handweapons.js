@@ -101,6 +101,10 @@ export class HandWeapons {
     this._buildSaber();
     this._buildBomb();
     this._buildGuns();
+    this._buildHand();
+    this.handMode = false;      // sağ tık basılı: silahlar gizli, tek çıplak el (hasar vermez)
+    this.handGrip = false;      // kapıyı tutuyor
+    this.handOff = { x: 0, y: 0 };   // fare sürüklemesiyle elin kayması
     this.gunCooldown = 0;
     this.scoped = false;
     this.mag = { ...MAG_SIZE };   // her silahın şarjöründeki mermi
@@ -186,6 +190,64 @@ export class HandWeapons {
     g.position.set(0.28, -0.3, -0.7);
     this.root.add(g);
     return { g, barrels, flash };
+  }
+
+  // Çıplak el: sağ tıkla belirir (kollu, 4 parmak + başparmak). Hiçbir şeye hasar vermez; yalnız kapıları tutar.
+  _buildHand() {
+    const skin = new THREE.MeshLambertMaterial({ color: 0xe0ac86 });
+    const sleeve = new THREE.MeshLambertMaterial({ color: 0x1d4ed8 });
+    const g = new THREE.Group();
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.6), sleeve);
+    arm.position.set(0, 0, 0.1);
+    const wrist = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.09, 0.1), skin);
+    wrist.position.set(0, 0, -0.26);
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.06, 0.15), skin);
+    palm.position.set(0, 0, -0.38);
+    g.add(arm, wrist, palm);
+    this.handFingers = [];
+    for (let i = 0; i < 4; i++) {
+      const f = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.035, 0.13), skin);
+      f.position.set(-0.054 + i * 0.036, 0, -0.51);
+      f.userData.rest = f.position.z;
+      g.add(f); this.handFingers.push(f);
+    }
+    const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.035, 0.1), skin);
+    thumb.position.set(0.09, -0.01, -0.36); thumb.rotation.y = -0.5;
+    g.add(thumb);
+    g.visible = false;
+    g.position.set(0.27, -0.21, -0.38);
+    g.rotation.set(0.16, 0.12, -0.06);
+    g.scale.setScalar(1.25);
+    this.handModel = g;
+    this.root.add(g);
+  }
+
+  // Sağ tık basılıyken silahlar gizlenir, yalnız el görünür; bırakılınca silah geri gelir
+  setHandMode(on) {
+    if (this.handMode === on) return;
+    this.handMode = on;
+    this.fireHeld = false;
+    this.handGrip = false;
+    this.handOff.x = 0; this.handOff.y = 0;
+    this._applyVisibility();
+  }
+  setHandGrip(on) { this.handGrip = on; }
+  // Kapıyı sürüklerken el fareyle hafifçe kayar
+  handDrag(dx, dy) {
+    this.handOff.x = THREE.MathUtils.clamp(this.handOff.x + dx * 0.0012, -0.22, 0.22);
+    this.handOff.y = THREE.MathUtils.clamp(this.handOff.y - dy * 0.0012, -0.15, 0.15);
+  }
+
+  // Elde görünen modeller: seçili silah ya da (el modundaysa) yalnız el
+  _applyVisibility() {
+    const i = this.current, h = this.handMode;
+    this.rocketModel.visible = !h && i === 0;
+    this.minigunModel.visible = !h && (i === 1 || i === 9);   // 9: çift minigun
+    this.minigunModel2.visible = !h && i === 9;
+    this.saberModel.visible = !h && i === 2;
+    this.bombModel.visible = !h && (i === 3 || i === 4);
+    Object.entries(this.gunModels).forEach(([k, g]) => g.visible = !h && Number(k) === i);
+    this.handModel.visible = h;
   }
 
   // Sağ el minigunu (tekli minigun ve çift minigunun sağ eli) + sol el minigunu (yalnız çift minigunda; sağın aynası)
@@ -288,12 +350,7 @@ export class HandWeapons {
     this.swingT = -1;
     this._cancelReload();   // silah değişince yarım kalan şarjör değişimi iptal olur
     this._endSpin();
-    this.rocketModel.visible = i === 0;
-    this.minigunModel.visible = i === 1 || i === 9;   // 9: çift minigun
-    this.minigunModel2.visible = i === 9;
-    this.saberModel.visible = i === 2;
-    this.bombModel.visible = i === 3 || i === 4;
-    Object.entries(this.gunModels).forEach(([k, g]) => g.visible = Number(k) === i);
+    this._applyVisibility();
     if (i !== 8) this.scoped = false;
     if (i === 2) sound.playSaberOn();
     else sound.updateSaberHum(false);
@@ -386,13 +443,22 @@ export class HandWeapons {
     }
     if (this.current === 7 && this.fireHeld) this.fireGun('ak47');
 
+    // Çıplak el: kapıyı tutarken parmaklar kıvrılır, fareyle kayar
+    if (this.handMode) {
+      const hm = this.handModel;
+      this.handOff.x *= Math.exp(-3 * dt); this.handOff.y *= Math.exp(-3 * dt);
+      hm.position.set(0.27 + this.handOff.x + swayX, -0.21 + this.handOff.y - swayY - drop, -0.38 - (this.handGrip ? 0.05 : 0));
+      const curl = this.handGrip ? 0.07 : 0;
+      this.handFingers.forEach(f => { f.position.z = f.userData.rest + curl; });
+    }
+
     // Minigun (1) ve çift minigun (9): basılı tutunca namlular dönmeye başlar, hızlanınca ateş eder.
     // Çift minigunda iki el de aynı hızda, aynı sesle ve aynı hasarla ateş eder (her el kendi mermisini atar).
     const mgOn = this.current === 1 || this.current === 9, dual = this.current === 9;
     const targetSpin = mgOn && this.fireHeld ? 1 : 0;
     this.spin += (targetSpin - this.spin) * Math.min(1, dt / (targetSpin ? MINIGUN_SPINUP : 0.6));
     this.barrelAngle += this.spin * 30 * dt;
-    sound.updateMinigun(mgOn ? this.spin : 0);
+    sound.updateMinigun(mgOn && !this.handMode ? this.spin : 0);
     this.barrels.rotation.z = this.barrelAngle;
     this.barrels2.rotation.z = this.barrelAngle;
     const mgX = dual ? 0.36 : 0.28;
@@ -476,7 +542,7 @@ export class HandWeapons {
     // Kılıç hızı → vızıltının perdesi (yumuşatılmış)
     const motionTarget = Math.min(1, Math.max(spinSpeed / 25, this.swingT >= 0 ? 0.55 : 0));
     this.saberMotion += (motionTarget - this.saberMotion) * Math.min(1, dt * 12);
-    sound.updateSaberHum(this.current === 2 && this.visible, this.saberMotion);
+    sound.updateSaberHum(this.current === 2 && this.visible && !this.handMode, this.saberMotion);
 
     // Kılıç ışığı dünyayı mavi aydınlatır
     if (this.current === 2 && this.visible) {
@@ -535,6 +601,20 @@ export class HandWeapons {
         hit = new THREE.Vector3(p.x, gy, p.z); hitType = 'ground'; break;
       }
       if (p.y < -0.4) break; // denize düştü
+    }
+
+    // Önce bir kapıya mı çarptı? (kapalı kapı mermiyi durdurur ve hasar alır)
+    if (this.voxelWorld.doors) {
+      const dh = this.voxelWorld.doors.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);
+      if (dh) {
+        this._spawnTracer(muzzle, dh.point);
+        this.voxelWorld.doors.damage(dh.door, o.carDmg);
+        if (this.particleSystem.createSpark) this.particleSystem.createSpark(dh.point);
+        this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        this._shotSound(o);
+        return;
+      }
     }
 
     // Önce bir araca mı çarptı? (yol üstündeki arabayı durdurur)
@@ -699,6 +779,7 @@ export class HandWeapons {
       cut += n;
       if (this.npcs) this.npcs.hitSphere(pt, SABER_RADIUS + 0.25);
       if (this.cars) this.cars.bladeHit(pt, SABER_RADIUS);       // ışın kılıcı arabayı (demir dahil) keser
+      this.voxelWorld.doors.hitSphere(pt, SABER_RADIUS, 4);        // ve kapıları
       const gy = this.voxelWorld.terrain.topYAt(pt.x, pt.z);
       if (pt.y <= gy + 0.3 && this.voxelWorld.terrain.topIntactAt(pt.x, pt.z)) {
         this.voxelWorld.breakGround(new THREE.Vector3(pt.x, gy, pt.z), 0.55, 50);
@@ -766,6 +847,7 @@ export class HandWeapons {
       if (c.distanceToSquared(cam.position) < safe2 || vel[i].length() < SPIN_MIN_SPEED) continue;
       if (this.npcs) this.npcs.hitSphere(c, SPIN_CUT_RADIUS + 0.3);
       if (this.cars) this.cars.bladeHit(c, SPIN_CUT_RADIUS + 0.3);
+      this.voxelWorld.doors.hitSphere(c, SPIN_CUT_RADIUS + 0.3, 4);
       if (this.spinGroundT <= 0) {
         const gy = this.voxelWorld.terrain.topYAt(c.x, c.z);
         if (c.y <= gy + 0.3 && this.voxelWorld.terrain.topIntactAt(c.x, c.z)) {

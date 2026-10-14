@@ -516,6 +516,7 @@ export class Character {
     if (this.voxelWorld) {
       const t = this.voxelWorld.terrain;
       if (t.solidAt(x, feetY, z, HALF_W)) return true;
+      if (this.voxelWorld.doors && this.voxelWorld.doors.blocks(x, feetY, z, HALF_W, BODY_H)) return true;   // kapalı/aralık kapı
     }
     const minIx = Math.floor((x - HALF_W + EPS) / S + 0.5);
     const maxIx = Math.floor((x + HALF_W - EPS) / S + 0.5);

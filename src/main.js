@@ -293,6 +293,7 @@ function updateWaves(dt) {
   pos.needsUpdate = true;
 }
 
+const doorActors = [];
 function updateGame(dt) {
   physicsWorld.step(1 / 60, dt, 3);
 
@@ -332,6 +333,12 @@ function updateGame(dt) {
   bombs.update(dt);
   planes.update(dt);
   cars.update(dt, character.mesh.position);
+  // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik
+  doorActors.length = 0;
+  doorActors.push({ x: character.mesh.position.x, y: character.mesh.position.y, z: character.mesh.position.z });
+  for (const n of npcs.npcs) doorActors.push({ x: n.x, y: n.y, z: n.z });
+  for (const c of cars.cars) if (c.state === 'drive') doorActors.push({ x: c.pos.x, y: c.pos.y, z: c.pos.z });
+  voxelWorld.doors.update(dt, doorActors);
   updateFountains(dt);
   updateVitals(dt);
   updateWaves(dt);
@@ -519,6 +526,7 @@ function triggerLevelWin(pct) {
 }
 
 function toggleWeaponMenu() {
+  releaseHand();
   const bar = document.getElementById('weapon-selector');
   if (bar.classList.contains('menu-open')) { closeWeaponMenu(true); return; }
   bar.classList.add('menu-open');
@@ -553,6 +561,7 @@ function updateWeaponUI() {
 }
 
 function enterCar(car) {
+  releaseHand();
   if (scopeOn) toggleScope();
   cars.enter(car);
   inCar = true;
@@ -584,8 +593,27 @@ function toggleScope() {
   document.getElementById('scope').classList.toggle('on', scopeOn);
 }
 
+// Sağ tık: tek bir çıplak el (silahlar gizlenir, ateş edilmez, hasar verilmez). Kapıya bakarken basılı tutup SÜRÜKLEYİNCE kapı açılır;
+// tek tıklama bir şey yapmaz.
+let rightHeld = false;
+function grabHand() {
+  if (inCar || rightHeld) return;
+  if (document.getElementById('weapon-selector').classList.contains('menu-open')) return;
+  rightHeld = true;
+  if (scopeOn) toggleScope();
+  handWeapons.setHandMode(true);
+  if (voxelWorld.doors.beginDrag(camera)) handWeapons.setHandGrip(true);
+}
+function releaseHand() {
+  if (!rightHeld) return;
+  rightHeld = false;
+  voxelWorld.doors.endDrag();
+  handWeapons.setHandGrip(false);
+  handWeapons.setHandMode(false);
+}
+
 function fireWeapon() {
-  if (inCar) return;
+  if (inCar || rightHeld) return;   // el modunda ateş yok
   sound.init();
   const cur = weaponSystem.currentWeapon;
 
@@ -647,6 +675,10 @@ function useHammer() {
 
   // Çekiç menzilindeki NPC'ye de vurur
   npcs.hitSphere(charPos.clone().addScaledVector(dir, 1.8), 0.9);
+
+  // Çekiç menzilindeki kapıyı da kırar (menteşeli kapı birkaç vuruşta, vurdukça titrer)
+  const dh = voxelWorld.doors.rayHit(camera.position, dir, HAMMER_REACH);
+  if (dh) { voxelWorld.doors.damage(dh.door, 5); screenShake = 0.08; sound.playWoodHit(); }
 
   for (let dist = 0.4; dist <= HAMMER_REACH; dist += VOXEL_SIZE * 0.4) {
     const checkPos = charPos.clone().addScaledVector(dir, dist);
@@ -734,16 +766,26 @@ function setupEventListeners() {
 
   window.addEventListener('mouseup', (e) => {
     if (e.button === 0) handWeapons.fireHeld = false;
+    if (e.button === 2) releaseHand();
   });
+  window.addEventListener('blur', releaseHand);
+  window.addEventListener('contextmenu', (e) => e.preventDefault());   // sağ tık menüsü açılmasın: sağ tık = el
 
   canvasContainer.addEventListener('mousedown', (e) => {
     if (e.target.closest && e.target.closest('.weapon-selector')) return; // silah menüsüne tıklama ateş etmez
     if (e.button === 0) {
       fireWeapon();
     }
+    if (e.button === 2) grabHand();
   });
 
   window.addEventListener('mousemove', (e) => {
+    // Kapı tutulurken fare bakışı değil kapıyı sürükler
+    if (voxelWorld.doors.drag) {
+      voxelWorld.doors.dragMove(e.movementX, e.movementY, camera);
+      handWeapons.handDrag(e.movementX, e.movementY);
+      return;
+    }
     const sensitivity = scopeOn ? 0.0011 : 0.0035;
     if (handWeapons) { handWeapons.mx += e.movementX; handWeapons.my += e.movementY; }
     cameraYaw -= e.movementX * sensitivity;

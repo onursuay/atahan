@@ -552,7 +552,7 @@ export class CarManager {
     const nx = car.pos.x + car.fwd.x * car.speed * dt, nz = car.pos.z + car.fwd.z * car.speed * dt;
     const px = nx + car.fwd.x * half * dir, pz = nz + car.fwd.z * half * dir;
     const side = [-car.fwd.z, car.fwd.x];
-    let blocked = false, hitVox = null;
+    let blocked = false, hitVox = null, hitDoor = null;
     for (const so of [-1, 0, 1]) {
       const qx = px + side[0] * so * (T.wid / 2 - 0.1), qz = pz + side[1] * so * (T.wid / 2 - 0.1);
       // Engel taraması zemine göre: rampada/tabliye başında ön köşe zeminin 0.4 ve 1.0 m üstünden bakar
@@ -562,6 +562,8 @@ export class CarManager {
         const y = base + hy;
         const v = this.vw.voxels.get(`${Math.round(qx / VOXEL_SIZE)},${Math.round((y - VOXEL_SIZE / 2) / VOXEL_SIZE)},${Math.round(qz / VOXEL_SIZE)}`);
         if (v && v.active) { blocked = true; hitVox = { x: qx, y, z: qz }; }
+        const dd = this.vw.doors && this.vw.doors.doorAt(qx, y, qz, 0.15);     // kapı: ayrı nesne, voxel değil
+        if (dd) { blocked = true; hitDoor = dd; }
       }
       // Zemin: kara dışı ya da kısa mesafede ani yükselme (set/duvar) engeldir; eğim (rampa) engel değildir
       const h = this._roadY(qx, qz, car.pos.y), hb = this._roadY(qx - car.fwd.x * dir * 0.6, qz - car.fwd.z * dir * 0.6, car.pos.y);
@@ -572,7 +574,14 @@ export class CarManager {
       const now = performance.now();
       const plowMin = Math.max(7, PLOW_MIN_FRAC * T.speed[1]) * (now < (car.plowUntil || 0) ? 0.6 : 1);   // delmeye başladıysa duvarı bitirene kadar eşik düşer
       let advance = false;
-      if (hitVox && impact >= plowMin) {
+      if (hitDoor && !hitVox) {
+        // Kapıya çarpma: hızlıysa kapıyı kırıp geçer (hız biraz düşer), yavaşsa durur
+        if (impact >= 4) {
+          this.vw.doors.breakDoor(hitDoor);
+          this._hurt(car, new THREE.Vector3(px, car.pos.y + 0.5, pz), impact * 0.12, false);
+          car.speed *= 0.88; advance = true;
+        } else car.speed = -car.speed * 0.25;
+      } else if (hitVox && impact >= plowMin) {
         car.plowUntil = now + 300;
         // MOMENTUM: yeterince hızlı araç engeli yarar. Kesilen her küp enerji harcar (sertlik × COST_K): hız karesi
         // bu kadar azalır, ağır araç daha az yavaşlar. Demir kesilemez; enerji biterse araç durur/sekir.
