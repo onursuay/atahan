@@ -64,7 +64,7 @@ export class CarManager {
         const x = hz ? o.a[0] : r.a[0], z = hz ? r.a[1] : o.a[1];
         const inR = hz ? (x >= Math.min(r.a[0], r.b[0]) - 0.01 && x <= Math.max(r.a[0], r.b[0]) + 0.01) : (z >= Math.min(r.a[1], r.b[1]) - 0.01 && z <= Math.max(r.a[1], r.b[1]) + 0.01);
         const inO = oh ? (x >= Math.min(o.a[0], o.b[0]) - 0.01 && x <= Math.max(o.a[0], o.b[0]) + 0.01) : (z >= Math.min(o.a[1], o.b[1]) - 0.01 && z <= Math.max(o.a[1], o.b[1]) + 0.01);
-        if (inR && inO) pts.push([x, z]);
+        if (inR && inO && !((r.noMerge && o.lanes > 1) || (o.noMerge && r.lanes > 1))) pts.push([x, z]);   // üst geçit: ana cadde ile otoyol kesişmez, birbirine bağlanmaz
       });
       pts.sort((p, q) => hz ? p[0] - q[0] : p[1] - q[1]);
       for (let i = 0; i < pts.length - 1; i++) {
@@ -375,17 +375,29 @@ export class CarManager {
   }
 
   // Yol yüzeyi yüksekliği: köprü tabliyesi 0.5, üst geçit tabliyesi 5.0, diğer yerlerde arazi
-  _roadY(x, z) {
+  // refY: aracın şu anki yüksekliği. Üst geçit alanında iki yol vardır: tabliye (5.0 m) ve altındaki zemin/otoyol.
+  // Araç hangisine daha yakınsa onun üstündedir (alttaki otoyoldan geçen araç tabliyeye çıkmaz).
+  _roadY(x, z, refY = null) {
     if (Math.abs(z) < 4.5 && x > -9.2 && x < 58.7) return BRIDGE_Y;
-    if (Math.abs(z) < 4.9 && x > 106 * U - 0.5 && x < 145 * U) return 5.0;   // tabliye (voxel); ramp ucu zaten 5.0
-    return this.vw.terrain.heightAt(x, z);   // rampalarda basamaksız (sürekli) yükseklik
+    const ground = this.vw.terrain.heightAt(x, z);   // rampalarda basamaksız (sürekli) yükseklik
+    if (Math.abs(z) < 4.9 && x > 106 * U - 0.5 && x < 145 * U) {   // tabliye (voxel); ramp ucu zaten 5.0
+      if (refY === null || ground === -Infinity) return 5.0;
+      return Math.abs(refY - 5.0) <= Math.abs(refY - ground) ? 5.0 : ground;
+    }
+    return ground;
+  }
+
+  // Aracın hangi katta olduğunu belirten referans yükseklik: ana cadde trafiğinin tabliyede olduğu bilinir
+  _refY(car) {
+    return car.edge && car.edge.road.noMerge && car !== this.driven ? 5.0 : car.pos.y;
   }
 
   // Aracın oturduğu yüzey: ön ve arka aks noktalarındaki yüksekliğin ortalaması + eğim açısı
   _surface(car) {
     const L = car.T.len * 0.32, f = car.fwd, p = car.pos;
-    const hF = this._roadY(p.x + f.x * L, p.z + f.z * L), hR = this._roadY(p.x - f.x * L, p.z - f.z * L);
-    if (hF === -Infinity || hR === -Infinity) return { y: this._roadY(p.x, p.z), pitch: 0 };
+    const ry = this._refY(car);
+    const hF = this._roadY(p.x + f.x * L, p.z + f.z * L, ry), hR = this._roadY(p.x - f.x * L, p.z - f.z * L, ry);
+    if (hF === -Infinity || hR === -Infinity) return { y: this._roadY(p.x, p.z, ry), pitch: 0 };
     return { y: (hF + hR) / 2, pitch: Math.atan2(hF - hR, 2 * L) };
   }
 
@@ -544,7 +556,7 @@ export class CarManager {
     for (const so of [-1, 0, 1]) {
       const qx = px + side[0] * so * (T.wid / 2 - 0.1), qz = pz + side[1] * so * (T.wid / 2 - 0.1);
       // Engel taraması zemine göre: rampada/tabliye başında ön köşe zeminin 0.4 ve 1.0 m üstünden bakar
-      const hp = this._roadY(qx, qz);
+      const hp = this._roadY(qx, qz, car.pos.y);
       const base = hp === -Infinity ? car.pos.y : Math.max(car.pos.y - 0.9, Math.min(car.pos.y + 0.9, hp));
       for (const hy of [0.4, 1.0]) {
         const y = base + hy;
@@ -552,7 +564,7 @@ export class CarManager {
         if (v && v.active) { blocked = true; hitVox = { x: qx, y, z: qz }; }
       }
       // Zemin: kara dışı ya da kısa mesafede ani yükselme (set/duvar) engeldir; eğim (rampa) engel değildir
-      const h = this._roadY(qx, qz), hb = this._roadY(qx - car.fwd.x * dir * 0.6, qz - car.fwd.z * dir * 0.6);
+      const h = this._roadY(qx, qz, car.pos.y), hb = this._roadY(qx - car.fwd.x * dir * 0.6, qz - car.fwd.z * dir * 0.6, car.pos.y);
       if (h === -Infinity || (hb > -Infinity && h - hb > 0.65)) blocked = true;
     }
     if (blocked) {
