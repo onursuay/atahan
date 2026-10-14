@@ -147,6 +147,7 @@ export class LevelManager {
     // Yollar iki yönlüdür: her yönde bir şerit, 6.75 m ve üstü
     w.fillBox(-152, 0, -5, -12, 0, 5, PALETTE.ASPHALT);         // ana cadde (batı ada)
     w.fillBox(78, 0, -5, 224, 0, 5, PALETTE.ASPHALT);           // ana cadde (doğu ada)
+    w.fillBox(78, 0, -6, 180, 0, 6, PALETTE.ASPHALT);           // üst geçit + rampalar: daha geniş (9.75 m; eskiden 8.25)
     w.fillBox(-152, 0, 61, -12, 0, 71, PALETTE.ASPHALT);
     w.fillBox(-152, 0, -71, -12, 0, -61, PALETTE.ASPHALT);
     [-131, -91, -51, -31].forEach(x => w.fillBox(x, 0, -163, x + 8, 0, 163, PALETTE.ASPHALT));  // kuzey-güney sokaklar
@@ -266,12 +267,12 @@ export class LevelManager {
   // ── ÜST GEÇİT: ana cadde otoyolun üstünden geçer. Rampalar zeminin kendisidir (yükselen yol), tabliye küptür. ──
   buildOverpass() {
     const w = this.b;
-    const X0 = K * 106 - 1, X1 = K * 145 + 1, ZD = 16;
+    const X0 = K * 106 - 1, X1 = K * 145 + 1, ZD = 19;   // ZD: tabliye yarı genişliği (ince ızgara; 19 = 9.75 m tabliye, asfalt şeritle aynı)
     w.raw(X0, 18, -ZD, X1, 19, ZD, PALETTE.ASPHALT);                                    // tabliye (üst yüz 5.0 m)
     for (let x = X0 + 4; x < X1 - 4; x += 14) w.rawReplace(x, 19, -1, x + 6, 19, 0, PALETTE.GOLD); // orta şerit
     w.raw(X0, 20, -ZD, X1, 23, -ZD, PALETTE.CONCRETE);                                  // korkuluklar
     w.raw(X0, 20, ZD, X1, 23, ZD, PALETTE.CONCRETE);
-    [K * 109, K * 125, K * 142].forEach(px => [-14, 14].forEach(pz => w.raw(px - 1, GROUND_ROW_SUB, pz - 1, px + 1, 17, pz + 1, PALETTE.CONCRETE))); // sütunlar
+    [K * 109, K * 125, K * 142].forEach(px => [-17, 17].forEach(pz => w.raw(px - 1, GROUND_ROW_SUB, pz - 1, px + 1, 17, pz + 1, PALETTE.CONCRETE))); // sütunlar
     w.raw(K * 109 - 1, 16, -ZD, K * 142 + 1, 17, ZD, PALETTE.CONCRETE);                 // alt kiriş
   }
 
@@ -594,14 +595,20 @@ export class LevelManager {
     const paved = [[78, 178, -170, 170], [106, 145, -170, 170], [78, 228, -9, 9], [174, 228, -74, 74]];
     const smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
     const edgeDist = (x, z) => Math.min(x - 78, 235 - x, 165 - z, z + 165);
+    // ── ÜST GEÇİT RAMPALARI: basamaksız, doğrusal eğim ──
+    // Batı rampa 78..106 (21 m, köprü ucundan başlar); doğu rampa 145..180 (26 m; sinema/villa x≥182'de başlar). Üst geçit tabliyesi 4.5 m kaydırma + 0.5 zemin = 5.0 m.
+    // Uçlarda parabolik yumuşatma (e): rampa zemine ve tabliyeye pürüzsüzce bağlanır, tümsek yapmaz.
+    const lin = (t) => { const e = 0.1, sl = 1 / (1 - e); t = Math.max(0, Math.min(1, t)); return t < e ? sl * t * t / (2 * e) : t > 1 - e ? 1 - sl * (1 - t) * (1 - t) / (2 * e) : sl * (t - e / 2); };
+    this.world.terrain.rampProfile = (xm) => {
+      const x = xm / U;
+      if (x >= 78 && x < 106) return 4.5 * lin((x - 78) / 28);
+      if (x >= 106 && x <= 145) return 4.5;
+      if (x > 145 && x < 180) return 4.5 * (1 - lin((x - 145) / 35));
+      return 0;
+    };
+    this.world.terrain.rampArea = (xm, zm) => { const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 78 && x < 106) || (x >= 145 && x < 180)); };
     this.world.terrain.heightFn = (xm, zm, mat) => {
       const x = xm / U, z = zm / U;
-      // Üst geçit rampaları: ana cadde otoyolun üstünden geçer (5 m yükseklik); rampa 78..106 ve 145..176 arası
-      if (mat === PALETTE.ASPHALT && Math.abs(z) <= 5.6) {
-        if (x >= 78 && x < 106) return 4.5 * smooth((x - 78) / 28);
-        if (x >= 145 && x < 176) return 4.5 * (1 - smooth((x - 145) / 31));
-        return 0;
-      }
       if (!mat.isGrass) return 0;
       let h = 0;
       for (const [cx, cz, sg, A] of hills) h += A * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * sg * sg));

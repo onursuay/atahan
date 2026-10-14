@@ -31,6 +31,7 @@ const rnd = (a, b) => a + Math.random() * (b - a);
 // Araç modeli (+x ileri). Boyutlar metre.
 function buildCar(kind, color) {
   const T = TYPES[kind], g = new THREE.Group();
+  g.rotation.order = 'YZX';   // önce yönelim (y), sonra aracın kendi ekseninde eğim (z: rampada burun kalkar)
   const body = lam(color);
   const add = (geo, m, x, y, z) => { const mesh = new THREE.Mesh(geo, m); mesh.position.set(x, y, z); mesh.castShadow = true; g.add(mesh); return mesh; };
   if (kind === 'sport') {
@@ -262,7 +263,8 @@ export class CarManager {
     const was = car.state;
     car.state = 'wreck'; car.life = 0; car.speed = 0;
     car.g.traverse(o => { if (o.isMesh && o.material && o.material.color && o.material !== glassMat) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.25); } });
-    car.g.rotation.z = (Math.random() - 0.5) * 0.4;
+    car.tilt = (Math.random() - 0.5) * 0.4;
+    car.g.rotation.z = (car.pitch || 0) + car.tilt;
     this.ps.createExplosion(car.pos.clone().setY(car.pos.y + 0.8), 6, 0xff6a00);
     sound.playExplosion(1.0);
     if (this.onScore) this.onScore(was === 'drive' ? 250 : 100, '+ARABA PATLADI!');
@@ -327,11 +329,27 @@ export class CarManager {
 
   // Yol yüzeyi yüksekliği: köprü tabliyesi 0.5, üst geçit tabliyesi 5.0, diğer yerlerde arazi
   _roadY(x, z) {
-    if (Math.abs(z) < 4.5) {
-      if (x > -9.2 && x < 58.7) return BRIDGE_Y;
-      if (x > 106 * U && x < 145 * U) return 5.0;
-    }
-    return this.vw.terrain.heightAt(x, z);
+    if (Math.abs(z) < 4.5 && x > -9.2 && x < 58.7) return BRIDGE_Y;
+    if (Math.abs(z) < 4.9 && x > 106 * U - 0.5 && x < 145 * U) return 5.0;   // tabliye (voxel); ramp ucu zaten 5.0
+    return this.vw.terrain.heightAt(x, z);   // rampalarda basamaksız (sürekli) yükseklik
+  }
+
+  // Aracın oturduğu yüzey: ön ve arka aks noktalarındaki yüksekliğin ortalaması + eğim açısı
+  _surface(car) {
+    const L = car.T.len * 0.32, f = car.fwd, p = car.pos;
+    const hF = this._roadY(p.x + f.x * L, p.z + f.z * L), hR = this._roadY(p.x - f.x * L, p.z - f.z * L);
+    if (hF === -Infinity || hR === -Infinity) return { y: this._roadY(p.x, p.z), pitch: 0 };
+    return { y: (hF + hR) / 2, pitch: Math.atan2(hF - hR, 2 * L) };
+  }
+
+  // Yüksekliği ve eğimi yüzeye oturtur; modeli yönelim + eğimle döndürür
+  _place(car, dt, yaw) {
+    const s = this._surface(car);
+    if (s.y > -Infinity) car.pos.y = Math.abs(s.y - car.pos.y) > 3 ? s.y : car.pos.y + (s.y - car.pos.y) * Math.min(1, dt * 30);
+    car.pitch = (car.pitch || 0) + (s.pitch - (car.pitch || 0)) * Math.min(1, dt * 12);
+    car.g.position.copy(car.pos);
+    car.g.rotation.y = yaw;
+    car.g.rotation.z = car.pitch + (car.tilt || 0);
   }
 
   // Önündeki yolda başka araç varsa (araya girene de) durur; uzun bekleyen araç bir süre kontrolü bırakır
@@ -385,11 +403,8 @@ export class CarManager {
       if (car.s >= e.len - TURN_R) this._beginTurn(car);
     }
 
-    // Yükseklik: yol yüzeyi (köprüde tabliye)
-    const h = this._roadY(car.pos.x, car.pos.z);
-    if (h > -Infinity) car.pos.y = Math.abs(h - car.pos.y) > 3 ? h : car.pos.y + (h - car.pos.y) * Math.min(1, dt * 12);
-    car.g.position.copy(car.pos);
-    car.g.rotation.y = -Math.atan2(car.fwd.z, car.fwd.x);
+    // Yükseklik ve eğim: yol yüzeyi (köprüde tabliye, rampada eğim)
+    this._place(car, dt, -Math.atan2(car.fwd.z, car.fwd.x));
   }
 
   // ── ARAÇ-ARAÇ ÇARPIŞMASI ──
@@ -478,13 +493,17 @@ export class CarManager {
     let blocked = false, hitVox = null;
     for (const so of [-1, 0, 1]) {
       const qx = px + side[0] * so * (T.wid / 2 - 0.1), qz = pz + side[1] * so * (T.wid / 2 - 0.1);
+      // Engel taraması zemine göre: rampada/tabliye başında ön köşe zeminin 0.4 ve 1.0 m üstünden bakar
+      const hp = this._roadY(qx, qz);
+      const base = hp === -Infinity ? car.pos.y : Math.max(car.pos.y - 0.9, Math.min(car.pos.y + 0.9, hp));
       for (const hy of [0.4, 1.0]) {
-        const y = car.pos.y + hy;
+        const y = base + hy;
         const v = this.vw.voxels.get(`${Math.round(qx / VOXEL_SIZE)},${Math.round((y - VOXEL_SIZE / 2) / VOXEL_SIZE)},${Math.round(qz / VOXEL_SIZE)}`);
         if (v && v.active) { blocked = true; hitVox = { x: qx, y, z: qz }; }
       }
-      const h = this._roadY(qx, qz);
-      if (h === -Infinity || h - car.pos.y > 0.62) blocked = true;
+      // Zemin: kara dışı ya da kısa mesafede ani yükselme (set/duvar) engeldir; eğim (rampa) engel değildir
+      const h = this._roadY(qx, qz), hb = this._roadY(qx - car.fwd.x * dir * 0.6, qz - car.fwd.z * dir * 0.6);
+      if (h === -Infinity || (hb > -Infinity && h - hb > 0.65)) blocked = true;
     }
     if (blocked) {
       const impact = Math.abs(car.speed);
@@ -502,10 +521,7 @@ export class CarManager {
     // Yaya ezme
     if (Math.abs(car.speed) > 4 && this.vw.npcs) this.vw.npcs.hitSphere(car.pos.clone().addScaledVector(car.fwd, half * dir), 1.1);
 
-    const h = this._roadY(car.pos.x, car.pos.z);
-    if (h > -Infinity) car.pos.y += (h - car.pos.y) * Math.min(1, dt * 14);
-    car.g.position.copy(car.pos);
-    car.g.rotation.y = -car.heading;
+    this._place(car, dt, -car.heading);
     this.player.copy(car.pos);
   }
 

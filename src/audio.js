@@ -605,25 +605,31 @@ class SoundEngine {
     this._burst(now, 0.4, 0.12, 'bandpass', 900, 500, 1.5);
   }
 
-  // Çift bıçağın tam tur dönüşü: kulaklara doğru yaklaşıp uzaklaşan iki "vııın" (Doppler)
-  playSaberSpin(dur = 0.65) {
+  // Çift bıçağın çok turlu dönüşü: her turda iki bıçak kulağın yanından geçer; perde bu hızda salınır (Doppler),
+  // hız yavaşça yükselip alçalır. turns = toplam tur sayısı.
+  playSaberSpin(dur = 1.5, turns = 4) {
     if (this.muted || !this.ctx) return;
     const ctx = this.ctx, now = ctx.currentTime;
     const osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.exponentialRampToValueAtTime(480, now + dur * 0.25);
-    osc.frequency.exponentialRampToValueAtTime(140, now + dur * 0.5);
-    osc.frequency.exponentialRampToValueAtTime(480, now + dur * 0.75);
-    osc.frequency.exponentialRampToValueAtTime(110, now + dur);
+    osc.frequency.setValueAtTime(190, now);
+    osc.frequency.linearRampToValueAtTime(260, now + dur * 0.5);
+    osc.frequency.linearRampToValueAtTime(170, now + dur);
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();       // bıçak geçişi: turda 2 kez
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(turns * 2 / dur * 0.45, now);
+    lfo.frequency.linearRampToValueAtTime(turns * 2 / dur * 1.5, now + dur * 0.5);
+    lfo.frequency.linearRampToValueAtTime(turns * 2 / dur * 0.45, now + dur);
+    lfoGain.gain.value = 90;
+    lfo.connect(lfoGain); lfoGain.connect(osc.frequency);
     gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(0.22, now + dur * 0.15);
+    gain.gain.linearRampToValueAtTime(0.22, now + dur * 0.12);
     gain.gain.setValueAtTime(0.22, now + dur * 0.8);
     gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
-    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1600;
+    const f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 1700;
     osc.connect(f); f.connect(gain); gain.connect(ctx.destination);
-    osc.start(now); osc.stop(now + dur + 0.02);
-    this._burst(now, dur, 0.14, 'bandpass', 700, 1400, 1.2);
+    osc.start(now); lfo.start(now); osc.stop(now + dur + 0.02); lfo.stop(now + dur + 0.02);
+    this._burst(now, dur, 0.14, 'bandpass', 700, 1500, 1.2);
   }
 
   // Işın kılıcı bir şeyi keserken: kıvılcım cızırtısı + tiz elektrik "zzt"

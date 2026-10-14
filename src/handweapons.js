@@ -34,7 +34,8 @@ const SABER_HILT_HALF = 0.19;     // tutacak merkezinden yayıcıya uzaklık (mo
 const SABER_BLADE_LEN = 1.0;      // bir bıçağın görsel uzunluğu
 const SABER_BLADE_SCALE = 2.6;    // bıçağın dünyadaki hasar uzunluğu = görsel × bu
 const SABER_HOLD = { x: 0.26, y: -0.18, z: -1.05 };   // tutacak merkezinin ekrandaki yeri
-const SPIN_TIME = 0.65;           // bir tam dönüşün süresi (sn)
+const SPIN_TURNS = 4;             // bir sağ tıkta atılan tam tur sayısı
+const SPIN_TIME = 1.5;            // tüm dönüşün süresi (sn)
 const SPIN_MIN_SPEED = 3;         // m/sn: bu hızın altındaki bıçak ucu hasar vermez
 const SPIN_SAFE_DIST = 1.2;       // kameraya bu kadar yakın noktalar kesilmez (oyuncu/tutacak)
 const SPIN_CUT_RADIUS = 0.38;
@@ -307,7 +308,7 @@ export class HandWeapons {
     return true;
   }
 
-  // Sağ tık: çift bıçaklı kılıcı elin etrafında tam tur döndürür. Yön her seferinde (öncekinden farklı)
+  // Sağ tık: çift bıçaklı kılıcı elin etrafında SPIN_TURNS tam tur döndürür. Yön her seferinde (öncekinden farklı)
   // sağ / sol / yukarı / aşağıdan biri olur ve hafifçe sapar. Dönüş sürerken gelen tıklamalardan
   // yalnızca biri sıraya alınır; bitince hemen başlar. Fazlası yok sayılır.
   startSpin() {
@@ -320,10 +321,10 @@ export class HandWeapons {
     const axis = dir < 2 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
     const sign = [-1, 1, 1, -1][dir];
     axis.applyAxisAngle(new THREE.Vector3(0, 0, 1), (Math.random() - 0.5) * 0.52);   // ±15° sapma
-    this.saberSpin = { t: 0, dur: SPIN_TIME * (0.92 + Math.random() * 0.16), axis, sign };
+    this.saberSpin = { t: 0, dur: SPIN_TIME * (0.92 + Math.random() * 0.16), axis, sign, turns: SPIN_TURNS };
     this.spinCut = 0;
     this.spinPrev = null;
-    sound.playSaberSpin(this.saberSpin.dur);
+    sound.playSaberSpin(this.saberSpin.dur, SPIN_TURNS);
     return true;
   }
 
@@ -417,7 +418,7 @@ export class HandWeapons {
       sp.t += dt;
       const u = Math.min(1, sp.t / sp.dur);
       const e = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;   // ease-in-out cubic
-      this.spinGroup.quaternion.setFromAxisAngle(sp.axis, sp.sign * Math.PI * 2 * e);
+      this.spinGroup.quaternion.setFromAxisAngle(sp.axis, sp.sign * Math.PI * 2 * sp.turns * e);
       if (u >= 1) {
         if (this.spinCut > 0 && this.onScore) {
           const pts = Math.max(1, Math.round(this.spinCut * 14 / 8));
@@ -724,7 +725,7 @@ export class HandWeapons {
     });
     if (maxSpeed < SPIN_MIN_SPEED) return maxSpeed;
 
-    const steps = Math.min(10, Math.max(1, Math.ceil(maxDist / 0.35)));
+    const steps = Math.min(16, Math.max(1, Math.ceil(maxDist / 0.35)));
     let budget = SPIN_CUT_BUDGET, cutNow = 0, hitPoint = null;
     const pt = new THREE.Vector3();
     for (let j = 1; j <= steps && budget > 0; j++) {
