@@ -28,6 +28,10 @@ export const SPAWN_WEIGHTS = [
 
 export const ZONE_NAMES = ['front', 'rear', 'left', 'right'];
 
+// Far huzmesi: gece (daynight.js opaklığı ayarlar) aracın önünde sıcak, yumuşak bir ışık konisi. Tüm arabalar tek malzemeyi paylaşır.
+export const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff1c0, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+const beamGeo = (() => { const g = new THREE.ConeGeometry(2.1, 9, 10, 1, true); g.rotateZ(Math.PI / 2); g.translate(4.5, 0, 0); return g; })();
+
 const box = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const lam = (c) => new THREE.MeshLambertMaterial({ color: c });
 export const glassMat = new THREE.MeshLambertMaterial({ color: 0x1e293b, transparent: true, opacity: 0.55 });
@@ -211,6 +215,7 @@ export function buildCar(kind, color, livery = null) {
   const cy = T.seatY - 0.03;
   for (const px of [T.seatX - 0.7, T.seatX + 0.5]) for (const pz of [-1, 1]) iron(0.07, 0.62, 0.07, px, cy, pz * (T.wid / 2 - 0.2));  // kafes direkleri
 
+  const beam = new THREE.Mesh(beamGeo, beamMat); beam.position.set(T.len / 2 - 0.1, 0.62, 0); beam.userData.beam = true; beam.frustumCulled = false; g.add(beam);
   g.userData.zones = zones;
   g.userData.lights = extra.lights || null;
   return g;

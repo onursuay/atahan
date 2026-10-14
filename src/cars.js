@@ -322,7 +322,7 @@ export class CarManager {
     if (car.state === 'wreck') return;
     const was = car.state;
     car.state = 'wreck'; car.life = 0; car.speed = 0;
-    car.g.traverse(o => { if (o.isMesh && o.material && o.material.color && o.material !== glassMat) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.25); } });
+    car.g.traverse(o => { if (o.userData.beam) { o.visible = false; return; } if (o.isMesh && o.material && o.material.color && o.material !== glassMat) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.25); } });
     car.tilt = (Math.random() - 0.5) * 0.4;
     car.g.rotation.z = (car.pitch || 0) + car.tilt;
     this.ps.createExplosion(car.pos.clone().setY(car.pos.y + 0.8), 6, 0xff6a00);

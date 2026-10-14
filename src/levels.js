@@ -171,6 +171,7 @@ export class LevelManager {
     this.world.fountains = [];
     this.world.residents = [];
     this.world.parkedCars = [];
+    this.world.lamps = [];       // sokak lambası kafaları (gece ışık havuzları ve gerçek ışık için): { x, y, z, gy }
     const ISL = 166; // zengin bölgenin x kayması (eski birim): doğu yolu (x=186) için 12 birim doğuya alındı
 
     // ==========================================
@@ -429,6 +430,8 @@ export class LevelManager {
   // Detaylı sokak lambası: kaide, süslü pervaz, direk, halka, yola uzanan kol, lamba muhafazası ve ışık camı
   lampSub(sx, sz, base, dx = 0, dz = 0, both = false) {
     const w = this.b;
+    const F = 0.25, head = (hx, hz, hy) => this.world.lamps.push({ x: hx * F, y: hy * F, z: hz * F, gy: base * F });
+    if (dx !== 0 || dz !== 0) { head(sx + dx * 7, sz + dz * 7, base + 19); if (both) head(sx - dx * 7, sz - dz * 7, base + 19); } else head(sx, sz, base + 22);
     w.raw(sx - 1, base, sz - 1, sx + 1, base + 1, sz + 1, PALETTE.CONCRETE);
     w.raw(sx - 1, base + 2, sz - 1, sx + 1, base + 2, sz + 1, PALETTE.IRON);
     w.raw(sx, base + 3, sz, sx, base + 19, sz, PALETTE.IRON);

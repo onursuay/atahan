@@ -12,6 +12,7 @@ import { NPCManager } from './npc.js';
 import { BombManager } from './bombs.js';
 import { PlaneManager } from './planes.js';
 import { CarManager } from './cars.js';
+import { DayNight } from './daynight.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 
@@ -85,7 +86,7 @@ function init() {
   canvasContainer.appendChild(renderer.domElement);
 
   // 4. Işıklandırma ve Gerçekçi Gölgeler (Gelişmiş Gölge Haritası)
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.55); // Gölgelerin net ve derin görünmesi için dengeli ortam ışığı
+  ambientLight = new THREE.AmbientLight(0xffffff, 0.55); // Gölgelerin net ve derin görünmesi için dengeli ortam ışığı
   scene.add(ambientLight);
 
   sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
@@ -110,7 +111,7 @@ function init() {
   // Gökyüzünde Kare Güneş
   const sunGeo = new THREE.BoxGeometry(6, 6, 0.5);
   const sunMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-  const sunMesh = new THREE.Mesh(sunGeo, sunMat);
+  sunMesh = new THREE.Mesh(sunGeo, sunMat);
   sunMesh.position.set(40, 50, 35);
   sunMesh.lookAt(0, 0, 0);
   scene.add(sunMesh);
@@ -205,7 +206,7 @@ function createWorldArena() {
 
   // Deniz / Okyanus Suyu Düzlemi (Şehir ve Adayı Çevreleyen Deniz)
   waterGeo = new THREE.PlaneGeometry(1200, 1200, 120, 120);   // şehir büyüdü: deniz düzlemi 1200 m
-  const waterMat = new THREE.MeshLambertMaterial({
+  waterMat = new THREE.MeshLambertMaterial({
     color: 0x0369a1,
     transparent: true,
     opacity: 0.85
@@ -297,14 +298,20 @@ function updateWaves(dt) {
 }
 
 const doorActors = [];
-let sunLight = null;
+let sunLight = null, ambientLight = null, sunMesh = null, waterMat = null, dayNight = null, clockT = 0;
 function updateGame(dt) {
   physicsWorld.step(1 / 60, dt, 3);
   // Güneş ve gölge alanı oyuncuyu izler (8 m'lik adımlarla: gölgeler titremesin)
   if (sunLight) {
     const sx = Math.round(camera.position.x / 8) * 8, sz = Math.round(camera.position.z / 8) * 8;
     sunLight.target.position.set(sx, 0, sz);
-    sunLight.position.set(sx + 60, 95, sz + 45);
+    const sd = dayNight ? dayNight.dir : new THREE.Vector3(0.45, 0.72, 0.34);   // gündüz güneş, gece ay yönü (gece-gündüz döngüsü)
+    sunLight.position.set(sx + sd.x * 118, sd.y * 118, sz + sd.z * 118);
+  }
+  if (dayNight) {
+    dayNight.update(dt, camera.position, inCar ? cars.driven : null);
+    clockT -= dt;
+    if (clockT <= 0) { clockT = 1; const el = document.getElementById('daynight'); if (el) el.innerText = dayNight.label(); }
   }
 
   // Karakter Kontrolü (W tuşu ileri vb.)
@@ -470,6 +477,10 @@ function loadLevel(index) {
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
   npcs.reset();
   cars.build();
+  // Gece-gündüz: 10 dk gündüz, 10 dk gece; her seviye yüklemesinde gündüzün başından başlar
+  if (dayNight) dayNight.dispose();
+  dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });
+  window.__gece = (sn) => dayNight.setTime(sn);   // hata ayıklama: __gece(630) = gecenin başı
   cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
 
   levelTitleEl.innerText = cfg.title;
