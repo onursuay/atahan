@@ -34,7 +34,7 @@ export class Terrain {
     this.hq = null;       // hücre başına tepe yüksekliği (0.25 m'lik adımlar)
     this.heightFn = null; // (x, z) -> metre: yalnız çim (isGrass) hücrelere uygulanır
     // Pürüzsüz rampa (üst geçit yokuşu): yükseklik yalnız x'e bağlı sürekli bir profildir, basamaklı değil.
-    this.rampProfile = null; // (x) -> metre (zemin üstü yükseklik kayması)
+    this.rampProfile = null; // (x, z) -> metre (zemin üstü yükseklik kayması); yalnız x'e bağlı (üst geçit) ya da yol boyunca (tepe yolu) olabilir
     this.rampArea = null;    // (x, z) -> bool: bu asfalt hücre rampanın parçası mı
     this.rampMask = null;    // hücre başına 1: rampa hücresi
     this.dirty = false;   // doku güncellenmeli
@@ -92,17 +92,17 @@ export class Terrain {
   // Rampa hücrelerinde yükseklik sürekli profilden gelir (hücre ortasında); diğerlerinde hücre adımı.
   _h(i) {
     if (!this.hq) return 0;
-    if (this.rampMask && this.rampMask[i] === 1) return this.rampProfile(this.cellCenter(i).x);
+    if (this.rampMask && this.rampMask[i] === 1) { const c = this.cellCenter(i); return this.rampProfile(c.x, c.z); }
     return this.hq[i] * CELL;
   }
   // Nokta sorgusu: rampada tam x'e göre (hücre içinde de pürüzsüz)
-  _hAt(i, x) {
-    if (this.rampMask && this.rampMask[i] === 1) return this.rampProfile(x);
+  _hAt(i, x, z) {
+    if (this.rampMask && this.rampMask[i] === 1) return this.rampProfile(x, z);
     return this._h(i);
   }
   isRamp(x, z) { const i = this.cellIndex(x, z); return i >= 0 && !!this.rampMask && this.rampMask[i] === 1; }
-  topYAt(x, z) { const i = this.cellIndex(x, z); return i < 0 ? GROUND_Y : GROUND_Y + this._hAt(i, x); }
-  bedYAt(x, z) { const i = this.cellIndex(x, z); return i < 0 ? BEDROCK_Y : BEDROCK_Y + this._hAt(i, x); }
+  topYAt(x, z) { const i = this.cellIndex(x, z); return i < 0 ? GROUND_Y : GROUND_Y + this._hAt(i, x, z); }
+  bedYAt(x, z) { const i = this.cellIndex(x, z); return i < 0 ? BEDROCK_Y : BEDROCK_Y + this._hAt(i, x, z); }
   topYIdx(i) { return GROUND_Y + this._h(i); }
   bedYIdx(i) { return BEDROCK_Y + this._h(i); }
 
@@ -133,7 +133,7 @@ export class Terrain {
   heightAt(x, z) {
     const i = this.cellIndex(x, z);
     if (i < 0 || this.land[i] !== 1) return -Infinity;
-    const h = this._hAt(i, x);
+    const h = this._hAt(i, x, z);
     return this.top[i] === 1 ? GROUND_Y + h : BEDROCK_Y + h;
   }
 
@@ -282,7 +282,8 @@ export class Terrain {
         const cx = minX + (c + 0.5) * CELL, cz = minZ + (r + 0.5) * CELL;
         if (!this.rampArea(cx, cz)) continue;
         this.rampMask[i] = 1;
-        this.hq[i] = Math.max(0, Math.floor(Math.min(this.rampProfile(minX + c * CELL), this.rampProfile(minX + (c + 1) * CELL)) / CELL + 1e-6));
+        const xa = minX + c * CELL, xb = xa + CELL, za = minZ + r * CELL, zb = za + CELL;
+        this.hq[i] = Math.max(0, Math.floor(Math.min(this.rampProfile(xa, za), this.rampProfile(xb, za), this.rampProfile(xb, zb), this.rampProfile(xa, zb)) / CELL + 1e-6));
       }
     }
 
@@ -402,8 +403,9 @@ export class Terrain {
         if (this.rampMask && this.rampMask[i0] === 1) {
           // Rampa hücresi: her hücre kendi eğimli dörtgeni (köşe yükseklikleri sürekli profilden; komşularla pürüzsüz birleşir)
           const rx0 = b.minX + c * CELL, rx1 = rx0 + CELL, rz0 = b.minZ + r * CELL, rz1 = rz0 + CELL;
-          const ya = GROUND_Y + this.rampProfile(rx0) + 0.004, yb = GROUND_Y + this.rampProfile(rx1) + 0.004;
-          pos.push(rx0, ya, rz0, rx1, yb, rz0, rx1, yb, rz1, rx0, ya, rz1);
+          const y00 = GROUND_Y + this.rampProfile(rx0, rz0) + 0.004, y10 = GROUND_Y + this.rampProfile(rx1, rz0) + 0.004;
+          const y11 = GROUND_Y + this.rampProfile(rx1, rz1) + 0.004, y01 = GROUND_Y + this.rampProfile(rx0, rz1) + 0.004;
+          pos.push(rx0, y00, rz0, rx1, y10, rz0, rx1, y11, rz1, rx0, y01, rz1);
           const ru0 = (rx0 - b.minX) / planeW, ru1 = (rx1 - b.minX) / planeW;
           const rt0 = 1 - (rz0 - b.minZ) / planeH, rt1 = 1 - (rz1 - b.minZ) / planeH;
           uv.push(ru0, rt0, ru1, rt0, ru1, rt1, ru0, rt1);
@@ -533,7 +535,7 @@ export class Terrain {
           } else if (this.rampMask && this.rampMask[i] === 1) {
             // Rampa kenarı: komşu rampa değilse (set yanı) aradaki eğimli dik yüzey (toprak set)
             if (this.rampMask[n] !== 1) {
-              const ta = GROUND_Y + this.rampProfile(ax), tb = GROUND_Y + this.rampProfile(bx), ny = this.topYIdx(n);
+              const ta = GROUND_Y + this.rampProfile(ax, az), tb = GROUND_Y + this.rampProfile(bx, bz), ny = this.topYIdx(n);
               if (ny < Math.max(ta, tb) - 1e-6) quadSloped(ax, az, bx, bz, ny, ta, tb, topColor);
             }
           } else if (this.rampMask && this.rampMask[n] === 1) {

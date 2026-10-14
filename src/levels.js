@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { PALETTE } from './teardown.js';
 import { ROADS, ROUNDABOUT, paintSegments, onRoadFast, roadRects } from './cityplan.js';
+import { buildVilla, paintVillaRoad, villaHeight, villaRoadProfile } from './villa.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ÖLÇEK KATMANI
@@ -167,12 +168,14 @@ export class LevelManager {
     const w = new ScaledBuilder(this.world);
     this.b = w;
     this.world.fountains = [];
+    this.world.residents = [];
     const ISL = 166; // zengin bölgenin x kayması (eski birim): doğu yolu (x=186) için 12 birim doğuya alındı
 
     // ==========================================
     // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi) — yollar cityplan.js'ten gelir
     // ==========================================
     w.fillBox(78, 0, -165, 247, 0, 165, PALETTE.GRASS);         // doğu ada çimi (zengin bölgenin kuzeyi/güneyi)
+    w.fillBox(248, 0, -230, 470, 0, 230, PALETTE.GRASS);        // zengin meydanının doğusu: villa tepesi
     this._setHills();
     w.fillBox(-184, 0, -285, -12, 0, 285, PALETTE.CONCRETE);    // batı ada: kuzey/güney 120, batıya 30 birim genişledi
     w.fillBox(-192, 0, -285, -185, 0, 285, PALETTE.SAND);       // batı kumsalı
@@ -186,6 +189,7 @@ export class LevelManager {
     // Yollar: asfalt cityplan.js tanımından boyanır (trafik ağı da aynı tanımdan kurulur)
     for (const r of ROADS) for (const sg of paintSegments(r)) w.fillBox(sg.x0, 0, sg.z0, sg.x1, 0, sg.z1, PALETTE.ASPHALT);
     this.buildRoundaboutGround();
+    paintVillaRoad(this.world.terrain, PALETTE.ASPHALT);        // tepeye çıkan kavisli yol + ön avlu
 
     // Otoyol orta bariyeri (kavşaklarda boşluk) ve çift kollu aydınlatma (otoyol z=±134 caddelerinde biter)
     [[-126, -96], [-80, -52], [-36, -8], [8, 36], [52, 80], [96, 126]].forEach(([a, b]) => w.fillBox(125, 1, a, 125, 2, b, PALETTE.CONCRETE));
@@ -243,6 +247,7 @@ export class LevelManager {
     this.buildPark(-72, 72, -52, 128);
     this.buildNewDistricts();
     this.buildRoundaboutCenter();
+    buildVilla(this.world);                                      // doğudaki tepede çok zengin bir adamın villası
     this.buildSite(-81, -124, -53, -74);
 
     // ==========================================
@@ -712,14 +717,15 @@ export class LevelManager {
     // Batı rampa 78..106 (21 m, köprü ucundan başlar); doğu rampa 145..180 (26 m; sinema/villa x≥182'de başlar). Üst geçit tabliyesi 4.5 m kaydırma + 0.5 zemin = 5.0 m.
     // Uçlarda parabolik yumuşatma (e): rampa zemine ve tabliyeye pürüzsüzce bağlanır, tümsek yapmaz.
     const lin = (t) => { const e = 0.1, sl = 1 / (1 - e); t = Math.max(0, Math.min(1, t)); return t < e ? sl * t * t / (2 * e) : t > 1 - e ? 1 - sl * (1 - t) * (1 - t) / (2 * e) : sl * (t - e / 2); };
-    this.world.terrain.rampProfile = (xm) => {
+    this.world.terrain.rampProfile = (xm, zm) => {
+      if (xm >= 160) return villaRoadProfile(xm, zm);   // villa yolu (zengin meydanından doğuya)
       const x = xm / U;
       if (x >= 78 && x < 106) return 4.5 * lin((x - 78) / 28);
       if (x >= 106 && x <= 145) return 4.5;
       if (x > 145 && x < 180) return 4.5 * (1 - lin((x - 145) / 35));
       return 0;
     };
-    this.world.terrain.rampArea = (xm, zm) => { const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 78 && x < 106) || (x >= 145 && x < 180)); };
+    this.world.terrain.rampArea = (xm, zm) => { if (xm >= 160) return true; const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 78 && x < 106) || (x >= 145 && x < 180)); };   // x≥160 m: yalnız villa yolu asfaltı vardır
     this.world.terrain.heightFn = (xm, zm, mat) => {
       const x = xm / U, z = zm / U;
       if (!mat.isGrass) return 0;
@@ -730,7 +736,7 @@ export class LevelManager {
         const dx = Math.max(x0 - x, 0, x - x1), dz = Math.max(z0 - z, 0, z - z1);
         d = Math.min(d, Math.hypot(dx, dz));
       }
-      return h * smooth(d / 10) * smooth(edgeDist(x, z) / 24);
+      return Math.max(h * smooth(d / 10) * smooth(edgeDist(x, z) / 24), villaHeight(xm, zm));
     };
   }
 

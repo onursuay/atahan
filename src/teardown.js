@@ -52,7 +52,13 @@ export const PALETTE = {
   ASPHALT:  { id: 9, color: 0x1e293b, name: 'Asfalt (Yol)', canBreakWithHammer: true },
   WHITE:    { id: 11, color: 0xf2f2ef, name: 'Beyaz Duvar', canBreakWithHammer: true },
   GRASS:    { id: 10, color: 0x4f8f3a, name: 'Çim (Tepe)', canBreakWithHammer: true, isGrass: true },
-  LAMP:     { id: 12, color: 0xfff0a8, name: 'Lamba (Işık)', canBreakWithHammer: true, isLamp: true }   // lambalar ve iç aydınlatma: parlar (Altın'dan ayrı malzeme)
+  LAMP:     { id: 12, color: 0xfff0a8, name: 'Lamba (Işık)', canBreakWithHammer: true, isLamp: true },   // lambalar ve iç aydınlatma: parlar (Altın'dan ayrı malzeme)
+  BLACK:    { id: 13, color: 0x16181d, name: 'Siyah', canBreakWithHammer: true },
+  LAMP_BLUE:   { id: 14, color: 0x38bdf8, name: 'Mavi Işık', canBreakWithHammer: true, isLamp: true, emissive: 0x38bdf8 },
+  LAMP_PINK:   { id: 15, color: 0xf472b6, name: 'Pembe Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xf472b6 },
+  LAMP_GREEN:  { id: 16, color: 0x4ade80, name: 'Yeşil Işık', canBreakWithHammer: true, isLamp: true, emissive: 0x4ade80 },
+  LAMP_PURPLE: { id: 17, color: 0xa78bfa, name: 'Mor Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xa78bfa },
+  LAMP_ORANGE: { id: 18, color: 0xfb923c, name: 'Turuncu Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xfb923c }
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
@@ -70,7 +76,9 @@ export const MATERIAL_HARDNESS = {
   [PALETTE.ROOF.id]: 0.9,     // Çatı
   [PALETTE.TNT.id]: 0.5,      // TNT
   [PALETTE.GOLD.id]: 1.0,     // Altın
-  [PALETTE.LAMP.id]: 0.4      // Lamba: cam gibi kolay kırılır
+  [PALETTE.LAMP.id]: 0.4,     // Lamba: cam gibi kolay kırılır
+  [PALETTE.BLACK.id]: 1.6,    // Siyah (villa): beton gibi
+  [PALETTE.LAMP_BLUE.id]: 0.4, [PALETTE.LAMP_PINK.id]: 0.4, [PALETTE.LAMP_GREEN.id]: 0.4, [PALETTE.LAMP_PURPLE.id]: 0.4, [PALETTE.LAMP_ORANGE.id]: 0.4
 };
 
 export class VoxelWorld {
@@ -117,7 +125,7 @@ export class VoxelWorld {
         transparent: matDef.id === PALETTE.GLASS.id,
         opacity: matDef.id === PALETTE.GLASS.id ? 0.7 : 1.0,
         // Lamba küpleri kendi ışığıyla parlar (gece/gölgede de görünür)
-        ...(matDef.isLamp ? { emissive: new THREE.Color(0xffe9a0), emissiveIntensity: 0.95 } : {})
+        ...(matDef.isLamp ? { emissive: new THREE.Color(matDef.emissive || 0xffe9a0), emissiveIntensity: 0.95 } : {})
       });
     });
   }

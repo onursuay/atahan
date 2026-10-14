@@ -43,6 +43,7 @@ export class NPCManager {
     this.onScore = onScore;
     this.npcs = [];
     this.respawnQueue = [];
+    this.residentQueue = [];   // öldürülen sakinler (villanın zengin adamı): [{ t, spec }]
     this.playerPos = new THREE.Vector3();
   }
 
@@ -50,7 +51,9 @@ export class NPCManager {
     this.npcs.forEach(n => this.scene.remove(n.group));
     this.npcs = [];
     this.respawnQueue = [];
+    this.residentQueue = [];
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
+    for (const r of this.voxelWorld.residents || []) this._spawnResident(r);
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
@@ -79,9 +82,10 @@ export class NPCManager {
     return this.voxelWorld.terrain.heightAt(x, z) > -Infinity;
   }
 
-  _makeBody() {
+  _makeBody(rich = false) {
     const g = new THREE.Group();
-    const shirt = pick(SHIRTS), pants = pick(PANTS), skin = pick(SKINS), hair = pick(HAIRS);
+    // Zengin adam: siyah takım, beyaz gömlek, gümüş saç, koyu gözlük, altın saat
+    const shirt = rich ? 0x0b0d12 : pick(SHIRTS), pants = rich ? 0x0b0d12 : pick(PANTS), skin = rich ? 0xf1c27d : pick(SKINS), hair = rich ? 0xd4d4d8 : pick(HAIRS);
 
     const head = new THREE.Mesh(GEO.head, mat(skin)); head.position.y = 1.38;
     const hairM = new THREE.Mesh(GEO.hair, mat(hair)); hairM.position.y = 1.58;
@@ -96,8 +100,27 @@ export class NPCManager {
     };
     const lArm = mkArm(-0.27), rArm = mkArm(0.27), lLeg = mkLeg(-0.1), rLeg = mkLeg(0.1);
     g.add(head, hairM, torso, lArm, rArm, lLeg, rLeg);
+    if (rich) {
+      const shirtFront = new THREE.Mesh(boxGeo(0.14, 0.4, 0.02), mat(0xffffff)); shirtFront.position.set(0, 0.98, 0.115);
+      const tie = new THREE.Mesh(boxGeo(0.05, 0.3, 0.02), mat(0xb91c1c)); tie.position.set(0, 0.95, 0.126);
+      const shades = new THREE.Mesh(boxGeo(0.3, 0.07, 0.02), mat(0x050505)); shades.position.set(0, 1.4, 0.175);
+      const watch = new THREE.Mesh(boxGeo(0.16, 0.05, 0.16), mat(0xfacc15)); watch.position.set(0, -0.42, 0); rArm.add(watch);
+      g.add(shirtFront, tie, shades);
+    }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
     return { g, lArm, rArm, lLeg, rLeg, colors: [shirt, pants, skin, hair] };
+  }
+
+  // Villanın tek sakini: sınırlı bölgede (villa + teras) dolaşır; vurulursa bir dakika sonra yeniden doğar
+  _spawnResident(spec) {
+    const body = this._makeBody(true);
+    body.g.position.set(spec.x, spec.y, spec.z);
+    this.scene.add(body.g);
+    this.npcs.push({
+      ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0,
+      heading: Math.random() * Math.PI * 2, turnTimer: 2 + Math.random() * 3, pause: 1, cycle: 0, grounded: true,
+      resident: spec, bounds: spec.bounds, value: 1000
+    });
   }
 
   _spawn() {
@@ -132,6 +155,10 @@ export class NPCManager {
   update(dt, playerPos) {
     this.playerPos.copy(playerPos);
 
+    for (let i = this.residentQueue.length - 1; i >= 0; i--) {
+      this.residentQueue[i].t -= dt;
+      if (this.residentQueue[i].t <= 0) { const q = this.residentQueue.splice(i, 1)[0]; this._spawnResident(q.spec); }
+    }
     for (let i = this.respawnQueue.length - 1; i >= 0; i--) {
       this.respawnQueue[i] -= dt;
       if (this.respawnQueue[i] <= 0) { this.respawnQueue.splice(i, 1); this._spawn(); }
@@ -158,7 +185,8 @@ export class NPCManager {
       const dx = Math.sin(n.heading) * SPEED * dt, dz = Math.cos(n.heading) * SPEED * dt;
       // Önüne bak: deniz, kara dışı veya duvar varsa sağa ya da sola dön
       const ax = n.x + Math.sin(n.heading) * 0.7, az = n.z + Math.cos(n.heading) * 0.7;
-      const blocked = !this._walkableAhead(ax, az) || this._solid(ax, n.y + 0.5, az);
+      const outside = n.bounds && (ax < n.bounds.minX || ax > n.bounds.maxX || az < n.bounds.minZ || az > n.bounds.maxZ);
+      const blocked = outside || !this._walkableAhead(ax, az) || this._solid(ax, n.y + 0.5, az);
       if (blocked) {
         const side = Math.random() < 0.5 ? 1 : -1;
         n.heading += side * (1.0 + Math.random() * 1.2);
@@ -182,7 +210,7 @@ export class NPCManager {
     }
     n.y = ny;
     // Denize/boşluğa düştüyse yeniden doğur
-    if (n.y < -3) { this._remove(n); this.respawnQueue.push(1); return; }
+    if (n.y < -3) { this._remove(n); if (n.resident) this.residentQueue.push({ t: 5, spec: n.resident }); else this.respawnQueue.push(1); return; }
 
     // Görünüm
     const sw = moving ? Math.sin(n.cycle) * 0.7 : 0;
@@ -263,7 +291,8 @@ export class NPCManager {
     if (this.particleSystem.createSpark) this.particleSystem.createSpark(pos);
     sound.playBlockHit();
     this._remove(n);
-    this.respawnQueue.push(RESPAWN_SECONDS);
-    if (this.onScore) this.onScore(100, '+100 NPC VURULDU!');
+    if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
+    else this.respawnQueue.push(RESPAWN_SECONDS);
+    if (this.onScore) this.onScore(n.value || 100, n.resident ? '+1000 ZENGİN ADAM VURULDU!' : '+100 NPC VURULDU!');
   }
 }

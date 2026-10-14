@@ -66,6 +66,7 @@ Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki �
 - **AVM:** eski AVM'nin yaklaşık 3 katı hacimde (4 kat; kat yüksekliği 6 m, çok katlı balkonlar ve ortada atrium). İç mağazalar şimdilik yapılmadı.
 - **Köprü kabloları** ince tüpler ve silindirlerdir (voxel en az 0.5 m kalın olduğu için kablolar voxel yerine ince nesne olarak çizilir).
 - **Doğu ada:** hastane (beyaz, girişte kırmızı artı), itfaiye, polis merkezi, okul, AVM, otel ve apartman blokları; batı ve doğu kıyı yolları, ortada **otoyol** (her yönde 3 şerit), üstünden geçen **üst geçit** (9.75 m geniş; iki yanındaki rampalar basamaksız, doğrusal eğimlidir, en dik yeri ≈13°; araçlar eğime göre burnunu kaldırır) ve otoyola bağlanan sağa dönüş rampaları; doğuda zengin bölge.
+- **Villa tepesi (köprüden sonra, doğu adanın doğusu):** zengin meydanının doğusunda, **üstü dümdüz** (12 m yükseklikte, yaklaşık 60 × 68 m) yumuşak etekli bir tepe. Sivri tepe yoktur; etek kademeli iner. Meydandan doğuya **düz gidip sola yumuşak bir kavis yapan** (≈105 m, en dik yeri ≈7°) bir yol tepeye çıkar; üst geçit rampası gibi basamaksızdır ve uçları zemine/platoya pürüzsüzce bağlanır. Yol **trafik ağında değildir: araçlar oraya gitmez**. Yol kenarında lambalar, platoda ağaçlar vardır. Tepede **beyaz, kahverengi (ahşap), siyah ve camdan modern bir villa** durur (`src/villa.js`): zemin kat beyaz kutu + cam cephe, üst kat siyah ve doğuya 10 m taşan konsol; güney balkon ve batı çatı terası (cam korkuluk); parlayan mavi **havuz**, şezlonglar, renkli bahçe lambaları; konsol altında ateş çukurlu açık salon. İçeride: salonda üç **ekranlı (Stark tarzı HUD) TV duvarı**, bar (renkli şişeler), mutfak adası, yemek masası ve avize, neon pembe merdiven; üst katta yatak odası, cam banyo, **laboratuvar** (dört ekran, holo masa, vitrinde kırmızı-altın zırh) ve panoramik salon. Renkli LED şeritler ve parlayan küpler (mavi, pembe, mor, yeşil, turuncu ışık malzemeleri) ile aydınlatılmıştır. Villada **tek bir çok zengin adam** yaşar (siyah takım, gümüş saç, gözlük, altın saat): yalnızca villa ve terasında dolaşır, vurulursa 1000 puan verir ve bir dakika sonra yeniden belirir.
 - Yollar iki yönlüdür (her yönde bir şerit). Sokak lambaları, çöp kutuları ve ağaçlar sokak donatımıdır.
 - Binaların içine girilir; içlerinde merdiven ve mobilya (mutfak, yatak odası, salon, banyo, otel odaları, ofis masaları) vardır.
 
@@ -124,6 +125,7 @@ Dünyanın boyutu ve küp sayısı büyük olduğundan (yaklaşık 350.000–450
 | `src/collapse.js` | Yapısal çökme (zemine bağlı olmayan parçalar düşer) |
 | `src/terrain.js` | İki katmanlı zemin, tepeler, kırılan çukurlar |
 | `src/levels.js` | Dünya düzeni: adalar, yollar, köprü, binalar, park |
+| `src/villa.js` | Villa tepesi: plato yüksekliği, kavisli yokuş yol, villa (iç/dış), ekran ve ışıklar, zengin sakin |
 | `src/character.js` | Karakter hareketi, voxel çarpışması, yüzme, jetpack |
 | `src/handweapons.js`, `src/weapons.js` | Silahlar, şarjör sistemi ve elde görünen modeller |
 | `src/audio.js` | Prosedürel ses motoru: silah, şarjör, motor, su ve diğer efektler |
