@@ -1,55 +1,104 @@
-# 💥 Teardown 3D - Minik Karelerle (Voxel) Patlamalı Yıkım Simülatörü
+# 💥 Teardown 3D — Voxel Şehirde Yıkım ve Keşif Oyunu
 
-Web tarayıcısında çalışan, Three.js ve Cannon-es fizik motoruyla güçlendirilmiş, **Teardown tarzı on binlerce minik kareden (mikro-voxel)** oluşan gerçek zamanlı bina yıkım oyunu!
+Tarayıcıda çalışan, Three.js ve Cannon-es ile yapılmış, **küplerden (voxel) oluşan iki adalı bir şehirde** geçen yıkım ve keşif oyunu. Binalar yıkılabilir, parçalar fizikle dağılır, bağlantısı kopan üst katlar çöker. Şehirde yürüyen insanlar, trafikte giden arabalar ve gökte uçan uçaklar var.
 
 ---
 
-## 🎮 Teardown Tarzı Minik Kare Yıkım Mekaniği
+## 🎮 Kontroller
 
-- **🧱 On Binlerce Minik Kare (Micro-Voxels):**
-  - Binalar artık büyük bloklardan değil; **Teardown oyunundaki gibi minik küplerden (0.35m)** oluşur.
-  - Tuğlalar, ahşap kirişler, cam pencereler, çelik kolonlar ve kiremit çatılar binlerce bağımsız minik kareden inşa edilmiştir.
-- **🕳️ Gerçek Delik Açma (Hole Carving):**
-  - Roket attığınızda duvarda tam olarak çarptığı yerde gerçekçi bir oyuk ve delik açılır!
-  - Duvarı delip içeri girebilir, kolonları tek tek incelterek binaları çökertebilirsiniz.
-- **💥 Havaya Saçılan ve Seken Döküntüler (Loose Physics Debris):**
-  - Patlama anında yüzlerce minik küp etrafa saçılır, zemin üzerinde taklalar atarak yuvarlanır ve gerçek fizik kurallarıyla yığılır.
-- **🧨 Zincirleme TNT Patlamaları:**
-  - Duvarların veya mahzenlerin içine yerleştirilmiş kırmızı TNT küpleri vurulduğunda gecikmeli devasa şok dalgaları oluşturur.
-- **🟩 Steve Tarzı Kübik Karakter:**
-  - **W Tuşu:** Karakteri ileri doğru yürütür (klasik kol ve bacak sallama animasyonuyla).
-  - **A, S, D:** Yön kontrolleri.
-  - **Boşluk (Space):** Zıplama.
-  - **Fare & Sol Tık:** Nişan alma ve roket/TNT fırlatma.
-- **5 Farklı Teardown Bölümü:**
-  - Bölüm 1: Teardown Villası (2 katlı müstakil ev, pencereler, çatı ve baca)
-  - Bölüm 2: Sanayi Deposu (Çelik kolonlar, hangar çatısı ve variller)
-  - Bölüm 3: TNT Rafinerisi (Birbirine bağlı patlayıcı tanklar)
-  - Bölüm 4: Voxel İş Merkezi (5 katlı modern cam & beton bina)
-  - Bölüm 5: Büyük Kale & Saat Kulesi (Surlar ve devasa saat kulesi)
+| Tuş / Fare | İşlev |
+|---|---|
+| **W A S D** | Yürü (arabadayken: gaz, fren/geri, direksiyon) |
+| **Fare** | Etrafa bak |
+| **Sol tık** | Ateş et / kılıç savur / bomba yerleştir |
+| **Boşluk** | Zıpla. Havadayken **basılı tut: jetpack** (arabadayken el freni) |
+| **Tab** | Silah menüsü (imleç serbest kalır, silahı tıklayarak seç) |
+| **E** | Yakındaki arabaya bin / araçtan in. Araç yoksa çekiç vurur |
+| **X** | Sniper nişangâhı (yalnız sniper elindeyken) |
+| **F** | Yerleştirilmiş uzaktan bombaları patlat |
+| **V** | Kamera: karakterin gözünden ↔ uzaktan |
+
+Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin gövdesi gizlenir, yalnızca kollar ve elindeki silah görünür.
+
+---
+
+## 🔫 Silahlar (Tab menüsünden seçilir)
+
+- **Delici Roket** — duvarda delik açar, patlamada çevredeki her şeyi etkiler.
+- **Minigun** — basılı tutunca namlular döner, saniyede yaklaşık 18 mermi atar.
+- **Işın Kılıcı** — fare hareketine göre yatay, dikey ve çapraz savurur; bıçağın geçtiği yerdeki her şeyi (demir dahil) keser.
+- **Tabanca**, **Pompalı** (9 saçma), **AK-47** (otomatik), **Sniper** (güçlü ve uzun menzilli).
+- **Süreli Bomba** — yerleştirince 3 saniye geri sayar, bip sesi giderek sıklaşır.
+- **Uzaktan Bomba** — yerleştirince bekler; ekrandaki **PATLAT** butonu ya da **F** ile patlar.
+- **Çekiç** (E) — yakın mesafede küçük hasar verir; demir kırılmaz.
+
+---
+
+## 🏙️ Dünya
+
+- **İki ada** ve aralarında **kırmızı asma köprü** (basamaklı kuleler, kablolar, askılar).
+- **Batı ada:** şehir merkezi, kumsal ve iskeleler, büyük park (çeşme, gölet, çardak, çocuk parkı), market, çarşı, banka, kafe, depo, konut sitesi (çitli, kapılı), apartmanlar ve ofisler.
+- **Doğu ada:** hastane (beyaz, girişte kırmızı artı), itfaiye, polis merkezi, okul, AVM, otel ve apartman blokları; ortada **otoyol** (her yönde 3 şerit), üstünden geçen **üst geçit** ve otoyola bağlanan sağa dönüş rampaları; doğuda zengin bölge.
+- Yollar iki yönlüdür (her yönde bir şerit). Sokak lambaları, çöp kutuları ve ağaçlar sokak donatımıdır.
+- Binaların içine girilir; içlerinde merdiven ve mobilya (mutfak, yatak odası, salon, banyo, otel odaları, ofis masaları) vardır.
+
+### 🌍 Zemin: iki katman
+- **Üst katman** (yol, kumsal, çim): patlama ve çekiçle kırılır, parçaları dağılır, kenarları pürüzlü bir çukur kalır. Yürümek ya da zıplamak kırmaz.
+- **Alt katman** (taban kayası): hiçbir şeyle kırılamaz. Üst katman kırılınca yükselip boşluğu kapatmaz; çukurun tabanı olarak kalır ve üzerinde yürünür.
+
+### 🧱 Yıkım
+- Her yapı küplerden oluşur; küpler **0,5 m**'dir ve yüzlerine 2×2 ince ızgara dokusu işlenmiştir. Yıkımdaki döküntü parçaları yarım boyutludur.
+- **Yapısal çökme:** zemine bağlı olmayan kısım (ör. ortasından patlatılan binanın üstü) aşağı düşer, yere çarpınca oturur ya da kırılıp dağılır.
+- Zincirleme TNT patlamaları, delik açma, havaya saçılan fizikli döküntüler.
+
+---
+
+## 🧍 Canlılar ve araçlar
+
+- **NPC insanlar:** rastgele dolaşır, deniz/duvar/çukur kenarında sağa ya da sola döner. Silahlarla, patlamayla ve çekiçle vurulabilir (küplere dağılırlar), bir süre sonra yenisi doğar.
+- **NPC arabalar:** spor, mini ve sedan; farklı renklerde, içlerinde sürücü görünür. Yolda sağ şeritten gider, kavşakta yuvarlak yaylarla döner, otoyola sağdan katılır ve sağdan çıkar. Önüne biri çıkarsa ya da başka araç girerse durur. Birbirine çarpınca hasar alırlar. Mermi ve patlama gövde panellerini koparır; demir iskelet ancak çok ağır hasarda gider.
+- **Arabaya binip sürebilirsiniz** (E, W A S D). Hızlı çarpışma binayı kırar, yayaları ezer.
+- **Uçaklar:** Boeing 737 görünümlü yolcu uçakları ara sıra geçer. Roket ya da minigunla vurulursa dumanlı düşer, yere çarpınca geniş çukur ve yıkım bırakır.
+
+---
+
+## ❤️ Can, jetpack ve fizik
+
+- **Can:** patlamaya yakınken hasar alırsınız (merkezde ağır, uzakta hafif). Can 0 olunca spawn noktasında yeniden doğarsınız; yıkım ve puan korunur. Hasardan 5 saniye sonra can yavaşça yenilenir.
+- **Jetpack:** havadayken Boşluk'u basılı tutun. Yakıt yaklaşık 7 saniye yeter, yerde dolar. Tuşu bırakınca hava direnci yavaşlatır ve düşersiniz.
+- **Su:** denizde yüzülür; kıyıya Boşluk ile tırmanılır. Dalgalar, sıçrama, suya düşen parçaların yüzmesi vardır.
+- Patlama dalgası oyuncuyu savurur.
 
 ---
 
 ## 🛠️ Yerel Olarak Çalıştırma
 
 ```bash
-# Geliştirici sunucusunu başlatın
-npm run dev
+npm install
+npm run dev     # http://localhost:5173
+npm run build   # üretim derlemesi (dist/)
 ```
 
-Tarayıcınızdan `http://localhost:5173` adresine giderek oyunu oynayabilirsiniz.
+Dünyanın boyutu ve küp sayısı büyük olduğundan (yaklaşık 350.000–450.000 küp) güçlü bir ekran kartı önerilir. Küp boyutu `src/config.js` içindeki `VOXEL_SIZE` ile ayarlanır (küçültmek küp sayısını hızla artırır).
 
 ---
 
-## 🚀 GitHub'a Gönderme ve Vercel'de Yayınlama
+## 📁 Kod yapısı
 
-### GitHub'a Gönderme:
-```bash
-git remote add origin https://github.com/KULLANICI_ADINIZ/REPOSİTORY_ADINIZ.git
-git push -u origin main
-```
+| Dosya | Görev |
+|---|---|
+| `src/main.js` | Oyun döngüsü, kamera, girişler, can, araca binme |
+| `src/teardown.js` | Voxel dünyası, yıkım, döküntü, çökme bağlantısı |
+| `src/collapse.js` | Yapısal çökme (zemine bağlı olmayan parçalar düşer) |
+| `src/terrain.js` | İki katmanlı zemin, tepeler, kırılan çukurlar |
+| `src/levels.js` | Dünya düzeni: adalar, yollar, köprü, binalar, park |
+| `src/character.js` | Karakter hareketi, voxel çarpışması, yüzme, jetpack |
+| `src/handweapons.js`, `src/weapons.js` | Silahlar ve elde görünen modeller |
+| `src/bombs.js` | Süreli ve uzaktan bombalar |
+| `src/npc.js`, `src/cars.js`, `src/planes.js` | İnsanlar, arabalar, uçaklar |
 
-### Vercel'de Yayınlama:
-1. [Vercel.com](https://vercel.com)'a giriş yapın.
-2. Reponuzu seçip **Import** butonuna tıklayın.
-3. **Deploy** butonuna basın ve 20 saniye içinde oyununuz canlıda!
+---
+
+## 🚀 Yayınlama
+
+Depo: https://github.com/onursuay/atahan — `main` dalına push edilince Vercel yeniden derler (`vercel.json`: `npm run build`, çıktı `dist/`).
