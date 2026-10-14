@@ -88,7 +88,7 @@ function init() {
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.55); // Gölgelerin net ve derin görünmesi için dengeli ortam ışığı
   scene.add(ambientLight);
 
-  const sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
+  sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
   sunLight.position.set(60, 95, 45);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.width = 4096; // Yüksek çözünürlüklü keskin gölgeler
@@ -105,6 +105,7 @@ function init() {
   sunLight.shadow.camera.bottom = -dz;
   sunLight.shadow.bias = -0.0004;
   scene.add(sunLight);
+  scene.add(sunLight.target);   // gölge alanı oyuncuyu izler (şehir büyüdü)
 
   // Gökyüzünde Kare Güneş
   const sunGeo = new THREE.BoxGeometry(6, 6, 0.5);
@@ -201,7 +202,7 @@ function createWorldArena() {
   // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
   // Deniz / Okyanus Suyu Düzlemi (Şehir ve Adayı Çevreleyen Deniz)
-  waterGeo = new THREE.PlaneGeometry(380, 380, 80, 80);
+  waterGeo = new THREE.PlaneGeometry(1200, 1200, 120, 120);   // şehir büyüdü: deniz düzlemi 1200 m
   const waterMat = new THREE.MeshLambertMaterial({
     color: 0x0369a1,
     transparent: true,
@@ -294,8 +295,15 @@ function updateWaves(dt) {
 }
 
 const doorActors = [];
+let sunLight = null;
 function updateGame(dt) {
   physicsWorld.step(1 / 60, dt, 3);
+  // Güneş ve gölge alanı oyuncuyu izler (8 m'lik adımlarla: gölgeler titremesin)
+  if (sunLight) {
+    const sx = Math.round(camera.position.x / 8) * 8, sz = Math.round(camera.position.z / 8) * 8;
+    sunLight.target.position.set(sx, 0, sz);
+    sunLight.position.set(sx + 60, 95, sz + 45);
+  }
 
   // Karakter Kontrolü (W tuşu ileri vb.)
   if (inCar) {

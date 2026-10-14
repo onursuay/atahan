@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { sound } from './audio.js';
 import { VOXEL_SIZE } from './config.js';
 import { TYPES, SPAWN_WEIGHTS, ZONE_NAMES, buildCar, glassMat, zoneOfLocal } from './carmodels.js';
+import { graphRoads, ringNodes } from './cityplan.js';
 const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yüz 0.5 m)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -9,7 +10,7 @@ const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yü
 // ya da sağa/sola yuvarlak bir yayla dönerler; yolun ucunda U dönüşü yaparlar. Dokuz tür (bkz. carmodels.js).
 // İçlerinde sürücü görünür. Hasar bölgeseldir (ön/arka/sol/sağ); ön bölge parçalanınca araç durup dumanlanır.
 // ─────────────────────────────────────────────────────────────────────────────
-const CAR_COUNT = 24;
+const CAR_COUNT = 40;
 const U = 0.75;                      // eski birim -> metre
 const TURN_R = 4.2;                  // dönüş yarıçapı (m)
 const COLORS = [0xdc2626, 0xf59e0b, 0xfacc15, 0x2563eb, 0x16a34a, 0xf3f4f6, 0x111827, 0x9333ea, 0xf97316, 0x06b6d4, 0xe11d48, 0x84cc16];
@@ -35,21 +36,8 @@ export class CarManager {
   // ── Yol ağı ──
   build() {
     this.clear();
-    // [x0,z0,x1,z1, şerit sayısı, şerit ofseti (m)] metre
-    // Yollar kıyıdan 9 m önce biter: çıkmaz uçta U dönüşü denize taşmasın
-    const R = [
-      [-140*U, 0, 160, 0, 1, 2.0, 'noMerge'],                                  // ana cadde: batı ada + köprü + doğu ada (üst geçitten geçer)
-      [-140*U, 66*U, -13, 66*U, 1, 2.06], [-140*U, -66*U, -13, -66*U, 1, 2.06],
-      [-140*U, 134*U, -13, 134*U, 1, 2.06], [-140*U, -134*U, -13, -134*U, 1, 2.06],
-      [-127*U, -112, -127*U, 112, 1, 1.7], [-87*U, -112, -87*U, 112, 1, 1.7],
-      [-47*U, -112, -47*U, 112, 1, 1.7], [-27*U, -112, -27*U, 112, 1, 1.7],
-      [82*U, 44*U, 176*U, 44*U, 1, 2.06], [82*U, -44*U, 176*U, -44*U, 1, 2.06],
-      [82*U, 88*U, 100*U, 88*U, 1, 2.06], [82*U, -88*U, 100*U, -88*U, 1, 2.06], // hastane/AVM'nin içinden geçmez
-      [82*U, 134*U, 176*U, 134*U, 1, 2.06], [82*U, -134*U, 176*U, -134*U, 1, 2.06],
-      [125*U, -112, 125*U, 112, 3, 1.75],                                      // otoyol: her yönde 3 şerit
-      [199*U, -45, 199*U, 45, 1, 1.0]
-    ];
-    this.roads = R.map((r, i) => ({ id: i, a: [r[0], r[1]], b: [r[2], r[3]], lanes: r[4], off: r[5], noMerge: r[6] === 'noMerge' }));
+    // Yollar cityplan.js'ten gelir (asfalt boyama ile aynı tanım): her yolun iki ucu başka bir yola ya da göbeğe bağlanır
+    this.roads = graphRoads().map((r, i) => ({ id: i, name: r.name, a: r.a, b: r.b, lanes: r.lanes, off: r.off, noMerge: r.noMerge }));
 
     const key = (x, z) => `${Math.round(x * 4)},${Math.round(z * 4)}`;
     const node = (x, z) => { const k = key(x, z); if (!this.nodes.has(k)) this.nodes.set(k, { x, z, out: [] }); return this.nodes.get(k); };
@@ -76,6 +64,14 @@ export class CarManager {
         A.out.push(e1); B.out.push(e2); this.edges.push(e1, e2);
       }
     });
+    // Göbek: 8 köşeli tek yönlü halka (saat yönünün tersi); dört yol halkanın köşelerine açılır
+    const rn = ringNodes(), ringRoad = { id: this.roads.length, name: 'gobek', lanes: 1, off: 0, noMerge: false, ring: true, a: [0, 0], b: [0, 0] };
+    for (let k = 0; k < rn.length; k++) {
+      const A = node(rn[k].x, rn[k].z), B = node(rn[(k + 1) % rn.length].x, rn[(k + 1) % rn.length].z);
+      const len = Math.hypot(B.x - A.x, B.z - A.z);
+      const e = { from: A, to: B, len, d: [(B.x - A.x) / len, (B.z - A.z) / len], road: ringRoad };
+      A.out.push(e); this.edges.push(e);   // yalnız ileri yön: halka tek yönlüdür
+    }
     while (this.cars.length < CAR_COUNT) if (!this._spawn()) break;
   }
 
@@ -111,6 +107,14 @@ export class CarManager {
   _chooseNext(car) {
     const e = car.edge, n = e.to;
     const opts = n.out.filter(o => !(o.to === e.from && n.out.length > 1));
+    // Göbek: yoldan gelen halkaya girer; halkadaki araç ya dönmeye devam eder ya da (düğümde bir yol varsa) çıkar
+    if (n.out.some(o => o.road.ring)) {
+      const ringNext = opts.find(o => o.road.ring), exits = opts.filter(o => !o.road.ring);
+      const leave = e.road.ring && exits.length && Math.random() < 0.4;
+      car.next = leave ? exits[Math.floor(Math.random() * exits.length)] : (ringNext || exits[0] || n.out[0]);
+      car.nextLane = 0;
+      return;
+    }
     let straight = null, left = [], right = [];
     opts.forEach(o => {
       const dot = o.d[0] * e.d[0] + o.d[1] * e.d[1];
@@ -146,7 +150,16 @@ export class CarManager {
     const oc = e.road.off + car.lane * 3.5, on = nx.road.off + car.nextLane * 3.5;
     let P1;
     if (nx.to === e.from) P1 = new THREE.Vector3(n.x + e.d[0] * TURN_R * 1.7, 0, n.z + e.d[1] * TURN_R * 1.7); // U dönüşü
-    else P1 = new THREE.Vector3(n.x + rc[0] * oc + rn[0] * on, 0, n.z + rc[1] * oc + rn[1] * on);                // iki şerit çizgisinin kesişimi
+    else {
+      // İki şerit çizgisinin kesişimi (yollar dik değilse de çalışır: göbek halkası köşeleri)
+      const A = this._lanePoint(e, 0, car.lane), Bp = this._lanePoint(nx, 0, car.nextLane);
+      const cr = e.d[0] * nx.d[1] - e.d[1] * nx.d[0];
+      if (Math.abs(cr) < 0.15) P1 = new THREE.Vector3((P0.x + P2.x) / 2, 0, (P0.z + P2.z) / 2);
+      else {
+        const t = ((Bp.x - A.x) * nx.d[1] - (Bp.z - A.z) * nx.d[0]) / cr;
+        P1 = new THREE.Vector3(A.x + e.d[0] * t, 0, A.z + e.d[1] * t);
+      }
+    }
     const arc = (P0.distanceTo(P1) + P1.distanceTo(P2)) * 0.95;
     car.turn = { P0, P1, P2, t: 0, arc };
   }
@@ -336,7 +349,12 @@ export class CarManager {
     for (let i = this.cars.length - 1; i >= 0; i--) {
       const car = this.cars[i];
       if (car === this.driven) continue;
-      if (car.state === 'drive') this._drive(car, dt);
+      if (car.state === 'drive') {
+        this._drive(car, dt);
+        // Kilitlenme çözücü: kavşakta birbirini bekleyen araçlar 15 sn'den uzun kıpırdamazsa kaldırılır ve yeniden doğar
+        car.stuckT = car.speed < 0.3 && !this._personAhead(car) ? (car.stuckT || 0) + dt : 0;
+        if (car.stuckT > 15) { this.scene.remove(car.g); this.cars.splice(i, 1); this.respawn.push(1); continue; }
+      }
       else if (car.state === 'parked') { car.life += dt; if (car.life > 150) { this.scene.remove(car.g); this.cars.splice(i, 1); this.respawn.push(3); continue; } }
       else {
         car.life += dt;
