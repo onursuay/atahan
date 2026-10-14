@@ -16,6 +16,7 @@ Tarayıcıda çalışan, Three.js ve Cannon-es ile yapılmış, **küplerden (vo
 | **E** | Yakındaki arabaya bin / araçtan in. Araç yoksa çekiç vurur |
 | **X** | Sniper nişangâhı (yalnız sniper elindeyken) |
 | **F** | Yerleştirilmiş uzaktan bombaları patlat |
+| **R** | Şarjör değiştir (tabanca, pompalı, AK-47, sniper) |
 | **V** | Kamera: karakterin gözünden ↔ uzaktan |
 
 Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin gövdesi gizlenir, yalnızca kollar ve elindeki silah görünür.
@@ -28,9 +29,22 @@ Oyun varsayılan olarak **birinci şahıs** bakışla açılır. Karakterin göv
 - **Minigun** — basılı tutunca namlular döner, saniyede yaklaşık 18 mermi atar.
 - **Işın Kılıcı** — fare hareketine göre yatay, dikey ve çapraz savurur; bıçağın geçtiği yerdeki her şeyi (demir dahil) keser.
 - **Tabanca**, **Pompalı** (9 saçma), **AK-47** (otomatik), **Sniper** (güçlü ve uzun menzilli).
+  Bu dört silahın şarjörü vardır: tabanca 12, pompalı 6, AK-47 30, sniper 5 mermi. Şarjör boşalınca otomatik değişir, **R** ile elle de değiştirilir (değişirken ateş edilemez). Kalan mermi sağ altta görünür; silah değişince yarım kalan değişim iptal olur.
 - **Süreli Bomba** — yerleştirince 3 saniye geri sayar, bip sesi giderek sıklaşır.
 - **Uzaktan Bomba** — yerleştirince bekler; ekrandaki **PATLAT** butonu ya da **F** ile patlar.
 - **Çekiç** (E) — yakın mesafede küçük hasar verir; demir kırılmaz.
+
+---
+
+## 🔊 Sesler
+
+Tüm sesler Web Audio ile kodla üretilir (ses dosyası yoktur). Sağ üstteki 🔊 düğmesi hepsini kapatır.
+
+- **Silahlar:** tabanca, pompalı, AK-47, sniper ve minigunun ateş sesleri birbirinden farklıdır; pompalıda her atıştan sonra sürgü sesi gelir.
+- **Şarjör:** şarjör mandalı, düşen şarjör, yeni şarjörün oturması ve sürgü sesi (pompalıda kovanların tek tek sürülmesi).
+- **Araba:** sürdüğün arabada hıza göre yükselen motor sesi, gazda egzoz gürlemesi, tekerlek/yol gürültüsü ve frende lastik cızırtısı. Trafikteki arabalar sessizdir.
+- **Su:** yüzerken sürekli şapırtı; hareket ettikçe güçlenir. Suya girişte ayrıca sıçrama sesi gelir.
+- Yürürken ayak sesi **yoktur**.
 
 ---
 
@@ -93,7 +107,8 @@ Dünyanın boyutu ve küp sayısı büyük olduğundan (yaklaşık 350.000–450
 | `src/terrain.js` | İki katmanlı zemin, tepeler, kırılan çukurlar |
 | `src/levels.js` | Dünya düzeni: adalar, yollar, köprü, binalar, park |
 | `src/character.js` | Karakter hareketi, voxel çarpışması, yüzme, jetpack |
-| `src/handweapons.js`, `src/weapons.js` | Silahlar ve elde görünen modeller |
+| `src/handweapons.js`, `src/weapons.js` | Silahlar, şarjör sistemi ve elde görünen modeller |
+| `src/audio.js` | Prosedürel ses motoru: silah, şarjör, motor, su ve diğer efektler |
 | `src/bombs.js` | Süreli ve uzaktan bombalar |
 | `src/npc.js`, `src/cars.js`, `src/planes.js` | İnsanlar, arabalar, uçaklar |
 

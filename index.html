@@ -253,6 +253,7 @@
     #scope::before { left:50%; top:29%; width:2px; height:42%; transform:translateX(-1px); }
     #scope::after { top:50%; left:29%; height:2px; width:42%; transform:translateY(-1px); }
     #scope.on { display:block; }
+    #mag-hud.low #mag-count { color: #f87171; }
     .w-hint {
       align-self: center;
       font-size: 8px;
@@ -563,6 +564,10 @@
     <div style="height:10px;background:#222;border:2px solid #000;margin:2px 0 6px"><div id="hp-bar" style="height:100%;width:100%;background:#dc2626"></div></div>
     <div>🔥 JETPACK <span style="opacity:.7">[BOŞLUK basılı tut]</span></div>
     <div style="height:8px;background:#222;border:2px solid #000;margin-top:2px"><div id="jet-bar" style="height:100%;width:100%;background:#38bdf8"></div></div>
+  </div>
+  <div id="mag-hud" style="display:none;position:fixed;right:24px;bottom:150px;z-index:40;pointer-events:none;font-size:14px;color:#fff;text-shadow:2px 2px #000;text-align:right">
+    <div style="font-size:9px;opacity:.75">MERMİ <span style="opacity:.7">[R: şarjör]</span></div>
+    <div id="mag-count">12 / 12</div>
   </div>
   <div id="death-flash" style="position:fixed;inset:0;z-index:60;pointer-events:none;background:#7f1d1d;opacity:0;transition:opacity .9s ease-out;display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;text-shadow:2px 2px #000">YENİDEN DOĞUYORSUN</div>
   <button id="detonate-btn">💥 PATLAT <span style="font-size:9px">[F]</span></button>

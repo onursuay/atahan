@@ -143,6 +143,7 @@ function init() {
 
   handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   handWeapons.setFirstPerson(firstPerson);
+  handWeapons.onAmmoChange = updateMagUI;
 
   voxelWorld.collapse.onShake = (v) => { screenShake = Math.max(screenShake, v); };
   cars = new CarManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (dx, dz, speed) => {
@@ -301,7 +302,10 @@ function updateGame(dt) {
     const cp = cars.driven.pos;
     character.mesh.position.set(cp.x, cp.y, cp.z);       // kamera ve diğer sistemler oyuncuyu arabayla birlikte görür
     character.body.position.set(cp.x, cp.y + 1, cp.z);
+    const dc = cars.driven;
+    sound.updateEngine(dc.speed / (dc.T.speed[1] * 1.4), inputState.forward, inputState.jump || inputState.backward && dc.speed > 0);
   } else {
+    sound.stopEngine();
     character.update(dt, inputState, cameraYaw);
   }
   // Birinci kişi: karakter her zaman baktığımız yöne dönük olsun (silah öne baksın)
@@ -443,6 +447,7 @@ function loadLevel(index) {
   bombs.clear();
   planes.clear();
   particleSystem.clear();
+  handWeapons.resetAmmo();
   character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
   npcs.reset();
@@ -524,6 +529,16 @@ function toggleWeaponMenu() {
 function closeWeaponMenu(relock) {
   document.getElementById('weapon-selector').classList.remove('menu-open');
   if (relock && document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
+}
+
+// Şarjör göstergesi (sol altta): elde şarjörlü silah varsa görünür
+function updateMagUI(info) {
+  const el = document.getElementById('mag-hud');
+  if (!el) return;
+  el.style.display = info ? 'block' : 'none';
+  if (!info) return;
+  document.getElementById('mag-count').innerText = info.reloading ? 'ŞARJÖR DEĞİŞİYOR…' : `${info.mag} / ${info.size}`;
+  el.classList.toggle('low', !info.reloading && info.mag <= Math.ceil(info.size * 0.25));
 }
 
 function updateWeaponUI() {
@@ -698,6 +713,9 @@ function setupEventListeners() {
     // TAB: silah menüsü. İmleç serbest kalır, silah çubuğundan tıklayarak seçilir.
     // F: yerleştirilmiş uzaktan bombaları patlat (ekrandaki PATLAT butonuyla aynı)
     if (key === 'f' || e.code === 'KeyF') bombs.detonateRemote();
+
+    // R: şarjör değiştir (tabanca, pompalı, AK-47, sniper)
+    if ((key === 'r' || e.code === 'KeyR') && !inCar && !e.repeat) handWeapons.reload();
 
     if (e.code === 'Tab') {
       e.preventDefault();

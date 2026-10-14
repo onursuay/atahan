@@ -13,12 +13,15 @@ const MINIGUN_RANGE = 90;
 
 // Hitscan silah özellikleri: saçılma, voxel gücü/yarıçapı, araç/uçak hasarı, menzil
 const GUNS = {
-  minigun: { spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'skip' },
-  pistol:  { spread: 0.004, power: 0.9,  radius: 0.4,  carDmg: 3, planeDmg: 3, range: 120, sound: 'every', kick: 0.6 },
-  shotgun: { spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
-  ak47:    { spread: 0.016, power: 0.6,  radius: 0.45, carDmg: 2, planeDmg: 2, range: 140, sound: 'every', kick: 0.45 },
-  sniper:  { spread: 0.0,   power: 3.0,  radius: 0.7,  carDmg: 14, planeDmg: 25, range: 260, sound: 'every', kick: 1.0 }
+  minigun: { kind: 'minigun', spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'skip' },
+  pistol:  { kind: 'pistol', spread: 0.004, power: 0.9,  radius: 0.4,  carDmg: 3, planeDmg: 3, range: 120, sound: 'every', kick: 0.6 },
+  shotgun: { kind: 'shotgun', spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
+  ak47:    { kind: 'ak47', spread: 0.016, power: 0.6,  radius: 0.45, carDmg: 2, planeDmg: 2, range: 140, sound: 'every', kick: 0.45 },
+  sniper:  { kind: 'sniper', spread: 0.0,   power: 3.0,  radius: 0.7,  carDmg: 14, planeDmg: 25, range: 260, sound: 'every', kick: 1.0 }
 };
+// Şarjör kapasitesi ve şarjör değiştirme süresi (sn). Minigun ve diğer silahlar sınırsızdır.
+const MAG_SIZE = { pistol: 12, shotgun: 6, ak47: 30, sniper: 5 };
+const RELOAD_TIME = { pistol: 1.4, shotgun: 2.4, ak47: 1.9, sniper: 2.2 };
 const WEAPON_KIND = { 1: 'minigun', 5: 'pistol', 6: 'shotgun', 7: 'ak47', 8: 'sniper' };
 const SABER_SWING_TIME = 0.42;
 const SABER_REACH = 3.2;       // metre: kılıç etkisi
@@ -71,6 +74,9 @@ export class HandWeapons {
     this._buildGuns();
     this.gunCooldown = 0;
     this.scoped = false;
+    this.mag = { ...MAG_SIZE };   // her silahın şarjöründeki mermi
+    this.reloading = null;        // { kind, t, dur, audio } — şarjör değişiyorsa
+    this.onAmmoChange = null;     // HUD güncellemesi için geri çağrı
 
     // Kılıcın çevreyi aydınlatması (mavi ışık)
     this.saberLight = new THREE.PointLight(0x5ac8ff, 0, 9);
@@ -236,6 +242,7 @@ export class HandWeapons {
     this.current = i;
     this.fireHeld = false;
     this.swingT = -1;
+    this._cancelReload();   // silah değişince yarım kalan şarjör değişimi iptal olur
     this.rocketModel.visible = i === 0;
     this.minigunModel.visible = i === 1;
     this.saberModel.visible = i === 2;
@@ -244,6 +251,7 @@ export class HandWeapons {
     if (i !== 8) this.scoped = false;
     if (i === 2) sound.playSaberOn();
     if (i !== 2) this.saberLight.intensity = 0;
+    this._ammoChanged();
   }
 
   setFirstPerson(on) { this.visible = on; }
@@ -275,6 +283,15 @@ export class HandWeapons {
     const cam = this.camera;
     this.viewCam.aspect = cam.aspect;
     this.viewCam.updateProjectionMatrix();
+
+    if (this.reloading) {
+      this.reloading.t += dt;
+      if (this.reloading.t >= this.reloading.dur) {
+        this.mag[this.reloading.kind] = MAG_SIZE[this.reloading.kind];
+        this.reloading = null;
+        this._ammoChanged();
+      }
+    }
 
     this.switchT = Math.min(1, this.switchT + dt * 5);
     this.kick = Math.max(0, this.kick - dt * 6);
@@ -476,22 +493,60 @@ export class HandWeapons {
 
   _shotSound(o) {
     if (o.sound === 'none') return;
-    if (o.sound === 'every' || (this._soundSkip = !this._soundSkip)) sound.playGunShot();
+    if (o.sound === 'every' || (this._soundSkip = !this._soundSkip)) sound.playGunShot(o.kind);
   }
 
   // Tek atış silahlar (tabanca, pompalı, sniper) ve otomatik AK-47 buradan ateşler
   fireGun(kind) {
     const o = GUNS[kind];
     const cd = { pistol: 0.22, shotgun: 0.85, sniper: 1.4, ak47: 0.1 }[kind];
-    if (this.gunCooldown > 0) return false;
+    if (this.gunCooldown > 0 || this.reloading) return false;
+    if (this.mag[kind] <= 0) { this.reload(); return false; }
     this.gunCooldown = cd;
     const pellets = o.pellets || 1;
     for (let i = 0; i < pellets; i++) this._fireMinigunBullet(null, i === 0 ? o : { ...o, sound: 'none' });
     this.kick = Math.min(1, (o.kick || 0.5));
     this.flashTimer = 0.05;
     if (kind === 'sniper' && this.scoped === false) { /* kalkandan atış: geniş saçılma */ }
+    this.mag[kind]--;
+    if (this.mag[kind] <= 0) this.reload();                       // şarjör boşaldı: otomatik değiştir
+    else if (kind === 'shotgun') sound.playPump(0.4);             // pompalıda her atıştan sonra sürgü
+    this._ammoChanged();
     return true;
   }
+
+  // ───────────────────────── Şarjör ─────────────────────────
+  // Elindeki silah şarjörlüyse ve tam dolu değilse şarjörü değiştirmeye başlar (R tuşu / otomatik).
+  reload() {
+    const kind = WEAPON_KIND[this.current];
+    if (!MAG_SIZE[kind] || this.reloading || this.mag[kind] >= MAG_SIZE[kind]) return false;
+    const dur = RELOAD_TIME[kind];
+    this.reloading = { kind, t: 0, dur, audio: sound.playReload(kind, dur) };
+    this.fireHeld = false;
+    this._ammoChanged();
+    return true;
+  }
+
+  _cancelReload() {
+    if (!this.reloading) return;
+    if (this.reloading.audio) this.reloading.audio.cancel();
+    this.reloading = null;
+  }
+
+  resetAmmo() {
+    this._cancelReload();
+    this.mag = { ...MAG_SIZE };
+    this._ammoChanged();
+  }
+
+  // HUD için: şarjörlü silah elindeyse { mag, size, reloading }, değilse null
+  ammoInfo() {
+    const kind = WEAPON_KIND[this.current];
+    if (!MAG_SIZE[kind]) return null;
+    return { mag: this.mag[kind], size: MAG_SIZE[kind], reloading: !!(this.reloading && this.reloading.kind === kind) };
+  }
+
+  _ammoChanged() { if (this.onAmmoChange) this.onAmmoChange(this.ammoInfo()); }
 
   setScoped(on) {
     if (on && this.current !== 8) return false;

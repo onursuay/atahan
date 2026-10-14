@@ -386,7 +386,6 @@ export class Character {
       this.stepTimer += dt;
       if (this.stepTimer > 0.3 && !this.inWater && this.isGrounded) {
         this.stepTimer = 0;
-        sound.playStep();
         this.particleSystem.createDust(this._feetPosition());
       }
     } else {
@@ -402,7 +401,8 @@ export class Character {
       this.rightArm.rotation.x = THREE.MathUtils.lerp(this.rightArm.rotation.x, -0.4, 10 * dt);
     }
 
-    if (this.inWater) this._animateSwim(dt, isMoving);
+    if (this.inWater) { this._animateSwim(dt, isMoving); sound.updateSwim(isMoving); }
+    else sound.stopSwim();
 
     // Çekiç Savurma Animasyonu
     if (this.isSwingingHammer) {
@@ -670,7 +670,7 @@ export class Character {
     if (this.particleSystem.createSplash) {
       this.particleSystem.createSplash(new THREE.Vector3(this.body.position.x, WATER_LEVEL, this.body.position.z), strength);
     }
-    if (sound.playSplash) sound.playSplash();
+    if (strength >= 0.5 && sound.playSplash) sound.playSplash();   // kulaç sıçramaları sürekli su sesinin parçası
   }
 
   // Yüzme animasyonu: kollarla kulaç, bacaklarla çırpma; yerinde dururken hafif kürek
