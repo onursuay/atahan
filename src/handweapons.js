@@ -543,6 +543,20 @@ export class HandWeapons {
       if (p.y < -0.4) break; // denize düştü
     }
 
+    // Köprü ipi? (ince ip vurulunca kopar)
+    if (this.voxelWorld.bridge) {
+      const bh = this.voxelWorld.bridge.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);
+      if (bh) {
+        this._spawnTracer(muzzle, bh.point);
+        this.voxelWorld.bridge.cutRope(bh.rope, bh.point, dir);
+        if (this.particleSystem.createSpark) this.particleSystem.createSpark(bh.point);
+        this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        this._shotSound(o);
+        return;
+      }
+    }
+
     // Önce bir kapıya mı çarptı? (kapalı kapı mermiyi durdurur ve hasar alır)
     if (this.voxelWorld.doors) {
       const dh = this.voxelWorld.doors.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);

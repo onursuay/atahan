@@ -101,6 +101,7 @@ export class VoxelWorld {
     this.doors = new DoorSystem(scene, this);   // bina kapıları (menteşeli) ve AVM otomatik kapıları
     this.decor = [];                            // voxel olmayan süs nesneleri (ör. köprü kabloları); seviye silinince kaldırılır
     this.collapse = new CollapseSystem(this);
+    this.bridge = null;                         // asma köprü sistemi (ipler, sallanma, kopma); seviye kurulumunda oluşur
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
     this.dynamicDebris = [];
@@ -408,6 +409,7 @@ export class VoxelWorld {
     if (this.planes) this.planes.hitSphere(blastPos, blastRadius);
     if (this.cars) this.cars.hitSphere(blastPos, blastRadius);
     this.doors.explode(blastPos, blastRadius);    // yakındaki kapılar kırılır
+    if (this.bridge) this.bridge.hitSphere(blastPos, blastRadius);   // köprü iplerini koparır
 
     // Zemin üst katmanını kır (taban kayası etkilenmez)
     const groundBroken = this.breakGround(blastPos, blastRadius, force);
@@ -697,6 +699,7 @@ export class VoxelWorld {
   // stats (isteğe bağlı): { skipIron } verilirse demir küpler kesilmez (stats.hitIron = true olur); kesilen küplerin
   // toplam sertliği stats.cost'a eklenir (hızlı araç çarpışmasında momentum kaybını hesaplamak için)
   sweepCut(point, radius, push = null, stats = null) {
+    if (this.bridge) this.bridge.hitSphere(point, radius, push);   // köprü ipleri kesilir
     const r2 = radius * radius;
     let removed = 0;
     let tnt = null;
@@ -845,6 +848,7 @@ export class VoxelWorld {
   update(dt) {
     this.terrain.flush();
     this.collapse.update(dt);
+    if (this.bridge) this.bridge.update(dt);
     for (let i = this.dynamicDebris.length - 1; i >= 0; i--) {
       const d = this.dynamicDebris[i];
       d.life -= dt;
@@ -892,6 +896,7 @@ export class VoxelWorld {
     this._disposeChunkMeshes();
     this.terrain.clear();
     this.collapse.clear();
+    if (this.bridge) { this.bridge.dispose(); this.bridge = null; }
     this.doors.clear();
     this.decor.forEach(o => { this.scene.remove(o); o.traverse(m => { if (m.geometry) m.geometry.dispose(); }); });
     this.decor = [];

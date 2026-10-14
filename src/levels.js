@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { PALETTE } from './teardown.js';
 import { ROADS, ROUNDABOUT, paintSegments, onRoadFast, roadRects } from './cityplan.js';
 import { buildVilla, paintVillaRoad, villaHeight, villaRoadProfile } from './villa.js';
+import { Bridge } from './bridge.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ÖLÇEK KATMANI
@@ -346,32 +347,14 @@ export class LevelManager {
       if (x >= T2) { const t = (x - T2) / (X1 - T2); return TOP + (endY - TOP) * t - 24 * t * (1 - t); }
       const t = (x - T1) / (T2 - T1); return TOP - 4 * (TOP - endY - 8) * t * (1 - t);
     };
-    this._bridgeCables(X0, X1, ZL, ZD, DECK_TOP, T1, T2, yAt);   // kablo ve askılar: ince tüpler (voxel olsalardı en az 0.5 m kalın olurdu)
+    // Ana kablolar: kırmızı küpler (yıkılabilir; basamaklı, pürüzlü eğri)
+    for (let x = X0; x <= X1; x++) {
+      const y = Math.round(yAt(x));
+      for (const sz of [-ZL, ZL]) w.raw(x, y, sz - 1, x, y + 1, sz, PALETTE.BRICK);
+    }
+    // Tabliyeyi tutan dikey ipler: ince silindir, vurulunca gerçek ip gibi kopar; köprü sallanır, desteksiz tabliye suya düşer (src/bridge.js)
+    this.world.bridge = new Bridge(this.world, { X0, X1, T1, T2, ZD, ZL, DECK_TOP, yAt });
     for (let x = X0 + 24; x < X1 - 20; x += 30) { this.lampSub(x, ZD - 2, DECK_TOP + 1, 0, -1); this.lampSub(x + 15, -ZD + 2, DECK_TOP + 1, 0, 1); }
-  }
-
-  // Köprünün ana kabloları (iki yanda sarkan eğri tüp) ve dikey askıları (ince silindir + tabliyeye yatay konsol). Yalnız görsel.
-  _bridgeCables(X0, X1, ZL, ZD, DECK_TOP, T1, T2, yAt) {
-    const F = 0.25;   // 1 küçük küp = 0.25 m
-    const cableMat = new THREE.MeshLambertMaterial({ color: 0xb91c1c }), hangMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
-    const g = new THREE.Group();
-    for (const sz of [-ZL, ZL]) {
-      const pts = [];
-      for (let x = X0; x <= X1; x += 2) pts.push(new THREE.Vector3(x * F, (Math.round(yAt(x)) + 1) * F, sz * F));
-      g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), pts.length * 2, 0.13, 6, false), cableMat));
-    }
-    for (let x = X0 + 10; x < X1 - 9; x += 10) {
-      if (Math.abs(x - T1) < 4 || Math.abs(x - T2) < 4) continue;
-      const yTop = (Math.round(yAt(x)) + 1) * F, yBot = (DECK_TOP + 1) * F, h = yTop - yBot;
-      for (const sz of [-ZL, ZL]) {
-        const hang = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, h, 5), hangMat);
-        hang.position.set(x * F, yBot + h / 2, sz * F); g.add(hang);
-        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, (ZL - ZD) * F), hangMat);   // askıdan tabliye kenarına konsol
-        arm.position.set(x * F, yBot, Math.sign(sz) * (ZD + (ZL - ZD) / 2) * F); g.add(arm);
-      }
-    }
-    this.world.scene.add(g);
-    this.world.decor.push(g);
   }
 
   // ── GÖBEK (yuvarlak kavşak): halka asfaltı + orta ada zemini ──
@@ -1254,6 +1237,7 @@ export class LevelManager {
     const cfg = this.levelConfigs[0];
     cfg.builder();
     this.world.buildMeshBuffers();
+    if (this.world.bridge) this.world.bridge.attach();     // köprü tabliyesi sallanabilsin diye ayrı küp grupları
     return cfg;
   }
 }

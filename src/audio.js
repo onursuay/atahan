@@ -720,6 +720,40 @@ class SoundEngine {
   }
 
   // Suya giriş / su sıçraması
+  // Köprü ipi koptu: sert çıtlama + hızla düşen titrek tel sesi
+  playRopeSnap() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this.playNoise(0.07, 0.3, 4500);
+    const osc = this.ctx.createOscillator(), lfo = this.ctx.createOscillator(), lg = this.ctx.createGain(), g = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1100, now);
+    osc.frequency.exponentialRampToValueAtTime(260, now + 0.45);
+    lfo.frequency.value = 38; lg.gain.value = 55;
+    lfo.connect(lg); lg.connect(osc.frequency);
+    g.gain.setValueAtTime(0.28, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(now); lfo.start(now); osc.stop(now + 0.5); lfo.stop(now + 0.5);
+  }
+
+  // Köprü sallanırken ya da kopan tabliye çökerken metal gıcırtısı
+  playBridgeCreak() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime, dur = 1.3;
+    const osc = this.ctx.createOscillator(), osc2 = this.ctx.createOscillator(), f = this.ctx.createBiquadFilter(), g = this.ctx.createGain();
+    osc.type = 'sawtooth'; osc2.type = 'sine';
+    osc.frequency.setValueAtTime(74, now); osc.frequency.linearRampToValueAtTime(58, now + dur);
+    osc2.frequency.setValueAtTime(520, now); osc2.frequency.linearRampToValueAtTime(430, now + dur);
+    f.type = 'lowpass'; f.frequency.value = 520;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.linearRampToValueAtTime(0.16, now + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    const g2 = this.ctx.createGain(); g2.gain.value = 0.25;
+    osc.connect(f); f.connect(g); osc2.connect(g2); g2.connect(g); g.connect(this.ctx.destination);
+    osc.start(now); osc2.start(now); osc.stop(now + dur); osc2.stop(now + dur);
+  }
+
   playSplash() {
     if (this.muted || !this.ctx) return;
     this.playNoise(0.35, 0.3, 1200);

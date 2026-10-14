@@ -487,7 +487,7 @@ export class CollapseSystem {
     const e = c.ext, p = new THREE.Vector3();
     let top = -Infinity;
     for (const x of [e.minX, e.maxX]) for (const y of [e.minY, e.maxY]) for (const z of [e.minZ, e.maxZ]) top = Math.max(top, this._place(c, x, y + S, z, p).y);
-    if (top < WATER_Y - 1.5 || c.sinkT > 14) { this._dispose(c); return true; }
+    if (top < WATER_Y - 1.5 || c.com.y + c.oy0 + c.oy1 < WATER_Y - 2.2 || c.sinkT > 14) { this._dispose(c); return true; }   // üst yüz 1.5 m ya da ağırlık merkezi 2.2 m derinde
     return false;
   }
 
