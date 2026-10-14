@@ -490,6 +490,7 @@ function loadLevel(index) {
   // Gece-gündüz: 10 dk gündüz, 10 dk gece; her seviye yüklemesinde gündüzün başından başlar
   if (dayNight) dayNight.dispose();
   dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });
+  npcs.day = () => DayNight.dayAmount(dayNight.t);   // villa sahibi geceleri uyur
   window.__gece = (sn) => dayNight.setTime(sn);   // hata ayıklama: __gece(630) = gecenin başı
   cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
 

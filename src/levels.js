@@ -709,7 +709,7 @@ export class LevelManager {
       if (x > 145 && x < 180) return 4.5 * (1 - lin((x - 145) / 35));
       return 0;
     };
-    this.world.terrain.rampArea = (xm, zm) => { if (xm >= 160) return true; const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 78 && x < 106) || (x >= 145 && x < 180)); };   // x≥160 m: yalnız villa yolu asfaltı vardır
+    this.world.terrain.rampArea = (xm, zm) => { if (xm >= 160) return xm < 320 && zm > -95 && zm < 12; const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 78 && x < 106) || (x >= 145 && x < 180)); };   // x≥160 m: yalnız villa yolu asfaltı vardır
     this.world.terrain.heightFn = (xm, zm, mat) => {
       const x = xm / U, z = zm / U;
       if (!mat.isGrass) return 0;

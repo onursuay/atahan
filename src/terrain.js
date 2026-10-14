@@ -15,7 +15,7 @@ export const TOP_LAYER_THICKNESS = 0.5;
 export const BEDROCK_Y = GROUND_Y - TOP_LAYER_THICKNESS; // alt katmanın üst yüzü (çukur tabanı)
 
 const CELL = VOXEL_SIZE;  // hücre boyutu = voxel boyutu
-const PX_PER_M = 16;      // üst katman dokusunun çözünürlüğü
+const PX_PER_M = 4;       // üst katman dokusunun çözünürlüğü: hücre başına 1 piksel (hücreler zaten düz renklidir; büyük dünya için bellek ucuz)
 const DEPTH_BELOW = -2.5; // kıyıda görünen yan yüzeylerin alt sınırı
 
 export class Terrain {
@@ -38,7 +38,12 @@ export class Terrain {
     this.rampArea = null;    // (x, z) -> bool: bu asfalt hücre rampanın parçası mı
     this.rampMask = null;    // hücre başına 1: rampa hücresi
     this.dirty = false;   // doku güncellenmeli
+    this.painters = [];   // hücre boyayıcılar: dikdörtgenlerden sonra çalışır (kıvrımlı otoyol, kumsal gibi dikdörtgen olmayan şekiller)
   }
+
+  // Dikdörtgen olmayan şekiller için: fn(api) build sırasında çağrılır. api.set(x, z, mat, mark?) hücreyi boyar; api.landAt(x, z), api.matAt(x, z) okur.
+  // mark: 1 kaldırım kenarı çizgisi, 2 sarı orta şerit, 3 beyaz şerit. Dikdörtgenler gibi kırılabilir kaplamadır; yalnız taban kayası dikdörtgen fiziği paylaşılır.
+  addPainter(fn) { this.painters.push(fn); }
 
   // Metre cinsinden dikdörtgen bölge ekle (sonra eklenen öncekinin üstüne boyanır)
   addRect(x0, z0, x1, z1, mat) {
@@ -62,6 +67,7 @@ export class Terrain {
     this.objects = [];
     this.bodies = [];
     this.rects = [];
+    this.painters = [];
     this.land = this.top = this.matIdx = this.rim = this.hq = this.rampMask = null;
     this.bounds = null;
     this.matList = [];
@@ -211,7 +217,7 @@ export class Terrain {
     const c = idx % b.cols, r = Math.floor(idx / b.cols);
     if (this.g) {
       const px = c * CELL * PX_PER_M, pz = r * CELL * PX_PER_M;
-      this.g.clearRect(px - 0.5, pz - 0.5, CELL * PX_PER_M + 1, CELL * PX_PER_M + 1);
+      this.g.clearRect(px, pz, CELL * PX_PER_M, CELL * PX_PER_M);
     }
     this.dirty = true;
   }
@@ -255,16 +261,46 @@ export class Terrain {
       r0: Math.round((r.z0 - minZ) / CELL), r1: Math.round((r.z1 - minZ) / CELL)
     });
 
+    this.mark = new Uint8Array(cols * rows);          // 1: kaldırım kenarı çizgisi, 2: sarı kesik orta şerit, 3: beyaz şerit
     this.rects.forEach(r => {
       const { c0, c1, r0, r1 } = cellRange(r);
       const mi = matId(r.mat);
       for (let rz = r0; rz < r1; rz++) {
         for (let cx = c0; cx < c1; cx++) {
           const i = rz * cols + cx;
-          this.land[i] = 1; this.top[i] = 1; this.matIdx[i] = mi;
+          this.land[i] = 1; this.top[i] = 1; this.matIdx[i] = mi; this.mark[i] = 0;
+        }
+      }
+      // Asfalt yollar: kaldırım kenarı + kesik orta şerit (sonradan üstüne boyanan başka bir dikdörtgen bunları siler)
+      if (r.mat.name.startsWith('Asfalt')) {
+        const w = r.x1 - r.x0, d = r.z1 - r.z0;
+        const alongX = w >= d, long = alongX ? w : d, short = alongX ? d : w;
+        if (short >= 3 && long >= 12) {
+          const dash = Math.round(1.5 / CELL);
+          if (alongX) {
+            for (let cx = c0; cx < c1; cx++) { this.mark[r0 * cols + cx] = 1; this.mark[(r1 - 1) * cols + cx] = 1; }
+            const rz = Math.floor((r0 + r1 - 1) / 2);
+            for (let cx = c0 + dash; cx < c1 - dash; cx += dash * 2) for (let k = 0; k < dash && cx + k < c1; k++) this.mark[rz * cols + cx + k] = 2;
+          } else {
+            for (let rz = r0; rz < r1; rz++) { this.mark[rz * cols + c0] = 1; this.mark[rz * cols + c1 - 1] = 1; }
+            const cx = Math.floor((c0 + c1 - 1) / 2);
+            for (let rz = r0 + dash; rz < r1 - dash; rz += dash * 2) for (let k = 0; k < dash && rz + k < r1; k++) this.mark[(rz + k) * cols + cx] = 2;
+          }
         }
       }
     });
+    // Boyayıcılar (kıvrımlı yol, kumsal...): hücre hücre
+    const api = {
+      minX, minZ, cols, rows,
+      idx: (x, z) => { const c = Math.floor((x - minX) / CELL), r = Math.floor((z - minZ) / CELL); return c < 0 || r < 0 || c >= cols || r >= rows ? -1 : r * cols + c; },
+      set: (x, z, mat, mark = 0) => { const i = api.idx(x, z); if (i < 0) return; this.land[i] = 1; this.top[i] = 1; this.matIdx[i] = matId(mat); this.mark[i] = mark; },
+      setIdx: (i, mat, mark = 0) => { this.land[i] = 1; this.top[i] = 1; this.matIdx[i] = matId(mat); this.mark[i] = mark; },
+      mark: (x, z, m) => { const i = api.idx(x, z); if (i >= 0) this.mark[i] = m; },
+      landAt: (x, z) => { const i = api.idx(x, z); return i >= 0 && this.land[i] === 1; },
+      matAt: (x, z) => { const i = api.idx(x, z); return i >= 0 && this.land[i] === 1 ? this.matList[this.matIdx[i]] : null; },
+      matAtIdx: (i) => this.land[i] === 1 ? this.matList[this.matIdx[i]] : null
+    };
+    this.painters.forEach(fn => fn(api));
 
     // Tepeler: yalnız çim hücrelerde yükseklik (yollar ve binalar düz zeminde kalır)
     this.hq = new Int16Array(cols * rows);
@@ -292,80 +328,51 @@ export class Terrain {
       }
     }
 
-    // Eğim sınırı: komşu hücreler arası fark en çok 0.25 m (yürünebilir, basamak çıkılabilir)
+    // Eğim sınırı: komşu hücreler arası fark en çok 0.25 m (yalnız yüksekliği olan bölgede çalışır: dünya büyük, düz yerler atlanır)
     if (this.heightFn) {
       const hq = this.hq, L = this.land;
-      const M = this.matIdx; // eğim sınırı yalnız aynı malzemeli komşular arasında (rampa/üst geçit yolu kenardaki zeminden ayrışabilir)
-      const isRoad = (i) => this.matList[M[i]].name.startsWith('Asfalt'); // yol rampaları (üst geçit) kendi eğimini taşır
-      const lim = (i, j) => { if (L[i] === 1 && L[j] === 1 && M[i] === M[j] && !isRoad(i) && hq[i] > hq[j] + 1) hq[i] = hq[j] + 1; };
-      for (let pass = 0; pass < 24; pass++) {
-        for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
-          const i = r * cols + c;
-          if (c > 0) lim(i, i - 1);
-          if (r > 0) lim(i, i - cols);
-        }
-        for (let r = rows - 1; r >= 0; r--) for (let c = cols - 1; c >= 0; c--) {
-          const i = r * cols + c;
-          if (c < cols - 1) lim(i, i + 1);
-          if (r < rows - 1) lim(i, i + cols);
+      let rMin = rows, rMax = -1, cMin = cols, cMax = -1;
+      for (let i = 0; i < cols * rows; i++) if (hq[i] > 0) { const c = i % cols, r = (i - c) / cols; if (r < rMin) rMin = r; if (r > rMax) rMax = r; if (c < cMin) cMin = c; if (c > cMax) cMax = c; }
+      if (rMax >= 0) {
+        rMin = Math.max(0, rMin - 2); rMax = Math.min(rows - 1, rMax + 2); cMin = Math.max(0, cMin - 2); cMax = Math.min(cols - 1, cMax + 2);
+        const M = this.matIdx; // eğim sınırı yalnız aynı malzemeli komşular arasında (rampa/üst geçit yolu kenardaki zeminden ayrışabilir)
+        const isRoadMat = this.matList.map(m => m.name.startsWith('Asfalt'));
+        const lim = (i, j) => { if (L[i] === 1 && L[j] === 1 && M[i] === M[j] && !isRoadMat[M[i]] && hq[i] > hq[j] + 1) hq[i] = hq[j] + 1; };
+        for (let pass = 0; pass < 24; pass++) {
+          for (let r = rMin; r <= rMax; r++) for (let c = cMin; c <= cMax; c++) {
+            const i = r * cols + c;
+            if (c > 0) lim(i, i - 1);
+            if (r > 0) lim(i, i - cols);
+          }
+          for (let r = rMax; r >= rMin; r--) for (let c = cMax; c >= cMin; c--) {
+            const i = r * cols + c;
+            if (c < cols - 1) lim(i, i + 1);
+            if (r < rows - 1) lim(i, i + cols);
+          }
         }
       }
     }
 
-    // ── ÜST KATMAN DOKUSU: her 0.25 m'lik hücre hafif farklı tonda ──
+    // ── ÜST KATMAN DOKUSU: her 0.25 m'lik hücre hafif farklı tonda (hücre başına 1 piksel, doğrudan piksel dizisine yazılır) ──
     const W = Math.ceil(cols * CELL * PX_PER_M);
     const H = Math.ceil(rows * CELL * PX_PER_M);
     const canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     const g = canvas.getContext('2d');
     this.canvas = canvas; this.g = g;
-    const cellPx = CELL * PX_PER_M;
-
-    const shade = (hex, f) => {
-      const r = Math.min(255, Math.round(((hex >> 16) & 255) * f));
-      const gg = Math.min(255, Math.round(((hex >> 8) & 255) * f));
-      const bb = Math.min(255, Math.round((hex & 255) * f));
-      return `rgb(${r},${gg},${bb})`;
-    };
-
-    this.rects.forEach(r => {
-      const color = r.mat.color;
-      const { c0, c1, r0, r1 } = cellRange(r);
-      for (let rz = r0; rz < r1; rz++) {
-        for (let cx = c0; cx < c1; cx++) {
-          g.fillStyle = shade(color, 0.93 + Math.random() * 0.14);
-          g.fillRect(cx * cellPx, rz * cellPx, Math.ceil(cellPx), Math.ceil(cellPx));
-        }
+    const img = g.createImageData ? g.createImageData(W, H) : null;
+    if (img && img.data) {
+      const d = img.data, MK = [null, [0xcb, 0xd5, 0xe1], [0xfa, 0xcc, 0x15], [0xf1, 0xf5, 0xf9]];
+      const rgb = this.matList.map(m => [(m.color >> 16) & 255, (m.color >> 8) & 255, m.color & 255]);
+      for (let i = 0; i < cols * rows; i++) {
+        if (this.land[i] !== 1) continue;
+        const o = i * 4, mk = MK[this.mark[i]];
+        if (mk) { d[o] = mk[0]; d[o + 1] = mk[1]; d[o + 2] = mk[2]; }
+        else { const f = 0.93 + Math.random() * 0.14, c = rgb[this.matIdx[i]]; d[o] = Math.min(255, c[0] * f); d[o + 1] = Math.min(255, c[1] * f); d[o + 2] = Math.min(255, c[2] * f); }
+        d[o + 3] = 255;
       }
-
-      // Asfalt yollar: kaldırım kenarı + kesik orta şerit
-      if (r.mat.name.startsWith('Asfalt')) {
-        const w = r.x1 - r.x0, d = r.z1 - r.z0;
-        const alongX = w >= d;
-        const long = alongX ? w : d, short = alongX ? d : w;
-        if (short >= 3 && long >= 12) {
-          const px0 = c0 * cellPx, pz0 = r0 * cellPx, px1 = c1 * cellPx, pz1 = r1 * cellPx;
-          g.fillStyle = '#cbd5e1';
-          const edge = cellPx;
-          if (alongX) {
-            g.fillRect(px0, pz0, px1 - px0, edge);
-            g.fillRect(px0, pz1 - edge, px1 - px0, edge);
-          } else {
-            g.fillRect(px0, pz0, edge, pz1 - pz0);
-            g.fillRect(px1 - edge, pz0, edge, pz1 - pz0);
-          }
-          g.fillStyle = '#facc15';
-          const dash = 1.5 * PX_PER_M;
-          if (alongX) {
-            const cz = (pz0 + pz1) / 2 - edge / 2;
-            for (let x = px0 + dash; x < px1 - dash; x += dash * 2) g.fillRect(x, cz, dash, edge);
-          } else {
-            const cxp = (px0 + px1) / 2 - edge / 2;
-            for (let z = pz0 + dash; z < pz1 - dash; z += dash * 2) g.fillRect(cxp, z, edge, dash);
-          }
-        }
-      }
-    });
+      g.putImageData(img, 0, 0);
+    }
 
     const tex = new THREE.CanvasTexture(canvas);
     tex.magFilter = THREE.NearestFilter;
@@ -502,7 +509,7 @@ export class Terrain {
     const b = this.bounds;
     const pos = [], col = [], idx = [];
     let v = 0;
-    const stone = new THREE.Color(0x3f3a36);
+    const stone = new THREE.Color(0x3f3a36), sideColors = [];
     const quad = (ax, az, bx, bz, y0, y1, color) => {
       pos.push(ax, y0, az, bx, y0, bz, bx, y1, bz, ax, y1, az);
       for (let i = 0; i < 4; i++) col.push(color.r, color.g, color.b);
@@ -521,7 +528,8 @@ export class Terrain {
       for (let c = 0; c < b.cols; c++) {
         const i = r * b.cols + c;
         if (this.land[i] !== 1) continue;
-        const topColor = new THREE.Color(this.matList[this.matIdx[i]].color).multiplyScalar(0.8);
+        const mi = this.matIdx[i];
+        const topColor = sideColors[mi] || (sideColors[mi] = new THREE.Color(this.matList[mi].color).multiplyScalar(0.8));
         const top = this.topYIdx(i), bed = this.bedYIdx(i);
         for (const [dc, dr] of dirs) {
           const nc = c + dc, nr = r + dr;

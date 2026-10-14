@@ -322,10 +322,52 @@ export function buildVilla(world) {
 
   // ── 8. SAKİN: tek bir çok zengin adam ──
   world.residents = world.residents || [];
+  // Günlük rutin (betik): salonda/terasta dolaşır; arada yemek masasına oturup yemek yer (hizmetçi mutfakta hazırlar); merdivenle üst kata çıkıp iner;
+  // geceleri çoğunlukla yatak odasına gidip uyur. Yollar villanın içindeki boş şeritlerden geçer (merdiven ayağı, salon-mutfak arası).
+  const Yg = Yb(1), Yu = Yb(9);
+  const pt = (xz, y, tol) => ({ x: xz[0], z: xz[1], y, ...(tol ? { tol } : {}) });
+  const GH = [Xc(26), Zc(52)], SW = [Xc(26), Zc(38)], SFOOT = [Xc(30), Zc(37)], STOP = [Xc(30), Zc(49.5)], UH = [Xc(30), Zc(54)], UH2 = [Xc(30), Zc(59)];
+  const TAPP = [Xc(60), Zc(52)], CHAIR = [Xc(60), Zc(55)], BEDSIDE = [Xc(37), Zc(59)], BEDHEAD = [Xc(36), Zc(54)];
+  const meal = new THREE.Group();                                  // masadaki yemek (yalnız sahip yerken görünür)
+  { const mk = (w, h, d, x, y, z, c) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color: c })); m.position.set(x, y, z); meal.add(m); };
+    mk(0.5, 0.03, 0.5, 0, 0.015, 0, 0xffffff); mk(0.26, 0.06, 0.18, -0.04, 0.06, 0.02, 0x7c2d12); mk(0.12, 0.04, 0.12, 0.12, 0.05, -0.08, 0x4ca64c); mk(0.07, 0.16, 0.07, 0.3, 0.08, 0.1, 0xbfdbfe); mk(0.06, 0.12, 0.06, -0.3, 0.06, -0.1, 0xdc2626);
+    meal.position.set(Xc(60), Yb(3), Zc(58.5)); meal.visible = false; world.scene.add(meal); world.decor.push(meal); }
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const ownerScript = () => {
+    let st = 'wander', t = rnd(12, 30), now = 0, lastEat = -999, lastSleep = -999, after = null, A = null;
+    const upper = (n) => n.y > 0.5 * (Yg + Yu);
+    const walk = (n, pts, then) => { A.walkPath(n, pts); st = 'walk'; after = then; };
+    const toGround = (n) => upper(n) ? [pt(UH, Yu), pt(STOP, Yu), pt(SFOOT, Yg, 0.3), pt(SW, Yg), pt(GH, Yg)] : [pt(GH, Yg)];
+    const toUpper = (n) => upper(n) ? [pt(UH, Yu)] : [pt(GH, Yg), pt(SW, Yg), pt(SFOOT, Yg, 0.3), pt(STOP, Yu), pt(UH, Yu)];
+    return {
+      update(n, dt, api) {
+        now += dt; A = api;
+        if (st === 'wander') {
+          t -= dt; if (t > 0) return;
+          const night = api.day() < 0.3, r = Math.random();
+          if (night && now - lastSleep > 200 && r < 0.75) { walk(n, [...toUpper(n), pt(UH2, Yu), pt(BEDSIDE, Yu)], () => { api.lie(n, Xc(38.5), Yb(12), Zc(54), Math.PI / 2); st = 'sleep'; t = rnd(120, 200); lastSleep = now; }); return; }
+          if (r < 0.4 && now - lastEat > 70) { walk(n, [...toGround(n), pt(TAPP, Yg)], () => { api.sit(n, CHAIR[0], Yg, CHAIR[1], 0, true); meal.visible = true; st = 'eat'; t = rnd(22, 32); lastEat = now; }); return; }
+          if (r < 0.7) { walk(n, upper(n) ? toGround(n) : toUpper(n), () => { st = 'wander'; t = rnd(20, 45); }); return; }
+          t = rnd(12, 30);
+        } else if (st === 'walk') {
+          if (!n.route) { const f = after; after = null; if (f) f(); else st = 'wander'; }
+        } else if (st === 'eat') {
+          t -= dt; if (t > 0) return;
+          meal.visible = false; api.stand(n, TAPP[0], Yg, TAPP[1]); st = 'wander'; t = rnd(15, 35);
+        } else if (st === 'sleep') {
+          t -= dt; if (t > 0 && !(api.day() > 0.6 && t < 100)) return;
+          api.stand(n, BEDSIDE[0], Yu, BEDSIDE[1]); st = 'wander'; t = rnd(10, 25);   // yataktan kalkar
+        }
+      }
+    };
+  };
   world.residents.push({
-    kind: 'rich', x: Xc(14), z: Zc(54), y: Yb(1),
+    kind: 'rich', x: Xc(14), z: Zc(54), y: Yb(1), script: ownerScript,
     bounds: { minX: Xe(4) + 0.5, maxX: Xs(100) - 0.5, minZ: Zs(0) + 0.6, maxZ: Zs(75) - 0.5 }   // villa + havuz terası + konsol altı salon
   });
+  // Hizmetçi: mutfakta tezgâhın başında sürekli yemek hazırlar (kolları kesme/karıştırma hareketiyle)
+  world.workers = world.workers || [];
+  world.workers.push({ x: Xc(56), y: Yb(1), z: Zc(38.5), yaw: Math.PI, pose: 'stand', style: 'maid', cook: true });
   // Malikanenin spor arabası: normal bir spor araç, kırmızı, ortasında beyaz şerit. Ön avluda park etmiştir (binilebilir, trafikte gezmez).
   world.parkedCars = world.parkedCars || [];
   world.parkedCars.push({ kind: 'sport', color: 0xdc2626, livery: { color: 0xffffff, color2: 0xffffff, style: 'center' }, x: 270, z: -61, y: 12.5, heading: -Math.PI / 2 });

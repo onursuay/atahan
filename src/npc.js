@@ -53,6 +53,7 @@ export class NPCManager {
     this.residentQueue = [];   // öldürülen sakinler (villanın zengin adamı): [{ t, spec }]
     this.corpses = [];         // kurşunla vurulup yere yığılan cesetler: { group, t, dir }
     this.playerPos = new THREE.Vector3();
+    this.day = () => 1;        // gündüz miktarı 0..1 (main.js gece-gündüz döngüsüne bağlar); villa sahibi geceleri uyur
   }
 
   reset() {
@@ -100,8 +101,8 @@ export class NPCManager {
     // Zengin adam / patron: siyah takım, beyaz gömlek, gümüş saç, koyu gözlük, altın saat
     // Çalışan tarzları: office (beyaz/açık mavi gömlek, koyu pantolon), bank (mavi yelek), chef (beyaz önlük + aşçı şapkası)
     const OFFICE = [0xffffff, 0xbfdbfe, 0xe5e7eb, 0xfde68a], DARK = [0x1f2937, 0x374151, 0x111827];
-    const shirt = rich ? 0x0b0d12 : o.shirt != null ? o.shirt : style === 'guard' ? 0x1e3a8a : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
-    const pants = rich ? 0x0b0d12 : style === 'guard' ? 0x0f172a : style ? pick(DARK) : pick(PANTS);
+    const shirt = rich ? 0x0b0d12 : o.shirt != null ? o.shirt : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x1e3a8a : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
+    const pants = rich ? 0x0b0d12 : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x0f172a : style ? pick(DARK) : pick(PANTS);
     const skin = rich ? 0xf1c27d : pick(SKINS), hair = rich ? 0xd4d4d8 : pick(HAIRS);
 
     const head = new THREE.Mesh(GEO.head, mat(skin)); head.position.y = 1.38;
@@ -134,6 +135,10 @@ export class NPCManager {
       const bag = new THREE.Mesh(boxGeo(0.22, 0.28, 0.1), mat(o.bag)); bag.position.set(0.02, -0.62, 0.1); rArm.add(bag);
       const handle = new THREE.Mesh(boxGeo(0.1, 0.05, 0.02), mat(0x2a2a30)); handle.position.set(0.02, -0.46, 0.1); rArm.add(handle);
     }
+    if (style === 'maid') {                                      // hizmetçi: koyu elbise, beyaz önlük, beyaz bone
+      const apron = new THREE.Mesh(boxGeo(0.34, 0.46, 0.02), mat(0xffffff)); apron.position.set(0, 0.92, 0.12); g.add(apron);
+      const cap = new THREE.Mesh(boxGeo(0.38, 0.08, 0.38), mat(0xffffff)); cap.position.y = 1.62; g.add(cap);
+    }
     if (style === 'guard') {                                     // güvenlik: lacivert üniforma, siyah kasket + altın rozet, telsiz, sarı kol bandı (zengin adamdan ayırt edilsin)
       const cap = new THREE.Mesh(boxGeo(0.39, 0.12, 0.39), mat(0x0b0d12)); cap.position.y = 1.64; g.add(cap);
       const brim = new THREE.Mesh(boxGeo(0.32, 0.03, 0.12), mat(0x0b0d12)); brim.position.set(0, 1.58, 0.24); g.add(brim);
@@ -156,7 +161,7 @@ export class NPCManager {
     body.g.position.set(spec.x, spec.y - drop, spec.z); body.g.rotation.y = spec.yaw;
     this.scene.add(body.g);
     this.npcs.push({ ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0, heading: spec.yaw, turnTimer: 0, pause: 0, cycle: Math.random() * 6, grounded: true,
-      worker: true, sit, drop, k, eat: !!spec.eat, cycleOff: Math.random() * 6, respawn: () => this._spawnWorker(spec), value: 100 });
+      worker: true, sit, drop, k, eat: !!spec.eat, cook: !!spec.cook, cycleOff: Math.random() * 6, respawn: () => this._spawnWorker(spec), value: 100 });
   }
 
   // Patron: siyah takımlı dev; rotada (yukarıdan aşağıya, sonra tersine) sürekli gezer. spec: { route: [{x,y,z}], name }
@@ -187,7 +192,7 @@ export class NPCManager {
     this.npcs.push({
       ...body, group: body.g, x: sx, y: spec.y, z: sz, vy: 0,
       heading: Math.random() * Math.PI * 2, turnTimer: 2 + Math.random() * 3, pause: 1, cycle: 0, grounded: true,
-      resident: spec, bounds: spec.bounds, value: rich ? 1000 : 100, k
+      resident: spec, bounds: spec.bounds, value: rich ? 1000 : 100, k, script: spec.script ? spec.script() : null
     });
   }
 
@@ -243,9 +248,12 @@ export class NPCManager {
   }
 
   _step(n, dt) {
+    if (n.script) n.script.update(n, dt, this);                        // villa sahibinin günlük rutini (yemek, merdiven, uyku)
+    if (n.frozen) { this._posePose(n, dt); return; }                   // oturan/yatan: fizik ve yürüme yok
     if (n.worker) {                                    // çalışan: yerinde durur; oturanlar klavye vuruşu, ayaktakiler hafif sallanma
       n.cycle += dt * (n.sit ? 7 : 1.5);
-      if (n.eat) { n.lArm.rotation.x = -1.1; n.rArm.rotation.x = -1.3 - 1.1 * Math.max(0, Math.sin(n.cycle * 0.3 + n.cycleOff)); }   // yemek yer: sağ elini ağzına götürür
+      if (n.cook) { n.lArm.rotation.x = -0.9 + Math.sin(n.cycle * 1.1) * 0.45; n.rArm.rotation.x = -0.9 - Math.sin(n.cycle * 1.1 + 1.6) * 0.45; n.group.rotation.y = n.heading + Math.sin(n.cycle * 0.8) * 0.15; }   // mutfak tezgâhında kesip karıştırır
+      else if (n.eat) { n.lArm.rotation.x = -1.1; n.rArm.rotation.x = -1.3 - 1.1 * Math.max(0, Math.sin(n.cycle * 0.3 + n.cycleOff)); }   // yemek yer: sağ elini ağzına götürür
       else if (n.sit) { n.lArm.rotation.x = -1.15 + Math.sin(n.cycle) * 0.12; n.rArm.rotation.x = -1.15 + Math.sin(n.cycle + 2) * 0.12; }
       else { n.lArm.rotation.x = Math.sin(n.cycle) * 0.08; n.rArm.rotation.x = -Math.sin(n.cycle) * 0.08; }
       return;
@@ -311,19 +319,50 @@ export class NPCManager {
     n.group.rotation.y = n.heading;
   }
 
+  // ── Betik yardımcıları (villa sahibi) ──
+  // Tek seferlik yol: pts [{x,y,z,tol?}] sırayla yürünür; bitince n.route null olur
+  walkPath(n, pts) { n.route = pts; n.ri = 0; n.rdir = 1; n.once = true; n.stuckT = 0; n.lastX = n.x; n.lastZ = n.z; n.pause = 0; }
+  // Oturur (sandalyede): yürüme/fizik durur; yemek yiyorsa sağ el ağza gider
+  sit(n, x, y, z, yaw, eat = false) {
+    n.frozen = 'sit'; n.route = null; n.once = false; n.x = x; n.y = y; n.z = z; n.heading = yaw; n.eatAnim = eat; n.vy = 0;
+    const k = n.k || 1, drop = Math.max(0, 0.62 * SCALE * k - 0.5);
+    n.group.position.set(x, y - drop, z); n.group.rotation.set(0, yaw, 0);
+    n.lLeg.rotation.x = -Math.PI / 2; n.rLeg.rotation.x = -Math.PI / 2; n.lArm.rotation.x = -1.1; n.rArm.rotation.x = -1.2;
+  }
+  // Yatar (sırtüstü): headYaw = başın bakacağı yön (dünya yaw'ı); (x,z) gövdenin ortası, y yatağın üst yüzeyi
+  lie(n, x, y, z, headYaw) {
+    n.frozen = 'lie'; n.route = null; n.once = false; n.vy = 0;
+    const L = HEIGHT * (n.k || 1), hx = -Math.sin(headYaw), hz = -Math.cos(headYaw);        // yaw'ı headYaw olan, X etrafında −90° dönmüş gövdenin başı (−sin, −cos) yönündedir
+    n.x = x; n.z = z; n.y = y; n.lie = true;
+    n.group.position.set(x - hx * L * 0.5, y + 0.2, z - hz * L * 0.5);
+    n.group.rotation.set(-Math.PI / 2, headYaw, 0, 'YXZ');
+    n.lLeg.rotation.x = 0; n.rLeg.rotation.x = 0; n.lArm.rotation.x = 0.1; n.rArm.rotation.x = 0.1;
+  }
+  stand(n, x, y, z) {
+    n.frozen = null; n.lie = false; n.eatAnim = false; n.x = x; n.y = y; n.z = z; n.vy = 0; n.pause = 0;
+    n.group.rotation.set(0, n.heading, 0); n.group.position.set(x, y, z);
+  }
+  _posePose(n, dt) {
+    n.cycle += dt;
+    if (n.frozen === 'sit' && n.eatAnim) n.rArm.rotation.x = -1.3 - 1.1 * Math.max(0, Math.sin(n.cycle * 1.4));   // çatalı ağza götürür
+    if (n.frozen === 'lie') { n.lArm.rotation.x = 0.1 + Math.sin(n.cycle * 0.8) * 0.02; }                          // hafif nefes
+  }
+
   // Patron rotası: sıradaki noktaya yürür; varınca sıradakine (uçlarda yön değişir); 3 sn ilerleyemezse noktayı atlar
   _steerRoute(n, dt) {
     const t = n.route[n.ri];
     const dx = t.x - n.x, dz = t.z - n.z, dist = Math.hypot(dx, dz);
     if (dist < (t.tol || 0.9) && Math.abs(t.y - n.y) < 1.6) {
-      n.ri += n.rdir; if (n.ri >= n.route.length || n.ri < 0) { n.rdir = -n.rdir; n.ri += 2 * n.rdir; }
+      n.ri += n.rdir;
+      if (n.once && n.ri >= n.route.length) { n.route = null; n.once = false; n.stuckT = 0; return; }       // tek seferlik yol bitti
+      if (n.ri >= n.route.length || n.ri < 0) { n.rdir = -n.rdir; n.ri += 2 * n.rdir; }
       n.stuckT = 0; return;
     }
     const want = Math.atan2(dx, dz), err = Math.atan2(Math.sin(want - n.heading), Math.cos(want - n.heading));
     n.heading += err * Math.min(1, dt * 10);
     n.pause = Math.abs(err) > 0.6 ? 1 : 0;       // keskin dönüşte yerinde dön (merdiven şeridinden taşmasın)
     n.stuckT += dt;
-    if (n.stuckT > 1) { if (Math.hypot(n.x - n.lastX, n.z - n.lastZ) < 0.3) { if (n.stuckT > 4) { n.ri += n.rdir; if (n.ri >= n.route.length || n.ri < 0) { n.rdir = -n.rdir; n.ri += 2 * n.rdir; } n.stuckT = 0; } } else { n.stuckT = 0; n.lastX = n.x; n.lastZ = n.z; } }
+    if (n.stuckT > 1) { if (Math.hypot(n.x - n.lastX, n.z - n.lastZ) < 0.3) { if (n.stuckT > 4) { n.ri += n.rdir; if (n.once && n.ri >= n.route.length) { n.route = null; n.once = false; } else if (n.ri >= n.route.length || n.ri < 0) { n.rdir = -n.rdir; n.ri += 2 * n.rdir; } n.stuckT = 0; } } else { n.stuckT = 0; n.lastX = n.x; n.lastZ = n.z; } }
   }
 
   _tryMove(n, dx, dz) {
@@ -356,6 +395,7 @@ export class NPCManager {
   rayHit(origin, dir, maxDist) {
     let best = null;
     for (const n of this.npcs) {
+      if (n.lie) { const cc = new THREE.Vector3(n.x, n.y + 0.5, n.z), tt = cc.clone().sub(origin), al = tt.dot(dir); if (al > 0 && al < maxDist) { const cl = origin.clone().addScaledVector(dir, al); if (cl.distanceTo(cc) < 1.3 && (!best || al < best.dist)) best = { dist: al, point: cl, npc: n, head: false }; } continue; }   // yatan: gövde ortasında küre
       const k = n.k || 1, c = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT * k / 2, n.z);
       const to = c.clone().sub(origin);
       const along = to.dot(dir);
