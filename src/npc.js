@@ -199,12 +199,21 @@ export class NPCManager {
     }
 
     // Yerçekimi / dikey çözümleme
+    // Yokuş aşağı yürürken zemine yapış (en fazla 0.3 m aşağıda zemin varsa oraya in)
+    if (moving && n.grounded && n.vy <= 0 && this._solid(n.x, n.y - 0.3, n.z)) {
+      let lo = n.y - 0.3, hi = n.y;
+      for (let k = 0; k < 10; k++) { const mid = (lo + hi) / 2; if (this._solid(n.x, mid, n.z)) lo = mid; else hi = mid; }
+      n.y = hi;
+    }
     n.vy = Math.max(-30, n.vy - GRAVITY * dt);
     let ny = n.y + n.vy * dt;
+    n.grounded = false;
     if (this._solid(n.x, ny, n.z)) {
       if (n.vy < 0) {
-        ny = (Math.floor((ny + EPS) / VOXEL_SIZE) + 1) * VOXEL_SIZE;
-        if (this._solid(n.x, ny, n.z)) ny = n.y;
+        // Temas noktasına tam otur (yokuşta asılı kalma / sekme olmasın)
+        let lo = ny, hi = n.y;
+        for (let k = 0; k < 10; k++) { const mid = (lo + hi) / 2; if (this._solid(n.x, mid, n.z)) lo = mid; else hi = mid; }
+        ny = hi; n.grounded = true;
       } else ny = n.y;
       n.vy = 0;
     }
@@ -225,7 +234,7 @@ export class NPCManager {
     const nx = n.x + dx, nz = n.z + dz;
     if (!this._solid(nx, n.y, nz)) { n.x = nx; n.z = nz; return; }
     // Bir basamağa (en fazla 0.5 m) çık
-    for (let h = VOXEL_SIZE; h <= STEP_UP_MAX + EPS; h += VOXEL_SIZE) {
+    for (const h of [0.04, 0.08, 0.14, 0.22, 0.32, 0.42, STEP_UP_MAX]) {
       if (!this._solid(n.x, n.y + h, n.z) && !this._solid(nx, n.y + h, nz)) {
         n.x = nx; n.z = nz; n.y += h; return;
       }

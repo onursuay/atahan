@@ -121,7 +121,12 @@ export class Terrain {
         if (c < 0 || c >= b.cols) continue;
         const i = r * b.cols + c;
         if (this.land[i] !== 1) continue;
-        const h = this._h(i);
+        let h;
+        if (this.rampMask && this.rampMask[i] === 1) {
+          // Rampa: yükseklik hücre içinde sürekli; kutu merkezine en yakın hücre noktasındaki profil (basamak yok, pürüzsüz yürünür)
+          const cx0 = b.minX + c * CELL, cz0 = b.minZ + r * CELL;
+          h = this.rampProfile(Math.max(cx0, Math.min(cx0 + CELL, x)), Math.max(cz0, Math.min(cz0 + CELL, z)));
+        } else h = this._h(i);
         if (feet < BEDROCK_Y + h - 1e-4) return true;
         if (this.top[i] === 1 && feet < GROUND_Y + h - 1e-4) return true;
       }

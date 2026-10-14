@@ -551,7 +551,8 @@ export class Character {
 
     if (this.isGrounded && !this.inWater) {
       // En fazla 0.5 m'lik basamağa (küp adımlarıyla) otomatik çık
-      for (let h = VOXEL_SIZE; h <= STEP_UP_MAX + EPS; h += VOXEL_SIZE) {
+      // Yokuşta çok küçük yükselmeler gerekir (0.5 m'ye zıplatmak takılma yapardı): artan adımlarla en küçük yeterli yükselme
+      for (const h of [0.04, 0.08, 0.14, 0.22, 0.32, 0.42, STEP_UP_MAX]) {
         const raised = feet + h;
         if (!this._overlaps(pos.x, raised, pos.z) && !this._overlaps(nx, raised, nz)) {
           pos.x = nx; pos.z = nz;
@@ -632,14 +633,23 @@ export class Character {
       feet = this._moveAxis('z', (this.vel.z + this.knock.z) * h, pos, feet);
       this.lastBlocked = this.blockedHoriz;
 
+      // İnişte zemine yapış: yokuş aşağı yürürken havada sekmesin (en fazla 0.3 m aşağıda zemin varsa oraya in)
+      if (this.isGrounded && this.vel.y <= 0 && !this.inWater && !this.jetting && !inputState.jump && this._overlaps(pos.x, feet - 0.3, pos.z)) {
+        let lo = feet - 0.3, hi = feet;
+        for (let k = 0; k < 12; k++) { const mid = (lo + hi) / 2; if (this._overlaps(pos.x, mid, pos.z)) lo = mid; else hi = mid; }
+        feet = hi;
+      }
+
       // Dikey hareket
       this.isGrounded = false;
       const dy = this.vel.y * h;
       let newFeet = feet + dy;
       if (dy !== 0 && this._overlaps(pos.x, newFeet, pos.z)) {
         if (dy < 0) {
-          const snapped = (Math.floor((newFeet + EPS) / S) + 1) * S;
-          feet = this._overlaps(pos.x, snapped, pos.z) ? feet : snapped;
+          // Temas noktasına tam otur (ızgaraya yuvarlama yok): yokuşta havada asılı kalıp sekmeyi önler
+          let lo = newFeet, hi = feet;
+          for (let k = 0; k < 12; k++) { const mid = (lo + hi) / 2; if (this._overlaps(pos.x, mid, pos.z)) lo = mid; else hi = mid; }
+          feet = hi;
           this.isGrounded = true;
         } else {
           const snapped = Math.floor((newFeet + BODY_H - EPS) / S) * S - BODY_H;
