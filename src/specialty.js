@@ -175,7 +175,7 @@ const TOWERS = {
   nova: { name: 'NOVA HOLDİNG', glass: P.GLASS, frame: P.BLACK, top: P.LAMP_BLUE, slab: P.WHITE, sign: [0x0f172a, 0x38bdf8] },
   atlas: { name: 'ATLAS GRUP', glass: P.GLASS, frame: P.WHITE, top: P.LAMP_ORANGE, slab: P.CONCRETE, sign: [0x7c2d12, 0xfde68a] },
   apex: { name: 'APEX CORP', glass: P.GLASS, frame: P.DGREEN, top: P.LAMP_GREEN, slab: P.WHITE, sign: [0x064e3b, 0x34d399] },
-  vortex: { name: 'VORTEX TECH', glass: P.GLASS, frame: P.PURPLE, top: P.LAMP_PURPLE, slab: P.WHITE, sign: [0x3b0764, 0xd8b4fe] },
+  vortex: { name: 'VORTEX TECH', glass: P.GLASS, frame: P.NAVY, top: P.LAMP_PURPLE, slab: P.WHITE, sign: [0x3b0764, 0xd8b4fe] },
   zenith: { name: 'ZENITH PLAZA', glass: P.GLASS, frame: P.GOLD, top: P.GOLD, slab: P.WHITE, sign: [0x78350f, 0xfde047] },
   cyber: { name: 'CYBER HOLDİNG', glass: P.GLASS, frame: P.BLACK, top: P.LAMP_PINK, slab: P.CONCRETE, sign: [0x4c0519, 0xf43f5e] }
 };
