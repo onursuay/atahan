@@ -336,26 +336,38 @@ export class MapSystem {
 
   // ── Küçük Harita Çizimi (Minimap: oyuncu odaklı) ──
   _drawMini() {
-    const ctx = this.miniCtx, c = this.miniCanvas;
-    const w = c.width, h = c.height;
-    ctx.clearRect(0, 0, w, h);
+    try {
+      const ctx = this.miniCtx, c = this.miniCanvas;
+      if (!ctx || !c) return;
+      const w = c.width, h = c.height;
+      ctx.clearRect(0, 0, w, h);
 
-    // Oyuncu merkezli yerel görünüm (zoom = 3.6)
-    this._renderWorldMap(ctx, w, h, 3.6, { x: this.playerX, z: this.playerZ }, true);
+      // Oyuncu merkezli yerel görünüm (zoom = 3.6)
+      this._renderWorldMap(ctx, w, h, 3.6, { x: this.playerX, z: this.playerZ }, true);
+    } catch (e) {
+      console.warn('Minimap draw error:', e);
+    }
   }
 
   // ── Büyük Harita Çizimi (Bütün 10X Harita) ──
   _drawLarge() {
-    const ctx = this.largeCtx, c = this.largeCanvas;
-    const w = c.width, h = c.height;
-    ctx.clearRect(0, 0, w, h);
+    try {
+      const ctx = this.largeCtx, c = this.largeCanvas;
+      if (!ctx || !c) return;
+      const w = c.width, h = c.height;
+      ctx.clearRect(0, 0, w, h);
 
-    // Bütün dünyayı kapsayan genel görünüm (zoom = 1.05)
-    this._renderWorldMap(ctx, w, h, 1.05, { x: 260, z: 0 }, false);
+      // Bütün dünyayı kapsayan genel görünüm (zoom = 1.05)
+      this._renderWorldMap(ctx, w, h, 1.05, { x: 260, z: 0 }, false);
 
-    // Konum metnini güncelle
-    const locName = this._getLocationName(this.playerX, this.playerZ);
-    this.locText.textContent = `${locName}  |  X: ${Math.round(this.playerX)} m, Z: ${Math.round(this.playerZ)} m`;
+      // Konum metnini güncelle
+      const locName = this._getLocationName(this.playerX, this.playerZ);
+      if (this.locText) {
+        this.locText.textContent = `${locName}  |  X: ${Math.round(this.playerX)} m, Z: ${Math.round(this.playerZ)} m`;
+      }
+    } catch (e) {
+      console.warn('Large map draw error:', e);
+    }
   }
 
   // ── Çekirdek Harita Çizim Motoru ──
@@ -503,9 +515,8 @@ export class MapSystem {
 
     // Göl ve İskele (Doğu-Güney)
     const [lakeX, lakeZ] = pt(332, 150);
-    ctx.fillStyle = '#0284c7';
-    ctx.beginPath();
-    ctx.ellipse(lakeX, lakeZ, Math.max(4, 20 * zoom), Math.max(3, 12 * zoom), 0, 0, Math.PI * 2);
+    if (ctx.ellipse) ctx.ellipse(lakeX, lakeZ, Math.max(4, 20 * zoom), Math.max(3, 12 * zoom), 0, 0, Math.PI * 2);
+    else ctx.arc(lakeX, lakeZ, Math.max(4, 16 * zoom), 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#b45309'; // iskele
     ctx.fillRect(lakeX - Math.max(3, 15 * zoom), lakeZ - 2, Math.max(4, 12 * zoom), 4);
