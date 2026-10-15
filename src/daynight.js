@@ -34,7 +34,7 @@ export class DayNight {
     const N = 520, pos = new Float32Array(N * 3);
     for (let i = 0; i < N; i++) {
       const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u);
-      pos[i * 3] = Math.cos(a) * r * 420; pos[i * 3 + 1] = Math.abs(u) * 420 * 0.9 + 20; pos[i * 3 + 2] = Math.sin(a) * r * 420;
+      pos[i * 3] = Math.cos(a) * r * 1600; pos[i * 3 + 1] = Math.abs(u) * 1600 * 0.9 + 40; pos[i * 3 + 2] = Math.sin(a) * r * 1600;
     }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     this.starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false });
@@ -104,7 +104,7 @@ export class DayNight {
     // Gökyüzü / sis / ortam
     const dusk = Math.max(0, 1 - Math.abs(2 * d - 1)) * 0.75;
     const sky = this.tmp.copy(this.nightCol).lerp(this.dayCol, d).lerp(this.duskCol, dusk);
-    this.scene.background.copy(sky); this.scene.fog.color.copy(sky); this.scene.fog.far = 330 - 90 * night;
+    this.scene.background.copy(sky); this.scene.fog.color.copy(sky); this.scene.fog.near = 400; this.scene.fog.far = 3200 - 800 * night;
     this.ambient.intensity = 0.3 + 0.25 * d; this.ambient.color.copy(this.ambNight).lerp(this.ambDay, d);
     // Güneş / ay ışığı: tek yönlü ışık; ufka inerken turuncu, gece mavi
     const sunUp = d >= 0.5, k = sunUp ? smooth((d - 0.5) / 0.5) : smooth((0.5 - d) / 0.5);

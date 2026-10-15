@@ -6,6 +6,7 @@ import { Bridge } from './bridge.js';
 import { buildTraffic } from './traffic.js';
 import { furnishMall as furnishMallShops } from './mall.js';
 import { buildSpecialty, isSpecialLot } from './specialty.js';
+import { buildCentralPark } from './park.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ÖLÇEK KATMANI
@@ -175,7 +176,7 @@ export class LevelManager {
     this.world.residents = [];
     this.world.parkedCars = [];
     this.world.propSpawns = [];  // tutulabilir eşyalar: { kind, x, y, z, yaw, color, hung } (main.js props.js'e aktarır)
-    this.world.workers = []; this.world.bosses = []; this.world.guards = [];
+    this.world.workers = []; this.world.bosses = []; this.world.guards = []; this.world.dogs = [];
     this.world.lamps = [];       // sokak lambası kafaları (gece ışık havuzları ve gerçek ışık için): { x, y, z, gy }
     const ISL = 166; // zengin bölgenin x kayması (eski birim): doğu yolu (x=186) için 12 birim doğuya alındı
 
@@ -193,6 +194,17 @@ export class LevelManager {
     w.fillBox(78, 0, -165, 110, 0, 165, PALETTE.CONCRETE);      // doğu ada: şehir blokları (köprüden sonra)
     w.fillBox(141, 0, -165, 190, 0, 165, PALETTE.CONCRETE);
     w.fillBox(190, 0, -70, 248, 0, 70, PALETTE.CONCRETE);       // zengin bölge meydanı (yayalar; araç yolu yok)
+
+    // ==========================================
+    // 10X GENİŞLETİLMİŞ DÜNYA ARAZİLERİ (Kuzey Dağları, Güney Lagünü, Doğu Yaylası, Batı Fener Adası)
+    // ==========================================
+    w.fillBox(-500, 0, -850, 650, 0, -320, PALETTE.GRASS);       // Kuzey Dağları ve Çam Ormanları
+    w.fillBox(-520, 0, -850, -500, 0, -320, PALETTE.SAND);       // Kuzey sahil kumsalı
+    w.fillBox(-500, 0, 320, 650, 0, 850, PALETTE.GRASS);         // Güney Lagünü ve Yeşil Vadi
+    w.fillBox(-520, 0, 320, -500, 0, 850, PALETTE.SAND);         // Güney sahil kumsalı
+    w.fillBox(500, 0, -700, 1100, 0, 700, PALETTE.GRASS);        // Doğu Yaylası & Büyük Kanyon
+    w.fillBox(-620, 0, -150, -480, 0, 150, PALETTE.SAND);        // Batı Fener Adası (kumsal)
+    w.fillBox(-600, 0, -130, -500, 0, 130, PALETTE.GRASS);       // Batı Fener Adası (yeşil plato)
 
     // Yollar: asfalt cityplan.js tanımından boyanır (trafik ağı da aynı tanımdan kurulur)
     for (const r of ROADS) for (const sg of paintSegments(r)) w.fillBox(sg.x0, 0, sg.z0, sg.x1, 0, sg.z1, PALETTE.ASPHALT);
@@ -253,11 +265,12 @@ export class LevelManager {
       this.buildTower(-22, 1, za, -14, 12, zb, { ...CC, side: door });
     });
 
-    this.buildPark(-72, 72, -52, 128);
+    this.buildTower(-70, 1, 76, -54, 20, 124, { ...BR, side: 'x2', interior: 'hotel' });        // eski küçük parkın yerine otel (park artık villanın yanındaki büyük Merkez Park)
     this.buildNewDistricts();
     ROUNDABOUTS.forEach(g => this.buildRoundaboutCenter(g));
     buildTraffic(this);                                          // trafik ışıkları ve yol tabelaları: yolun kenarında
     buildVilla(this.world);                                      // doğudaki tepede çok zengin bir adamın villası
+    buildCentralPark(this);                                      // villanın güneyindeki kocaman alanda Merkez Park
     this.buildSite(-81, -124, -53, -74);
 
     // ==========================================
@@ -719,6 +732,18 @@ export class LevelManager {
       for (const [x0, x1, z0, z1] of paved) {
         const dx = Math.max(x0 - x, 0, x - x1), dz = Math.max(z0 - z, 0, z - z1);
         d = Math.min(d, Math.hypot(dx, dz));
+      }
+      if (z < -340) { // Kuzey Dağları
+        const dEdge = Math.min(x - (-500), 650 - x, -320 - z, z - (-850));
+        if (dEdge > 0) return Math.max(0, (22 + 12 * Math.sin(x * 0.05) * Math.cos(z * 0.04)) * smooth(dEdge / 40));
+      }
+      if (z > 340) { // Güney Lagün Tepeleri
+        const dEdge = Math.min(x - (-500), 650 - x, z - 320, 850 - z);
+        if (dEdge > 0) return Math.max(0, (16 + 8 * Math.sin(x * 0.06) * Math.sin(z * 0.05)) * smooth(dEdge / 35));
+      }
+      if (x > 500) { // Doğu Yaylası ve Kanyonu
+        const dEdge = Math.min(x - 500, 1100 - x, z - (-700), 700 - z);
+        if (dEdge > 0) return Math.max(0, (26 + 14 * Math.sin(x * 0.04) * Math.cos(z * 0.03)) * smooth(dEdge / 45));
       }
       return Math.max(h * smooth(d / 10) * smooth(edgeDist(x, z) / 24), villaHeight(xm, zm));
     };

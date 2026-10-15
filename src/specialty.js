@@ -13,11 +13,15 @@ const bX = (u) => Math.round(1.5 * (u - 0.5)), bZ = bX;      // eski birim hücr
 export const SPECIAL_LOTS = [
   { id: 'bank-mavi', x: [-161, -137], z: [168, 191], kind: 'bank', theme: 'mavi' },
   { id: 'kule-nova', x: [-161, -137], z: [209, 231], kind: 'kule', theme: 'nova' },
+  { id: 'kule-apex', x: [-119, -97], z: [209, 231], kind: 'kule', theme: 'apex' },
+  { id: 'kule-vortex', x: [-79, -57], z: [209, 231], kind: 'kule', theme: 'vortex' },
   { id: 'burger', x: [-161, -137], z: [235, 257], kind: 'restoran', theme: 'burger' },
   { id: 'bank-turuncu', x: [-119, -97], z: [235, 257], kind: 'bank', theme: 'turuncu' },
   { id: 'pizza', x: [-79, -57], z: [235, 257], kind: 'restoran', theme: 'pizza' },
   { id: 'bank-yesil', x: [-161, -137], z: [-191, -168], kind: 'bank', theme: 'yesil' },
   { id: 'kule-atlas', x: [-161, -137], z: [-231, -209], kind: 'kule', theme: 'atlas' },
+  { id: 'kule-zenith', x: [-119, -97], z: [-231, -209], kind: 'kule', theme: 'zenith' },
+  { id: 'kule-cyber', x: [-79, -57], z: [-231, -209], kind: 'kule', theme: 'cyber' },
   { id: 'tavuk', x: [-161, -137], z: [-257, -235], kind: 'restoran', theme: 'tavuk' },
   { id: 'kebap', x: [-119, -97], z: [-257, -235], kind: 'restoran', theme: 'kebap' },
   { id: 'kahve', x: [-79, -57], z: [-257, -235], kind: 'restoran', theme: 'kahve' }
@@ -169,10 +173,14 @@ function restaurant(f, theme) {
 // ═══════════════════════════════ SİLİNDİR ŞİRKET KULESİ ═══════════════════════════════
 const TOWERS = {
   nova: { name: 'NOVA HOLDİNG', glass: P.GLASS, frame: P.BLACK, top: P.LAMP_BLUE, slab: P.WHITE, sign: [0x0f172a, 0x38bdf8] },
-  atlas: { name: 'ATLAS GRUP', glass: P.GLASS, frame: P.WHITE, top: P.LAMP_ORANGE, slab: P.CONCRETE, sign: [0x7c2d12, 0xfde68a] }
+  atlas: { name: 'ATLAS GRUP', glass: P.GLASS, frame: P.WHITE, top: P.LAMP_ORANGE, slab: P.CONCRETE, sign: [0x7c2d12, 0xfde68a] },
+  apex: { name: 'APEX CORP', glass: P.GLASS, frame: P.DGREEN, top: P.LAMP_GREEN, slab: P.WHITE, sign: [0x064e3b, 0x34d399] },
+  vortex: { name: 'VORTEX TECH', glass: P.GLASS, frame: P.PURPLE, top: P.LAMP_PURPLE, slab: P.WHITE, sign: [0x3b0764, 0xd8b4fe] },
+  zenith: { name: 'ZENITH PLAZA', glass: P.GLASS, frame: P.GOLD, top: P.GOLD, slab: P.WHITE, sign: [0x78350f, 0xfde047] },
+  cyber: { name: 'CYBER HOLDİNG', glass: P.GLASS, frame: P.BLACK, top: P.LAMP_PINK, slab: P.CONCRETE, sign: [0x4c0519, 0xf43f5e] }
 };
 function tower(f, theme) {
-  const T = TOWERS[theme], world = f.world, kit = f.kit;
+  const T = TOWERS[theme] || TOWERS.nova, world = f.world, kit = f.kit;
   const R = 13, F = 9;                                           // yarıçap (voxel), kat sayısı
   const dc = 6 + R;                                              // kule merkezi cepheden 19 voxel içeride (öndeki 6 voxel: meydan + lobi)
   const u = Math.floor(f.W / 2);
@@ -196,7 +204,7 @@ function tower(f, theme) {
   f.b(u - 4, u + 4, 3, 3, 1, 7, T.glass); for (const uu of [u - 4, u, u + 4]) f.b(uu, uu, 3, 3, 1, 7, T.frame);
   f.clr(u - 2, u + 2, lobbyD1, lobbyD1 + 1, 1, 7);                                                                        // lobiden kuleye geçit (kule duvarı delinir)
   f.door(u - 2, u + 1, 1, 7, 3);
-  f.sign(T.name, { bg: T.sign[0], fg: T.sign[1], w: 8, h: 1.4 }, u, 9.2);
+  f.sign(T.name, { neon: true, color: T.sign[1], fg: T.sign[1], w: 8.4, h: 1.5 }, u, 9.4);
   // Giriş katı: resepsiyon, bekleme koltukları, bitkiler
   const rd = dc - 4;
   f.b(u - 3, u + 3, rd, rd, 1, 2, P.BLACK); f.b(u - 3, u + 3, rd, rd, 3, 3, P.WHITE); f.b(u - 1, u - 1, rd - 1, rd - 1, 3, 3, P.IRON); f.b(u - 1, u - 1, rd - 1, rd - 1, 4, 4, P.LAMP_BLUE);

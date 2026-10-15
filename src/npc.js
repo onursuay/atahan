@@ -3,6 +3,7 @@ import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y, BEDROCK_Y } from './terrain.js';
 import { insideVillaWalls } from './villa.js';
+import { DogManager } from './animals.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NPC İNSANLAR: normal insanın bir buçuk katı boyunda (2.5 m) voxel devler. Rastgele dolaşırlar; deniz, çukur kenarı veya duvara
@@ -53,6 +54,7 @@ export class NPCManager {
     this.residentQueue = [];   // öldürülen sakinler (villanın zengin adamı): [{ t, spec }]
     this.corpses = [];         // kurşunla vurulup yere yığılan cesetler: { group, t, dir }
     this.playerPos = new THREE.Vector3();
+    this.dogs = new DogManager(scene);   // tasmalı ve serbest köpekler
     this.day = () => 1;        // gündüz miktarı 0..1 (main.js gece-gündüz döngüsüne bağlar); villa sahibi geceleri uyur
   }
 
@@ -62,6 +64,8 @@ export class NPCManager {
     this.npcs = [];
     this.respawnQueue = [];
     this.residentQueue = [];
+    this.dogs.clear();
+    for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
     for (const r of this.voxelWorld.residents || []) this._spawnResident(r);
     for (const w of this.voxelWorld.workers || []) this._spawnWorker(w);     // şirket kuleleri, banka, restoran çalışanları
@@ -131,6 +135,10 @@ export class NPCManager {
       const cap = new THREE.Mesh(boxGeo(0.38, 0.11, 0.38), mat(hc)); cap.position.y = 1.65; g.add(cap);
       const brim = new THREE.Mesh(boxGeo(0.3, 0.03, 0.14), mat(hc)); brim.position.set(0, 1.59, 0.25); g.add(brim);
     }
+    if (o.skate) for (const leg of [lLeg, rLeg]) {              // paten: bot + bıçak
+      const blade = new THREE.Mesh(boxGeo(0.07, 0.05, 0.3), mat(0x9ca3af)); blade.position.set(0, -0.6, 0.03); leg.add(blade);
+      const boot = new THREE.Mesh(boxGeo(0.14, 0.1, 0.24), mat(0xf3f4f6)); boot.position.set(0, -0.53, 0.03); leg.add(boot);
+    }
     if (o.bag != null) {                                         // alışveriş poşeti: sağ elde sarkar
       const bag = new THREE.Mesh(boxGeo(0.22, 0.28, 0.1), mat(o.bag)); bag.position.set(0.02, -0.62, 0.1); rArm.add(bag);
       const handle = new THREE.Mesh(boxGeo(0.1, 0.05, 0.02), mat(0x2a2a30)); handle.position.set(0.02, -0.46, 0.1); rArm.add(handle);
@@ -189,11 +197,14 @@ export class NPCManager {
     }
     body.g.position.set(sx, spec.y, sz);
     this.scene.add(body.g);
-    this.npcs.push({
+    const rec = {
       ...body, group: body.g, x: sx, y: spec.y, z: sz, vy: 0,
-      heading: Math.random() * Math.PI * 2, turnTimer: 2 + Math.random() * 3, pause: 1, cycle: 0, grounded: true,
-      resident: spec, bounds: spec.bounds, value: rich ? 1000 : 100, k, script: spec.script ? spec.script() : null
-    });
+      heading: Math.random() * Math.PI * 2, turnTimer: 2 + Math.random() * 3, pause: 1, cycle: Math.random() * 6, grounded: true,
+      resident: spec, bounds: spec.bounds, value: rich ? 1000 : 100, k, script: spec.script ? spec.script() : null,
+      skate: spec.kind === 'skater', skateSpeed: 2.8 + Math.random() * 1.8
+    };
+    this.npcs.push(rec);
+    if (spec.dog) this.dogs.addLeashed(rec, SCALE * k);
   }
 
   _spawn() {
@@ -217,11 +228,13 @@ export class NPCManager {
       body.g.scale.setScalar(SCALE);
       body.g.position.set(x, gy, z);
       this.scene.add(body.g);
-      this.npcs.push({
+      const rec = {
         ...body, group: body.g, x, y: gy, z, vy: 0,
         heading: Math.random() * Math.PI * 2,
         turnTimer: 2 + Math.random() * 5, pause: 0, cycle: Math.random() * 6, grounded: true
-      });
+      };
+      this.npcs.push(rec);
+      if (Math.random() < 0.07) this.dogs.addLeashed(rec);          // bazı yayalar köpeğini tasmayla gezdirir
       return;
     }
   }
@@ -245,11 +258,13 @@ export class NPCManager {
       n.group.visible = dx * dx + dy * dy + dz * dz < CULL_DIST * CULL_DIST;   // uzaktaki insanlar çizilmez (yüzlerce çalışan/müşteri var)
     }
     this._updateCorpses(dt);
+    this.dogs.update(dt, playerPos, new Set(this.npcs));
   }
 
   _step(n, dt) {
     if (n.script) n.script.update(n, dt, this);                        // villa sahibinin günlük rutini (yemek, merdiven, uyku)
     if (n.frozen) { this._posePose(n, dt); return; }                   // oturan/yatan: fizik ve yürüme yok
+    if (n.skate) { this._stepSkate(n, dt); return; }                   // buz pistinde patenle kayar
     if (n.worker) {                                    // çalışan: yerinde durur; oturanlar klavye vuruşu, ayaktakiler hafif sallanma
       n.cycle += dt * (n.sit ? 7 : 1.5);
       if (n.cook) { n.lArm.rotation.x = -0.9 + Math.sin(n.cycle * 1.1) * 0.45; n.rArm.rotation.x = -0.9 - Math.sin(n.cycle * 1.1 + 1.6) * 0.45; n.group.rotation.y = n.heading + Math.sin(n.cycle * 0.8) * 0.15; }   // mutfak tezgâhında kesip karıştırır
@@ -317,6 +332,20 @@ export class NPCManager {
     n.lArm.rotation.x = -sw * 0.8; n.rArm.rotation.x = sw * 0.8;
     n.group.position.set(n.x, n.y, n.z);
     n.group.rotation.y = n.heading;
+  }
+
+  // Buz pisti: yumuşak yay çizerek kayar, kenara yaklaşınca merkeze döner; bacaklar kayma vuruşu yapar, gövde hafif eğilir
+  _stepSkate(n, dt) {
+    const b = n.bounds, m = 2.6, wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+    n.cycle += dt * 2.4;
+    n.turnV = Math.max(-1.1, Math.min(1.1, (n.turnV || 0) + (Math.random() - 0.5) * dt * 4));
+    if (n.x < b.minX + m || n.x > b.maxX - m || n.z < b.minZ + m || n.z > b.maxZ - m) n.heading += wrap(Math.atan2((b.minX + b.maxX) / 2 - n.x, (b.minZ + b.maxZ) / 2 - n.z) - n.heading) * Math.min(1, dt * 3);
+    else n.heading += n.turnV * dt;
+    n.x = Math.max(b.minX + 0.5, Math.min(b.maxX - 0.5, n.x + Math.sin(n.heading) * n.skateSpeed * dt));
+    n.z = Math.max(b.minZ + 0.5, Math.min(b.maxZ - 0.5, n.z + Math.cos(n.heading) * n.skateSpeed * dt));
+    n.lLeg.rotation.x = Math.sin(n.cycle) * 0.55; n.rLeg.rotation.x = -Math.sin(n.cycle) * 0.55;
+    n.lArm.rotation.x = -Math.sin(n.cycle) * 0.5; n.rArm.rotation.x = Math.sin(n.cycle) * 0.5;
+    n.group.position.set(n.x, n.y, n.z); n.group.rotation.set(0.12, n.heading, Math.sin(n.cycle) * 0.06, 'YXZ');
   }
 
   // ── Betik yardımcıları (villa sahibi) ──

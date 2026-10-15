@@ -17,13 +17,14 @@ import { TrafficLights } from './traffic.js';
 import { PropManager } from './props.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
+import { MapSystem } from './map.js';
 
 let scene, camera, renderer;
 let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
-let props;
+let props, mapSystem;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -71,13 +72,13 @@ const levelsModal = document.getElementById('levels-modal');
 const levelsGrid = document.getElementById('levels-grid');
 
 function init() {
-  // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü)
+  // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 10X Harita Görüşü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
-  scene.fog = new THREE.Fog(0x78a7ff, 90, 330);
+  scene.fog = new THREE.Fog(0x78a7ff, 400, 3200);
 
-  // 2. Kamera
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 1000);
+  // 2. Kamera: 5000 m görüş mesafesi (10 kat geniş harita)
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 5000);
 
   // 3. Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -190,6 +191,7 @@ function init() {
 
   setupEventListeners();
   buildLevelSelectButtons();
+  mapSystem = new MapSystem();
 
   // Oyun Döngüsü
   let lastTime = performance.now();
@@ -209,8 +211,8 @@ function init() {
 function createWorldArena() {
   // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
-  // Deniz / Okyanus Suyu Düzlemi (Şehir ve Adayı Çevreleyen Deniz)
-  waterGeo = new THREE.PlaneGeometry(1200, 1200, 120, 120);   // şehir büyüdü: deniz düzlemi 1200 m
+  // Deniz / Okyanus Suyu Düzlemi (10 Kat Büyük Dünya Okyanusu: 12000 m)
+  waterGeo = new THREE.PlaneGeometry(12000, 12000, 40, 40);
   waterMat = new THREE.MeshLambertMaterial({
     color: 0x0369a1,
     transparent: true,
@@ -222,25 +224,25 @@ function createWorldArena() {
   waterMesh.receiveShadow = true;
   scene.add(waterMesh);
 
-  // Yüzen Voxel Bulutlar
+  // Yüzen Voxel Bulutlar (10 Kat Dünya Gökyüzü)
   const cloudMat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
     opacity: 0.8
   });
 
-  for (let i = 0; i < 12; i++) {
-    const w = 12 + Math.random() * 16;
-    const d = 10 + Math.random() * 14;
-    const cloudGeo = new THREE.BoxGeometry(w, 1.2, d);
+  for (let i = 0; i < 32; i++) {
+    const w = 24 + Math.random() * 32;
+    const d = 20 + Math.random() * 28;
+    const cloudGeo = new THREE.BoxGeometry(w, 2.0, d);
     const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
     cloudMesh.position.set(
-      (Math.random() - 0.5) * 140,
-      32 + Math.random() * 8,
-      (Math.random() - 0.5) * 140
+      (Math.random() - 0.5) * 2800,
+      45 + Math.random() * 15,
+      (Math.random() - 0.5) * 2800
     );
     scene.add(cloudMesh);
-    clouds.push({ mesh: cloudMesh, speed: 1.5 + Math.random() * 2 });
+    clouds.push({ mesh: cloudMesh, speed: 2.0 + Math.random() * 3.5 });
   }
 }
 
@@ -374,11 +376,16 @@ function updateGame(dt) {
   });
   particleSystem.update(dt);
 
-  // Bulutlar
+  // Bulutlar (10 kat geniş gökyüzünde süzülür)
   clouds.forEach(c => {
     c.mesh.position.x += c.speed * dt;
-    if (c.mesh.position.x > 80) c.mesh.position.x = -80;
+    if (c.mesh.position.x > 1400) c.mesh.position.x = -1400;
   });
+
+  // Harita (Minimap ve Büyük Dünya Haritası)
+  if (mapSystem) {
+    mapSystem.update(character.mesh.position, cameraYaw, dt);
+  }
 
   updateCamera(dt);
 }

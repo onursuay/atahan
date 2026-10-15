@@ -1,0 +1,647 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// HARİTA SİSTEMİ (MİNİMAP & BÜYÜYEN DÜNYA HARİTASI)
+//  • Küçük harita (Minimap): Ekranın sağ üstünde kompakt, şık retro-modern çerçeve.
+//  • Üzerine tıklanınca (veya M tuşuna basılınca) ekranın ortasında BÜYÜK DÜNYA HARİTASI açılır.
+//  • Bütün 10 kat haritayı, New York tarzı Merkez Park'ı, Silindir Şirket Kulelerini,
+//    Villayı, AVM'yi, Köprüyü ve oyuncunun anlık konum/yönünü gösterir.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export class MapSystem {
+  constructor() {
+    this.isOpen = false;
+    this.playerX = 0;
+    this.playerZ = 0;
+    this.playerYaw = 0;
+    this.pulse = 0;
+
+    // Dünya sınırları (10 kat geniş harita alanı): metre cinsinden
+    this.worldBounds = {
+      minX: -650,
+      maxX: 1250,
+      minZ: -850,
+      maxZ: 850
+    };
+
+    this._createDOM();
+    this._bindEvents();
+  }
+
+  _createDOM() {
+    // 1. Küçük Harita (Minimap) Konteyneri
+    const minimap = document.createElement('div');
+    minimap.id = 'minimap-container';
+    minimap.innerHTML = `
+      <div class="minimap-header">
+        <span>🗺️ HARİTA</span>
+        <span class="minimap-key">[M]</span>
+      </div>
+      <div class="minimap-canvas-wrap">
+        <canvas id="minimap-canvas" width="340" height="340"></canvas>
+      </div>
+      <div class="minimap-hint">Büyütmek için tıkla 🔍</div>
+    `;
+    document.body.appendChild(minimap);
+
+    // 2. Büyük Harita (Full Map Modal)
+    const largeModal = document.createElement('div');
+    largeModal.id = 'largemap-modal';
+    largeModal.className = 'largemap-overlay';
+    largeModal.style.display = 'none';
+    largeModal.innerHTML = `
+      <div class="largemap-window">
+        <div class="largemap-top">
+          <div class="largemap-title">🗺️ BÜYÜK DÜNYA HARİTASI (10X HARİTA)</div>
+          <button class="largemap-close" id="largemap-close-btn" title="Kapat (ESC / M)">✖ KAPAT</button>
+        </div>
+        <div class="largemap-canvas-container">
+          <canvas id="largemap-canvas" width="1000" height="700"></canvas>
+        </div>
+        <div class="largemap-footer">
+          <div class="largemap-location" id="largemap-loc-text">📍 Konum: Şehir Merkezi | X: 0, Z: 0</div>
+          <div class="largemap-legend">
+            <span><i class="leg-dot" style="background:#22c55e"></i> Merkez Park (New York)</span>
+            <span><i class="leg-dot" style="background:#38bdf8"></i> Silindir Kuleler</span>
+            <span><i class="leg-dot" style="background:#eab308"></i> Zengin Villası</span>
+            <span><i class="leg-dot" style="background:#f43f5e"></i> Büyük AVM</span>
+            <span><i class="leg-dot" style="background:#64748b"></i> Asma Köprü</span>
+            <span><i class="leg-dot" style="background:#ef4444"></i> Sen (Oyuncu)</span>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(largeModal);
+
+    // 3. Stiller
+    const style = document.createElement('style');
+    style.textContent = `
+      #minimap-container {
+        position: fixed;
+        right: 18px;
+        top: 135px;
+        z-index: 45;
+        width: 175px;
+        background: rgba(22, 27, 34, 0.88);
+        border: 3px solid #4a5568;
+        border-radius: 8px;
+        padding: 6px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.65), 0 0 10px rgba(56, 189, 248, 0.2);
+        cursor: pointer;
+        transition: transform 0.18s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        backdrop-filter: blur(6px);
+        user-select: none;
+      }
+      #minimap-container:hover {
+        transform: scale(1.04);
+        border-color: #38bdf8;
+        box-shadow: 0 10px 28px rgba(0,0,0,0.8), 0 0 16px rgba(56, 189, 248, 0.5);
+      }
+      .minimap-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #38bdf8;
+        text-shadow: 1px 1px #000;
+        margin-bottom: 4px;
+        padding: 0 2px;
+      }
+      .minimap-key {
+        font-size: 9px;
+        background: #1e293b;
+        color: #f1f5f9;
+        padding: 1px 4px;
+        border-radius: 3px;
+        border: 1px solid #64748b;
+      }
+      .minimap-canvas-wrap {
+        width: 100%;
+        height: 155px;
+        border-radius: 4px;
+        overflow: hidden;
+        border: 1px solid #334155;
+        background: #0284c7;
+      }
+      #minimap-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .minimap-hint {
+        font-size: 8.5px;
+        color: #94a3b8;
+        text-align: center;
+        margin-top: 4px;
+        letter-spacing: 0.3px;
+      }
+
+      /* Büyük Harita Overlay */
+      .largemap-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        background: rgba(5, 10, 20, 0.88);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        animation: fadeInMap 0.2s ease-out;
+      }
+      @keyframes fadeInMap {
+        from { opacity: 0; transform: scale(0.97); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      .largemap-window {
+        width: 950px;
+        max-width: 95vw;
+        height: 720px;
+        max-height: 92vh;
+        background: #0f172a;
+        border: 4px solid #38bdf8;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.85), 0 0 30px rgba(56, 189, 248, 0.35);
+        overflow: hidden;
+      }
+      .largemap-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 18px;
+        background: #1e293b;
+        border-bottom: 2px solid #334155;
+      }
+      .largemap-title {
+        font-size: 15px;
+        font-weight: 800;
+        color: #f8fafc;
+        letter-spacing: 0.6px;
+        text-shadow: 2px 2px #000;
+      }
+      .largemap-close {
+        background: #ef4444;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        padding: 6px 14px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 0.15s;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+      }
+      .largemap-close:hover {
+        background: #dc2626;
+      }
+      .largemap-canvas-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        background: #0369a1;
+      }
+      #largemap-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      .largemap-footer {
+        padding: 10px 18px;
+        background: #1e293b;
+        border-top: 2px solid #334155;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        font-size: 11px;
+      }
+      #largemap-loc-text {
+        color: #38bdf8;
+        font-weight: 700;
+        text-shadow: 1px 1px #000;
+      }
+      .largemap-legend {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        font-size: 10px;
+        color: #cbd5e1;
+      }
+      .largemap-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .leg-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        border: 1px solid #000;
+      }
+    `;
+    document.head.appendChild(style);
+
+    this.miniCanvas = document.getElementById('minimap-canvas');
+    this.miniCtx = this.miniCanvas.getContext('2d');
+    this.largeCanvas = document.getElementById('largemap-canvas');
+    this.largeCtx = this.largeCanvas.getContext('2d');
+    this.largeModal = largeModal;
+    this.minimapEl = minimap;
+    this.locText = document.getElementById('largemap-loc-text');
+  }
+
+  _bindEvents() {
+    this.minimapEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggleMap();
+    });
+
+    document.getElementById('largemap-close-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.closeMap();
+    });
+
+    // M tuşu veya ESC
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyM') {
+        e.preventDefault();
+        this.toggleMap();
+      } else if (e.code === 'Escape' && this.isOpen) {
+        this.closeMap();
+      }
+    });
+  }
+
+  toggleMap() {
+    if (this.isOpen) this.closeMap();
+    else this.openMap();
+  }
+
+  openMap() {
+    this.isOpen = true;
+    this.largeModal.style.display = 'flex';
+    if (document.exitPointerLock) document.exitPointerLock();
+  }
+
+  closeMap() {
+    this.isOpen = false;
+    this.largeModal.style.display = 'none';
+  }
+
+  // Oyuncunun konumu ve rotasyonu güncellenir
+  update(playerPos, cameraYaw, dt = 0.016) {
+    this.playerX = playerPos.x;
+    this.playerZ = playerPos.z;
+    this.playerYaw = cameraYaw;
+    this.pulse = (this.pulse + dt * 4) % (Math.PI * 2);
+
+    // Her karede küçük harita çizilir
+    this._drawMini();
+
+    // Büyük harita açıksa o da güncellenir
+    if (this.isOpen) {
+      this._drawLarge();
+    }
+  }
+
+  _getLocationName(x, z) {
+    if (x >= 200 && x <= 368 && z >= 14 && z <= 186) return '🌳 Merkez Park (New York Tarzı)';
+    if (x >= 236 && x <= 314 && z >= -148 && z <= -48) return '🏰 Zengin Villası Platosu';
+    if (x >= 143 && x <= 180 && z >= -127 && z <= -50) return '🏬 Büyük AVM (Alışveriş Merkezi)';
+    if (x >= 148 && x <= 180 && z >= 50 && z <= 118) return '🏥 Merkez Şehir Hastanesi';
+    if (x >= -192 && x <= -170) return '🏖️ Batı Sahili & Kumsal';
+    if (x >= -170 && x <= -50 && (Math.abs(z - 170) < 60 || Math.abs(z + 170) < 60)) return '🏢 Silindir Şirket Kuleleri Plaza';
+    if (x >= -12 && x <= 78 && Math.abs(z) < 18) return '🌉 Boğaz Asma Köprüsü';
+    if (x < -12) return '🏙️ Batı Şehir Merkezi';
+    if (x >= 78 && x <= 220) return '🏢 Doğu Şehir & Ticaret Bölgesi';
+    if (x > 368) return '🏔️ Doğu Dağları & Açık Doğa';
+    return '🌊 Okyanus / Sahil Şeridi';
+  }
+
+  // Koordinatları canvas pikseline dönüştür
+  _toPixel(x, z, width, height, zoom = 1, center = null) {
+    const cx = center ? center.x : (this.worldBounds.minX + this.worldBounds.maxX) / 2;
+    const cz = center ? center.z : (this.worldBounds.minZ + this.worldBounds.maxZ) / 2;
+    const spanX = (this.worldBounds.maxX - this.worldBounds.minX) / zoom;
+    const spanZ = (this.worldBounds.maxZ - this.worldBounds.minZ) / zoom;
+
+    const px = ((x - cx) / spanX + 0.5) * width;
+    const pz = ((z - cz) / spanZ + 0.5) * height;
+    return [px, pz];
+  }
+
+  // ── Küçük Harita Çizimi (Minimap: oyuncu odaklı) ──
+  _drawMini() {
+    const ctx = this.miniCtx, c = this.miniCanvas;
+    const w = c.width, h = c.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Oyuncu merkezli yerel görünüm (zoom = 3.6)
+    this._renderWorldMap(ctx, w, h, 3.6, { x: this.playerX, z: this.playerZ }, true);
+  }
+
+  // ── Büyük Harita Çizimi (Bütün 10X Harita) ──
+  _drawLarge() {
+    const ctx = this.largeCtx, c = this.largeCanvas;
+    const w = c.width, h = c.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Bütün dünyayı kapsayan genel görünüm (zoom = 1.05)
+    this._renderWorldMap(ctx, w, h, 1.05, { x: 260, z: 0 }, false);
+
+    // Konum metnini güncelle
+    const locName = this._getLocationName(this.playerX, this.playerZ);
+    this.locText.textContent = `${locName}  |  X: ${Math.round(this.playerX)} m, Z: ${Math.round(this.playerZ)} m`;
+  }
+
+  // ── Çekirdek Harita Çizim Motoru ──
+  _renderWorldMap(ctx, width, height, zoom, center, isMini) {
+    const pt = (x, z) => this._toPixel(x, z, width, height, zoom, center);
+    const rect = (x0, z0, x1, z1, fill) => {
+      const [p0x, p0z] = pt(x0, z0);
+      const [p1x, p1z] = pt(x1, z1);
+      ctx.fillStyle = fill;
+      ctx.fillRect(Math.min(p0x, p1x), Math.min(p0z, p1z), Math.abs(p1x - p0x), Math.abs(p1z - p0z));
+    };
+
+    // 1. Okyanus Suyu Arka Planı
+    ctx.fillStyle = '#0284c7';
+    ctx.fillRect(0, 0, width, height);
+
+    // Kıyı sığ su gradyanı / dalgaları
+    ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. 10X Çevre Arazisi & Dış Adalar
+    // Kuzey Dağları
+    rect(-450, -850, 750, -320, '#166534');
+    rect(-470, -850, -450, -320, '#fef08a'); // kumsal
+    // Güney Sahil Yarımadası
+    rect(-450, 320, 750, 850, '#15803d');
+    rect(-470, 320, -450, 850, '#fef08a');
+    // Doğu Yaylaları ve Kanyonu
+    rect(500, -700, 1200, 700, '#14532d');
+    // Batı Açık Deniz Fener Adası
+    rect(-600, -140, -460, 140, '#fde047');
+    rect(-580, -120, -480, 120, '#15803d');
+
+    // 3. Batı Şehir Adası
+    // Şehir betonu (-138m .. -9m x, -214m .. +214m z)
+    rect(-145, -215, -9, 215, '#64748b');
+    // Batı Kumsalı & Ahşap Gezinti Yolu
+    rect(-155, -215, -145, 215, '#fde047'); // kum
+    rect(-148, -213, -146, 213, '#92400e'); // ahşap sahil yolu
+
+    // Batı caddeleri & yolları
+    const roadColor = '#1e293b';
+    ctx.fillStyle = roadColor;
+    // Kuzey-güney sokaklar
+    for (const sx of [-128, -95, -65, -35, -20]) {
+      const [rx, rz0] = pt(sx - 3, -215);
+      const [, rz1] = pt(sx + 3, 215);
+      ctx.fillRect(rx, Math.min(rz0, rz1), Math.abs(pt(sx + 3, 0)[0] - rx), Math.abs(rz1 - rz0));
+    }
+    // Doğu-batı caddeler
+    for (const cz of [-200, -150, -100, -50, 0, 50, 100, 150, 200]) {
+      const [rx0, rz] = pt(-145, cz - 3.5);
+      const [rx1,] = pt(-9, cz + 3.5);
+      ctx.fillRect(Math.min(rx0, rx1), rz, Math.abs(rx1 - rx0), Math.abs(pt(0, cz + 3.5)[1] - rz));
+    }
+    // İki Göbek (Kavşak Adaları)
+    for (const gz of [-150, 150]) {
+      const [gx, gy] = pt(-65, gz);
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath(); ctx.arc(gx, gy, Math.max(4, 16 * zoom), 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#16a34a'; // orta ada çimi
+      ctx.beginPath(); ctx.arc(gx, gy, Math.max(2, 9 * zoom), 0, Math.PI * 2); ctx.fill();
+    }
+
+    // 4. Asma Köprü (İki adayı bağlayan ikonik hat)
+    const [b0x, b0z] = pt(-9, 0);
+    const [b1x, b1z] = pt(58, 0);
+    const bw = Math.max(3, 8 * zoom);
+    ctx.fillStyle = '#475569';
+    ctx.fillRect(Math.min(b0x, b1x), b0z - bw / 2, Math.abs(b1x - b0x), bw);
+    // Köprü kuleleri
+    ctx.fillStyle = '#f8fafc';
+    const [t1x,] = pt(8, 0), [t2x,] = pt(40, 0);
+    ctx.fillRect(t1x - 3, b0z - bw / 2 - 2, 6, bw + 4);
+    ctx.fillRect(t2x - 3, b0z - bw / 2 - 2, 6, bw + 4);
+
+    // 5. Doğu Şehir Adası & Bloklar
+    rect(58, -125, 142, 125, '#475569'); // doğu ada zemin betonu
+    rect(58, -125, 185, 125, '#15803d'); // doğu yeşil alan
+    // Otoyol (kuzey-güney geniş yol)
+    const [ox, oz0] = pt(94 - 10, -100);
+    const [, oz1] = pt(94 + 10, 100);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(ox, Math.min(oz0, oz1), Math.abs(pt(94 + 10, 0)[0] - ox), Math.abs(oz1 - oz0));
+
+    // AVM (Alışveriş Merkezi)
+    rect(107, -95, 135, -38, '#f43f5e'); // pembe/kırmızı büyük AVM binası
+    // Hastane
+    rect(111, 38, 135, 88, '#ffffff'); // beyaz hastane
+    // Kırmızı artı
+    const [hx, hz] = pt(123, 63);
+    ctx.fillStyle = '#ef4444';
+    ctx.fillRect(hx - 4, hz - 1.5, 8, 3);
+    ctx.fillRect(hx - 1.5, hz - 4, 3, 8);
+
+    // 6. Zenginler Bölgesi & Villa Platosu
+    rect(142, -52, 186, 52, '#94a3b8'); // zengin yaya meydanı
+    // Tepe Platosu (12 m)
+    rect(177, -111, 235, -36, '#15803d');
+    // Villa Kavisli Yolu
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = Math.max(2, 4 * zoom);
+    ctx.beginPath();
+    const [vx0, vz0] = pt(140, 0);
+    const [vx1, vz1] = pt(166, 0);
+    const [vx2, vz2] = pt(186, -38);
+    const [vx3, vz3] = pt(195, -45);
+    ctx.moveTo(vx0, vz0); ctx.lineTo(vx1, vz1);
+    ctx.quadraticCurveTo(vx2, vz1, vx3, vz2);
+    ctx.stroke();
+    // Villa Binası & Havuz
+    rect(190, -95, 230, -50, '#f8fafc'); // lüks villa
+    rect(200, -78, 222, -62, '#0ea5e9'); // parıldayan havuz
+
+    // ══════════════════════════════════════════════════════════
+    // 7. NEW YORK TARZI MERKEZ PARK (Central Park esintili)
+    // ══════════════════════════════════════════════════════════
+    // Park Alanı: 200..368 x, 14..186 z
+    const [pk0x, pk0z] = pt(200, 14);
+    const [pk1x, pk1z] = pt(368, 186);
+    const pkw = Math.abs(pk1x - pk0x), pkh = Math.abs(pk1z - pk0z);
+
+    // Park çim zemini (canlı New York Central Park yeşili)
+    ctx.fillStyle = '#16a34a';
+    ctx.fillRect(Math.min(pk0x, pk1x), Math.min(pk0z, pk1z), pkw, pkh);
+
+    // Park çevre çitleri (koyu demir kontur)
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = Math.max(1.5, 2.5 * zoom);
+    ctx.strokeRect(Math.min(pk0x, pk1x), Math.min(pk0z, pk1z), pkw, pkh);
+
+    // Park içi ana patikalar (açık kum rengi)
+    ctx.strokeStyle = '#fde68a'; ctx.lineWidth = Math.max(1.5, 3 * zoom);
+    // Doğu-Batı ana patika
+    const [pp0x, pp0z] = pt(200, 100), [pp1x, pp1z] = pt(368, 100);
+    ctx.beginPath(); ctx.moveTo(pp0x, pp0z); ctx.lineTo(pp1x, pp1z); ctx.stroke();
+    // Kuzey-Güney ana patika
+    const [pp2x, pp2z] = pt(284, 14), [pp3x, pp3z] = pt(284, 186);
+    ctx.beginPath(); ctx.moveTo(pp2x, pp2z); ctx.lineTo(pp3x, pp3z); ctx.stroke();
+
+    // Çeşme Meydanı (Taş Plaza + Su Havuzu)
+    const [plzX, plzZ] = pt(284, 100);
+    ctx.fillStyle = '#94a3b8';
+    ctx.beginPath(); ctx.arc(plzX, plzZ, Math.max(3, 13 * zoom), 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#38bdf8'; // fıskiye havuzu
+    ctx.beginPath(); ctx.arc(plzX, plzZ, Math.max(2, 8 * zoom), 0, Math.PI * 2); ctx.fill();
+
+    // Göl ve İskele (Doğu-Güney)
+    const [lakeX, lakeZ] = pt(332, 150);
+    ctx.fillStyle = '#0284c7';
+    ctx.beginPath();
+    ctx.ellipse(lakeX, lakeZ, Math.max(4, 20 * zoom), Math.max(3, 12 * zoom), 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#b45309'; // iskele
+    ctx.fillRect(lakeX - Math.max(3, 15 * zoom), lakeZ - 2, Math.max(4, 12 * zoom), 4);
+
+    // Buz Pisti (Açık mavi)
+    const [rinkX0, rinkZ0] = pt(226, 44), [rinkX1, rinkZ1] = pt(266, 68);
+    ctx.fillStyle = '#bae6fd';
+    ctx.fillRect(Math.min(rinkX0, rinkX1), Math.min(rinkZ0, rinkZ1), Math.abs(rinkX1 - rinkX0), Math.abs(rinkZ1 - rinkZ0));
+    ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(Math.min(rinkX0, rinkX1), Math.min(rinkZ0, rinkZ1), Math.abs(rinkX1 - rinkX0), Math.abs(rinkZ1 - rinkZ0));
+
+    // Çocuk Oyun Parkı (Renkli kum alanı)
+    const [playX0, playZ0] = pt(320, 41), [playX1, playZ1] = pt(360, 71);
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(Math.min(playX0, playX1), Math.min(playZ0, playZ1), Math.abs(playX1 - playX0), Math.abs(playZ1 - playZ0));
+    // Salıncak & Kaydırak sembolleri
+    ctx.fillStyle = '#ec4899';
+    ctx.fillRect(Math.min(playX0, playX1) + 4, Math.min(playZ0, playZ1) + 4, 6, 6);
+    ctx.fillStyle = '#f97316';
+    ctx.fillRect(Math.max(playX0, playX1) - 10, Math.min(playZ0, playZ1) + 4, 6, 6);
+
+    // Köpek Parkı (Çitli alan)
+    const [dpX0, dpZ0] = pt(225, 131), [dpX1, dpZ1] = pt(263, 161);
+    ctx.fillStyle = '#bbf7d0';
+    ctx.fillRect(Math.min(dpX0, dpX1), Math.min(dpZ0, dpZ1), Math.abs(dpX1 - dpX0), Math.abs(dpZ1 - dpZ0));
+    ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 1.5;
+    ctx.strokeRect(Math.min(dpX0, dpX1), Math.min(dpZ0, dpZ1), Math.abs(dpX1 - dpX0), Math.abs(dpZ1 - dpZ0));
+
+    // Park İçi Ağaç Grupları (koyu yeşil noktalar)
+    ctx.fillStyle = '#14532d';
+    for (const [tx, tz] of [
+      [220, 25], [240, 25], [260, 25], [300, 25], [330, 25], [350, 25],
+      [220, 175], [240, 175], [260, 175], [290, 175], [320, 175], [350, 175],
+      [212, 60], [212, 100], [212, 140], [358, 100], [358, 130],
+      [265, 80], [305, 80], [265, 120], [305, 120]
+    ]) {
+      const [ax, az] = pt(tx, tz);
+      ctx.beginPath(); ctx.arc(ax, az, Math.max(1.5, 3 * zoom), 0, Math.PI * 2); ctx.fill();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 8. SİLİNDİR ŞİRKET BİNALARI (Kule İkonları)
+    // ══════════════════════════════════════════════════════════
+    const towers = [
+      { name: 'NOVA', x: -111, z: 165, col: '#38bdf8' },
+      { name: 'APEX', x: -81, z: 165, col: '#34d399' },
+      { name: 'VORTEX', x: -51, z: 165, col: '#c084fc' },
+      { name: 'ATLAS', x: -111, z: -165, col: '#fb923c' },
+      { name: 'ZENITH', x: -81, z: -165, col: '#facc15' },
+      { name: 'CYBER', x: -51, z: -165, col: '#f43f5e' }
+    ];
+    for (const tw of towers) {
+      const [tx, tz] = pt(tw.x, tw.z);
+      const r = Math.max(3, 8 * zoom);
+      // Dış parlama
+      ctx.fillStyle = tw.col;
+      ctx.beginPath(); ctx.arc(tx, tz, r + 2, 0, Math.PI * 2); ctx.fill();
+      // Silindir gövde
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath(); ctx.arc(tx, tz, r, 0, Math.PI * 2); ctx.fill();
+      // İç neon taç
+      ctx.fillStyle = tw.col;
+      ctx.beginPath(); ctx.arc(tx, tz, Math.max(1.5, 3.5 * zoom), 0, Math.PI * 2); ctx.fill();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 9. ETİKETLER (Büyük Harita veya yakın planda)
+    // ══════════════════════════════════════════════════════════
+    if (!isMini || zoom > 2.5) {
+      ctx.font = `bold ${Math.max(9, Math.round(11 * zoom))}px sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+
+      const drawLabel = (text, wx, wz, col = '#ffffff', bg = 'rgba(15,23,42,0.85)') => {
+        const [lx, lz] = pt(wx, wz);
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = bg;
+        ctx.fillRect(lx - tw / 2 - 4, lz - 8, tw + 8, 16);
+        ctx.strokeStyle = col; ctx.lineWidth = 1;
+        ctx.strokeRect(lx - tw / 2 - 4, lz - 8, tw + 8, 16);
+        ctx.fillStyle = col;
+        ctx.fillText(text, lx, lz);
+      };
+
+      drawLabel('🌳 MERKEZ PARK', 284, 100, '#4ade80');
+      drawLabel('🏰 VİLLA', 210, -70, '#fde047');
+      drawLabel('🏬 AVM', 121, -66, '#fb7185');
+      drawLabel('🏢 SİLİNDİR KULELER', -81, 165, '#38bdf8');
+      drawLabel('🏢 ŞİRKETLER', -81, -165, '#fb923c');
+      drawLabel('🌉 ASMA KÖPRÜ', 24, 0, '#94a3b8');
+      if (!isMini) {
+        drawLabel('🏖️ BATI SAHİLİ', -150, 0, '#fef08a');
+        drawLabel('🏥 HASTANE', 123, 63, '#38bdf8');
+        drawLabel('🏔️ KUZEY DAĞLARI', 150, -550, '#86efac');
+        drawLabel('🏝️ GÜNEY LAGÜNÜ', 150, 550, '#67e8f9');
+        drawLabel('⛵ FENER ADASI', -530, 0, '#fef08a');
+      }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    // 10. OYUNCU İKONU (RADAR & DÖNEN YÖN OKU)
+    // ══════════════════════════════════════════════════════════
+    const [px, pz] = pt(this.playerX, this.playerZ);
+
+    // Yanıp sönen radar halkası
+    const ringR = Math.max(6, 12 * zoom) + Math.sin(this.pulse) * 4;
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.65)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(px, pz, Math.max(3, ringR), 0, Math.PI * 2); ctx.stroke();
+
+    // Dönen yön oku (Oyuncunun baktığı yön)
+    ctx.save();
+    ctx.translate(px, pz);
+    ctx.rotate(-this.playerYaw + Math.PI); // Three.js cameraYaw yön dönüşümü
+
+    // Ok çizimi
+    const arrowSize = Math.max(6, 10 * zoom);
+    ctx.fillStyle = '#ef4444'; // parlak kırmızı gövde
+    ctx.strokeStyle = '#ffffff'; // beyaz keskin kontur
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -arrowSize * 1.5); // uç
+    ctx.lineTo(arrowSize * 0.9, arrowSize);
+    ctx.lineTo(0, arrowSize * 0.4); // girinti
+    ctx.lineTo(-arrowSize * 0.9, arrowSize);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // Merkez parıltı noktası
+    ctx.fillStyle = '#ffff55';
+    ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // "SEN" etiketi (küçük harita ve büyük haritada belirgin)
+    ctx.font = 'bold 9px sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillStyle = '#ef4444';
+    ctx.fillText('SEN', px, pz + arrowSize + 4);
+  }
+}

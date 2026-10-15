@@ -15,7 +15,7 @@ export const TOP_LAYER_THICKNESS = 0.5;
 export const BEDROCK_Y = GROUND_Y - TOP_LAYER_THICKNESS; // alt katmanın üst yüzü (çukur tabanı)
 
 const CELL = VOXEL_SIZE;  // hücre boyutu = voxel boyutu
-const PX_PER_M = 4;       // üst katman dokusunun çözünürlüğü: hücre başına 1 piksel (hücreler zaten düz renklidir; büyük dünya için bellek ucuz)
+const PX_PER_M = 1 / CELL;  // üst katman dokusunun çözünürlüğü: hücre başına 1 piksel (hücreler zaten düz renklidir; büyük dünya için bellek ucuz)
 const DEPTH_BELOW = -2.5; // kıyıda görünen yan yüzeylerin alt sınırı
 
 export class Terrain {

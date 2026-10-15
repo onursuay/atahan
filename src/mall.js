@@ -92,10 +92,10 @@ export function furnishMall(lm, x1, y1, z1, x2, y2, z2, MALL_FLOOR) {
     for (let v = 0; v < W; v += 4) kit.put(frontX0, F, Zi0 + v, frontX1, F + 6, Zi0 + v, P.BLACK);   // çıtalar
     kit.put(frontX0, F + 6, Zi0, frontX1, F + 6, Zi1, P.BLACK);
     kit.clr(frontX0, F, Zi0 + Math.floor(W / 2) - 2, frontX1, F + 5, Zi0 + Math.floor(W / 2) + 1);   // kapı boşluğu (2 m)
-    kit.put(frontX0, F + 7, Zi0, frontX1, F + 8, Zi1, P.WHITE);                                      // tabela bandı (üzerine yazılı levha asılır)
-    // Tabela (yazılı levha): koridora bakar
-    const sx = side === 'w' ? 0.5 * frontX1 + 0.27 : 0.5 * frontX0 - 0.27;
-    kit.sign(info[0], { bg: info[1], fg: info[2], w: Math.min(6.4, W * 0.5 - 0.4), h: 0.9 }, sx, 0.5 * (F + 7) + 0.5, 0.25 * (Zi0 + Zi1), side === 'w' ? Math.PI / 2 : -Math.PI / 2);
+    kit.put(frontX0, F + 8, Zi0, frontX1, F + 8, Zi1, P.BLACK);                                      // üst ince kiriş (tabelanın asıldığı şık kiriş)
+    // Tabela: arka plansız, ışıl ışıl parıldayan oyun içi neon tabela
+    const sx = side === 'w' ? 0.5 * frontX1 + 0.28 : 0.5 * frontX0 - 0.28;
+    kit.sign(info[0], { neon: true, color: info[1], fg: info[2], w: Math.min(6.4, W * 0.5 - 0.4), h: 1.05 }, sx, 0.5 * (F + 7) + 0.35, 0.25 * (Zi0 + Zi1), side === 'w' ? Math.PI / 2 : -Math.PI / 2);
     // Aydınlatma: arka duvar üstünde ışık şeridi ve iki sarkan lamba
     kit.put(backX0, wallTop, Zi0, backX1, wallTop, Zi1, P.LAMP);
     [[5, 3], [5, W - 4], [10, 3], [10, W - 4]].forEach(([d, v]) => { if (v > 0 && v < W) s.b(d, d, v, v, 8, 8, P.LAMP); });
