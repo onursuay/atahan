@@ -40,6 +40,21 @@ let bobAmount = 0;      // yürüyüş sallanması şiddeti (0..1)
 const cameraDistance = 9.0;
 const cameraHeight = 3.2;
 
+// ── AÇILIŞ JENERİĞİ ──
+// Siyah ekran → ekran yavaşça açılır; karakter kendi evinde koltukta otururken yere doğru bakar, ekran görünmeye başlayınca
+// yavaşça kafasını kaldırıp televizyona bakar. Jenerik boyunca kontroller kapalıdır; televizyona bakınca kontroller geri gelir.
+const INTRO_TURN = 0;                         // doğrudan TV hizasında yere bakar, kafasını yavaşça TV'ye kaldırır
+const INTRO_PITCH0 = 1.18;                    // başlangıçta yere doğru bakış (rad)
+const INTRO_BASE_YAW = -Math.PI / 2;          // TV yönü (doğu, +x)
+const INTRO_SEAT_EYE = 0.85;                  // oturan karakterin göz yüksekliği (ayak seviyesinden, m)
+const INTRO_T = { fadeStart: 0.8, fadeEnd: 5.2, lookStart: 1.4, lookEnd: 7.2, remoteDown: 7.4, end: 8.2 };   // saniye
+let introActive = false, introPlayed = false, introT = 0, introWaiting = false;
+let eyeOffset = 1.8;                          // kamera göz yüksekliği (ayaktan); oturunca düşer
+let seated = false;                           // koltukta oturuyor (ilk hareketle kalkar)
+let introFadeEl = null, remoteModel = null, introMenuEl = null;
+let mouseSens = 1;                            // ayarlar menüsünden: fare hassasiyeti çarpanı
+const smoothstep01 = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
+
 const inputState = {
   forward: false,
   backward: false,
@@ -335,6 +350,11 @@ function updateGame(dt) {
     sound.stopEngine();
     character.update(dt, inputState, cameraYaw);
   }
+  // Jenerik: kontroller kapalı; bitince oyuncu ilk hareketinde koltuktan kalkar (göz yüksekliği yükselir)
+  if (introActive) { for (const k in inputState) inputState[k] = false; updateIntro(dt); }
+  else if (seated && (inputState.forward || inputState.backward || inputState.left || inputState.right || inputState.jump)) seated = false;
+  if (!introActive) eyeOffset += ((seated ? INTRO_SEAT_EYE : 1.8) - eyeOffset) * (1 - Math.exp(-5 * dt));
+  if (voxelWorld.homeTV) voxelWorld.homeTV.light.intensity = 14 + Math.sin(performance.now() * 0.011) * 2 + Math.sin(performance.now() * 0.0047) * 2.5;   // TV ışığı hafifçe titrer
   // Birinci kişi: karakter her zaman baktığımız yöne dönük olsun (silah öne baksın)
   if (firstPerson && !inCar) character.mesh.rotation.y = cameraYaw + Math.PI;
   // Nişangâh yakınlaştırması (yumuşak)
@@ -390,6 +410,102 @@ function updateGame(dt) {
   updateCamera(dt);
 }
 
+// Elde tutulan TV kumandası (silah modelinin çizildiği ayrı sahnede; kamerayla birlikte durur)
+function buildRemote() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.028, 0.24), new THREE.MeshLambertMaterial({ color: 0x15181d }));
+  g.add(body);
+  const cols = [0xdc2626, 0x22c55e, 0x3b82f6, 0xfacc15];
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 2; c++) {
+    const b = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.012, 0.02), new THREE.MeshLambertMaterial({ color: r === 0 && c === 0 ? 0xdc2626 : cols[(r + c) % 4] }));
+    b.position.set(-0.016 + c * 0.032, 0.018, -0.07 + r * 0.04);
+    g.add(b);
+  }
+  const led = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.012, 0.012), new THREE.MeshBasicMaterial({ color: 0xff3b3b }));
+  led.position.set(0, 0.016, -0.115);
+  g.add(led);
+  g.visible = false;
+  handWeapons.viewScene.add(g);
+  return g;
+}
+
+function startIntro() {
+  introPlayed = true; introActive = true; introT = 0;
+  if (!firstPerson) setFirstPerson(true);
+  seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
+  for (const k in inputState) inputState[k] = false;
+  if (!introFadeEl) {
+    introFadeEl = document.createElement('div');
+    introFadeEl.style.cssText = 'position:fixed;inset:0;background:#000;z-index:200;pointer-events:none;opacity:1';
+    document.body.appendChild(introFadeEl);
+    const st = document.createElement('style');
+    st.textContent = 'body.intro #hud, body.intro #crosshair, body.intro #vitals, body.intro #daynight, body.intro #weapon-now, body.intro #weapon-hint, body.intro #mag-hud, body.intro #detonate-btn { display:none !important; }'
+      + '#main-menu{position:fixed;inset:0;z-index:210;background:radial-gradient(ellipse at center,#1b2440 0%,#05070d 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;text-align:center}'
+      + '#main-menu h1{font-size:44px;letter-spacing:4px;margin:0 0 26px;text-shadow:4px 4px #000,0 0 24px #5b8cff}'
+      + '#main-menu button{font-family:inherit;font-size:20px;letter-spacing:2px;width:280px;padding:14px 0;color:#fff;background:#1f2a48;border:3px solid #5b8cff;cursor:pointer}'
+      + '#main-menu button:hover{background:#34457a}'
+      + '#main-menu .panel{display:none;flex-direction:column;align-items:center;gap:16px;font-size:15px}'
+      + '#main-menu input[type=range]{width:260px}';
+    document.head.appendChild(st);
+    const menu = document.createElement('div');
+    menu.id = 'main-menu';
+    menu.innerHTML = '<h1>ATAHAN OYUN</h1>'
+      + '<div class="panel" id="mm-home" style="display:flex;gap:14px"><button id="mm-play">OYNA</button><button id="mm-settings">AYARLAR</button></div>'
+      + '<div class="panel" id="mm-set"><div>AYARLAR</div>'
+      + '<button id="mm-sound">SES: AÇIK</button>'
+      + '<label>FARE HASSASİYETİ<br><input id="mm-sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label>'
+      + '<button id="mm-back">GERİ</button></div>';
+    document.body.appendChild(menu);
+    const $ = (id) => menu.querySelector('#' + id);
+    $('mm-settings').onclick = () => { $('mm-home').style.display = 'none'; $('mm-set').style.display = 'flex'; };
+    $('mm-back').onclick = () => { $('mm-set').style.display = 'none'; $('mm-home').style.display = 'flex'; };
+    $('mm-sound').onclick = () => { sound.init(); const m = sound.toggleMute(); $('mm-sound').innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
+    $('mm-sens').oninput = (e) => { mouseSens = parseFloat(e.target.value); };
+    $('mm-play').onclick = () => {      // OYNA: menü kapanır, jenerik başlar
+      menu.style.display = 'none';
+      introWaiting = false; introT = 0;
+      sound.init();
+      if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
+    };
+    introMenuEl = menu;
+  }
+  // Oyun ana menüyle başlar: OYNA'ya basılana kadar ekran siyah, jenerik bekler
+  introWaiting = true;
+  introMenuEl.style.display = 'flex';
+  introFadeEl.style.display = 'block'; introFadeEl.style.opacity = '1';
+  document.body.classList.add('intro');
+  if (!remoteModel) remoteModel = buildRemote();
+  remoteModel.visible = true;
+  handWeapons.root.visible = false;
+  cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
+}
+
+function updateIntro(dt) {
+  if (introWaiting) return;   // oyuncu başlat ekranına tıklayana kadar siyah ekranda bekler
+  introT += dt;
+  const T = INTRO_T;
+  introFadeEl.style.opacity = String(1 - smoothstep01((introT - T.fadeStart) / (T.fadeEnd - T.fadeStart)));
+  // Baş hareketi: önce aşağı bakıyor, yavaşça başını kaldırır ve TV'ye döner
+  const k = smoothstep01((introT - T.lookStart) / (T.lookEnd - T.lookStart));
+  cameraPitch = INTRO_PITCH0 * (1 - k) + 0.0 * k;
+  cameraYaw = INTRO_BASE_YAW + INTRO_TURN * (1 - k);
+  // Kumanda: hafif nefes salınımı; TV'ye bakınca basma hareketi, sonra elden iner
+  const down = smoothstep01((introT - T.remoteDown) / (T.end - T.remoteDown));
+  const press = Math.max(0, Math.sin((introT - (T.lookEnd + 0.1)) * 14)) * (introT > T.lookEnd + 0.1 && introT < T.lookEnd + 0.35 ? 1 : 0);
+  remoteModel.position.set(0.16, -0.27 + Math.sin(introT * 1.7) * 0.004 - down * 0.35, -0.42);
+  remoteModel.rotation.set(0.55 + press * 0.12, -0.25, 0.08);
+  if (introT >= T.end) endIntro();
+}
+
+function endIntro() {
+  introActive = false;
+  introFadeEl.style.opacity = '0'; introFadeEl.style.display = 'none';
+  document.body.classList.remove('intro');
+  remoteModel.visible = false;
+  handWeapons.root.visible = true;
+  cameraPitch = 0.0; cameraYaw = INTRO_BASE_YAW;
+}
+
 function setFirstPerson(on) {
   firstPerson = on;
   eyeY = null;
@@ -419,7 +535,7 @@ function updateCamera(dt) {
     const dirZ = -Math.cos(cameraYaw) * Math.cos(cameraPitch);
 
     // Yükseklik yumuşatılır: basamak çıkarken ve inerken kamera sıçramaz
-    const targetY = charPos.y + 1.8;
+    const targetY = charPos.y + eyeOffset;
     if (eyeY === null || Math.abs(targetY - eyeY) > 3) eyeY = targetY;
     eyeY += (targetY - eyeY) * (1 - Math.exp(-16 * dt));
 
@@ -499,7 +615,8 @@ function loadLevel(index) {
   dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });
   npcs.day = () => DayNight.dayAmount(dayNight.t);   // villa sahibi geceleri uyur
   window.__gece = (sn) => dayNight.setTime(sn);   // hata ayıklama: __gece(630) = gecenin başı
-  cameraYaw = -Math.PI / 2; // Şehir caddesinden uzun köprüye ve zengin adaya doğru baksın
+  cameraYaw = -Math.PI / 2; // Evdeki koltuktan doğuya, televizyona doğru baksın
+  if (!introPlayed) startIntro();   // açılış jeneriği yalnız oyun ilk açıldığında
 
   levelTitleEl.innerText = cfg.title;
   levelDescEl.innerText = cfg.desc;
@@ -772,6 +889,7 @@ function useHammer() {
 function setupEventListeners() {
   window.addEventListener('keydown', (e) => {
     sound.init();
+    if (introActive) { if (e.code === 'Space' || e.code === 'Tab') e.preventDefault(); return; }   // jenerik: kontroller kapalı
     const key = e.key.toLowerCase();
 
     // W tuşu: Karakter öne gider
@@ -833,6 +951,7 @@ function setupEventListeners() {
   window.addEventListener('contextmenu', (e) => e.preventDefault());   // sağ tık menüsü açılmasın: sağ tık = el
 
   canvasContainer.addEventListener('mousedown', (e) => {
+    if (introActive) return;   // jenerik: kontroller kapalı
     if (e.target.closest && e.target.closest('.weapon-selector')) return; // silah menüsüne tıklama ateş etmez
     if (e.button === 0) {
       fireWeapon();
@@ -841,12 +960,13 @@ function setupEventListeners() {
   });
 
   window.addEventListener('mousemove', (e) => {
+    if (introActive) return;   // jenerik: bakış animasyonla yönetilir, fare etkisiz
     // Kapı tutulurken fare bakışı değil kapıyı sürükler
     if (voxelWorld.doors.drag) {
       voxelWorld.doors.dragMove(e.movementX, e.movementY, camera);
       return;
     }
-    const sensitivity = scopeOn ? 0.0011 : 0.0035;
+    const sensitivity = (scopeOn ? 0.0011 : 0.0035) * mouseSens;
     if (handWeapons) { handWeapons.mx += e.movementX; handWeapons.my += e.movementY; }
     cameraYaw -= e.movementX * sensitivity;
     cameraPitch += e.movementY * sensitivity;

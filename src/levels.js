@@ -241,7 +241,7 @@ export class LevelManager {
     this.buildTower(-120, 1, -100, -96, 14, -74, { ...CC, side: 'z2' });
     this.buildTower(-120, 1, 104, -96, 18, 126, { ...CC, side: 'z1' });
     this.buildTower(-120, 1, -126, -96, 16, -104, { ...BR, side: 'z2' });
-    this.buildTower(-150, 1, 8, -134, 10, 40, { ...BR, side: 'x2' });
+    this.buildHome(-150, 1, 8, -134, 6, 40);                       // oyuncunun evi: koltukta oturup televizyon izlediği başlangıç noktası
     this.buildTower(-150, 1, -40, -134, 10, -8, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, 74, -134, 12, 110, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, -110, -134, 12, -74, { ...BR, side: 'x2' });
@@ -954,6 +954,78 @@ export class LevelManager {
         }
       }
     }
+  }
+
+  // OYUNCUNUN EVİ (başlangıç): tek katlı, batıya (kumsal tarafı) açılan kapılı müstakil ev.
+  // Doğu duvarında televizyon, karşısında koltuk ve sehpa; oyuncu koltukta oturarak başlar (açılış jeneriği src/main.js).
+  buildHome(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.WOOD);
+    w.fillBox(x1 + 1, 0, z1 + 1, x2 - 1, 0, z2 - 1, PALETTE.WOOD);          // iç zemin: ahşap parke
+    const cz = Math.round((z1 + z2) / 2);
+    w.clearBox(x1, y1, cz - 1, x1, y1 + 4, cz + 1);                          // giriş (batı yüzü): gerçek kapı
+    this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
+    this.addCeilingLights(x1, y1, z1, x2, y2, z2, 1);
+
+    // Mobilya doğrudan voxel (0.5 m) indeksleriyle: voxel i x/z'de [0.5 i - 0.25, 0.5 i + 0.25], y satırı j [0.5 j, 0.5 j + 0.5] aralığındadır.
+    const vw = this.world;
+    const vput = (ix0, iy0, iz0, ix1, iy1, iz1, mat) => {
+      for (let x = ix0; x <= ix1; x++) for (let y = iy0; y <= iy1; y++) for (let z = iz0; z <= iz1; z++) { vw.voxels.delete(`${x},${y},${z}`); vw.setVoxel(x, y, z, mat); }
+    };
+    const wv = Math.floor(K * x1 / 2), ev = Math.floor((K * x2 + 2) / 2), zv = Math.floor(K * cz / 2);   // batı duvarı, doğu duvarı, kapı hizası
+    const zr0 = zv + 5, zr1 = zv + 10;                                       // koltuk genişliği (voxel z)
+    // Koltuk (doğuya, TV'ye bakar): sırtlık batıda, oturma yeri ve iki kol
+    vput(wv + 3, 1, zr0 + 1, wv + 3, 2, zr1 - 1, PALETTE.BRICK);             // sırtlık
+    vput(wv + 4, 1, zr0 + 1, wv + 5, 1, zr1 - 1, PALETTE.BRICK);             // oturma yeri
+    vput(wv + 3, 1, zr0, wv + 5, 1, zr0, PALETTE.BRICK); vput(wv + 3, 2, zr0, wv + 3, 2, zr0, PALETTE.BRICK);   // kol (kuzey)
+    vput(wv + 3, 1, zr1, wv + 5, 1, zr1, PALETTE.BRICK); vput(wv + 3, 2, zr1, wv + 3, 2, zr1, PALETTE.BRICK);   // kol (güney)
+    // Sehpa
+    vput(wv + 9, 1, zr0 + 2, wv + 10, 1, zr1 - 2, PALETTE.WOOD);
+    // TV ünitesi (doğu duvarının önünde)
+    vput(ev - 1, 1, zr0 - 1, ev - 1, 1, zr1 + 1, PALETTE.IRON);
+
+    // Metre cinsinden konumlar
+    const seatX = 0.5 * (wv + 4 + wv + 5) / 2;
+    const seatZ = 0.5 * (zr0 + 1 + zr1 - 1) / 2;
+    const seatTopY = 1.0;                                                    // zemin 0.5 + 1 voxel
+    const standTopY = 1.0;
+    const tvX = 0.5 * (ev - 1) + 0.05;
+    const tvW = 4.0, tvH = 2.2, tvY = standTopY + tvH / 2 + 0.05;
+
+    const grp = new THREE.Group();
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, tvH + 0.14, tvW + 0.14), new THREE.MeshLambertMaterial({ color: 0x0b0d12 }));
+    frame.position.set(tvX, tvY, seatZ);
+    grp.add(frame);
+    let tvMat;
+    try {
+      const c = document.createElement('canvas'); c.width = 512; c.height = 288;
+      const g = c.getContext('2d');
+      const gr = g.createLinearGradient(0, 0, 512, 288);
+      gr.addColorStop(0, '#1e3a8a'); gr.addColorStop(0.5, '#7c3aed'); gr.addColorStop(1, '#f97316');
+      g.fillStyle = gr; g.fillRect(0, 0, 512, 288);
+      g.fillStyle = 'rgba(255,255,255,0.16)'; for (let i = 0; i < 9; i++) g.fillRect(0, 150 + i * 14, 512, 3);
+      g.fillStyle = '#fde68a'; g.beginPath(); g.arc(256, 150, 46, 0, Math.PI * 2); g.fill();
+      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+      tvMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+    } catch (e) { tvMat = new THREE.MeshBasicMaterial({ color: 0x7c3aed }); }
+    const screen = new THREE.Mesh(new THREE.PlaneGeometry(tvW, tvH), tvMat);
+    screen.position.set(tvX - 0.07, tvY, seatZ);
+    screen.rotation.y = -Math.PI / 2;                                        // -x'e (koltuğa) bakar
+    grp.add(screen);
+    const light = new THREE.PointLight(0x8b7cf6, 14, 12, 2);                 // TV'nin odaya yaydığı ışık (main.js hafifçe titretir)
+    light.position.set(tvX - 1.0, tvY, seatZ);
+    grp.add(light);
+    this.world.scene.add(grp);
+    this.world.decor.push(grp);
+    this.world.homeTV = { light };
+
+    // Başlangıç noktası: koltuğun üstü
+    const spawn = this.levelConfigs[0].spawn;
+    spawn.x = seatX; spawn.z = seatZ; spawn.y = seatTopY + 1.05;
+    this.world.homeSeat = { x: seatX, y: seatTopY, z: seatZ, tvX, tvY };
+    // Yanımızda koltuğun üstünde küçük bir kumanda (tutulabilir eşya olarak da odada durur)
+    this.world.propSpawns.push({ kind: 'remote', x: seatX + 0.12, y: seatTopY + 0.03, z: seatZ + 0.55, yaw: -Math.PI / 2 + 0.25 });
   }
 
   // Genel bina: çok katlı, şerit pencereli, kapılı ve çatısında tank olan kule/ofis/dükkân
