@@ -961,6 +961,25 @@ class SoundEngine {
     this._burst(now + 0.08, 0.2, 0.22, 'bandpass', 1200, 500, 3.5);
   }
 
+  // E tuşu: ahtapot topaç gibi hızla dönüp etrafı yıkarken çıkan fırtına / kırbaç sesi
+  playOctopusSpin(dur = 1.15) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 6; i++) {
+      const t = now + i * (dur / 6);
+      this._burst(t, 0.18, 0.34, 'bandpass', 380 + (i % 2) * 520, 1650, 2.4);
+      this._thump(t, 0.14, 0.3, 210, 65, 'triangle');
+    }
+  }
+
+  // Tutulan binayı veya insanı fırlatma sesi
+  playOctopusThrow() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 0.35, 0.5, 180, 48, 'sine');
+    this._burst(now, 0.32, 0.38, 'bandpass', 520, 2200, 1.8);
+  }
+
   // Gürültü (Noise) Üreteci
   playNoise(duration, volume, filterFreq = 1000) {
     if (!this.ctx) return;

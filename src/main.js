@@ -169,6 +169,7 @@ function init() {
   handWeapons.onAmmoChange = updateMagUI;
   handWeapons.arsenal.onShake = (s) => { screenShake = Math.max(screenShake, s); };
   handWeapons.arsenal.onHint = showWeaponHint;
+  handWeapons.props = props;
 
   voxelWorld.collapse.onShake = (v) => { screenShake = Math.max(screenShake, v); };
   cars = new CarManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (dx, dz, speed) => {
@@ -392,7 +393,10 @@ function updateGame(dt) {
   handWeapons.update(dt, {
     moving: character.isGrounded && !character.inWater &&
       (Math.abs(character.vel.x) + Math.abs(character.vel.z)) > 1.5,
-    walkCycle: character.walkCycle
+    walkCycle: character.walkCycle,
+    character,
+    onYawDelta: (d) => { cameraYaw -= d; },
+    onScreenShake: (s) => { screenShake = Math.max(screenShake, s); }
   });
   particleSystem.update(dt);
 
@@ -804,7 +808,7 @@ function fireWeapon() {
   if (cur === 6) { handWeapons.fireGun('shotgun'); return; }
   if (cur === 8) { handWeapons.fireGun('sniper'); screenShake = 0.12; return; }
   if (cur >= 10 && cur <= 15) { handWeapons.arsenal.fire(cur); return; }   // cephanelik: kara delik, yıldırım, eritici, deprem, yıkım topu, testere
-  if (cur === 16) { handWeapons.octopus.onLeftClick(); return; }           // Ahtapot: sol tıkla kolunu kanca gibi fırlat ve binayı sar
+  if (cur === 16) { handWeapons.octopus.onLeftClick((s) => { screenShake = Math.max(screenShake, s); }); return; } // Ahtapot: sol tıkla dokunaç at / sar / tut / fırlat
   if (cur === 3 || cur === 4) {                           // Bombalar: yerleştir
     if (bombs.place(cur === 3 ? 'timed' : 'remote')) handWeapons.onRocketFired();
     return;
@@ -841,10 +845,17 @@ function selectWeapon(idx) {
   updateWeaponUI();
 }
 
-// Bilgisayarın E Tuşuna Basınca Çekiç Vursun (Belli bir mesafeye kadar)
+// Bilgisayarın E Tuşuna Basınca Çekiç Vursun (Ahtapot modundaysa Topaç gibi dönerek etrafındaki eşyaları kırsın!)
 function useHammer() {
-  if (weaponSystem.currentWeapon === 16) return; // Ahtapot modunda çekiç kullanılmaz ve görünmez
   sound.init();
+  if (weaponSystem.currentWeapon === 16) {
+    handWeapons.octopus.startTopacSpin(
+      character,
+      (d) => { cameraYaw -= d; },
+      (s) => { screenShake = Math.max(screenShake, s); }
+    );
+    return;
+  }
   const swung = character.triggerHammerSwing();
   if (!swung) return;
 
@@ -919,7 +930,7 @@ function setupEventListeners() {
       e.preventDefault();
     }
 
-    // E tuşu: Çekiç vuruşu
+    // E tuşu: Çekiç vuruşu (veya Ahtapot modunda topaç dönüşü)
     if (key === 'e' || e.code === 'KeyE') {
       if (inCar) exitCar();
       else {
@@ -1003,7 +1014,11 @@ function setupEventListeners() {
       return;
     }
     const sensitivity = (scopeOn ? 0.0011 : 0.0035) * mouseSens;
-    if (handWeapons) { handWeapons.mx += e.movementX; handWeapons.my += e.movementY; }
+    if (handWeapons) {
+      handWeapons.mx += e.movementX;
+      handWeapons.my += e.movementY;
+      if (handWeapons.octopus) handWeapons.octopus.onMouseMove(e.movementX, e.movementY);
+    }
     cameraYaw -= e.movementX * sensitivity;
     cameraPitch += e.movementY * sensitivity;
     cameraPitch = firstPerson

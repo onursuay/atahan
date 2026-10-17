@@ -262,6 +262,34 @@ export class NPCManager {
   }
 
   _step(n, dt) {
+    // Ahtapot koluyla havada tutulan insan: çırpınır, normal yürüme/yerçekimi devre dışıdır
+    if (n.grabbed) {
+      n.cycle += dt * 18;
+      const flail = Math.sin(n.cycle) * 1.15;
+      n.lLeg.rotation.x = flail; n.rLeg.rotation.x = -flail;
+      n.lArm.rotation.x = -2.2 + flail * 0.5; n.rArm.rotation.x = -2.2 - flail * 0.5;
+      n.group.position.set(n.x, n.y, n.z);
+      n.group.rotation.set(Math.sin(n.cycle * 0.5) * 0.25, n.heading, Math.cos(n.cycle * 0.5) * 0.2);
+      return;
+    }
+    // Ahtapot koluyla fırlatılan insan: havada takla atarak uçar, yere veya binaya çarpınca parçalanır
+    if (n.thrownVel) {
+      n.thrownVel.y -= GRAVITY * dt;
+      n.x += n.thrownVel.x * dt;
+      n.y += n.thrownVel.y * dt;
+      n.z += n.thrownVel.z * dt;
+      n.cycle += dt * 16;
+      n.group.position.set(n.x, n.y, n.z);
+      n.group.rotation.set(n.cycle, n.heading, n.cycle * 0.7);
+      const gy = this.voxelWorld.terrain.topYAt(n.x, n.z);
+      if (this._solid(n.x, n.y, n.z) || (gy > -Infinity && n.y <= gy + 0.1) || n.y < -2) {
+        const hitPos = new THREE.Vector3(n.x, n.y + 1.0, n.z);
+        this.voxelWorld.sweepCut(hitPos, 0.9, n.thrownVel);
+        n.thrownVel = null;
+        this._kill(n, hitPos);
+      }
+      return;
+    }
     if (n.script) n.script.update(n, dt, this);                        // villa sahibinin günlük rutini (yemek, merdiven, uyku)
     if (n.frozen) { this._posePose(n, dt); return; }                   // oturan/yatan: fizik ve yürüme yok
     if (n.skate) { this._stepSkate(n, dt); return; }                   // buz pistinde patenle kayar
@@ -420,11 +448,11 @@ export class NPCManager {
     return killed;
   }
 
-  // Işın (minigun mermisi) en yakın NPC'ye çarpar mı? { dist, point, npc } ya da null
-  rayHit(origin, dir, maxDist) {
+  // Işın (minigun mermisi veya ahtapot kolu) en yakın NPC'ye çarpar mı? { dist, point, npc } ya da null
+  rayHit(origin, dir, maxDist, extraRadius = 0) {
     let best = null;
     for (const n of this.npcs) {
-      if (n.lie) { const cc = new THREE.Vector3(n.x, n.y + 0.5, n.z), tt = cc.clone().sub(origin), al = tt.dot(dir); if (al > 0 && al < maxDist) { const cl = origin.clone().addScaledVector(dir, al); if (cl.distanceTo(cc) < 1.3 && (!best || al < best.dist)) best = { dist: al, point: cl, npc: n, head: false }; } continue; }   // yatan: gövde ortasında küre
+      if (n.lie) { const cc = new THREE.Vector3(n.x, n.y + 0.5, n.z), tt = cc.clone().sub(origin), al = tt.dot(dir); if (al > 0 && al < maxDist) { const cl = origin.clone().addScaledVector(dir, al); if (cl.distanceTo(cc) < 1.3 + extraRadius && (!best || al < best.dist)) best = { dist: al, point: cl, npc: n, head: false }; } continue; }   // yatan: gövde ortasında küre
       const k = n.k || 1, c = new THREE.Vector3(n.x, n.y - (n.drop || 0) + HEIGHT * k / 2, n.z);
       const to = c.clone().sub(origin);
       const along = to.dot(dir);
@@ -434,7 +462,7 @@ export class NPCManager {
       // Gövde yüksekliğine göre uzun bir kapsül gibi: yatay mesafe + dikey tolerans
       const vert = Math.abs(closest.y - c.y);
       const horiz = Math.hypot(closest.x - c.x, closest.z - c.z);
-      if (horiz <= 0.32 * SCALE * k && vert <= HEIGHT * k / 2 && lateral <= 1.0 * SCALE * k) {
+      if (horiz <= 0.32 * SCALE * k + extraRadius && vert <= HEIGHT * k / 2 + extraRadius * 0.6 && lateral <= 1.0 * SCALE * k + extraRadius) {
         if (!best || along < best.dist) best = { dist: along, point: closest, npc: n, head: closest.y >= n.y - (n.drop || 0) + HEIGHT * k * HEAD_FROM };
       }
     }
