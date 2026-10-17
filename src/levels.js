@@ -176,6 +176,8 @@ export class LevelManager {
     this.world.residents = [];
     this.world.parkedCars = [];
     this.world.propSpawns = [];  // tutulabilir eşyalar: { kind, x, y, z, yaw, color, hung } (main.js props.js'e aktarır)
+    this.world.shelves = [];     // mutfak dolabı, fırın ve buzdolabı içindeki ince raflar
+    this.world.officeBuildings = []; // şirket binaları (hasar alınca çalışanların kaçması için)
     this.world.workers = []; this.world.bosses = []; this.world.guards = []; this.world.dogs = [];
     this.world.lamps = [];       // sokak lambası kafaları (gece ışık havuzları ve gerçek ışık için): { x, y, z, gy }
     const ISL = 166; // zengin bölgenin x kayması (eski birim): doğu yolu (x=186) için 12 birim doğuya alındı
@@ -241,7 +243,7 @@ export class LevelManager {
     this.buildTower(-120, 1, -100, -96, 14, -74, { ...CC, side: 'z2' });
     this.buildTower(-120, 1, 104, -96, 18, 126, { ...CC, side: 'z1' });
     this.buildTower(-120, 1, -126, -96, 16, -104, { ...BR, side: 'z2' });
-    this.buildHome(-150, 1, 8, -134, 6, 40);                       // oyuncunun evi: koltukta oturup televizyon izlediği başlangıç noktası
+    this.buildHome(-150, 1, 8, -134, 13, 40);                       // oyuncunun iki katlı Teardown tarzı evi: üst kat salonda başlar, yan ve alt katta detaylı mutfak vardır
     this.buildTower(-150, 1, -40, -134, 10, -8, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, 74, -134, 12, 110, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, -110, -134, 12, -74, { ...BR, side: 'x2' });
@@ -755,7 +757,7 @@ export class LevelManager {
     this.b.raw(Math.round(K * xu0) - 1, base + off, Math.round(K * zu0) - 1, Math.round(K * xu1) + 1, base + off + h - 1, Math.round(K * zu1) + 1, mat);
   }
 
-  furnish(x1, y1, z1, x2, y2, z2, kind) {
+  furnish(x1, y1, z1, x2, y2, z2, kind, side = 'z1') {
     const W = x2 - x1, D = z2 - z1;
     if (W < 6 || D < 8) return;
     // Tür verilmediyse yüksekliğe göre: alçak = dükkân, orta = müstakil ev, yüksek = ofis, çok yüksek = apartman
@@ -765,12 +767,53 @@ export class LevelManager {
     if (y1 + 12 < y2 - 2) bases.push(GROUND_ROW_SUB + 37);          // 2. kat döşemesinin üstü
     const xa = x1 + 2, xb = x2 - 5, za = z1 + 4, zb = z2 - 2;       // kullanılabilir alan (kapıdan ve merdivenden uzak)
     const F = (b, ...a) => this.furn(b, ...a);
+
+    let officeBldId = null, officeDoorPos = null;
+    if (kind === 'office') {
+      officeBldId = `ofis-${x1}-${z1}`;
+      const cxm = 0.75 * Math.round((x1 + x2) / 2), czm = 0.75 * Math.round((z1 + z2) / 2);
+      officeDoorPos = side === 'x1' ? { x: 0.75 * x1, y: 0.5, z: czm, outX: -1, outZ: 0, chokeX: 0.75 * (x1 + 1.6), chokeZ: czm }
+        : side === 'x2' ? { x: 0.75 * x2, y: 0.5, z: czm, outX: 1, outZ: 0, chokeX: 0.75 * (x2 - 1.6), chokeZ: czm }
+        : side === 'z2' ? { x: cxm, y: 0.5, z: 0.75 * z2, outX: 0, outZ: 1, chokeX: cxm, chokeZ: 0.75 * (z2 - 1.6) }
+        : { x: cxm, y: 0.5, z: 0.75 * z1, outX: 0, outZ: -1, chokeX: cxm, chokeZ: 0.75 * (z1 + 1.6) };
+      this.world.officeBuildings = this.world.officeBuildings || [];
+      this.world.officeBuildings.push({
+        id: officeBldId,
+        minX: 0.75 * x1 - 1.2, maxX: 0.75 * x2 + 1.2,
+        minZ: 0.75 * z1 - 1.2, maxZ: 0.75 * z2 + 1.2,
+        damage: 0, evacuated: false, doorPos: officeDoorPos
+      });
+    }
+
     bases.forEach((b, fi) => {
       if (kind === 'office') {
+        const wy = b * 0.25;
+        const stX = 0.75 * (x2 - 3);
+        const zs0 = (K * z1 - 1 + 9) * 0.25;
+        const zs1 = zs0 + 19 * 0.25;
+        const zs2 = zs1 + 19 * 0.25;
         for (let z = za + 1; z < zb - 2; z += 5) for (let x = xa; x + 3 <= xb; x += 5) {
           F(b, x, z, x + 2, z + 1, 3, PALETTE.WOOD);                      // masa
           F(b, x + 1, z, x + 1, z, 2, PALETTE.IRON, 3);                   // monitör
-          F(b, x + 1, z + 2, x + 1, z + 2, 2, PALETTE.IRON);              // sandalye
+          const wx = (x + 1) * 0.75, wz = (z + 2.2) * 0.75;
+          this.world.propSpawns.push({ kind: 'chair', x: wx, y: wy + 0.46, z: wz, yaw: Math.PI, color: 0x1e293b });
+          // Merdivenlerden dar çıkış kapısına iniş rotası
+          const exitPath = [];
+          if (fi === 2) {
+            exitPath.push({ x: stX, y: wy, z: zs2, tol: 0.55 });
+            exitPath.push({ x: stX, y: (GROUND_ROW_SUB + 19) * 0.25, z: zs1, tol: 0.55 });
+          }
+          if (fi >= 1) {
+            exitPath.push({ x: stX, y: (GROUND_ROW_SUB + 19) * 0.25, z: zs1, tol: 0.55 });
+            exitPath.push({ x: stX, y: 0.5, z: zs0, tol: 0.55 });
+          }
+          exitPath.push({ x: officeDoorPos.chokeX, y: 0.5, z: officeDoorPos.chokeZ, choke: true, tol: 0.45 });
+          exitPath.push({ x: officeDoorPos.x, y: 0.5, z: officeDoorPos.z, door: true, tol: 0.45 });
+          exitPath.push({ x: officeDoorPos.x + officeDoorPos.outX * 2.5, y: 0.5, z: officeDoorPos.z + officeDoorPos.outZ * 2.5, outside: true, tol: 0.7 });
+          this.world.workers.push({
+            x: wx, y: wy, z: wz, yaw: Math.PI, pose: 'sit', style: 'office',
+            buildingId: officeBldId, doorPos: officeDoorPos, exitPath
+          });
         }
         return;
       }
@@ -956,8 +999,190 @@ export class LevelManager {
     }
   }
 
-  // OYUNCUNUN EVİ (başlangıç): tek katlı, batıya (kumsal tarafı) açılan kapılı müstakil ev.
-  // Doğu duvarında televizyon, karşısında koltuk ve sehpa; oyuncu koltukta oturarak başlar (açılış jeneriği src/main.js).
+  // Teardown tarzı mutfak kurulumu: sağ tıkla açılan alt/üst dolaplar, çekmeceler, fırın (içinde kek ve tepsiler), buzdolabı ve kırılabilir mutfak eşyaları
+  _buildTeardownKitchen(grp, floorY, wallX, zStart) {
+    const vw = this.world, doors = vw.doors;
+    const cabMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
+    const counterMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+    const woodMat = new THREE.MeshLambertMaterial({ color: 0x9a6432 });
+    const darkMetal = new THREE.MeshLambertMaterial({ color: 0x1e293b });
+    const burnerMat = new THREE.MeshLambertMaterial({ color: 0x0f172a });
+    const glowRing = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+    const fridgeMat = new THREE.MeshLambertMaterial({ color: 0xf8fafc });
+
+    const box = (w, h, d, x, y, z, mat) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.set(x, y, z);
+      m.castShadow = true; m.receiveShadow = true;
+      grp.add(m);
+      return m;
+    };
+    const addShelf = (x0, x1, z0, z1, y) => {
+      vw.shelves.push({ x0, x1, z0, z1, y });
+    };
+    const addProp = (kind, x, baseY, z, opts = {}) => {
+      const hy = {
+        canned_food: 0.085, water_bottle: 0.18, cat_food: 0.095, flour: 0.15,
+        cola: 0.11, cake: 0.09, baking_tray: 0.03, plate: 0.025, spoon: 0.018, fork: 0.018
+      }[kind] || 0.08;
+      vw.propSpawns.push({ kind, x, y: baseY + hy + 0.008, z, ...opts });
+    };
+
+    const D = 0.62;                    // tezgâh/dolap derinliği (m)
+    const xFront = wallX + D;          // ön kapakların X düzlemi (+X yönüne, odaya bakar)
+    const xMid = wallX + D * 0.5;
+
+    // ── 1) ALT DOLAP (2 kapaklı: zStart .. zStart + 1.60) ──
+    const c1Z0 = zStart, c1W = 1.60, c1H = 0.86;
+    box(D, 0.04, c1W, xMid, floorY + 0.02, c1Z0 + c1W / 2, cabMat);               // alt taban
+    box(D, 0.03, c1W - 0.04, xMid, floorY + 0.43, c1Z0 + c1W / 2, woodMat);       // orta raf
+    box(D + 0.04, 0.05, c1W + 0.04, xMid, floorY + c1H + 0.025, c1Z0 + c1W / 2, counterMat); // tezgâh üstü
+    box(D, c1H, 0.04, xMid, floorY + c1H / 2, c1Z0 + 0.02, cabMat);               // sol dikme
+    box(D, c1H, 0.04, xMid, floorY + c1H / 2, c1Z0 + c1W / 2, cabMat);            // orta dikme
+    box(D, c1H, 0.04, xMid, floorY + c1H / 2, c1Z0 + c1W - 0.02, cabMat);         // sağ dikme
+    addShelf(wallX + 0.04, xFront - 0.02, c1Z0 + 0.02, c1Z0 + c1W - 0.02, floorY + 0.04);
+    addShelf(wallX + 0.04, xFront - 0.02, c1Z0 + 0.02, c1Z0 + c1W - 0.02, floorY + 0.445);
+    addShelf(wallX + 0.02, xFront + 0.02, c1Z0, c1Z0 + c1W, floorY + c1H + 0.05);
+    // Sağ tıkla açılan 2 alt dolap kapağı
+    doors.addHinged({ hx: xFront, hz: c1Z0 + 0.03, ax: 0, az: 1, width: 0.75, height: 0.80, y: floorY + 0.04, color: 0xf1f5f9, cabinet: true, minAngle: -2.1, maxAngle: 0.05 });
+    doors.addHinged({ hx: xFront, hz: c1Z0 + 0.82, ax: 0, az: 1, width: 0.75, height: 0.80, y: floorY + 0.04, color: 0xf1f5f9, cabinet: true, minAngle: -2.1, maxAngle: 0.05 });
+    // Alt dolap içi eşyalar: un, kedi maması, konserveler, tabaklar
+    addProp('flour', xMid + 0.04, floorY + 0.04, c1Z0 + 0.28, { yaw: 1.57 });
+    addProp('flour', xMid - 0.04, floorY + 0.04, c1Z0 + 0.56, { yaw: 1.4 });
+    addProp('cat_food', xMid + 0.05, floorY + 0.04, c1Z0 + 1.05, { yaw: 1.57 });
+    addProp('cat_food', xMid + 0.05, floorY + 0.04, c1Z0 + 1.35, { yaw: 1.5 });
+    addProp('canned_food', xMid + 0.06, floorY + 0.45, c1Z0 + 0.24, { color: 0xdc2626 });
+    addProp('canned_food', xMid + 0.06, floorY + 0.45, c1Z0 + 0.46, { color: 0x16a34a });
+    addProp('canned_food', xMid + 0.06, floorY + 0.45, c1Z0 + 0.66, { color: 0xf59e0b });
+    addProp('plate', xMid + 0.02, floorY + 0.45, c1Z0 + 1.08);
+    addProp('plate', xMid + 0.02, floorY + 0.45, c1Z0 + 1.38);
+
+    // ── 2) ÇEKMECELİ ÜNİTE (3 çekmeceli: içlerinde kaşık ve çatallar!) ──
+    const drZ0 = c1Z0 + c1W + 0.02, drW = 0.78;
+    box(D + 0.04, 0.05, drW + 0.04, xMid, floorY + c1H + 0.025, drZ0 + drW / 2, counterMat); // tezgâh üstü
+    box(D, c1H, 0.04, xMid, floorY + c1H / 2, drZ0 + drW - 0.02, cabMat);
+    addShelf(wallX + 0.02, xFront + 0.02, drZ0, drZ0 + drW, floorY + c1H + 0.05);
+    for (let k = 0; k < 3; k++) {
+      const dy = floorY + 0.05 + k * 0.27;
+      doors.addDrawer({
+        hx: xFront, hz: drZ0 + 0.03, ax: 0, az: 1, nx: 1, nz: 0,
+        width: drW - 0.06, height: 0.24, depth: 0.50, y: dy, color: 0xe2e8f0
+      });
+      // Her çekmecenin içinde kaşıklar ve çatallar!
+      addProp('spoon', xFront - 0.22, dy + 0.025, drZ0 + 0.22, { yaw: 1.57 });
+      addProp('spoon', xFront - 0.34, dy + 0.025, drZ0 + 0.35, { yaw: 1.57 });
+      addProp('fork', xFront - 0.22, dy + 0.025, drZ0 + 0.48, { yaw: 1.57 });
+      addProp('fork', xFront - 0.34, dy + 0.025, drZ0 + 0.60, { yaw: 1.57 });
+    }
+
+    // ── 3) FIRIN & OCAK (sağ tıkla aşağı açılan camlı fırın kapağı, içinde tepsiler ve kek!) ──
+    const ovZ0 = drZ0 + drW + 0.02, ovW = 0.88;
+    box(D, 0.05, ovW, xMid, floorY + 0.025, ovZ0 + ovW / 2, darkMetal);          // fırın alt tabanı
+    box(D, c1H, 0.05, xMid, floorY + c1H / 2, ovZ0 + 0.025, darkMetal);          // fırın sol yan
+    box(D, c1H, 0.05, xMid, floorY + c1H / 2, ovZ0 + ovW - 0.025, darkMetal);    // fırın sağ yan
+    box(D, 0.06, ovW, xMid, floorY + c1H + 0.02, ovZ0 + ovW / 2, darkMetal);     // ocak üst tablası
+    // Ocak gözleri (4 adet)
+    for (const [bx, bz] of [[-0.14, 0.24], [0.12, 0.24], [-0.14, 0.64], [0.12, 0.64]]) {
+      box(0.18, 0.02, 0.18, xMid + bx, floorY + c1H + 0.06, ovZ0 + bz, burnerMat);
+      box(0.12, 0.024, 0.12, xMid + bx, floorY + c1H + 0.062, ovZ0 + bz, glowRing);
+    }
+    // Fırın iç rafları + iç aydınlatması
+    box(D - 0.08, 0.02, ovW - 0.10, xMid, floorY + 0.24, ovZ0 + ovW / 2, counterMat);
+    box(D - 0.08, 0.02, ovW - 0.10, xMid, floorY + 0.50, ovZ0 + ovW / 2, counterMat);
+    addShelf(wallX + 0.04, xFront - 0.02, ovZ0 + 0.04, ovZ0 + ovW - 0.04, floorY + 0.25);
+    addShelf(wallX + 0.04, xFront - 0.02, ovZ0 + 0.04, ovZ0 + ovW - 0.04, floorY + 0.51);
+    addShelf(wallX + 0.02, xFront + 0.02, ovZ0, ovZ0 + ovW, floorY + c1H + 0.05);
+    // Sağ tıkla aşağı doğru açılan fırın kapağı
+    doors.addOvenDoor({
+      hx: xFront, hz: ovZ0 + 0.04, ax: 0, az: 1, nx: 1, nz: 0,
+      width: ovW - 0.08, height: 0.76, y: floorY + 0.06
+    });
+    // Fırının içinde tepsiler ve tepsinin üstünde kek!
+    addProp('baking_tray', xMid + 0.02, floorY + 0.25, ovZ0 + ovW / 2, { yaw: 1.57 });
+    addProp('baking_tray', xMid + 0.02, floorY + 0.51, ovZ0 + ovW / 2 - 0.16, { yaw: 1.57 });
+    addProp('cake', xMid + 0.03, floorY + 0.51, ovZ0 + ovW / 2 + 0.14, { yaw: 0.4 });
+
+    // ── 4) BUZDOLABI (Çift kapaklı: üst buzluk + alt soğutucu, sağ tıkla açılır, içinde su, kola, konserve, kedi maması) ──
+    const frZ0 = ovZ0 + ovW + 0.06, frW = 0.92, frH = 1.92, frD = 0.68;
+    const frFront = wallX + frD, frMid = wallX + frD * 0.5;
+    box(frD, 0.05, frW, frMid, floorY + 0.025, frZ0 + frW / 2, fridgeMat);        // alt taban
+    box(frD, 0.05, frW, frMid, floorY + frH - 0.025, frZ0 + frW / 2, fridgeMat);  // üst tavan
+    box(frD, frH, 0.05, frMid, floorY + frH / 2, frZ0 + 0.025, fridgeMat);        // sol duvar
+    box(frD, frH, 0.05, frMid, floorY + frH / 2, frZ0 + frW - 0.025, fridgeMat);  // sağ duvar
+    // Buzdolabı iç rafları (3 kat)
+    for (const ry of [0.52, 0.98, 1.38]) {
+      box(frD - 0.08, 0.025, frW - 0.10, frMid, floorY + ry, frZ0 + frW / 2, cabMat);
+      addShelf(wallX + 0.04, frFront - 0.02, frZ0 + 0.04, frZ0 + frW - 0.04, floorY + ry + 0.015);
+    }
+    addShelf(wallX + 0.04, frFront - 0.02, frZ0 + 0.04, frZ0 + frW - 0.04, floorY + 0.05);
+    // Sağ tıkla açılan alt buzdolabı kapağı ve üst dondurucu kapağı
+    doors.addHinged({ hx: frFront, hz: frZ0 + 0.04, ax: 0, az: 1, width: frW - 0.08, height: 1.28, y: floorY + 0.06, color: 0xf8fafc, handleColor: 0x94a3b8, cabinet: true, minAngle: -2.15, maxAngle: 0.05 });
+    doors.addHinged({ hx: frFront, hz: frZ0 + 0.04, ax: 0, az: 1, width: frW - 0.08, height: 0.50, y: floorY + 1.38, color: 0xf1f5f9, handleColor: 0x94a3b8, cabinet: true, minAngle: -2.15, maxAngle: 0.05 });
+    // Buzdolabı içi eşyalar: su şişeleri, kolalar, konserveler, kedi maması
+    addProp('water_bottle', frMid + 0.06, floorY + 0.05, frZ0 + 0.26);
+    addProp('water_bottle', frMid + 0.06, floorY + 0.05, frZ0 + 0.46);
+    addProp('water_bottle', frMid - 0.06, floorY + 0.05, frZ0 + 0.66);
+    addProp('cola', frMid + 0.06, floorY + 0.535, frZ0 + 0.25);
+    addProp('cola', frMid + 0.06, floorY + 0.535, frZ0 + 0.44);
+    addProp('cola', frMid + 0.06, floorY + 0.535, frZ0 + 0.64);
+    addProp('canned_food', frMid + 0.05, floorY + 0.995, frZ0 + 0.28, { color: 0x2563eb });
+    addProp('canned_food', frMid + 0.05, floorY + 0.995, frZ0 + 0.50, { color: 0xdc2626 });
+    addProp('cat_food', frMid + 0.05, floorY + 0.995, frZ0 + 0.70);
+    addProp('cola', frMid + 0.05, floorY + 1.395, frZ0 + 0.32);
+    addProp('water_bottle', frMid + 0.05, floorY + 1.395, frZ0 + 0.60);
+
+    // ── 5) ÜST MUTFAK DOLAPLARI (Duvara monte, 3 kapaklı, içlerinde konserve, su, kedi maması, un, kola, tabak, kaşık, çatal) ──
+    const upY = floorY + 1.44, upH = 0.74, upW = 2.40, upD = 0.44;
+    const upFront = wallX + upD, upMid = wallX + upD * 0.5;
+    box(upD, 0.035, upW, upMid, upY + 0.018, c1Z0 + upW / 2, cabMat);             // alt raf
+    box(upD, 0.03, upW - 0.04, upMid, upY + 0.37, c1Z0 + upW / 2, woodMat);       // orta raf
+    box(upD, 0.035, upW, upMid, upY + upH - 0.018, c1Z0 + upW / 2, cabMat);       // üst tavan
+    box(upD, upH, 0.035, upMid, upY + upH / 2, c1Z0 + 0.02, cabMat);
+    box(upD, upH, 0.035, upMid, upY + upH / 2, c1Z0 + 0.80, cabMat);
+    box(upD, upH, 0.035, upMid, upY + upH / 2, c1Z0 + 1.60, cabMat);
+    box(upD, upH, 0.035, upMid, upY + upH / 2, c1Z0 + upW - 0.02, cabMat);
+    addShelf(wallX + 0.02, upFront - 0.02, c1Z0 + 0.02, c1Z0 + upW - 0.02, upY + 0.035);
+    addShelf(wallX + 0.02, upFront - 0.02, c1Z0 + 0.02, c1Z0 + upW - 0.02, upY + 0.385);
+    for (let k = 0; k < 3; k++) {
+      doors.addHinged({
+        hx: upFront, hz: c1Z0 + k * 0.80 + 0.03, ax: 0, az: 1,
+        width: 0.74, height: upH - 0.06, y: upY + 0.03, color: 0xe2e8f0, cabinet: true, minAngle: -2.1, maxAngle: 0.05
+      });
+    }
+    // Üst dolapların içi: konserve, su, kedi maması, un, kola, tabak, kaşık, çatal
+    addProp('canned_food', upMid + 0.03, upY + 0.035, c1Z0 + 0.24, { color: 0xdc2626 });
+    addProp('canned_food', upMid + 0.03, upY + 0.035, c1Z0 + 0.44, { color: 0x16a34a });
+    addProp('cat_food', upMid + 0.03, upY + 0.035, c1Z0 + 0.64);
+    addProp('flour', upMid + 0.03, upY + 0.385, c1Z0 + 0.32, { yaw: 1.57 });
+    addProp('water_bottle', upMid + 0.03, upY + 0.385, c1Z0 + 0.58);
+    addProp('plate', upMid + 0.02, upY + 0.035, c1Z0 + 1.05);
+    addProp('plate', upMid + 0.02, upY + 0.035, c1Z0 + 1.38);
+    addProp('spoon', upMid + 0.05, upY + 0.385, c1Z0 + 1.02, { yaw: 1.57 });
+    addProp('fork', upMid + 0.05, upY + 0.385, c1Z0 + 1.24, { yaw: 1.57 });
+    addProp('plate', upMid + 0.02, upY + 0.385, c1Z0 + 1.44);
+    addProp('cola', upMid + 0.03, upY + 0.035, c1Z0 + 1.84);
+    addProp('cola', upMid + 0.03, upY + 0.035, c1Z0 + 2.04);
+    addProp('canned_food', upMid + 0.03, upY + 0.035, c1Z0 + 2.24, { color: 0x9333ea });
+    addProp('cat_food', upMid + 0.03, upY + 0.385, c1Z0 + 1.92);
+    addProp('canned_food', upMid + 0.03, upY + 0.385, c1Z0 + 2.18, { color: 0xf59e0b });
+  }
+
+  // Tavandan sarkan Teardown tarzı sarı ampul (kablo + duy + parlayan ampul + sıcak nokta ışığı)
+  _addHangingBulb(grp, x, ceilY, z) {
+    const cord = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.72, 0.035), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
+    cord.position.set(x, ceilY - 0.36, z);
+    const socket = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.10, 0.11), new THREE.MeshLambertMaterial({ color: 0xb45309 }));
+    socket.position.set(x, ceilY - 0.74, z);
+    const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.22), new THREE.MeshBasicMaterial({ color: 0xffe57f }));
+    bulb.position.set(x, ceilY - 0.90, z);
+    const pt = new THREE.PointLight(0xffd27d, 9, 13, 1.8);
+    pt.position.set(x, ceilY - 1.05, z);
+    grp.add(cord, socket, bulb, pt);
+  }
+
+  // OYUNCUNUN EVİ (başlangıç): İki katlı Teardown tarzı müstakil ev!
+  // Üst katta salon (koltuk + haber kanallı TV), yatak, tavandan sarkan ampul ve yan mutfak;
+  // merdivenle inilen alt katta ise geniş Teardown mutfağı (sağ tıkla açılan dolaplar, çekmeceler, fırın, buzdolabı ve kırılabilir eşyalar).
   buildHome(x1, y1, z1, x2, y2, z2) {
     const w = this.b;
     w.beginBuilding();
@@ -966,7 +1191,8 @@ export class LevelManager {
     const cz = Math.round((z1 + z2) / 2);
     w.clearBox(x1, y1, cz - 1, x1, y1 + 4, cz + 1);                          // giriş (batı yüzü): gerçek kapı
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
-    this.addCeilingLights(x1, y1, z1, x2, y2, z2, 1);
+    this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);                    // 2. kat döşemesi (y = 5.0..5.5 m)
+    this.addStairs(x1, y1, z1, x2, y2, z2);                                  // üst kata çıkan/inen ahşap merdiven
 
     // Mobilya doğrudan voxel (0.5 m) indeksleriyle: voxel i x/z'de [0.5 i - 0.25, 0.5 i + 0.25], y satırı j [0.5 j, 0.5 j + 0.5] aralığındadır.
     const vw = this.world;
@@ -974,26 +1200,54 @@ export class LevelManager {
       for (let x = ix0; x <= ix1; x++) for (let y = iy0; y <= iy1; y++) for (let z = iz0; z <= iz1; z++) { vw.voxels.delete(`${x},${y},${z}`); vw.setVoxel(x, y, z, mat); }
     };
     const wv = Math.floor(K * x1 / 2), ev = Math.floor((K * x2 + 2) / 2), zv = Math.floor(K * cz / 2);   // batı duvarı, doğu duvarı, kapı hizası
-    const zr0 = zv + 5, zr1 = zv + 10;                                       // koltuk genişliği (voxel z)
-    // Koltuk (doğuya, TV'ye bakar): sırtlık batıda, oturma yeri ve iki kol
-    vput(wv + 3, 1, zr0 + 1, wv + 3, 2, zr1 - 1, PALETTE.BRICK);             // sırtlık
-    vput(wv + 4, 1, zr0 + 1, wv + 5, 1, zr1 - 1, PALETTE.BRICK);             // oturma yeri
-    vput(wv + 3, 1, zr0, wv + 5, 1, zr0, PALETTE.BRICK); vput(wv + 3, 2, zr0, wv + 3, 2, zr0, PALETTE.BRICK);   // kol (kuzey)
-    vput(wv + 3, 1, zr1, wv + 5, 1, zr1, PALETTE.BRICK); vput(wv + 3, 2, zr1, wv + 3, 2, zr1, PALETTE.BRICK);   // kol (güney)
-    // Sehpa
-    vput(wv + 9, 1, zr0 + 2, wv + 10, 1, zr1 - 2, PALETTE.WOOD);
-    // TV ünitesi (doğu duvarının önünde)
-    vput(ev - 1, 1, zr0 - 1, ev - 1, 1, zr1 + 1, PALETTE.IRON);
+    const zv1 = Math.floor(K * z1 / 2), zv2 = Math.floor((K * z2 + 2) / 2);
+    const zr0 = zv + 1, zr1 = zv + 6;                                        // koltuk genişliği (voxel z: merdivenin güneyinde, yanda mutfağa yer bırakır)
+    const upIy = 11;                                                         // 2. katın ilk voxel satırı (zemin üst yüzü 5.5 m)
 
-    // Metre cinsinden konumlar
+    // ── ÜST KAT (2. KAT): SALON + YATAK + YAN MUTFAK ──
+    // Koltuk (doğuya, TV'ye bakar): sırtlık batıda, oturma yeri ve iki kol
+    vput(wv + 3, upIy, zr0 + 1, wv + 3, upIy + 1, zr1 - 1, PALETTE.BRICK);             // sırtlık
+    vput(wv + 4, upIy, zr0 + 1, wv + 5, upIy, zr1 - 1, PALETTE.BRICK);                 // oturma yeri
+    vput(wv + 3, upIy, zr0, wv + 5, upIy, zr0, PALETTE.BRICK); vput(wv + 3, upIy + 1, zr0, wv + 3, upIy + 1, zr0, PALETTE.BRICK);   // kol (kuzey)
+    vput(wv + 3, upIy, zr1, wv + 5, upIy, zr1, PALETTE.BRICK); vput(wv + 3, upIy + 1, zr1, wv + 3, upIy + 1, zr1, PALETTE.BRICK);   // kol (güney)
+    // Sehpa
+    vput(wv + 9, upIy, zr0 + 2, wv + 10, upIy, zr1 - 2, PALETTE.WOOD);
+    // TV ünitesi (doğu duvarının önünde)
+    vput(ev - 1, upIy, zr0 - 1, ev - 1, upIy, zr1 + 1, PALETTE.IRON);
+
+    // Üst kat Yatak (uyumak için: kuzeybatı köşede, başlık + yastık + kırmızı yorgan + komodin)
+    const bz0 = zv1 + 3, bz1 = zv1 + 9;
+    vput(wv + 2, upIy, bz0, wv + 2, upIy + 2, bz1, PALETTE.WOOD);                      // yatak başlığı
+    vput(wv + 3, upIy, bz0, wv + 8, upIy, bz1, PALETTE.WOOD);                          // yatak baza
+    vput(wv + 3, upIy + 1, bz0 + 1, wv + 4, upIy + 1, bz1 - 1, PALETTE.WHITE);         // beyaz yastıklar
+    vput(wv + 5, upIy + 1, bz0, wv + 8, upIy + 1, bz1, PALETTE.BRICK);                 // kırmızı battaniye/yorgan
+    vput(wv + 2, upIy, bz1 + 2, wv + 3, upIy + 1, bz1 + 3, PALETTE.WOOD);              // komodin
+    vput(wv + 2, upIy + 2, bz1 + 2, wv + 2, upIy + 2, bz1 + 2, PALETTE.LAMP);          // başucu lambası
+
+    // Alt kat yemek masası (merdivenin karşısında)
+    vput(ev - 9, 1, zv + 4, ev - 6, 2, zv + 9, PALETTE.WOOD);
+
+    // Metre cinsinden konumlar (2. kat salondaki koltuk ve TV)
     const seatX = 0.5 * (wv + 4 + wv + 5) / 2;
     const seatZ = 0.5 * (zr0 + 1 + zr1 - 1) / 2;
-    const seatTopY = 1.0;                                                    // zemin 0.5 + 1 voxel
-    const standTopY = 1.0;
+    const seatTopY = 6.0;                                                    // 2. kat döşemesi 5.5 + 1 voxel (0.5 m)
+    const standTopY = 6.0;
     const tvX = 0.5 * (ev - 1) + 0.05;
     const tvW = 4.0, tvH = 2.2, tvY = standTopY + tvH / 2 + 0.05;
 
     const grp = new THREE.Group();
+
+    // Tavandan sarkan ampuller (hem üst kat salonda hem alt kat mutfakta)
+    const midX = 0.5 * (wv + ev) / 2;
+    this._addHangingBulb(grp, midX, 9.5, seatZ);
+    this._addHangingBulb(grp, midX, 5.0, seatZ);
+
+    // Üst katta salonun hemen yanında mutfak + Alt kata merdivenle inildiğinde büyük mutfak!
+    const wallWestX = 0.5 * wv + 0.25;
+    this._buildTeardownKitchen(grp, 5.5, wallWestX, 0.5 * (zr1 + 2));        // üst kat yan mutfak
+    this._buildTeardownKitchen(grp, 0.5, wallWestX, 0.5 * (zv1 + 6));        // alt kat ana mutfak
+    this._buildTeardownKitchen(grp, 0.5, wallWestX, 0.5 * (zv + 3));         // alt kat ikinci mutfak tezgâhı
+
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, tvH + 0.14, tvW + 0.14), new THREE.MeshLambertMaterial({ color: 0x0b0d12 }));
     frame.position.set(tvX, tvY, seatZ);
     grp.add(frame);
@@ -1001,14 +1255,140 @@ export class LevelManager {
     try {
       tvCanvas = document.createElement('canvas'); tvCanvas.width = 512; tvCanvas.height = 288;
       tvCtx = tvCanvas.getContext('2d');
-      const gr = tvCtx.createLinearGradient(0, 0, 512, 288);
-      gr.addColorStop(0, '#1e3a8a'); gr.addColorStop(0.5, '#7c3aed'); gr.addColorStop(1, '#f97316');
-      tvCtx.fillStyle = gr; tvCtx.fillRect(0, 0, 512, 288);
-      tvCtx.fillStyle = 'rgba(255,255,255,0.16)'; for (let i = 0; i < 9; i++) tvCtx.fillRect(0, 150 + i * 14, 512, 3);
-      tvCtx.fillStyle = '#fde68a'; tvCtx.beginPath(); tvCtx.arc(256, 150, 46, 0, Math.PI * 2); tvCtx.fill();
       tvTex = new THREE.CanvasTexture(tvCanvas); tvTex.colorSpace = THREE.SRGBColorSpace;
       tvMat = new THREE.MeshBasicMaterial({ map: tvTex, toneMapped: false });
     } catch (e) { tvMat = new THREE.MeshBasicMaterial({ color: 0x7c3aed }); }
+
+    // TV Haber Kanalı: Kadın spiker canlı yayında konuşuyor (ağız, kafa, göz kırpma ve alt yazı bant animasyonu)
+    const drawNewsChannel = (t) => {
+      if (!tvCtx || !tvTex) return;
+      const g = tvCtx;
+      // 1) Stüdyo arka planı
+      const bg = g.createLinearGradient(0, 0, 512, 240);
+      bg.addColorStop(0, '#0f172a'); bg.addColorStop(0.55, '#1e3a8a'); bg.addColorStop(1, '#1d4ed8');
+      g.fillStyle = bg; g.fillRect(0, 0, 512, 288);
+      // Stüdyo dünya haritası / ızgara çizgileri
+      g.strokeStyle = 'rgba(147, 197, 253, 0.15)'; g.lineWidth = 1;
+      for (let x = 32; x < 512; x += 36) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, 220); g.stroke(); }
+      for (let y = 24; y < 220; y += 28) { g.beginPath(); g.moveTo(0, y); g.lineTo(512, y); g.stroke(); }
+
+      // Sağ üstte stüdyo bilgi ekranı ("SON DURUM")
+      g.fillStyle = 'rgba(15, 23, 42, 0.82)';
+      g.fillRect(348, 22, 144, 92);
+      g.strokeStyle = '#38bdf8'; g.lineWidth = 2; g.strokeRect(348, 22, 144, 92);
+      g.fillStyle = '#ef4444'; g.fillRect(356, 30, 128, 20);
+      g.fillStyle = '#ffffff'; g.font = 'bold 12px sans-serif'; g.fillText('ŞEHİR GÜNDEMİ', 368, 44);
+      // Küçük bina grafiği
+      g.fillStyle = '#60a5fa'; g.fillRect(368, 66, 22, 38); g.fillRect(396, 56, 26, 48); g.fillRect(428, 72, 20, 32);
+
+      // Sol üst "CANLI YAYIN" rozeti
+      g.fillStyle = '#dc2626'; g.fillRect(18, 16, 98, 24);
+      const pulse = 0.5 + 0.5 * Math.sin(t * 6);
+      g.fillStyle = `rgba(255,255,255,${0.45 + 0.55 * pulse})`;
+      g.beginPath(); g.arc(30, 28, 5, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#ffffff'; g.font = 'bold 12px sans-serif'; g.fillText('CANLI YAYIN', 40, 32);
+
+      // 2) Kadın Haber Spikeri (ortada, hafif kafa ve ağız hareketiyle konuşur)
+      const nodY = Math.sin(t * 4.2) * 1.8;
+      const swayX = Math.sin(t * 2.1) * 2.2;
+      const cx = 228 + swayX, cy = 112 + nodY;
+
+      // Uzun saçlar (arka kısım)
+      g.fillStyle = '#3b1d11';
+      g.beginPath(); g.ellipse(cx, cy + 12, 42, 54, 0, 0, Math.PI * 2); g.fill();
+      g.fillRect(cx - 40, cy + 8, 80, 56);
+
+      // Omuzlar ve kırmızı spiker ceketi + beyaz gömlek yakası
+      g.fillStyle = '#b91c1c';
+      g.beginPath(); g.moveTo(cx - 68, 225); g.quadraticCurveTo(cx - 58, cy + 48, cx - 22, cy + 46);
+      g.lineTo(cx + 22, cy + 46); g.quadraticCurveTo(cx + 58, cy + 48, cx + 68, 225); g.closePath(); g.fill();
+      g.fillStyle = '#f8fafc';
+      g.beginPath(); g.moveTo(cx - 16, cy + 46); g.lineTo(cx, cy + 82); g.lineTo(cx + 16, cy + 46); g.closePath(); g.fill();
+
+      // Boyun ve yüz
+      g.fillStyle = '#f5cba7';
+      g.fillRect(cx - 11, cy + 28, 22, 24);
+      g.beginPath(); g.ellipse(cx, cy, 29, 35, 0, 0, Math.PI * 2); g.fill();
+
+      // Saç perçemi / ön kesim
+      g.fillStyle = '#4a2515';
+      g.beginPath();
+      g.arc(cx, cy - 8, 31, Math.PI * 0.92, Math.PI * 2.08);
+      g.quadraticCurveTo(cx + 10, cy - 22, cx - 8, cy - 16);
+      g.quadraticCurveTo(cx - 26, cy - 14, cx - 30, cy - 2);
+      g.fill();
+
+      // Küpeler
+      g.fillStyle = '#facc15';
+      g.beginPath(); g.arc(cx - 29, cy + 8, 3, 0, Math.PI * 2); g.arc(cx + 29, cy + 8, 3, 0, Math.PI * 2); g.fill();
+
+      // Kaşlar ve Gözler (ara sıra göz kırpar)
+      const blink = Math.sin(t * 1.7) > 0.96 ? 0.15 : 1.0;
+      const browLift = Math.sin(t * 5.5) * 1.4;
+      g.strokeStyle = '#3b1d11'; g.lineWidth = 2.2;
+      g.beginPath(); g.moveTo(cx - 18, cy - 10 - browLift); g.quadraticCurveTo(cx - 11, cy - 14 - browLift, cx - 5, cy - 10 - browLift); g.stroke();
+      g.beginPath(); g.moveTo(cx + 5, cy - 10 - browLift); g.quadraticCurveTo(cx + 11, cy - 14 - browLift, cx + 18, cy - 10 - browLift); g.stroke();
+
+      g.fillStyle = '#ffffff';
+      g.beginPath(); g.ellipse(cx - 11, cy - 3, 6.5, 4.2 * blink, 0, 0, Math.PI * 2); g.fill();
+      g.beginPath(); g.ellipse(cx + 11, cy - 3, 6.5, 4.2 * blink, 0, 0, Math.PI * 2); g.fill();
+      if (blink > 0.3) {
+        g.fillStyle = '#1e293b';
+        g.beginPath(); g.arc(cx - 11, cy - 3, 2.8, 0, Math.PI * 2); g.arc(cx + 11, cy - 3, 2.8, 0, Math.PI * 2); g.fill();
+      }
+
+      // Burun
+      g.strokeStyle = '#d9a47c'; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(cx, cy - 2); g.lineTo(cx - 2, cy + 9); g.lineTo(cx + 2, cy + 9); g.stroke();
+
+      // Konuşan Ağız (hecelere göre açılıp kapanır!)
+      const talk = Math.max(0.08, Math.abs(Math.sin(t * 13.5) * Math.cos(t * 4.8)));
+      const mouthH = 1.8 + talk * 7.5;
+      const mouthW = 9.5 + Math.sin(t * 9.0) * 2.2;
+      g.fillStyle = '#be123c';
+      g.beginPath(); g.ellipse(cx, cy + 19, mouthW, mouthH + 1.5, 0, 0, Math.PI * 2); g.fill();
+      g.fillStyle = '#450a0a';
+      g.beginPath(); g.ellipse(cx, cy + 19, mouthW * 0.78, mouthH * 0.75, 0, 0, Math.PI * 2); g.fill();
+      if (mouthH > 3.5) {
+        g.fillStyle = '#ffffff';
+        g.fillRect(cx - mouthW * 0.55, cy + 19 - mouthH * 0.65, mouthW * 1.1, 2.2);
+      }
+
+      // Spikerin konuşma balonu / altyazı vurgusu
+      const phrases = [
+        '"Şirket binalarında güvenlik uyarısı!"',
+        '"Sayın izleyiciler, son dakika gelişmesi!"',
+        '"Şehir merkezinde hareketli saatler!"'
+      ];
+      const phrase = phrases[Math.floor(t / 3.5) % phrases.length];
+      g.fillStyle = 'rgba(255, 255, 255, 0.92)';
+      g.fillRect(16, 154, 152, 34);
+      g.fillStyle = '#0f172a'; g.font = 'bold 10px sans-serif';
+      g.fillText(phrase, 22, 175);
+
+      // 3) Haber masası ve mikrofon
+      g.fillStyle = '#cbd5e1'; g.fillRect(70, 212, 372, 18);
+      g.fillStyle = '#1e293b'; g.fillRect(195, 198, 66, 15);
+      // Masa üstü kağıtlar ve spikerin eli
+      g.fillStyle = '#f8fafc'; g.fillRect(210, 208, 36, 6);
+
+      // 4) Alt SON DAKİKA Haber Bandı (kayan yazı)
+      g.fillStyle = '#dc2626'; g.fillRect(0, 228, 512, 28);
+      g.fillStyle = '#facc15'; g.fillRect(0, 228, 128, 28);
+      g.fillStyle = '#0f172a'; g.font = 'bold 14px sans-serif'; g.fillText('SON DAKİKA', 16, 247);
+      g.fillStyle = '#ffffff'; g.font = 'bold 13px sans-serif';
+      g.fillText('KADIN SPİKER BİLDİRİYOR: ŞEHİRDE BÜYÜK HAREKETLİLİK • BİNALAR ALARMDA', 138, 247);
+
+      g.fillStyle = '#090d16'; g.fillRect(0, 256, 512, 32);
+      const ticker = 'HABER MERKEZİ: Şirket çalışanları mesai bitiminde çantalarıyla evlerine dönüyor — Hasar alan binalar acil tahliye ediliyor — ';
+      const scrollX = 512 - ((t * 65) % 920);
+      g.fillStyle = '#fde047'; g.font = '12px sans-serif';
+      g.fillText(ticker + ticker, scrollX, 276);
+
+      tvTex.needsUpdate = true;
+    };
+    drawNewsChannel(0);
+
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(tvW, tvH), tvMat);
     const screenX = tvX - 0.07;
     screen.position.set(screenX, tvY, seatZ);
@@ -1023,7 +1403,18 @@ export class LevelManager {
     const homeTV = {
       light,
       broken: false,
+      animT: 0,
+      accum: 0,
       screenX, tvY, seatZ, tvW, tvH,
+      update(dt) {
+        if (this.broken) return;
+        this.animT += dt;
+        this.accum += dt;
+        if (this.accum >= 0.05) {
+          this.accum = 0;
+          drawNewsChannel(this.animT);
+        }
+      },
       // Vurulan dünya koordinatında (wy, wz) ekranı karartır ve tam o noktaya örümcek ağı kırık izi çizer
       hitAt(wy, wz) {
         if (!tvCtx || !tvTex) return;
@@ -1121,11 +1512,11 @@ export class LevelManager {
     };
     this.world.homeTV = homeTV;
 
-    // Başlangıç noktası: koltuğun üstü
+    // Başlangıç noktası: 2. kattaki koltuğun üstü
     const spawn = this.levelConfigs[0].spawn;
     spawn.x = seatX; spawn.z = seatZ; spawn.y = seatTopY + 1.05;
     this.world.homeSeat = { x: seatX, y: seatTopY, z: seatZ, tvX, tvY };
-    // Yanımızda koltuğun üstünde daha büyük ve belirgin bir kumanda (tutulabilir eşya olarak da odada durur)
+    // Yanımızda koltuğun üstünde kumanda
     this.world.propSpawns.push({ kind: 'remote', x: seatX + 0.08, y: seatTopY + 0.055, z: seatZ + 0.62, yaw: -Math.PI / 2 + 0.28 });
   }
 
@@ -1150,7 +1541,7 @@ export class LevelManager {
     }
 
     this.addStairs(x1, y1, z1, x2, y2, z2);
-    this.furnish(x1, y1, z1, x2, y2, z2, o.interior || (y2 - y1 >= 20 ? 'apt' : (y2 - y1 >= 12 ? 'office' : null)));
+    this.furnish(x1, y1, z1, x2, y2, z2, o.interior || (y2 - y1 >= 20 ? 'apt' : (y2 - y1 >= 12 ? 'office' : null)), side);
   }
 
   // -------------------------------------------------------------

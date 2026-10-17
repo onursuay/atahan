@@ -351,6 +351,25 @@ export class VoxelWorld {
     }
   }
 
+  // Şirket binası hasar aldığında yalnız o binanın içindeki çalışanları tahliyeye başlatır
+  notifyBuildingDamage(x, z, amount = 1) {
+    if (!this.officeBuildings) return;
+    for (let i = 0; i < this.officeBuildings.length; i++) {
+      const b = this.officeBuildings[i];
+      if (b.evacuated) continue;
+      if (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ) {
+        b.damage += amount;
+        if (b.damage >= 4) {
+          b.evacuated = true;
+          if (this.npcs && this.npcs.evacuateBuilding) {
+            this.npcs.evacuateBuilding(b.id, true);
+          }
+        }
+        break;
+      }
+    }
+  }
+
   // Her voxel kaldırması buradan geçer. Çukur kenarı küpü yok olursa altındaki zemin hücresi de kırılır.
   _kill(v) {
     if (!v.active) return;
@@ -358,6 +377,7 @@ export class VoxelWorld {
     if (v.groundCell === undefined) {
       this.destroyedVoxels++;
       this.collapse.queue(v); // bağlantısı kopan parçalar düşer
+      this.notifyBuildingDamage(v.x, v.z, 1);
       return;
     }
     // Kenar küpünün diğer sırası ve altındaki üst katman hücresi birlikte gider

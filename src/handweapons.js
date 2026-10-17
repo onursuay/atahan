@@ -595,6 +595,19 @@ export class HandWeapons {
       }
     }
 
+    // Tutulabilir bir eşyaya (tabak, konserve, şişe, kek, sandalye vb.) mı çarptı? Eşyayı kırar!
+    if (this.voxelWorld.props) {
+      const prh = this.voxelWorld.props.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);
+      if (prh) {
+        this._spawnTracer(muzzle, prh.point);
+        this.voxelWorld.props.breakProp(prh.prop, origin);
+        this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        this._shotSound(o);
+        return;
+      }
+    }
+
     // Önce bir araca mı çarptı? (yol üstündeki arabayı durdurur)
     if (this.cars) {
       const ch = this.cars.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);

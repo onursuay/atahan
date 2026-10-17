@@ -64,6 +64,7 @@ export class NPCManager {
     this.npcs = [];
     this.respawnQueue = [];
     this.residentQueue = [];
+    this._nightCommuteActive = false;
     this.dogs.clear();
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
@@ -154,13 +155,29 @@ export class NPCManager {
       const radio = new THREE.Mesh(boxGeo(0.06, 0.12, 0.05), mat(0x111827)); radio.position.set(-0.14, 1.02, 0.13); g.add(radio);
       const band = new THREE.Mesh(boxGeo(0.17, 0.1, 0.17), mat(0xfacc15)); band.position.set(0, -0.12, 0); lArm.add(band);
     }
-    if (style === 'bank' || style === 'office') { const tie = new THREE.Mesh(boxGeo(0.05, 0.3, 0.02), mat(style === 'bank' ? 0xfacc15 : 0x1d4ed8)); tie.position.set(0, 0.95, 0.126); g.add(tie); }
+    let briefcase = null;
+    if (style === 'bank' || style === 'office') {
+      const tie = new THREE.Mesh(boxGeo(0.05, 0.3, 0.02), mat(style === 'bank' ? 0xfacc15 : 0x1d4ed8));
+      tie.position.set(0, 0.95, 0.126); g.add(tie);
+      // Kahverengi şirket çantası (gece mesai bitiminde binayı sakince boşaltırken ellerinde taşırlar)
+      briefcase = new THREE.Group();
+      const bBody = new THREE.Mesh(boxGeo(0.075, 0.24, 0.34), mat(0x6b3e1b));
+      const bHandle = new THREE.Mesh(boxGeo(0.035, 0.06, 0.12), mat(0x3e220d));
+      bHandle.position.set(0, 0.14, 0);
+      const clasp1 = new THREE.Mesh(boxGeo(0.085, 0.035, 0.035), mat(0xfacc15));
+      clasp1.position.set(0, 0.09, -0.09);
+      const clasp2 = clasp1.clone(); clasp2.position.z = 0.09;
+      briefcase.add(bBody, bHandle, clasp1, clasp2);
+      briefcase.position.set(0.04, -0.64, 0.02);
+      briefcase.visible = false;
+      rArm.add(briefcase);
+    }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    return { g, lArm, rArm, lLeg, rLeg, head, hairM, colors: [shirt, pants, skin, hair] };
+    return { g, lArm, rArm, lLeg, rLeg, head, hairM, briefcase, colors: [shirt, pants, skin, hair] };
   }
 
-  // Çalışan (masasında oturan ya da tezgâhta ayakta duran): yürümez, hafifçe çalışır; vurulursa 60 sn sonra aynı yerde yeniden belirir
-  // spec: { x, y, z, yaw, pose: 'sit' | 'stand', style }
+  // Çalışan (masasında oturan ya da tezgâhta ayakta duran): bina hasar alınca veya gece olunca sandalyesinden kalkıp binayı boşaltır
+  // spec: { x, y, z, yaw, pose: 'sit' | 'stand', style, buildingId, doorPos, exitPath }
   _spawnWorker(spec) {
     const k = spec.k || 1, body = this._makeBody(false, spec.style || 'office', spec);
     body.g.scale.setScalar(SCALE * k);
@@ -168,8 +185,16 @@ export class NPCManager {
     if (sit) { body.lLeg.rotation.x = -Math.PI / 2; body.rLeg.rotation.x = -Math.PI / 2; body.lArm.rotation.x = -1.2; body.rArm.rotation.x = -1.2; }   // bacaklar ileri, kollar klavyede
     body.g.position.set(spec.x, spec.y - drop, spec.z); body.g.rotation.y = spec.yaw;
     this.scene.add(body.g);
-    this.npcs.push({ ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0, heading: spec.yaw, turnTimer: 0, pause: 0, cycle: Math.random() * 6, grounded: true,
-      worker: true, sit, drop, k, eat: !!spec.eat, cook: !!spec.cook, cycleOff: Math.random() * 6, respawn: () => this._spawnWorker(spec), value: 100 });
+    this.npcs.push({
+      ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0, heading: spec.yaw, turnTimer: 0, pause: 0, cycle: Math.random() * 6, grounded: true,
+      worker: true, sit, drop, k, eat: !!spec.eat, cook: !!spec.cook, cycleOff: Math.random() * 6,
+      buildingId: spec.buildingId || null,
+      doorPos: spec.doorPos || null,
+      exitPath: spec.exitPath ? spec.exitPath.map(p => ({ ...p })) : null,
+      homeDesk: { x: spec.x, y: spec.y, z: spec.z, yaw: spec.yaw, sit, drop },
+      evacPhase: null, evacMode: null,
+      respawn: () => this._spawnWorker(spec), value: 100
+    });
   }
 
   // Patron: siyah takımlı dev; rotada (yukarıdan aşağıya, sonra tersine) sürekli gezer. spec: { route: [{x,y,z}], name }
@@ -179,8 +204,60 @@ export class NPCManager {
     const p0 = spec.route[0];
     body.g.position.set(p0.x, p0.y, p0.z);
     this.scene.add(body.g);
-    this.npcs.push({ ...body, group: body.g, x: p0.x, y: p0.y, z: p0.z, vy: 0, heading: 0, turnTimer: 0, pause: 0, cycle: 0, grounded: true,
-      route: spec.route, ri: 0, rdir: 1, stuckT: 0, lastX: p0.x, lastZ: p0.z, respawn: () => this._spawnBoss(spec), value: spec.style === 'guard' ? 300 : 500, boss: !spec.style, guard: spec.style === 'guard' });
+    this.npcs.push({
+      ...body, group: body.g, x: p0.x, y: p0.y, z: p0.z, vy: 0, heading: 0, turnTimer: 0, pause: 0, cycle: 0, grounded: true,
+      route: spec.route, ri: 0, rdir: 1, stuckT: 0, lastX: p0.x, lastZ: p0.z,
+      buildingId: spec.buildingId || null, doorPos: spec.doorPos || null,
+      respawn: () => this._spawnBoss(spec), value: spec.style === 'guard' ? 300 : 500, boss: !spec.style, guard: spec.style === 'guard'
+    });
+  }
+
+  // Şirket binası hasar aldığında (panic=true) veya gece olduğunda (panic=false) yalnız o binadaki çalışanları tahliye eder
+  evacuateBuilding(buildingId, panic = true) {
+    if (!buildingId) return;
+    // Evlerin/apartmanların bulunduğu hedef noktalar (kaçan veya evine dönen çalışanlar buralara yönelir)
+    const houseTargets = [
+      { x: -106, z: 18 }, { x: -106, z: -18 }, { x: -58, z: 14 },
+      { x: -106, z: 64 }, { x: -106, z: -64 }, { x: -28, z: 18 },
+      { x: -28, z: -18 }, { x: -80, z: 112 }, { x: -80, z: -112 }
+    ];
+    for (const n of this.npcs) {
+      if (n.buildingId !== buildingId) continue;
+      if (n.boss) {
+        if (panic && n.doorPos && !n.evacPhase) {
+          n.worker = true; n.sit = false; n.drop = 0;
+          n.evacMode = 'panic'; n.evacPhase = 'stairs'; n.exitIdx = 0;
+          n.evacSpeed = 4.6;
+          n.exitPath = [
+            { x: n.doorPos.chokeX, y: 0.5, z: n.doorPos.chokeZ, choke: true, tol: 0.5 },
+            { x: n.doorPos.x, y: 0.5, z: n.doorPos.z, door: true, tol: 0.5 },
+            { x: n.doorPos.x + n.doorPos.outX * 2.5, y: 0.5, z: n.doorPos.z + n.doorPos.outZ * 2.5, outside: true, tol: 0.8 }
+          ];
+          n.houseTarget = houseTargets[Math.floor(Math.random() * houseTargets.length)];
+        }
+        continue;
+      }
+      if (!n.worker) continue;
+      // Zaten gece sakin tahliyedeyken bina hasar alırsa aniden panik koşusuna geçer!
+      if (n.evacPhase) {
+        if (panic && n.evacMode !== 'panic') {
+          n.evacMode = 'panic';
+          n.evacSpeed = 4.5 + Math.random() * 1.1;
+          if (n.briefcase) n.briefcase.visible = false;
+        }
+        continue;
+      }
+      n.evacMode = panic ? 'panic' : 'night';
+      n.evacSpeed = panic ? (4.5 + Math.random() * 1.1) : (1.55 + Math.random() * 0.25);
+      n.standUpT = 0;
+      // Sandalyeden kalkma animasyonu süresi (panikte hızlı, gece sakin)
+      n.standUpDur = n.sit ? (panic ? (0.42 + Math.random() * 0.25) : (0.85 + Math.random() * 0.6)) : 0.05;
+      n.evacPhase = 'stand_up';
+      n.exitIdx = 0;
+      n.jamT = 0;
+      n.houseTarget = houseTargets[Math.floor(Math.random() * houseTargets.length)];
+      if (n.briefcase) n.briefcase.visible = !panic;
+    }
   }
 
   // Villanın tek sakini: sınırlı bölgede (villa + teras) dolaşır; vurulursa bir dakika sonra yeniden doğar
@@ -243,6 +320,32 @@ export class NPCManager {
   update(dt, playerPos) {
     this.playerPos.copy(playerPos);
 
+    // Gece olduğunda şirket binalarındaki çalışanlar ellerinde kahverengi şirket çantasıyla sakin bir şekilde binayı boşaltır;
+    // gündüz olduğunda (bina yıkılmadıysa) masalarına geri dönerler.
+    if (this.day && this.voxelWorld.officeBuildings) {
+      const dayAmt = this.day();
+      if (dayAmt < 0.35 && !this._nightCommuteActive) {
+        this._nightCommuteActive = true;
+        for (const b of this.voxelWorld.officeBuildings) {
+          if (!b.evacuated) this.evacuateBuilding(b.id, false);
+        }
+      } else if (dayAmt > 0.55 && this._nightCommuteActive) {
+        this._nightCommuteActive = false;
+        const intactIds = new Set(this.voxelWorld.officeBuildings.filter(b => !b.evacuated).map(b => b.id));
+        for (const n of this.npcs) {
+          if (n.worker && n.evacMode === 'night' && n.homeDesk && intactIds.has(n.buildingId)) {
+            n.evacPhase = null; n.evacMode = null;
+            n.x = n.homeDesk.x; n.y = n.homeDesk.y; n.z = n.homeDesk.z;
+            n.heading = n.homeDesk.yaw; n.sit = n.homeDesk.sit; n.drop = n.homeDesk.drop;
+            if (n.briefcase) n.briefcase.visible = false;
+            if (n.sit) { n.lLeg.rotation.x = -Math.PI / 2; n.rLeg.rotation.x = -Math.PI / 2; n.lArm.rotation.x = -1.2; n.rArm.rotation.x = -1.2; }
+            n.group.position.set(n.x, n.y - n.drop, n.z);
+            n.group.rotation.set(0, n.heading, 0);
+          }
+        }
+      }
+    }
+
     for (let i = this.residentQueue.length - 1; i >= 0; i--) {
       this.residentQueue[i].t -= dt;
       if (this.residentQueue[i].t <= 0) { const q = this.residentQueue.splice(i, 1)[0]; if (q.fn) q.fn(); else this._spawnResident(q.spec); }
@@ -259,6 +362,150 @@ export class NPCManager {
     }
     this._updateCorpses(dt);
     this.dogs.update(dt, playerPos, new Set(this.npcs));
+  }
+
+  // Şirket çalışanının sandalyesinden kalkıp merdivenlerden inmesi, dar çıkış kapısında sıkışması ve dışarı püskürerek evlere kaçması
+  _stepEvac(n, dt) {
+    // 1) Sandalyeden animasyonlu kalkış
+    if (n.evacPhase === 'stand_up') {
+      n.standUpT += dt;
+      const u = Math.min(1, n.standUpT / Math.max(0.05, n.standUpDur));
+      const smooth = u * u * (3 - 2 * u);
+      if (n.homeDesk && n.homeDesk.sit) {
+        n.lLeg.rotation.x = -Math.PI / 2 * (1 - smooth);
+        n.rLeg.rotation.x = -Math.PI / 2 * (1 - smooth);
+        n.lArm.rotation.x = -1.2 * (1 - smooth);
+        n.rArm.rotation.x = -1.2 * (1 - smooth);
+        n.drop = n.homeDesk.drop * (1 - smooth);
+        // Kalkarken gövde hafif öne eğilir ve sandalyeden yarım adım geri çekilir
+        const lean = Math.sin(u * Math.PI) * 0.28;
+        const back = smooth * 0.42;
+        n.x = n.homeDesk.x - Math.sin(n.homeDesk.yaw) * back;
+        n.z = n.homeDesk.z - Math.cos(n.homeDesk.yaw) * back;
+        n.group.position.set(n.x, n.y - n.drop, n.z);
+        n.group.rotation.set(lean, n.homeDesk.yaw, 0);
+      }
+      if (u >= 1) {
+        n.sit = false;
+        n.drop = 0;
+        n.group.rotation.set(0, n.heading, 0);
+        n.evacPhase = (n.exitPath && n.exitPath.length > 0) ? 'stairs' : 'burst';
+        n.exitIdx = 0;
+      }
+      return;
+    }
+
+    const panic = n.evacMode === 'panic';
+    const spd = n.evacSpeed || (panic ? 4.8 : 1.65);
+
+    // 2) Kat koridoru -> Merdivenlerden iniş -> Dar çıkış kapısında sıkışma
+    if (n.evacPhase === 'stairs') {
+      const path = n.exitPath;
+      if (!path || n.exitIdx >= path.length) {
+        n.evacPhase = 'burst';
+      } else {
+        const wp = path[n.exitIdx];
+        const dx = wp.x - n.x, dz = wp.z - n.z;
+        const dist = Math.hypot(dx, dz);
+
+        // Dar merdiven çıkış kapısında sıkışma (choke / door noktalarında kalabalık birikir ve itişir)
+        let speedMul = 1.0;
+        if (panic && (wp.choke || wp.door) && n.y < 1.8) {
+          let crowd = 0, pushX = 0, pushZ = 0;
+          for (const o of this.npcs) {
+            if (o === n || o.buildingId !== n.buildingId || o.evacPhase !== 'stairs' || o.y > 1.8) continue;
+            const odx = n.x - o.x, odz = n.z - o.z;
+            const od2 = odx * odx + odz * odz;
+            if (od2 < 1.15 && od2 > 1e-4) {
+              crowd++;
+              const inv = 1 / Math.sqrt(od2);
+              pushX += odx * inv * 0.45;
+              pushZ += odz * inv * 0.45;
+            }
+          }
+          if (crowd > 0) {
+            n.jamT = (n.jamT || 0) + dt;
+            // Kapı dar olduğu için ilk ~1.1 sn orada sıkışıp itişirler, sonra sırayla dışarı fırlarlar
+            if (n.jamT < 1.15) {
+              speedMul = Math.max(0.18, 1.0 - crowd * 0.24);
+              n.x += pushX * dt;
+              n.z += pushZ * dt;
+            } else {
+              speedMul = 1.25;
+            }
+          }
+        }
+
+        const step = spd * speedMul * dt;
+        if (dist <= Math.max(wp.tol || 0.48, step * 1.2)) {
+          n.x = wp.x; n.z = wp.z; n.y = wp.y;
+          n.exitIdx++;
+          if (wp.outside || n.exitIdx >= path.length) {
+            n.evacPhase = 'burst';
+            const outYaw = n.doorPos ? Math.atan2(n.doorPos.outX, n.doorPos.outZ) : n.heading;
+            // Kapıdan çıkınca püskürmek gibi yelpaze şeklinde her yöne dağılarak kaçmaya başlarlar!
+            n.heading = outYaw + (Math.random() - 0.5) * (panic ? 2.35 : 1.1);
+            n.burstT = panic ? (1.6 + Math.random() * 1.4) : 0.8;
+          }
+        } else {
+          const dirX = dx / dist, dirZ = dz / dist;
+          n.x += dirX * step;
+          n.z += dirZ * step;
+          // Merdiven basamaklarında yüksekliği (y) yumuşakça indir
+          n.y += (wp.y - n.y) * Math.min(1, ( step / Math.max(0.2, dist) ) * 1.35);
+          const wantYaw = Math.atan2(dirX, dirZ);
+          n.heading += Math.atan2(Math.sin(wantYaw - n.heading), Math.cos(wantYaw - n.heading)) * Math.min(1, dt * 12);
+        }
+      }
+    }
+
+    // 3) Kapıdan dışarı püskürme ve evlere doğru koşma / yürüme
+    if (n.evacPhase === 'burst' || n.evacPhase === 'flee_to_house') {
+      if (n.evacPhase === 'burst') {
+        n.burstT -= dt;
+        if (n.burstT <= 0) n.evacPhase = 'flee_to_house';
+      } else if (n.houseTarget) {
+        const hdx = n.houseTarget.x - n.x, hdz = n.houseTarget.z - n.z;
+        const hdist = Math.hypot(hdx, hdz);
+        if (hdist < 4.0) {
+          // Eve ulaştı: etraftaki başka bir ev bloğuna yönel
+          n.heading += (Math.random() - 0.5) * 2.2;
+          n.houseTarget = { x: n.x + Math.sin(n.heading) * 35, z: n.z + Math.cos(n.heading) * 35 };
+        } else {
+          const wantYaw = Math.atan2(hdx, hdz);
+          n.heading += Math.atan2(Math.sin(wantYaw - n.heading), Math.cos(wantYaw - n.heading)) * Math.min(1, dt * 3.5);
+        }
+      }
+
+      const moveSpd = (n.evacPhase === 'burst' && panic) ? spd * 1.25 : spd;
+      const dx = Math.sin(n.heading) * moveSpd * dt, dz = Math.cos(n.heading) * moveSpd * dt;
+      const ax = n.x + Math.sin(n.heading) * 0.8 * SCALE, az = n.z + Math.cos(n.heading) * 0.8 * SCALE;
+      if (!this._walkableAhead(ax, az) || this._solid(ax, n.y + 0.5, az, HEIGHT - 0.6)) {
+        n.heading += (Math.random() < 0.5 ? 1 : -1) * (0.9 + Math.random() * 0.9);
+      } else {
+        this._tryMove(n, dx, 0);
+        this._tryMove(n, 0, dz);
+      }
+      const gy = this.voxelWorld.terrain.topYAt(n.x, n.z);
+      if (gy > -Infinity && Math.abs(n.y - gy) < 1.5) n.y = gy;
+    }
+
+    // Yürüme / panik koşma kol ve bacak animasyonu
+    n.cycle += dt * (panic ? 16 : 8);
+    const sw = Math.sin(n.cycle) * (panic ? 1.05 : 0.65);
+    n.lLeg.rotation.x = sw;
+    n.rLeg.rotation.x = -sw;
+    if (panic) {
+      // Panikle koşarken kollar hızlı ve telaşlı sallanır
+      n.lArm.rotation.x = -0.35 - sw * 1.05;
+      n.rArm.rotation.x = -0.35 + sw * 1.05;
+    } else {
+      // Gece elinde kahverengi şirket çantasıyla sakin yürüyüş
+      n.lArm.rotation.x = -sw * 0.7;
+      n.rArm.rotation.x = -0.12 + sw * 0.22;
+    }
+    n.group.position.set(n.x, n.y, n.z);
+    n.group.rotation.set(panic ? 0.10 : 0, n.heading, 0);
   }
 
   _step(n, dt) {
@@ -293,7 +540,8 @@ export class NPCManager {
     if (n.script) n.script.update(n, dt, this);                        // villa sahibinin günlük rutini (yemek, merdiven, uyku)
     if (n.frozen) { this._posePose(n, dt); return; }                   // oturan/yatan: fizik ve yürüme yok
     if (n.skate) { this._stepSkate(n, dt); return; }                   // buz pistinde patenle kayar
-    if (n.worker) {                                    // çalışan: yerinde durur; oturanlar klavye vuruşu, ayaktakiler hafif sallanma
+    if (n.worker) {                                                    // çalışan: tahliyedeyse merdivenden inip kaçar, değilse yerinde çalışır
+      if (n.evacPhase) { this._stepEvac(n, dt); return; }
       n.cycle += dt * (n.sit ? 7 : 1.5);
       if (n.cook) { n.lArm.rotation.x = -0.9 + Math.sin(n.cycle * 1.1) * 0.45; n.rArm.rotation.x = -0.9 - Math.sin(n.cycle * 1.1 + 1.6) * 0.45; n.group.rotation.y = n.heading + Math.sin(n.cycle * 0.8) * 0.15; }   // mutfak tezgâhında kesip karıştırır
       else if (n.eat) { n.lArm.rotation.x = -1.1; n.rArm.rotation.x = -1.3 - 1.1 * Math.max(0, Math.sin(n.cycle * 0.3 + n.cycleOff)); }   // yemek yer: sağ elini ağzına götürür

@@ -355,7 +355,10 @@ function updateGame(dt) {
   if (introActive) { for (const k in inputState) inputState[k] = false; updateIntro(dt); }
   else if (seated && (inputState.forward || inputState.backward || inputState.left || inputState.right || inputState.jump)) seated = false;
   if (!introActive) eyeOffset += ((seated ? INTRO_SEAT_EYE : 1.8) - eyeOffset) * (1 - Math.exp(-5 * dt));
-  if (voxelWorld.homeTV) voxelWorld.homeTV.light.intensity = voxelWorld.homeTV.broken ? 0 : (14 + Math.sin(performance.now() * 0.011) * 2 + Math.sin(performance.now() * 0.0047) * 2.5);   // TV ışığı hafifçe titrer, kırılınca söner
+  if (voxelWorld.homeTV) {
+    voxelWorld.homeTV.light.intensity = voxelWorld.homeTV.broken ? 0 : (14 + Math.sin(performance.now() * 0.011) * 2 + Math.sin(performance.now() * 0.0047) * 2.5);   // TV ışığı hafifçe titrer, kırılınca söner
+    if (voxelWorld.homeTV.update) voxelWorld.homeTV.update(dt);
+  }
   // Birinci kişi: karakter her zaman baktığımız yöne dönük olsun (silah öne baksın)
   if (firstPerson && !inCar) character.mesh.rotation.y = cameraYaw + Math.PI;
   // Nişangâh yakınlaştırması (yumuşak)
@@ -771,9 +774,15 @@ function setCrosshair(mode) {
 function grabDoor() {
   if (inCar || rightHeld) return;
   if (document.getElementById('weapon-selector').classList.contains('menu-open')) return;
-  // Sağ tık HER ZAMAN el olur (zarar vermez, ateş etmez): kapıya bakıyorsa kapıyı tutar (yumruk), değilse açık el
+  // Sağ tık HER ZAMAN el olur (zarar vermez, ateş etmez): açık dolap/çekmece/fırın içindeki eşya daha yakınsa eşyayı, değilse kapağı tutar
   rightHeld = true;
-  setCrosshair(voxelWorld.doors.beginDrag(camera) || props.beginGrab(camera) ? 'grab' : 'hand');   // önce kapı, sonra eşya; ikisi de yoksa açık el
+  const dp = voxelWorld.doors.pick(camera);
+  const pp = props.pick(camera);
+  let grabbed = false;
+  if (pp && (!dp || pp.dist <= dp.dist + 0.08)) grabbed = props.beginGrab(camera);
+  if (!grabbed && dp) grabbed = voxelWorld.doors.beginDrag(camera);
+  if (!grabbed && pp) grabbed = props.beginGrab(camera);
+  setCrosshair(grabbed ? 'grab' : 'hand');
 }
 function releaseHand() {
   if (!rightHeld) return;
@@ -782,7 +791,7 @@ function releaseHand() {
   props.endGrab();
   setCrosshair(null);
 }
-// Her karede: kapıya bakıyor muyuz?
+// Her karede: kapıya veya eşyaya bakıyor muyuz?
 function updateCrosshair() {
   if (rightHeld) return;
   setCrosshair(!inCar && (voxelWorld.doors.aim(camera) || props.aim(camera)) ? 'hand' : null);
@@ -873,10 +882,15 @@ function useHammer() {
   // Çekiç menzilindeki NPC'ye de vurur
   npcs.hitSphere(charPos.clone().addScaledVector(dir, 1.8), 0.9);
 
-  // Çekiç menzilindeki kapıyı veya televizyon ekranını da kırar
+  // Çekiç menzilindeki kapıyı, eşyaları veya televizyon ekranını da kırar
   if (voxelWorld.homeTV) {
     const th = voxelWorld.homeTV.rayHit(camera.position, dir, HAMMER_REACH);
     if (th) { voxelWorld.homeTV.hitAt(th.point.y, th.point.z); if (particleSystem.createSpark) particleSystem.createSpark(th.point); screenShake = 0.08; sound.playHammerHit(); }
+  }
+  if (props) {
+    const ph = props.rayHit(camera.position, dir, HAMMER_REACH);
+    if (ph) { props.breakProp(ph.prop, camera.position); screenShake = 0.08; }
+    props.hitSphere(charPos.clone().addScaledVector(dir, 1.5), 0.75);
   }
   const dh = voxelWorld.doors.rayHit(camera.position, dir, HAMMER_REACH);
   if (dh) { voxelWorld.doors.damage(dh.door, 5); screenShake = 0.08; sound.playWoodHit(); }

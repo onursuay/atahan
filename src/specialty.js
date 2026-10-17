@@ -198,17 +198,36 @@ function tower(f, theme) {
     for (let k = 1; k <= F; k++) kit.put(cx + dx, 8 * k, cz + dz, cx + dx, 8 * k, cz + dz, k === F ? T.top : T.frame);   // kat kuşakları (en üstte renkli ışık kuşağı)
     kit.put(cx + dx, 8 * F + 1, cz + dz, cx + dx, 8 * F + 1, cz + dz, P.BLACK);                                           // çatı korkuluğu
   }
-  // Giriş: öne çıkan cam lobi (d = 3..dc-R) ve sürgülü kapı; kule cephesinde geçit
+  // Giriş: öne çıkan cam lobi (d = 3..dc-R) ve dar merdiven/çıkış kapısı; kule cephesinde geçit
   const lobbyD1 = dc - R + 1;
   f.b(u - 5, u + 5, 3, lobbyD1, 1, 8, P.WHITE); f.clr(u - 4, u + 4, 4, lobbyD1, 1, 7);
   f.b(u - 4, u + 4, 3, 3, 1, 7, T.glass); for (const uu of [u - 4, u, u + 4]) f.b(uu, uu, 3, 3, 1, 7, T.frame);
-  f.clr(u - 2, u + 2, lobbyD1, lobbyD1 + 1, 1, 7);                                                                        // lobiden kuleye geçit (kule duvarı delinir)
-  f.door(u - 2, u + 1, 1, 7, 3);
+  f.clr(u - 1, u + 1, lobbyD1, lobbyD1 + 1, 1, 7);                                                                        // lobiden kuleye dar geçit (çıkışta sıkışma noktası)
+  f.door(u - 1, u + 1, 1, 7, 3);
   f.sign(T.name, { neon: true, color: T.sign[1], fg: T.sign[1], w: 8.4, h: 1.5 }, u, 9.4);
+
+  const bldId = `kule-${theme}-${cx}-${cz}`;
+  const doorPos = { x: f.wx(u, 3), y: 0.5, z: f.wz(u, 3), outX: f.out[0], outZ: f.out[1], chokeX: f.wx(u, lobbyD1), chokeZ: f.wz(u, lobbyD1) };
+  world.officeBuildings = world.officeBuildings || [];
+  world.officeBuildings.push({
+    id: bldId,
+    minX: 0.5 * f.box.X0 - 1.5, maxX: 0.5 * f.box.X1 + 1.5,
+    minZ: 0.5 * f.box.Z0 - 1.5, maxZ: 0.5 * f.box.Z1 + 1.5,
+    damage: 0, evacuated: false, doorPos
+  });
+
   // Giriş katı: resepsiyon, bekleme koltukları, bitkiler
   const rd = dc - 4;
   f.b(u - 3, u + 3, rd, rd, 1, 2, P.BLACK); f.b(u - 3, u + 3, rd, rd, 3, 3, P.WHITE); f.b(u - 1, u - 1, rd - 1, rd - 1, 3, 3, P.IRON); f.b(u - 1, u - 1, rd - 1, rd - 1, 4, 4, P.LAMP_BLUE);
-  f.worker(u, rd + 2, 1, f.yawOut(), 'stand', 'office');
+  world.workers.push({
+    x: f.wx(u, rd + 2), y: 0.5, z: f.wz(u, rd + 2), yaw: f.yawOut(), pose: 'stand', style: 'office',
+    buildingId: bldId, doorPos,
+    exitPath: [
+      { x: doorPos.chokeX, y: 0.5, z: doorPos.chokeZ, choke: true },
+      { x: doorPos.x, y: 0.5, z: doorPos.z, door: true },
+      { x: f.wx(u, -2), y: 0.5, z: f.wz(u, -2), outside: true }
+    ]
+  });
   for (const uu of [u + 7]) { f.b(uu, uu + 2, dc - 6, dc - 6, 1, 1, P.WHITE); f.prop('chair', uu + 1, dc - 7.4, 2, { yaw: f.dirYaw(0, 1), color: 0x111827 }); f.prop('plant', uu + 3, dc - 5, 1); }
   // Merdiven: iki şerit (A: +z yönünde, B: yanında -z yönünde); kat k → k+1. Dünya eksenlerinde sabit (kulenin iç yapısı)
   const laneA = [cx - 9, cx - 7], laneB = [cx - 5, cx - 3], zA0 = cz - 5, zB0 = cz + 2;
@@ -219,9 +238,29 @@ function tower(f, theme) {
     kit.clr(lane[0], 8 * (k + 1), Math.min(zs, ze), lane[1], 8 * (k + 1), Math.max(zs, ze));
     kit.put(lane[1] + 1, 8 * (k + 1) + 1, Math.min(zs, ze), lane[1] + 1, 8 * (k + 1) + 2, Math.max(zs, ze), P.GLASS);   // korkuluk
   }
+  // Kat k'dan zemin kattaki dar merdiven çıkış kapısına iniş rotası
+  const buildStairExitPath = (fromFloor) => {
+    const pts = [];
+    for (let m = fromFloor; m >= 1; m--) {
+      const s = m - 1, even = s % 2 === 0;
+      const sx = 0.5 * (even ? cx - 8 : cx - 4);
+      const szTop = 0.5 * (even ? zA0 + 7 : zB0 - 7);
+      const szBot = 0.5 * (even ? zA0 - 1 : zB0 + 1);
+      pts.push({ x: 0.5 * (cx - 1), y: 0.5 * flr(m), z: szTop, tol: 0.65 });
+      pts.push({ x: sx, y: 0.5 * flr(m), z: szTop, tol: 0.42 });
+      pts.push({ x: sx, y: 0.5 * flr(m - 1), z: szBot, tol: 0.45 });
+    }
+    // Zemin katta merdiven ağzından dar çıkış kapısına ve dışarıya
+    pts.push({ x: 0.5 * (cx - 5), y: 0.5, z: 0.5 * cz, tol: 0.6 });
+    pts.push({ x: doorPos.chokeX, y: 0.5, z: doorPos.chokeZ, choke: true, tol: 0.45 });
+    pts.push({ x: doorPos.x, y: 0.5, z: doorPos.z, door: true, tol: 0.45 });
+    pts.push({ x: f.wx(u, -2), y: 0.5, z: f.wz(u, -2), outside: true, tol: 0.7 });
+    return pts;
+  };
   // Katlar: masalar + oturan çalışanlar (zemin kat hariç)
   for (let k = 1; k < F; k++) {
     const r = flr(k);
+    const floorExit = buildStairExitPath(k);
     for (let i = 0; i < 8; i++) {
       const ang = (i + 0.5) * Math.PI / 4;
       if (Math.cos(ang) < -0.5) continue;                          // merdiven tarafı (batı) boş
@@ -230,7 +269,11 @@ function tower(f, theme) {
       kit.put(px, r + 2, pz, px, r + 2, pz, P.IRON); kit.put(px, r + 3, pz, px, r + 3, pz, P.LAMP_BLUE);                      // monitör
       const wx = 0.5 * (cx + Math.round(Math.cos(ang) * 6.4)), wz = 0.5 * (cz + Math.round(Math.sin(ang) * 6.4)), yaw = Math.atan2(Math.cos(ang), Math.sin(ang));   // çalışan masaya (dışa) bakar
       kit.prop('chair', wx, 0.5 * r, wz, { yaw, color: 0x111827 });
-      world.workers.push({ x: wx, y: 0.5 * r, z: wz, yaw, pose: 'sit', style: 'office' });
+      world.workers.push({
+        x: wx, y: 0.5 * r, z: wz, yaw, pose: 'sit', style: 'office',
+        buildingId: bldId, doorPos,
+        exitPath: floorExit.map(p => ({ ...p }))
+      });
     }
     for (let a = 0; a < 8; a++) { const px = cx + Math.round(Math.cos(a * Math.PI / 4) * 5), pz = cz + Math.round(Math.sin(a * Math.PI / 4) * 5); kit.put(px, 8 * k + 7, pz, px, 8 * k + 7, pz, P.LAMP); }
   }
@@ -249,5 +292,5 @@ function tower(f, theme) {
       else { route.push(pt(cx + 1, r, cz + 3)); route.push(pt(cx - 4, r, zB0 + 1, 0.3)); route.push(pt(cx - 4, flr(k + 1), zB0 - 11)); }      // B şeridi: kuzeyden güneye
     }
   }
-  world.bosses.push({ route, name: T.name });
+  world.bosses.push({ route, name: T.name, buildingId: bldId, doorPos });
 }

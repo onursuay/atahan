@@ -99,6 +99,74 @@ const KINDS = {
     [0.044, 0.026, 0.044, -0.038, 0.038, 0.10, 0x9ca3af],
     [0.044, 0.026, 0.044, 0.038, 0.038, 0.10, 0x9ca3af],
     [0.04, 0.024, 0.024, 0, 0.034, -0.232, 0xff3b3b]
+  ]) },
+  // ── Ev & Mutfak Eşyaları (Teardown tarzı dolap, çekmece, fırın ve buzdolabı içi) ──
+  canned_food: { half: [0.065, 0.085, 0.065], tint: true, mass: 0.35, shatterColor: 0xdc2626, geo: () => parts([
+    [0.12, 0.16, 0.12, 0, 0, 0, 0x94a3b8],
+    [0.126, 0.09, 0.126, 0, 0, 0, 0xffffff],
+    [0.128, 0.018, 0.128, 0, 0.075, 0, 0xcbd5e1],
+    [0.128, 0.018, 0.128, 0, -0.075, 0, 0xcbd5e1],
+    [0.05, 0.035, 0.13, 0, 0.005, 0, 0xfef08a]
+  ]) },
+  water_bottle: { half: [0.065, 0.18, 0.065], tint: false, mass: 0.4, shatterColor: 0x38bdf8, geo: () => parts([
+    [0.12, 0.24, 0.12, 0, -0.05, 0, 0x7dd3fc],
+    [0.124, 0.06, 0.124, 0, -0.04, 0, 0xe0f2fe],
+    [0.065, 0.07, 0.065, 0, 0.10, 0, 0xbae6fd],
+    [0.05, 0.035, 0.05, 0, 0.155, 0, 0x0284c7]
+  ]) },
+  cat_food: { half: [0.08, 0.095, 0.06], tint: false, mass: 0.35, shatterColor: 0xf472b6, geo: () => parts([
+    [0.15, 0.18, 0.11, 0, 0, 0, 0xf472b6],
+    [0.154, 0.05, 0.114, 0, 0.04, 0, 0xfef08a],
+    [0.05, 0.05, 0.118, 0, -0.02, 0, 0xf97316],
+    [0.022, 0.025, 0.12, -0.018, 0.012, 0, 0xf97316],
+    [0.022, 0.025, 0.12, 0.018, 0.012, 0, 0xf97316]
+  ]) },
+  flour: { half: [0.10, 0.15, 0.075], tint: false, mass: 0.65, shatterColor: 0xfef3c7, geo: () => parts([
+    [0.19, 0.27, 0.14, 0, -0.01, 0, 0xfafaf9],
+    [0.195, 0.07, 0.145, 0, 0.0, 0, 0xf59e0b],
+    [0.16, 0.03, 0.11, 0, 0.135, 0, 0xe7e5e4],
+    [0.07, 0.04, 0.148, 0, 0.0, 0, 0xb91c1c]
+  ]) },
+  cola: { half: [0.055, 0.11, 0.055], tint: false, mass: 0.3, shatterColor: 0xdc2626, geo: () => parts([
+    [0.10, 0.18, 0.10, 0, -0.01, 0, 0xdc2626],
+    [0.104, 0.03, 0.104, 0, 0.0, 0, 0xffffff],
+    [0.095, 0.02, 0.095, 0, 0.09, 0, 0xcbd5e1],
+    [0.095, 0.015, 0.095, 0, -0.10, 0, 0xcbd5e1]
+  ]) },
+  cake: { half: [0.16, 0.09, 0.16], tint: false, mass: 0.55, shatterColor: 0xfde68a, geo: () => parts([
+    [0.30, 0.025, 0.30, 0, -0.07, 0, 0x94a3b8],
+    [0.26, 0.09, 0.26, 0, -0.015, 0, 0xd97706],
+    [0.27, 0.035, 0.27, 0, 0.042, 0, 0xfffbeb],
+    [0.04, 0.035, 0.04, -0.06, 0.072, -0.05, 0xef4444],
+    [0.04, 0.035, 0.04, 0.06, 0.072, -0.05, 0xef4444],
+    [0.04, 0.035, 0.04, 0.0, 0.072, 0.06, 0xef4444],
+    [0.04, 0.035, 0.04, 0.0, 0.072, -0.01, 0x78350f]
+  ]) },
+  baking_tray: { half: [0.24, 0.03, 0.18], tint: false, mass: 0.5, shatterColor: 0x64748b, geo: () => parts([
+    [0.46, 0.02, 0.34, 0, -0.015, 0, 0x475569],
+    [0.48, 0.045, 0.025, 0, 0.0, -0.165, 0x334155],
+    [0.48, 0.045, 0.025, 0, 0.0, 0.165, 0x334155],
+    [0.025, 0.045, 0.34, -0.23, 0.0, 0, 0x334155],
+    [0.025, 0.045, 0.34, 0.23, 0.0, 0, 0x334155]
+  ]) },
+  plate: { half: [0.14, 0.025, 0.14], tint: false, mass: 0.25, shatterColor: 0xf8fafc, geo: () => parts([
+    [0.22, 0.02, 0.22, 0, -0.01, 0, 0xe2e8f0],
+    [0.27, 0.022, 0.035, 0, 0.006, -0.12, 0xf8fafc],
+    [0.27, 0.022, 0.035, 0, 0.006, 0.12, 0xf8fafc],
+    [0.035, 0.022, 0.24, -0.12, 0.006, 0, 0xf8fafc],
+    [0.035, 0.022, 0.24, 0.12, 0.006, 0, 0xf8fafc]
+  ]) },
+  spoon: { half: [0.035, 0.018, 0.11], tint: false, mass: 0.12, shatterColor: 0xcbd5e1, geo: () => parts([
+    [0.022, 0.014, 0.14, 0, 0, 0.035, 0x94a3b8],
+    [0.062, 0.018, 0.075, 0, -0.003, -0.065, 0xe2e8f0],
+    [0.042, 0.012, 0.05, 0, 0.005, -0.065, 0xcbd5e1]
+  ]) },
+  fork: { half: [0.035, 0.018, 0.11], tint: false, mass: 0.12, shatterColor: 0xcbd5e1, geo: () => parts([
+    [0.022, 0.014, 0.13, 0, 0, 0.04, 0x94a3b8],
+    [0.064, 0.014, 0.02, 0, 0, -0.03, 0xcbd5e1],
+    [0.012, 0.014, 0.06, -0.024, 0, -0.068, 0xe2e8f0],
+    [0.012, 0.014, 0.06, 0.0, 0, -0.068, 0xe2e8f0],
+    [0.012, 0.014, 0.06, 0.024, 0, -0.068, 0xe2e8f0]
   ]) }
 };
 // Dışarıdan eşya yerleştirirken zemine oturtmak için: türün yarı yüksekliği (m)
@@ -117,7 +185,7 @@ export class PropManager {
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(CAP * 3).fill(1), 3);
       this.group.add(mesh);
-      this.kinds[name] = { mesh, half: new THREE.Vector3(...k.half), tint: k.tint, mass: k.mass };
+      this.kinds[name] = { mesh, half: new THREE.Vector3(...k.half), tint: k.tint, mass: k.mass, shatterColor: k.shatterColor || 0xd6b98a };
     }
     this.props = [];
     this.held = null; this.holdDist = 2.2; this.cam = null;
@@ -133,13 +201,15 @@ export class PropManager {
   add(kind, x, y, z, opts = {}) {
     const k = this.kinds[kind];
     if (!k || k.mesh.count >= CAP) return null;
+    const colHex = k.tint ? (opts.color ?? PALETTE_TINT[Math.floor(Math.random() * PALETTE_TINT.length)]) : (opts.color ?? k.shatterColor);
     const p = {
       kind, k, idx: k.mesh.count++, pos: new THREE.Vector3(x, y, z), vel: new THREE.Vector3(),
       yaw: opts.yaw || 0, roll: 0, pitch: 0,
       spin: 0, wx: 0, wz: 0, restPitch: 0, restRoll: 0, tipped: false,
-      half: k.half.clone(), baseHalf: k.half, held: false, hung: !!opts.hung, sleep: !opts.awake, still: 0, grounded: false
+      half: k.half.clone(), baseHalf: k.half, held: false, hung: !!opts.hung, sleep: !opts.awake, still: 0, grounded: false,
+      broken: false, thrown: false, color: colHex
     };
-    if (k.tint) { const c = new THREE.Color(opts.color ?? PALETTE_TINT[Math.floor(Math.random() * PALETTE_TINT.length)]); k.mesh.setColorAt(p.idx, c); k.mesh.instanceColor.needsUpdate = true; }
+    if (k.tint) { const c = new THREE.Color(colHex); k.mesh.setColorAt(p.idx, c); k.mesh.instanceColor.needsUpdate = true; }
     this.props.push(p);
     this._upload(p);
     return p;
@@ -151,12 +221,90 @@ export class PropManager {
     p.k.mesh.setMatrixAt(p.idx, this.tmpM); p.k.mesh.instanceMatrix.needsUpdate = true;
   }
 
-  // Kutu (merkez p, yarı boyut h) voxel/zemin/kapıya giriyor mu?
+  // Eşyayı kırıp küçük voxel parçalarına ayırır (mermi, çekiç, patlama veya sert fırlatma çarpması)
+  breakProp(p, hitOrigin = null) {
+    if (!p || p.broken) return;
+    p.broken = true;
+    if (this.held === p) this.held = null;
+    const pos = p.pos.clone();
+    p.pos.set(0, -100, 0);
+    p.sleep = true;
+    p.held = false;
+    p.vel.set(0, 0, 0);
+    this._upload(p);
+
+    const vw = this.vw;
+    const col = p.color || p.k.shatterColor || 0xd6b98a;
+    const altCol = p.kind === 'plate' || p.kind === 'flour' || p.kind === 'water_bottle' ? 0xf8fafc : 0x94a3b8;
+    const pieces = Math.min(8, Math.max(4, Math.round((p.baseHalf.x + p.baseHalf.y + p.baseHalf.z) * 14)));
+    const center = hitOrigin || pos.clone().add(new THREE.Vector3(0, -0.1, 0));
+    for (let i = 0; i < pieces && vw.dynamicDebris.length < vw.maxDynamicDebris; i++) {
+      const ox = (Math.random() - 0.5) * p.baseHalf.x * 1.6;
+      const oy = (Math.random() - 0.5) * p.baseHalf.y * 1.6;
+      const oz = (Math.random() - 0.5) * p.baseHalf.z * 1.6;
+      vw.spawnLooseVoxel(
+        pos.x + ox, pos.y + oy, pos.z + oz,
+        { color: i % 3 === 0 ? altCol : col },
+        center, 0.25, 1.5, 48
+      );
+    }
+    if (vw.particleSystem) {
+      if (vw.particleSystem.createDust) vw.particleSystem.createDust(pos);
+      if (vw.particleSystem.createSpark) vw.particleSystem.createSpark(pos);
+    }
+    if (sound.playWoodHit) sound.playWoodHit();
+  }
+
+  // Mermi veya çekiç ışını eşyaya çarptı mı?
+  rayHit(origin, dir, maxDist) {
+    let best = null;
+    for (const p of this.props) {
+      if (p.broken || p.held) continue;
+      const t = this._rayAabb(origin, dir, p, p.half);
+      if (t >= 0.1 && t <= maxDist && (!best || t < best.dist)) {
+        best = { prop: p, dist: t, point: origin.clone().addScaledVector(dir, t) };
+      }
+    }
+    return best;
+  }
+
+  // Çekiç / patlama / topaç küresi içindeki eşyaları kırar
+  hitSphere(center, radius) {
+    let count = 0;
+    for (const p of this.props) {
+      if (p.broken) continue;
+      const r = radius + Math.max(p.half.x, p.half.y, p.half.z);
+      if (p.pos.distanceToSquared(center) <= r * r) {
+        this.breakProp(p, center);
+        count++;
+      }
+    }
+    return count;
+  }
+
+  // Kutu (merkez p, yarı boyut h) voxel/zemin/kapıya/rafa giriyor mu?
   _solid(x, y, z, h) {
     const vw = this.vw, t = vw.terrain;
     const feet = y - h.y, hw = Math.max(h.x, h.z);
     if (t.solidAt(x, feet + 0.02, z, hw)) return true;
     if (vw.doors && vw.doors.blocks(x, feet, z, hw, h.y * 2)) return true;
+    if (vw.shelves) {
+      for (const sh of vw.shelves) {
+        if (x + h.x > sh.x0 && x - h.x < sh.x1 && z + h.z > sh.z0 && z - h.z < sh.z1) {
+          if (feet <= sh.y + 0.025 && y + h.y >= sh.y - 0.025) return true;
+        }
+      }
+    }
+    if (vw.doors) {
+      for (const d of vw.doors.doors) {
+        if (d.broken || d.kind !== 'drawer') continue;
+        if (feet <= d.y + 0.035 && y + h.y >= d.y - 0.02) {
+          const rx = x - (d.hx + d.nx * d.open), rz = z - (d.hz + d.nz * d.open);
+          const u = rx * d.ax + rz * d.az, v = -(rx * d.nx + rz * d.nz);
+          if (u >= -0.02 && u <= d.width + 0.02 && v >= -0.02 && v <= d.depth + 0.02) return true;
+        }
+      }
+    }
     const ix0 = Math.floor((x - h.x + EPS) / S + 0.5), ix1 = Math.floor((x + h.x - EPS) / S + 0.5);
     const iz0 = Math.floor((z - h.z + EPS) / S + 0.5), iz1 = Math.floor((z + h.z - EPS) / S + 0.5);
     const iy0 = Math.floor((feet + 0.02) / S), iy1 = Math.floor((y + h.y - EPS) / S);
@@ -171,7 +319,7 @@ export class PropManager {
   _rayAabb(o, d, p, h) {
     let tmin = 0, tmax = 1e9;
     for (const a of ['x', 'y', 'z']) {
-      const lo = p.pos[a] - h[a] - 0.12, hi = p.pos[a] + h[a] + 0.12;
+      const lo = p.pos[a] - h[a] - 0.08, hi = p.pos[a] + h[a] + 0.08;
       if (Math.abs(d[a]) < 1e-9) { if (o[a] < lo || o[a] > hi) return -1; continue; }
       let t1 = (lo - o[a]) / d[a], t2 = (hi - o[a]) / d[a];
       if (t1 > t2) { const t = t1; t1 = t2; t2 = t; }
@@ -181,20 +329,26 @@ export class PropManager {
     return tmin;
   }
 
-  // Bakılan eşya (en yakın, duvar arkasında değil): { prop, dist } ya da null
+  // Bakılan eşya (en yakın, duvar veya kapalı dolap kapağı arkasında değil): { prop, dist } ya da null
   pick(camera, reach = 4.6) {
     const o = camera.position, d = new THREE.Vector3(); camera.getWorldDirection(d);
     let best = null;
     for (const p of this.props) {
+      if (p.broken) continue;
       const t = this._rayAabb(o, d, p, p.half);
       if (t >= 0 && t <= reach && (!best || t < best.dist)) best = { prop: p, dist: t };
     }
     if (!best) return null;
     // arada duvar/zemin var mı?
-    for (let s = 0.3; s < best.dist - 0.2; s += 0.25) {
+    for (let s = 0.28; s < best.dist - 0.18; s += 0.22) {
       const q = o.clone().addScaledVector(d, s);
       const v = this.vw.voxels.get(`${Math.round(q.x / S)},${Math.round((q.y - S / 2) / S)},${Math.round(q.z / S)}`);
       if (v && v.active) return null;
+    }
+    // arada kapalı kapı / dolap kapağı / fırın kapağı / çekmece var mı?
+    if (this.vw.doors) {
+      const dh = this.vw.doors.rayHit(o, d, best.dist - 0.05);
+      if (dh) return null;
     }
     return best;
   }
@@ -205,9 +359,9 @@ export class PropManager {
     const r = this.pick(camera);
     if (!r) return false;
     const p = r.prop;
-    p.held = true; p.hung = false; p.sleep = false; p.still = 0; p.tipped = false;
+    p.held = true; p.hung = false; p.sleep = false; p.still = 0; p.tipped = false; p.thrown = false;
     p.half.copy(p.baseHalf);
-    this.held = p; this.cam = camera; this.holdDist = THREE.MathUtils.clamp(r.dist, 1.2, 3.4);
+    this.held = p; this.cam = camera; this.holdDist = THREE.MathUtils.clamp(r.dist, 1.0, 3.4);
     sound.playWoodHit && sound.playWoodHit();
     return true;
   }
@@ -222,6 +376,7 @@ export class PropManager {
       const d = new THREE.Vector3(); this.cam.getWorldDirection(d);
       p.vel.addScaledVector(d, 2.0);
     }
+    if (sp > 7.5) p.thrown = true;
     // Bırakıldığı anda havada takla / eğilme hızı kazanır ve yere yan/devrik çarpacak hedef açısı belirlenir
     p.wx = (Math.random() - 0.5) * 9 + (p.vel.z * 0.45);
     p.wz = (Math.random() - 0.5) * 9 - (p.vel.x * 0.45);
@@ -230,12 +385,12 @@ export class PropManager {
     this.held = null;
   }
 
-  // Sol tıkla eldeki eşyayı ileri fırlat (hızla savrulup yere/duvara çakılır)
+  // Sol tıkla eldeki eşyayı ileri fırlat (hızla savrulup yere/duvara çakılır ve kırılır)
   throwHeld(camera) {
     if (!this.held) return false;
     const p = this.held;
     const d = new THREE.Vector3(); camera.getWorldDirection(d);
-    p.held = false; p.sleep = false; p.still = 0;
+    p.held = false; p.sleep = false; p.still = 0; p.thrown = true;
     const throwSpeed = 16 / Math.max(0.55, Math.sqrt(p.k.mass));
     p.vel.copy(d).multiplyScalar(throwSpeed);
     p.vel.y += 2.2;
@@ -275,16 +430,21 @@ export class PropManager {
     }
   }
 
-  adjustDistance(delta) { this.holdDist = THREE.MathUtils.clamp(this.holdDist + delta, 1.0, 4.2); }
+  adjustDistance(delta) { this.holdDist = THREE.MathUtils.clamp(this.holdDist + delta, 0.85, 4.2); }
 
-  // Patlama: yakındaki eşyaları savurur
+  // Patlama: merkezdeki eşyaları parçalar, yakındakileri savurur
   impulse(center, radius, force) {
     for (const p of this.props) {
+      if (p.broken) continue;
       const d = p.pos.distanceTo(center);
       if (d > radius * 1.6) continue;
+      if (d <= radius * 0.95) {
+        this.breakProp(p, center);
+        continue;
+      }
       const k = (1 - d / (radius * 1.6)) * force / Math.max(0.5, p.k.mass);
       const dir = p.pos.clone().sub(center).normalize(); dir.y = Math.abs(dir.y) * 0.5 + 0.6;
-      p.vel.addScaledVector(dir, k * 0.12); p.hung = false; p.sleep = false; p.still = 0;
+      p.vel.addScaledVector(dir, k * 0.12); p.hung = false; p.sleep = false; p.still = 0; p.thrown = true;
       p.spin = (Math.random() - 0.5) * 14;
       p.wx = (Math.random() - 0.5) * 16;
       p.wz = (Math.random() - 0.5) * 16;
@@ -299,17 +459,18 @@ export class PropManager {
     for (let k = 0; k < 6 && n; k++) {
       this.rr = ((this.rr || 0) + 1) % n;
       const p = this.props[this.rr];
-      if (p.sleep && !p.held && !p.hung && !this._solid(p.pos.x, p.pos.y - 0.06, p.pos.z, p.half)) {
+      if (!p.broken && p.sleep && !p.held && !p.hung && !this._solid(p.pos.x, p.pos.y - 0.06, p.pos.z, p.half)) {
         p.sleep = false; p.still = 0;
         p.wx = (Math.random() - 0.5) * 6; p.wz = (Math.random() - 0.5) * 6;
         this._assignFallRestAngles(p, true);
       }
     }
     for (const p of this.props) {
+      if (p.broken) continue;
       if (p.sleep && !p.held) continue;
       if (p.hung && !p.held) continue;
       if (p.held) this._stepHeld(p, dt); else this._stepFree(p, dt);
-      this._upload(p);
+      if (!p.broken) this._upload(p);
     }
   }
 
@@ -338,6 +499,11 @@ export class PropManager {
       p.half.y = bh.y * (1 - tiltAmt) + sideH * tiltAmt;
     }
     const hit = this._move(p, dt, true);
+    // Fırlatılan veya yüksek hızla çarpan eşya parçalanarak kırılır!
+    if ((p.thrown && hit > 4.8) || hit > 10.5) {
+      this.breakProp(p);
+      return;
+    }
     if (p.grounded) {
       const f = Math.pow(0.035, dt);
       p.vel.x *= f; p.vel.z *= f;
@@ -370,7 +536,7 @@ export class PropManager {
     if (p.vel.lengthSq() < 0.015 && p.grounded && Math.abs(p.pitch - p.restPitch) < 0.05 && Math.abs(p.roll - p.restRoll) < 0.05) {
       p.still += dt;
       if (p.still > 0.55) {
-        p.sleep = true;
+        p.sleep = true; p.thrown = false;
         p.vel.set(0, 0, 0);
         p.spin = 0; p.wx = 0; p.wz = 0;
         p.pitch = p.restPitch; p.roll = p.restRoll;
