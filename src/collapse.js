@@ -61,23 +61,28 @@ export class CollapseSystem {
     this.chunks = [];
     this.onShake = null;
     this.time = 0;
-    this.dirty = new Map();   // bölge → { n, t, ix, iy, iz }: devrilme kontrolü için hasar sayacı
+    this.dirty = new Map();   // bölge → { n, baseN, t, ix, iy, iz }: devrilme kontrolü için hasar sayacı
     this.cool = new Map();
     this.stab = null;         // sürmekte olan devrilme kontrolü
-    this.recentBreaks = [];   // son kırılan küpler: { x, y, z, t } — kesilen binanın çok parçalanan tarafını bulmak için
+    this.recentBreaks = [];   // son kırılan ALT küpler: { x, y, z, t } — alt kısmın çok parçalanan tarafını bulmak için
     this._q = new THREE.Quaternion(); this._v = new THREE.Vector3(); this._ax = new THREE.Vector3();
   }
 
   // Kaldırılan voxelin komşularını kontrol sırasına ekle
   queue(v) {
     if (this.seeds.size < 600000) for (const [dx, dy, dz] of DIRS) this.seeds.add(key(v.ix + dx, v.iy + dy, v.iz + dz));
-    const bk = `${v.ix >> 4},${v.iz >> 4}`;
-    let d = this.dirty.get(bk);
-    if (!d) { d = { n: 0, t: 0, ix: v.ix, iy: v.iy, iz: v.iz, sx: 0, sz: 0, baseN: 0 }; this.dirty.set(bk, d); }
-    d.n++; d.t = this.time; d.ix = v.ix; d.iy = v.iy; d.iz = v.iz;
-    if (v.y <= 6.0) { d.sx += v.x; d.sz += v.z; d.baseN++; }
-    this.recentBreaks.push({ x: v.x, y: v.y, z: v.z, t: this.time });
-    if (this.recentBreaks.length > 50000) this.recentBreaks.splice(0, 15000);
+    // ÖNEMLİ: Binanın üst kısımlarına ateş edildiğinde devrilme kontrolü tetiklenmesin!
+    // Yalnızca binanın ALT kısmı (zemine yakın katmanlar, y <= 5.5 m) kırıldığında devrilme hesabı yapılır.
+    const hGround = this.vw.terrain.heightAt(v.x, v.z);
+    const relY = hGround > -Infinity ? (v.y - hGround) : v.y;
+    if (relY <= 5.0) {
+      const bk = `${v.ix >> 4},${v.iz >> 4}`;
+      let d = this.dirty.get(bk);
+      if (!d) { d = { n: 0, baseN: 0, t: 0, ix: v.ix, iy: v.iy, iz: v.iz }; this.dirty.set(bk, d); }
+      d.n++; d.baseN++; d.t = this.time; d.ix = v.ix; d.iy = v.iy; d.iz = v.iz;
+      this.recentBreaks.push({ x: v.x, y: v.y, z: v.z, t: this.time });
+      if (this.recentBreaks.length > 50000) this.recentBreaks.splice(0, 15000);
+    }
     if (this.vw.bridge) this.vw.bridge.onVoxelRemoved(v);
   }
 
@@ -92,9 +97,9 @@ export class CollapseSystem {
 
   update(dt) {
     this.time += dt;
-    if (this.recentBreaks.length && this.time - this.recentBreaks[0].t > 18) {
+    if (this.recentBreaks.length && this.time - this.recentBreaks[0].t > 20) {
       let cut = 0;
-      while (cut < this.recentBreaks.length && this.time - this.recentBreaks[cut].t > 18) cut++;
+      while (cut < this.recentBreaks.length && this.time - this.recentBreaks[cut].t > 20) cut++;
       if (cut > 0) this.recentBreaks.splice(0, cut);
     }
     this._processSeeds();
@@ -144,16 +149,18 @@ export class CollapseSystem {
 
     if (grounded) { for (const k of visited.keys()) ok.add(k); return; }
     const list = Array.from(visited.values());
-    const tip = this._computeAsymmetricCutTip(list);
+    // Yerden komple kesilen bina: önce yavaş yavaş hızlanarak DÜZ AŞAĞI düşmeye başlar!
+    // Yere çarptığında alt kısmı ezilir ve sonrasında (veya alt kısmın bir yarısı çok parçalandıysa o tarafa) yavaşça devrilir.
+    const asymDir = this._computeAsymmetricCutDir(list);
     this.spawnChunk(list, {
-      tip,
-      creak: tip ? 0 : (list.length >= 150 ? 0.25 + 0.6 * Math.min(1, list.length / 6000) : 0)
+      asymDir,
+      creak: list.length >= 250 ? 0.18 + 0.35 * Math.min(1, list.length / 8000) : 0
     });
   }
 
-  // Komple yerden kesilen yapıda alt kısmın hangi yarısı daha fazla parçalandıysa o tarafa devrilme hesabı
-  _computeAsymmetricCutTip(list) {
-    if (list.length < 40) return null;
+  // Binanın alt kısmının bir yarısı çok fazla parçalanıp diğer yarısı az parçalandıysa, çok parçalanan yönü { dx, dz, strength } döndürür
+  _computeAsymmetricCutDir(list) {
+    if (list.length < 60) return null;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
     let sx = 0, sz = 0;
     for (const v of list) {
@@ -163,84 +170,66 @@ export class CollapseSystem {
       if (v.z < minZ) minZ = v.z; if (v.z > maxZ) maxZ = v.z;
     }
     const spanX = maxX - minX, spanZ = maxZ - minZ, spanY = maxY - minY;
-    if (spanX < 1.5 && spanZ < 1.5) return null;
+    if (spanX < 2.0 && spanZ < 2.0) return null;
 
     const cx = sx / list.length, cz = sz / list.length;
-    const baseCutH = minY + Math.max(2.5, Math.min(6.0, spanY * 0.45));
+    const baseCutH = minY + Math.max(2.5, Math.min(5.5, spanY * 0.35));
 
-    // 1) Alt kısımda kalan sağlam küplerin dağılımı (az küp kalan taraf = çok parçalanan taraf)
+    // 1) Alt kısımda kalan küplerin ağırlık merkezi: çok parçalanan tarafta küp azaldığı için merkez sağlam tarafa kayar
     let lowSx = 0, lowSz = 0, lowW = 0;
     for (const v of list) {
       if (v.y <= baseCutH) {
-        const w = (baseCutH - v.y + S) / (baseCutH - minY + S); // en alt katmanlara daha çok ağırlık
+        const w = (baseCutH - v.y + S) / (baseCutH - minY + S);
         lowSx += (v.x - cx) * w;
         lowSz += (v.z - cz) * w;
         lowW += w;
       }
     }
 
-    // 2) Son kırılan küplerin (hasar geçmişi) dağılımı (çok küp kırılan taraf = çok parçalanan taraf)
+    // 2) Son kırılan alt küplerin dağılımı: hangi yarıda daha çok küp kırıldı?
     let dmgVecX = 0, dmgVecZ = 0, dmgCount = 0;
     const pad = 1.5;
     for (let i = this.recentBreaks.length - 1; i >= 0; i--) {
       const b = this.recentBreaks[i];
-      if (b.x >= minX - pad && b.x <= maxX + pad && b.z >= minZ - pad && b.z <= maxZ + pad && b.y <= baseCutH + 1.0) {
+      if (b.x >= minX - pad && b.x <= maxX + pad && b.z >= minZ - pad && b.z <= maxZ + pad && b.y <= baseCutH + 1.5) {
         dmgVecX += (b.x - cx);
         dmgVecZ += (b.z - cz);
         dmgCount++;
       }
     }
 
-    // Çok parçalanan yönü birleştir: kırılan küplerin yoğun olduğu taraf + alt küplerin eksildiği taraf
+    // Çok parçalanan yön = kalan alt küplerin tersi + kırılan küplerin olduğu taraf
     let dirX = 0, dirZ = 0;
     if (lowW > 0) {
-      // Kalan sağlam alt küplerin tersi yönü (fazla parçalanan boşluk tarafı)
-      dirX -= (lowSx / lowW) * 2.2;
-      dirZ -= (lowSz / lowW) * 2.2;
+      dirX -= (lowSx / lowW) * 1.8;
+      dirZ -= (lowSz / lowW) * 1.8;
     }
-    if (dmgCount > 0) {
-      dirX += (dmgVecX / dmgCount) * 1.5;
-      dirZ += (dmgVecZ / dmgCount) * 1.5;
+    if (dmgCount >= 10) {
+      dirX += (dmgVecX / dmgCount) * 1.2;
+      dirZ += (dmgVecZ / dmgCount) * 1.2;
     }
 
     const dl = Math.hypot(dirX, dirZ);
-    if (dl < 0.08) return null; // tamamen simetrik kesilmişse düz düşsün
-    const dx = dirX / dl, dz = dirZ / dl;
-
-    // Az parçalanan (daha sağlam kalan) alt kenarı dayanak/pivot noktası olarak seç
-    let bestProj = Infinity, px = cx, pz = cz, py = minY;
-    for (const v of list) {
-      if (v.y > minY + 2.5) continue;
-      const proj = (v.x - cx) * dx + (v.z - cz) * dz; // negatif = az parçalanan arka/destek tarafı, pozitif = çok parçalanan ön taraf
-      if (proj < bestProj) {
-        bestProj = proj;
-        px = v.x; pz = v.z; py = v.y - S / 2;
-      }
-    }
-    // Pivot noktasını merkeze biraz yaklaştır ki devrilirken hem dönsün hem yere doğru çakılsın
-    px = cx + (px - cx) * 0.55;
-    pz = cz + (pz - cz) * 0.55;
-    const supY = this._support(Math.round(px / S), Math.round(pz / S), Math.round(py / S), px, pz);
-    if (supY > -Infinity && supY <= py + 0.5) py = Math.max(supY, py - 1.5);
-
-    return { dx, dz, px, py, pz, cutFall: true };
+    // Belirgin bir asimetri varsa (bir yarısı çok, diğer yarısı az parçalanmışsa) o yönü kaydet
+    if (dl < 0.35) return null;
+    return { dx: dirX / dl, dz: dirZ / dl, strength: clamp(dl / 2.0, 0.25, 1.0) };
   }
 
-  // ── DEVRİLME KONTROLÜ: zemine bağlı yapının ağırlık merkezi kalan tabanın üstünde mi? ──
+  // ── DEVRİLME KONTROLÜ: zemine bağlı yapının ALT kısmı bir taraftan çok kırıldıysa ağırlık merkezi desteksiz tarafa devrilir ──
   _stabilityTick() {
     if (this.stab) { this._stabilityStep(); return; }
     if (this.chunks.length >= MAX_CHUNKS) return;
     for (const [bk, d] of this.dirty) {
-      if (this.time - d.t < 0.45) continue;           // hasar sürerken kısa bekle
+      if (this.time - d.t < 0.75) continue;           // hasar sürerken bekle
       this.dirty.delete(bk);
-      if (d.n < 8) continue;                          // çok küçük hasar devirmez
+      if (d.baseN < 24) continue;                     // küçük delikler veya az hasar binayı KESİNLİKLE devirmez!
       const cd = this.cool.get(bk);
-      if (cd !== undefined && this.time - cd < 1.2) continue;
+      if (cd !== undefined && this.time - cd < 2.5) continue;
       this.cool.set(bk, this.time);
       const seed = this._findSeed(d);
       if (!seed) continue;
       const visited = new Map(); visited.set(key(seed.ix, seed.iy, seed.iz), seed);
-      this.stab = { stack: [seed], visited, sx: 0, sy: 0, sz: 0, cols: new Map(), rim: false, abort: false, dirtyInfo: d };
+      this.stab = { stack: [seed], visited, sx: 0, sy: 0, sz: 0, cols: new Map(), rim: false, abort: false };
       break;
     }
   }
@@ -260,6 +249,7 @@ export class CollapseSystem {
     while (st.stack.length) {
       const v = st.stack.pop();
       st.sx += v.x; st.sy += v.y; st.sz += v.z;
+      // Yalnızca zemine oturan veya zeminin hemen üstündeki (alt 3.5 m) katmanları incele
       if (this._grounded(v)) st.cols.set(`${v.ix},${v.iz}`, [v.x, v.z, v.y - S / 2]);
       for (const [dx, dy, dz] of DIRS) {
         const k = key(v.ix + dx, v.iy + dy, v.iz + dz);
@@ -275,43 +265,25 @@ export class CollapseSystem {
     }
     this.stab = null;
     const list = Array.from(st.visited.values()), n = list.length;
-    if (n < 40 || this.chunks.length >= MAX_CHUNKS) return;
+    if (n < 60 || this.chunks.length >= MAX_CHUNKS) return;
     const cx = st.sx / n, cy = st.sy / n, cz = st.sz / n;
     const pts = [];
-    let supSx = 0, supSz = 0, supN = 0;
     for (const [x, z] of st.cols.values()) {
       pts.push([x - S / 2, z - S / 2], [x + S / 2, z - S / 2], [x - S / 2, z + S / 2], [x + S / 2, z + S / 2]);
-      supSx += x; supSz += z; supN++;
     }
     if (pts.length === 0) return;                      // tabansız: normal bağlantı kontrolü ele alır
     const h = hull2(pts);
     const r = nearestOnHull(h, cx, cz);
-
-    // Kalan taban küplerinin merkezi ile binanın ağırlık merkezi arasındaki kayma (asimetrik alt yıkım kontrolü)
-    const supCx = supSx / supN, supCz = supSz / supN;
-    const shiftX = cx - supCx, shiftZ = cz - supCz;
-    const shiftDist = Math.hypot(shiftX, shiftZ);
-
-    // Eğer zarf dışındaysa VEYA alt kısmın bir yarısı çok parçalanıp destek merkezi belirgin kaydıysa devrilir
-    const outsideHull = r && (!r.inside && r.dist >= 0.25);
-    const heavyAsymDamage = shiftDist >= 0.85 && supN < Math.max(18, n * 0.045);
-    if (!outsideHull && !heavyAsymDamage) return;
-
-    let dx, dz, px, pz;
-    if (outsideHull) {
-      dx = cx - r.qx; dz = cz - r.qz;
-      const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
-      px = r.qx; pz = r.qz;
-    } else {
-      dx = shiftX / (shiftDist || 1); dz = shiftZ / (shiftDist || 1);
-      px = supCx; pz = supCz;
-    }
+    // Kalan taban zarfı binanın ağırlık merkezini taşıyorsa (içerideyse veya kenara yakınsa) bina DÜŞMEZ!
+    // Sadece alt kısmın bir yarısı gerçekten büyük oranda kırılıp ağırlık merkezi taban zarfının dışına çıktığında devrilir.
+    if (!r || r.inside || r.dist < 0.45) return;
+    let dx = cx - r.qx, dz = cz - r.qz; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
     let minBy = Infinity; for (const c of st.cols.values()) minBy = Math.min(minBy, c[2]);
-    this.spawnChunk(list, { tip: { dx, dz, px, py: minBy, pz }, creak: 0 });
+    this.spawnChunk(list, { tip: { dx, dz, px: r.qx, py: minBy, pz: r.qz }, creak: 0 });
   }
 
   // ── Düşen / devrilen parça ──
-  // list: voxel nesneleri (dünyadan çıkarılır). opts: { creak, tip: {dx,dz,px,py,pz}, hinge: {dx,dz,px,py,pz} }
+  // list: voxel nesneleri (dünyadan çıkarılır). opts: { creak, tip: {dx,dz,px,py,pz}, hinge: {dx,dz,px,py,pz}, asymDir }
   spawnChunk(list, opts = {}) {
     const vw = this.vw;
     const byType = new Map();
@@ -366,11 +338,12 @@ export class CollapseSystem {
       ext: { minX, maxX, minY, maxY, minZ, maxZ },
       phase: 'fall', t: 0, vy: 0, oy0: 0, oy1: 0, theta: 0, omega: 0,
       d: null, P: null, front: null, shedT: 0, hinge: !!opts.hinge, sinkT: 0, entered: false,
-      creak: opts.creak || 0, bornT: this.time, cutFall: !!(opts.tip && opts.tip.cutFall),
-      crushed: 0
+      creak: opts.creak || 0, bornT: this.time,
+      asymDir: opts.asymDir || null,
+      crushed: 0, crushLayers: 0
     };
     if (c.creak > 0) c.phase = 'creak';
-    if (opts.tip) this._beginTip(c, opts.tip, 0.015, opts.tip.cutFall ? 0.14 : 0);
+    if (opts.tip) this._beginTip(c, opts.tip, 0.004, 0);
     else if (opts.hinge) this._beginTip(c, opts.hinge, 0.002, 0);
     this.chunks.push(c);
     sound.playBlockHit();
@@ -434,6 +407,7 @@ export class CollapseSystem {
     const bins = new Map();
     const P = c.P, dx = tip.dx, dz = tip.dz;
     for (const v of c.list) {
+      if (!v.active) continue;
       const s = (v.x - P.x) * dx + (v.z - P.z) * dz, t = -(v.x - P.x) * dz + (v.z - P.z) * dx;
       const tb = Math.round(t), rows = bins.get(tb) || (bins.set(tb, new Map()), bins.get(tb));
       const r = rows.get(v.iy);
@@ -460,17 +434,15 @@ export class CollapseSystem {
     return null;
   }
 
-  // Devrilen/düşen bina belli bir hıza ulaştığında önündeki başka binaya çarparsa onu yıkar/parçalar (çok aşırı yıkmaması için momentum sınırı var)
+  // Devrilen bina belli bir hıza ulaştığında önündeki başka binaya çarparsa onu yıkar/parçalar (çok aşırı yıkmaması için momentum sınırı var)
   _smashBuildingAt(c, pt, speed) {
     const vw = this.vw;
-    // Belli bir hız eşiği (ör. 3.2 m/sn altı yavaş temaslarda diğer binayı yıkamaz)
-    const minSpeed = 3.2;
+    const minSpeed = 3.5;
     if (speed < minSpeed) return false;
-    // Çok yıkmasın: bina büyüklüğüyle orantılı makul bir kırma bütçesi
-    const maxCrush = Math.min(2200, Math.max(180, Math.floor(c.n * 0.42)));
+    const maxCrush = Math.min(2000, Math.max(150, Math.floor(c.n * 0.38)));
     if (c.crushed >= maxCrush) return false;
 
-    const r = clamp(1.0 + (speed - minSpeed) * 0.22, 1.0, 2.6);
+    const r = clamp(1.0 + (speed - minSpeed) * 0.2, 1.0, 2.4);
     const r2 = r * r;
     const minIx = Math.floor((pt.x - r) / S), maxIx = Math.ceil((pt.x + r) / S);
     const minIy = Math.floor((pt.y - r) / S), maxIy = Math.ceil((pt.y + r) / S);
@@ -498,13 +470,11 @@ export class CollapseSystem {
 
     if (broken > 0) {
       c.crushed += broken;
-      // Çarpılan binanın kendi küplerinden de bir kısmı ezilir
-      this._shed(c, Math.min(8, Math.ceil(broken * 0.12)));
+      this._shed(c, Math.min(6, Math.ceil(broken * 0.1)));
       if (vw.particleSystem.createDust && Math.random() < 0.45) {
         vw.particleSystem.createDust(pt.clone());
       }
       if (Math.random() < 0.25) sound.playBlockHit();
-      // Çarpışma darbesiyle düşen binanın hızı bir miktar azalır (momentum aktarımı)
       const slow = clamp(1 - (broken / maxCrush) * 0.35, 0.72, 0.98);
       c.omega *= slow;
       c.vy *= slow;
@@ -547,8 +517,52 @@ export class CollapseSystem {
     }
   }
 
+  // Düşen binanın yere çarptığında SADECE en alt katmanını ezmesi (üst gövdeye hiç hasar vermez!)
+  _crushBottomLayer(c) {
+    const vw = this.vw;
+    // Mevcut aktif küplerin en alt y seviyesini bul
+    let minIy = Infinity;
+    for (const u of c.list) {
+      if (u.active && u.iy < minIy) minIy = u.iy;
+    }
+    if (minIy === Infinity) return 0;
+
+    let broken = 0, debris = 0;
+    for (const u of c.list) {
+      if (!u.active) continue;
+      // Yalnızca yere çarpan en alt 1 katman (minIy) kırılır; üst kısım sağlam kalır
+      if (u.iy <= minIy) {
+        u.active = false;
+        vw._hideVoxel(u);
+        broken++;
+        if (debris < 28 && vw.dynamicDebris.length < vw.maxDynamicDebris && Math.random() < 0.45) {
+          debris++;
+          const wx = u.x, wy = u.y + c.oy0 + c.oy1, wz = u.z;
+          vw.spawnLooseVoxel(wx, wy, wz, u.type, { x: c.com.x, y: wy, z: c.com.z }, 0.6, 3, 16 + c.vy);
+        }
+      }
+    }
+    vw.destroyedVoxels += broken;
+
+    // Alt katman kırıldığı için kolonların alt sınırını (by) 1 katman (S) yukarı güncelle
+    c.lowBy += S;
+    for (const b of c.cols) {
+      if (b.by <= minIy * S + 1e-3) b.by = (minIy + 1) * S;
+    }
+    if (vw.particleSystem.createDust && c.cols.length) {
+      for (let i = 0; i < 2; i++) {
+        const b = c.cols[Math.floor(Math.random() * c.cols.length)];
+        vw.particleSystem.createDust(new THREE.Vector3(b.x, b.sup + 0.2, b.z));
+      }
+    }
+    sound.playBlockHit();
+    if (this.onShake) this.onShake(Math.min(0.35, 0.06 + c.vy / 80));
+    return broken;
+  }
+
   _stepFall(c, dt) {
-    c.vy = Math.min(40, c.vy + GRAVITY * dt);
+    // Yavaş yavaş hızlanarak aşağı düşer
+    c.vy = Math.min(36, c.vy + GRAVITY * 0.65 * dt);
     const drop = c.vy * dt;
     if (c.theta === 0) {
       // Düz düşüş: kolon başına destekle aradaki boşluk
@@ -588,53 +602,82 @@ export class CollapseSystem {
     return false;
   }
 
-  // Düz düşen parça zemine değdi: destek ağırlık merkezini taşıyor mu, yoksa devrilecek mi?
+  // Düz düşen bina yere değdiğinde:
+  // 1) Hızlı çarparsa binanın tamamı hasar görmez! Sadece yere çarpan ALT TARAFI katman katman yıkılır ve bina yavaşlar.
+  // 2) Yavaşladığında alt tarafın yıkılması durur; ardından bina yavaşça bir yöne (alt kısmın bir yarısı çok kırıldıysa o tarafa,
+  //    yüksek bir binaysa sağa/sola/ileriye/arkaya) devrilmeye başlar!
   _contact(c) {
     const impact = c.vy;
+    const heightSpan = c.ext.maxY - c.ext.minY;
+
+    // Bina belli bir hızın üzerindeyse (yüksekten düştüyse) yere çarptığında alt katmanı ezilir ve hızı azalır (frenler)
+    const maxCrushLayers = Math.max(1, Math.min(8, Math.floor((heightSpan / S) * 0.25)));
+    if (c.vy > 3.8 && c.crushLayers < maxCrushLayers) {
+      const broken = this._crushBottomLayer(c);
+      c.crushLayers++;
+      // Her katman ezildiğinde düşüş hızı (vy) azalır; yavaşladığında ezilmeyi bırakır
+      c.vy = Math.max(1.8, c.vy * 0.62 - 1.1);
+      if (broken > 0 && c.vy > 3.8 && c.crushLayers < maxCrushLayers) {
+        return false; // bir sonraki alt katman zemine inip yavaşlayana kadar düşmeye devam etsin
+      }
+    }
+
+    // Şimdi yavaşladı: alt tarafın yıkılması bitti. Destek durumuna ve bina yüksekliğine bakalım:
     const lowGap = Math.min(...c.cols.map(b => b.by + c.oy0 + c.oy1 - b.sup));
     const pts = [];
     let py = Infinity;
     for (const b of c.cols) {
-      if (b.by + c.oy0 + c.oy1 - b.sup > lowGap + 0.06) continue;
-      pts.push([b.x - S / 2, b.z - S / 2], [b.x + S / 2, b.z - S / 2], [b.x - S / 2, b.z + S / 2], [b.x + S / 2, b.z + S / 2]);
+      if (b.by + c.oy0 + c.oy1 - b.sup > lowGap + 0.08) continue;
+      pts.push([b.x - S / 2, b.z - S / 2], [b.x + S / 2, b.z - S / 2], [b.x - S / 2, b.z + S / 2], [b.x + S / 2, z_b(b) + S / 2]);
       py = Math.min(py, b.by + c.oy0 + c.oy1);
     }
+    function z_b(b) { return b.z; }
+
+    // A) Alt kısmın bir yarısı çok fazla kırılmışsa (asimetrik kesim) VEYA kalan destek ağırlık merkezini taşımıyorsa → çok kırılan tarafa devrilir!
     const h = hull2(pts), r = nearestOnHull(h, c.com.x, c.com.z);
-    if (!r || r.inside || r.dist < 0.25) {
-      // Eğer komple yerden kesilmiş ama asimetrik bir darbe almışsa çarpma anında da çok parçalanan tarafa devrilebilir
-      const asym = this._computeAsymmetricCutTip(c.list);
-      if (asym) {
-        this._beginTip(c, { dx: asym.dx, dz: asym.dz, px: asym.px, py, pz: asym.pz }, 0.02, clamp(0.18 + impact * 0.06, 0.15, 0.9));
-        return false;
-      }
-      this._settle(c, impact, 0, null);
-      return true;
+    if (r && (!r.inside && r.dist >= 0.3)) {
+      let dx = c.com.x - r.qx, dz = c.com.z - r.qz; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
+      this._beginTip(c, { dx, dz, px: r.qx, py, pz: r.qz }, 0.005, 0.04);
+      return false;
     }
-    let dx = c.com.x - r.qx, dz = c.com.z - r.qz; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
-    this._beginTip(c, { dx, dz, px: r.qx, py, pz: r.qz }, 0.008, clamp(0.16 * impact / Math.max(0.8, r.dist), 0.1, 0.95));
-    return false;
+    if (c.asymDir) {
+      const { dx, dz } = c.asymDir;
+      const halfSpan = ((c.ext.maxX - c.ext.minX) * Math.abs(dx) + (c.ext.maxZ - c.ext.minZ) * Math.abs(dz)) * 0.35;
+      const px = c.com.x + dx * halfSpan, pz = c.com.z + dz * halfSpan;
+      this._beginTip(c, { dx, dz, px, py: isFinite(py) ? py : c.lowBy + c.oy0 + c.oy1, pz }, 0.006, 0.05);
+      return false;
+    }
+
+    // B) Yüksek bir bina (ör. şirket binası / kule) komple yerden kesilip düştüyse, alt kısmı yıkılıp yavaşladıktan sonra
+    //    sağa, sola, ileriye veya arkaya doğru yavaşça devrilmeye başlar!
+    if (heightSpan >= 6.0 && c.n >= 120 && (c.crushLayers > 0 || impact >= 4.0)) {
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      const [dx, dz] = dirs[Math.floor(Math.random() * dirs.length)];
+      const halfSpan = ((c.ext.maxX - c.ext.minX) * Math.abs(dx) + (c.ext.maxZ - c.ext.minZ) * Math.abs(dz)) * 0.38;
+      const px = c.com.x + dx * halfSpan, pz = c.com.z + dz * halfSpan;
+      this._beginTip(c, { dx, dz, px, py: isFinite(py) ? py : c.lowBy + c.oy0 + c.oy1, pz }, 0.005, 0.03);
+      return false;
+    }
+
+    // Küçük parça veya alçak düşüş: üst kısım hiç hasar almadan olduğu gibi yerine oturur
+    this._settle(c, impact, 0, null);
+    return true;
   }
 
   _stepTip(c, dt) {
-    // Devrilme dinamiği: ağırlık merkezi pivotun ilerisindeyse yerçekimi momenti açıyı büyütür (üstel başlar: yavaş başlayıp hızlanır)
+    // Devrilme dinamiği: bina yavaşça eğilmeye başlar, açı büyüdükçe yerçekimi momentiyle hızlanıp yere çakılır
     const P = c.P, dx = c.d[0], dz = c.d[1];
-    const rs = (c.com.x - P.x) * dx + (c.com.z - P.z) * dz, ry = c.com.y + c.oy0 - P.y;
+    const rs = (c.com.x - P.x) * dx + (c.com.z - P.z) * dz, ry = Math.max(1.5, c.com.y + c.oy0 - P.y);
     const sub = Math.max(1, Math.ceil(dt / (1 / 120))), h = dt / sub;
     const p = new THREE.Vector3();
     for (let i = 0; i < sub; i++) {
       const cs = Math.cos(c.theta), sn = Math.sin(c.theta);
-      // Çok parçalanan tarafa devrilirken başlangıçta da güçlü bir tork olsun ki takılmadan devrilsin
-      const sCom = Math.max(0.8, rs * cs + ry * sn);
+      // Başlangıçta da hafif bir moment olsun ki bina takılmadan yavaşça devrilmeye başlasın, devrildikçe hızlansın
+      const sCom = Math.max(0.45, rs * cs + ry * sn);
       const k2 = (c.Lp * c.Lp + c.Hc * c.Hc) / 12;
-      const tipG = c.cutFall ? TIP_G * 1.45 : TIP_G;
-      c.omega += (tipG * sCom / (k2 + rs * rs + ry * ry)) * h;
-      c.omega *= 1 - 0.03 * h;
+      c.omega += (TIP_G * sCom / (k2 + rs * rs + ry * ry)) * h;
+      c.omega *= 1 - 0.04 * h;
       c.theta += c.omega * h;
-      // Komple altından kesilmiş bina devrilirken aynı zamanda yerçekimiyle aşağı da çöker
-      if (c.cutFall) {
-        c.vy = Math.min(18, c.vy + GRAVITY * 0.32 * h);
-        c.oy1 -= c.vy * h;
-      }
       // temas: ileri-alçak sınır noktaları araziye / başka küplere / suya değdi mi
       for (const f of c.front) {
         if (f.s < 0.3) continue;                         // pivot tarafı: yükselir
@@ -645,20 +688,17 @@ export class CollapseSystem {
         }
         const hit = this._checkHit(p.x, p.y, p.z);
         if (hit === 'voxel') {
-          const v = Math.hypot(c.vy, Math.abs(c.omega) * Math.hypot(f.s, f.h));
-          // Önünde başka bina varsa ve belli bir hıza ulaştıysa o binayı da yıkıp içinden geçer
+          const v = Math.abs(c.omega) * Math.hypot(f.s, f.h);
+          // Önünde başka bina varsa ve belli bir hıza ulaştıysa o binayı da yıkıp devrilmeye devam eder
           if (this._smashBuildingAt(c, p, v)) continue;
           this._pose(c);
           this._settle(c, Math.max(v, 2), c.theta, p.clone());
           return true;
         }
         if (hit === 'ground') {
-          // Yere henüz çok küçük açıda değdiyse (kesilen taban köşesi) biraz ezilip devrilmeye devam etsin, hemen durmasın
-          if (c.theta < 0.38 && f.h < 3.0) {
-            c.oy1 += 0.04;
-            continue;
-          }
-          const v = Math.hypot(c.vy, Math.abs(c.omega) * Math.hypot(f.s, f.h));
+          // Devrilmenin ilk başında taban köşesi yere sürterse hemen durmasın, devrilmeye devam etsin
+          if (c.theta < 0.42 && f.h < 3.5) continue;
+          const v = Math.abs(c.omega) * Math.hypot(f.s, f.h);
           this._pose(c);
           this._settle(c, Math.max(v, 9.5), Math.max(c.theta, 0.55), p.clone());
           return true;
@@ -671,7 +711,7 @@ export class CollapseSystem {
     }
     // pivot kenarında ezilme: kırıntı ve toz
     c.shedT -= dt;
-    if (c.shedT <= 0 && c.cols.length) { c.shedT = 0.12; this._shed(c, 1 + Math.floor(Math.min(4, c.n / 3000))); }
+    if (c.shedT <= 0 && c.cols.length) { c.shedT = 0.14; this._shed(c, 1 + Math.floor(Math.min(3, c.n / 4000))); }
     this._pose(c);
     return false;
   }
@@ -701,35 +741,39 @@ export class CollapseSystem {
     c.list.forEach(v => { v.active = false; });
   }
 
-  // Yere oturma: hıza ve eğikliğe göre hasar, sonra küpler yeni konumlarına (ızgaraya) işlenir.
-  //  • düz iniş: yalnız temas eden alt katmanlar hasar alır (ancak yüksek hızla yere çakılırsa komple parçalanır)
-  //  • eğik/devrilerek çarpma: bina komple yere çakılır ve şiddetli şekilde parçalanır; çarptığı yerdeki diğer yapıları da hızına göre yıkar
+  // Yere oturma:
+  //  • Düz iniş (theta === 0): Üst gövdeye HİÇ hasar verilmez (yalnızca temas eden en alt 1 katman hafif ezilebilir).
+  //  • Yan devrilerek yere çakılma (theta > 0.2): Bina devrilip yere çakıldığı için şiddetli şekilde parçalanır.
   _settle(c, v, theta, contact) {
     const vw = this.vw, p = new THREE.Vector3();
-    // Kolon tabanları (hasar derinliği için)
     const bottomIy = new Map();
     for (const u of c.list) { if (!u.active) continue; const k = `${u.ix},${u.iz}`, b = bottomIy.get(k); if (b === undefined || u.iy < b) bottomIy.set(k, u.iy); }
-    const pb = clamp((v - 2.0) / 10, 0, 0.96);
-    const lam = 1.6 + v / 3.5;
-    // Devrilerek yere çakılan bina komple parçalansın (tiltDmg yüksek)
-    const isCrash = theta > 0.15 || c.cutFall || v > 7.5;
-    const tiltDmg = isCrash ? clamp(0.62 + 0.35 * Math.sin(Math.min(Math.max(theta, 0.5), 1.4)) * clamp(v / 7, 0.5, 1.3), 0.65, 0.96) : 0;
+
+    const isTippedCrash = theta > 0.22;
+    const pb = isTippedCrash ? clamp((v - 2.0) / 10, 0, 0.95) : clamp((v - 4.0) / 18, 0, 0.55);
+    const lam = isTippedCrash ? (1.6 + v / 3.5) : 0.75; // düz inişte sadece en alt satır (L=0) etkilenir, üst katlara hiç çıkmaz!
+    const tiltDmg = isTippedCrash ? clamp(0.62 + 0.35 * Math.sin(Math.min(theta, 1.4)) * clamp(v / 7, 0.5, 1.3), 0.65, 0.95) : 0;
+
     const dummy = new THREE.Object3D();
     let broken = 0, debris = 0;
-    const maxDebris = isCrash ? 180 : 90;
+    const maxDebris = isTippedCrash ? 180 : 60;
     const wipe = (u, x, y, z) => {
       u.active = false; vw._hideVoxel(u); broken++;
-      if (debris < maxDebris && vw.dynamicDebris.length < vw.maxDynamicDebris && Math.random() < 0.65) {
+      if (debris < maxDebris && vw.dynamicDebris.length < vw.maxDynamicDebris && Math.random() < 0.6) {
         debris++;
-        vw.spawnLooseVoxel(x, y, z, u.type, { x: c.com.x, y: Math.max(0.5, y - 1), z: c.com.z }, 0.5, 4, 28 + v * 1.5);
+        vw.spawnLooseVoxel(x, y, z, u.type, { x: c.com.x, y: Math.max(0.5, y - 1), z: c.com.z }, 0.5, 4, 24 + v * 1.4);
       }
     };
     for (const u of c.list) {
       if (!u.active) continue;
       this._place(c, u.x, u.y, u.z, p);
       const L = u.iy - bottomIy.get(`${u.ix},${u.iz}`);
-      let pLocal = pb * Math.exp(-L / lam);
-      if (contact) { const dc = Math.hypot(p.x - contact.x, p.z - contact.z); pLocal = Math.min(0.98, pLocal + tiltDmg * 0.55 * Math.exp(-dc / (3 + v * 0.6))); }
+      // Düz inişte L >= 1 olan (alt katmanın üstündeki) hiçbir küp rastgele kırılmaz!
+      let pLocal = (!isTippedCrash && L >= 1) ? 0 : pb * Math.exp(-L / lam);
+      if (isTippedCrash && contact) {
+        const dc = Math.hypot(p.x - contact.x, p.z - contact.z);
+        pLocal = Math.min(0.98, pLocal + tiltDmg * 0.55 * Math.exp(-dc / (3 + v * 0.6)));
+      }
       const pd = 1 - (1 - pLocal) * (1 - tiltDmg);
       if (Math.random() < pd) { wipe(u, p.x, p.y, p.z); continue; }
       // Yeni ızgara konumu
@@ -739,8 +783,7 @@ export class CollapseSystem {
       const th = vw.terrain.heightAt(nix * S, niz * S);
       const ex = vw.voxels.get(nk);
       if (ex && ex.active) {
-        // Yere çakılırken önünde/altında başka bir binanın küpü varsa ve hızı yeterliyse onu da kırar
-        if (v >= 3.2 && ex.groundCell === undefined && c.crushed < Math.min(2200, Math.max(180, Math.floor(c.n * 0.42)))) {
+        if (isTippedCrash && v >= 3.5 && ex.groundCell === undefined && c.crushed < Math.min(2000, Math.max(150, Math.floor(c.n * 0.38)))) {
           vw._kill(ex); vw._hideVoxel(ex); c.crushed++;
         }
         wipe(u, p.x, p.y, p.z);
@@ -752,16 +795,15 @@ export class CollapseSystem {
       vw.voxels.set(nk, u);
       dummy.position.set(u.x, u.y, u.z); dummy.updateMatrix();
       u.mesh.setMatrixAt(u.instanceIdx, dummy.matrix);
-      // Sağlam kalan parçalar havada asılı kalmasın diye tekrar tohum kuyruğuna eklenir (zincirleme yıkım)
-      if (isCrash) this.seeds.add(nk);
+      if (isTippedCrash) this.seeds.add(nk);
     }
     c.meshes.forEach(m => { m.quaternion.identity(); m.position.set(0, 0, 0); m.instanceMatrix.needsUpdate = true; });
     vw.destroyedVoxels += broken;
 
     // Toz, ses ve sarsıntı (büyüklük ve hıza göre)
     const at = contact || new THREE.Vector3(c.com.x, c.lowBy + c.oy0 + c.oy1, c.com.z);
-    vw.particleSystem.createExplosion(at, Math.min(11, 2.5 + c.n / 3000 + v / 6), 0x9c9484);
-    if (isCrash && vw.particleSystem.createDust) {
+    vw.particleSystem.createExplosion(at, Math.min(11, 2.0 + c.n / 3500 + v / 7), 0x9c9484);
+    if (isTippedCrash && vw.particleSystem.createDust) {
       for (let i = 0; i < 4; i++) {
         vw.particleSystem.createDust(new THREE.Vector3(
           at.x + (Math.random() - 0.5) * 6,
@@ -770,8 +812,8 @@ export class CollapseSystem {
         ));
       }
     }
-    sound.playExplosion(Math.min(2.2, 0.6 + c.n / 7000 + v / 35));
-    if (this.onShake) this.onShake(Math.min(0.85, 0.1 + c.n / 12000 + v / 75));
+    sound.playExplosion(Math.min(2.2, 0.5 + c.n / 7500 + v / 35));
+    if (this.onShake) this.onShake(Math.min(0.85, 0.08 + c.n / 13000 + v / 80));
     if (broken > 0 && vw.onScoreGain) {
       const score = Math.max(10, Math.round(broken * 6));
       vw.onScoreGain(score, `+${score} BİNA YIKILDI!`);

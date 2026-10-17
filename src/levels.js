@@ -997,20 +997,21 @@ export class LevelManager {
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, tvH + 0.14, tvW + 0.14), new THREE.MeshLambertMaterial({ color: 0x0b0d12 }));
     frame.position.set(tvX, tvY, seatZ);
     grp.add(frame);
-    let tvMat;
+    let tvMat, tvCanvas = null, tvCtx = null, tvTex = null;
     try {
-      const c = document.createElement('canvas'); c.width = 512; c.height = 288;
-      const g = c.getContext('2d');
-      const gr = g.createLinearGradient(0, 0, 512, 288);
+      tvCanvas = document.createElement('canvas'); tvCanvas.width = 512; tvCanvas.height = 288;
+      tvCtx = tvCanvas.getContext('2d');
+      const gr = tvCtx.createLinearGradient(0, 0, 512, 288);
       gr.addColorStop(0, '#1e3a8a'); gr.addColorStop(0.5, '#7c3aed'); gr.addColorStop(1, '#f97316');
-      g.fillStyle = gr; g.fillRect(0, 0, 512, 288);
-      g.fillStyle = 'rgba(255,255,255,0.16)'; for (let i = 0; i < 9; i++) g.fillRect(0, 150 + i * 14, 512, 3);
-      g.fillStyle = '#fde68a'; g.beginPath(); g.arc(256, 150, 46, 0, Math.PI * 2); g.fill();
-      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-      tvMat = new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+      tvCtx.fillStyle = gr; tvCtx.fillRect(0, 0, 512, 288);
+      tvCtx.fillStyle = 'rgba(255,255,255,0.16)'; for (let i = 0; i < 9; i++) tvCtx.fillRect(0, 150 + i * 14, 512, 3);
+      tvCtx.fillStyle = '#fde68a'; tvCtx.beginPath(); tvCtx.arc(256, 150, 46, 0, Math.PI * 2); tvCtx.fill();
+      tvTex = new THREE.CanvasTexture(tvCanvas); tvTex.colorSpace = THREE.SRGBColorSpace;
+      tvMat = new THREE.MeshBasicMaterial({ map: tvTex, toneMapped: false });
     } catch (e) { tvMat = new THREE.MeshBasicMaterial({ color: 0x7c3aed }); }
     const screen = new THREE.Mesh(new THREE.PlaneGeometry(tvW, tvH), tvMat);
-    screen.position.set(tvX - 0.07, tvY, seatZ);
+    const screenX = tvX - 0.07;
+    screen.position.set(screenX, tvY, seatZ);
     screen.rotation.y = -Math.PI / 2;                                        // -x'e (koltuğa) bakar
     grp.add(screen);
     const light = new THREE.PointLight(0x8b7cf6, 14, 12, 2);                 // TV'nin odaya yaydığı ışık (main.js hafifçe titretir)
@@ -1018,14 +1019,114 @@ export class LevelManager {
     grp.add(light);
     this.world.scene.add(grp);
     this.world.decor.push(grp);
-    this.world.homeTV = { light };
+
+    const homeTV = {
+      light,
+      broken: false,
+      screenX, tvY, seatZ, tvW, tvH,
+      // Vurulan dünya koordinatında (wy, wz) ekranı karartır ve tam o noktaya örümcek ağı kırık izi çizer
+      hitAt(wy, wz) {
+        if (!tvCtx || !tvTex) return;
+        if (!this.broken) {
+          this.broken = true;
+          this.light.intensity = 0;
+          tvCtx.fillStyle = '#07080c';
+          tvCtx.fillRect(0, 0, 512, 288);
+        }
+        // screen.rotation.y = -PI/2 olduğu için sol kenar seatZ - tvW/2 (u=0), sağ kenar seatZ + tvW/2 (u=1)
+        const u = Math.max(0.03, Math.min(0.97, (wz - (seatZ - tvW / 2)) / tvW));
+        const v = Math.max(0.03, Math.min(0.97, 1 - (wy - (tvY - tvH / 2)) / tvH));
+        const cx = u * 512, cy = v * 288;
+
+        // Kırık merkezindeki beyaz/gri ezilme noktası
+        const radG = tvCtx.createRadialGradient(cx, cy, 1, cx, cy, 24);
+        radG.addColorStop(0, 'rgba(245, 250, 255, 0.95)');
+        radG.addColorStop(0.3, 'rgba(180, 200, 220, 0.55)');
+        radG.addColorStop(1, 'rgba(15, 20, 30, 0)');
+        tvCtx.fillStyle = radG;
+        tvCtx.beginPath(); tvCtx.arc(cx, cy, 24, 0, Math.PI * 2); tvCtx.fill();
+
+        // Merkezden dışa yayılan kırık çatlak kolları
+        const rays = 14 + Math.floor(Math.random() * 6);
+        const angles = [];
+        for (let i = 0; i < rays; i++) {
+          const a = (i / rays) * Math.PI * 2 + (Math.random() - 0.5) * 0.25;
+          angles.push(a);
+          const len = 45 + Math.random() * 140;
+          let px = cx, py = cy, curA = a;
+          tvCtx.strokeStyle = i % 2 === 0 ? 'rgba(226, 236, 248, 0.85)' : 'rgba(148, 168, 192, 0.65)';
+          tvCtx.lineWidth = i % 3 === 0 ? 2.0 : 1.2;
+          tvCtx.beginPath();
+          tvCtx.moveTo(px, py);
+          const segs = 5 + Math.floor(Math.random() * 4);
+          for (let s = 1; s <= segs; s++) {
+            curA += (Math.random() - 0.5) * 0.22;
+            const step = (len / segs) * (0.8 + Math.random() * 0.4);
+            px += Math.cos(curA) * step;
+            py += Math.sin(curA) * step;
+            tvCtx.lineTo(px, py);
+          }
+          tvCtx.stroke();
+        }
+
+        // Halkasal örümcek ağı çatlakları
+        for (const ringR of [12, 26, 46, 72]) {
+          tvCtx.strokeStyle = 'rgba(190, 208, 230, 0.5)';
+          tvCtx.lineWidth = 1.1;
+          tvCtx.beginPath();
+          for (let i = 0; i <= angles.length; i++) {
+            const a = angles[i % angles.length];
+            const rr = ringR * (0.82 + Math.random() * 0.36);
+            const rx = cx + Math.cos(a) * rr, ry = cy + Math.sin(a) * rr;
+            if (i === 0) tvCtx.moveTo(rx, ry);
+            else if (Math.random() < 0.85) tvCtx.lineTo(rx, ry);
+            else tvCtx.moveTo(rx, ry);
+          }
+          tvCtx.stroke();
+        }
+
+        // Merkezde kurşun/darbe deliği
+        tvCtx.fillStyle = '#020305';
+        tvCtx.beginPath(); tvCtx.arc(cx, cy, 4.5, 0, Math.PI * 2); tvCtx.fill();
+        tvCtx.strokeStyle = 'rgba(255,255,255,0.9)';
+        tvCtx.lineWidth = 1.5;
+        tvCtx.stroke();
+
+        tvTex.needsUpdate = true;
+      },
+      // Mermi ışını TV ekranına çarptı mı?
+      rayHit(origin, dir, maxDist) {
+        if (Math.abs(dir.x) < 1e-6) return null;
+        const t = (screenX - origin.x) / dir.x;
+        if (t < 0.1 || t > maxDist) return null;
+        const py = origin.y + dir.y * t;
+        const pz = origin.z + dir.z * t;
+        if (Math.abs(py - tvY) <= tvH / 2 + 0.08 && Math.abs(pz - seatZ) <= tvW / 2 + 0.08) {
+          return { dist: t, point: new THREE.Vector3(screenX, py, pz) };
+        }
+        return null;
+      },
+      // Patlama / çekiç / kılıç küresi TV ekranına değdi mi?
+      hitSphere(center, radius) {
+        if (Math.abs(center.x - screenX) > radius + 0.25) return false;
+        const cy = Math.max(tvY - tvH / 2, Math.min(tvY + tvH / 2, center.y));
+        const cz = Math.max(seatZ - tvW / 2, Math.min(seatZ + tvW / 2, center.z));
+        const d2 = (center.x - screenX) ** 2 + (center.y - cy) ** 2 + (center.z - cz) ** 2;
+        if (d2 <= radius * radius) {
+          this.hitAt(cy, cz);
+          return true;
+        }
+        return false;
+      }
+    };
+    this.world.homeTV = homeTV;
 
     // Başlangıç noktası: koltuğun üstü
     const spawn = this.levelConfigs[0].spawn;
     spawn.x = seatX; spawn.z = seatZ; spawn.y = seatTopY + 1.05;
     this.world.homeSeat = { x: seatX, y: seatTopY, z: seatZ, tvX, tvY };
-    // Yanımızda koltuğun üstünde küçük bir kumanda (tutulabilir eşya olarak da odada durur)
-    this.world.propSpawns.push({ kind: 'remote', x: seatX + 0.12, y: seatTopY + 0.03, z: seatZ + 0.55, yaw: -Math.PI / 2 + 0.25 });
+    // Yanımızda koltuğun üstünde daha büyük ve belirgin bir kumanda (tutulabilir eşya olarak da odada durur)
+    this.world.propSpawns.push({ kind: 'remote', x: seatX + 0.08, y: seatTopY + 0.055, z: seatZ + 0.62, yaw: -Math.PI / 2 + 0.28 });
   }
 
   // Genel bina: çok katlı, şerit pencereli, kapılı ve çatısında tank olan kule/ofis/dükkân

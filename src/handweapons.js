@@ -564,6 +564,20 @@ export class HandWeapons {
       }
     }
 
+    // Televizyon ekranına mı çarptı? (ateş edilen yerde kırık izi oluşur ve TV ekranı siyah olur)
+    if (this.voxelWorld.homeTV) {
+      const th = this.voxelWorld.homeTV.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);
+      if (th) {
+        this._spawnTracer(muzzle, th.point);
+        this.voxelWorld.homeTV.hitAt(th.point.y, th.point.z);
+        if (this.particleSystem.createSpark) this.particleSystem.createSpark(th.point);
+        this.flashTimer = 0.04; this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        this._shotSound(o);
+        return;
+      }
+    }
+
     // Önce bir kapıya mı çarptı? (kapalı kapı mermiyi durdurur ve hasar alır)
     if (this.voxelWorld.doors) {
       const dh = this.voxelWorld.doors.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);

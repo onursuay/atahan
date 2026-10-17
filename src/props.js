@@ -88,17 +88,17 @@ const KINDS = {
   toycar: { half: [0.13, 0.065, 0.06], tint: true, mass: 0.3, geo: () => parts([
     [0.26, 0.07, 0.12, 0, -0.02, 0, 0xffffff], [0.12, 0.06, 0.1, -0.01, 0.04, 0, 0xe5e7eb], ...[[-0.08, -0.06], [0.08, -0.06], [-0.08, 0.06], [0.08, 0.06]].map(([x, z]) => [0.05, 0.05, 0.02, x, -0.05, z, 0x2a2a30])]) },
   bag: { half: [0.11, 0.15, 0.06], tint: true, mass: 0.3, geo: () => parts([[0.22, 0.26, 0.1, 0, -0.02, 0, 0xffffff], [0.15, 0.03, 0.02, 0, 0.14, 0, 0x2a2a30], [0.02, 0.1, 0.02, -0.06, 0.1, 0, 0x2a2a30], [0.02, 0.1, 0.02, 0.06, 0.1, 0, 0x2a2a30]]) },
-  remote: { half: [0.05, 0.02, 0.12], tint: false, mass: 0.2, geo: () => parts([
-    [0.085, 0.03, 0.24, 0, 0, 0, 0x15181d],
-    [0.022, 0.014, 0.022, -0.018, 0.018, -0.075, 0xdc2626],
-    [0.022, 0.014, 0.022, 0.018, 0.018, -0.075, 0x22c55e],
-    [0.022, 0.014, 0.022, -0.018, 0.018, -0.035, 0x3b82f6],
-    [0.022, 0.014, 0.022, 0.018, 0.018, -0.035, 0xfacc15],
-    [0.022, 0.014, 0.022, -0.018, 0.018, 0.01, 0x9ca3af],
-    [0.022, 0.014, 0.022, 0.018, 0.018, 0.01, 0x9ca3af],
-    [0.022, 0.014, 0.022, -0.018, 0.018, 0.05, 0x9ca3af],
-    [0.022, 0.014, 0.022, 0.018, 0.018, 0.05, 0x9ca3af],
-    [0.02, 0.012, 0.012, 0, 0.016, -0.116, 0xff3b3b]
+  remote: { half: [0.11, 0.045, 0.25], tint: false, mass: 0.35, geo: () => parts([
+    [0.18, 0.065, 0.48, 0, 0, 0, 0x15181d],
+    [0.044, 0.026, 0.044, -0.038, 0.038, -0.15, 0xdc2626],
+    [0.044, 0.026, 0.044, 0.038, 0.038, -0.15, 0x22c55e],
+    [0.044, 0.026, 0.044, -0.038, 0.038, -0.07, 0x3b82f6],
+    [0.044, 0.026, 0.044, 0.038, 0.038, -0.07, 0xfacc15],
+    [0.044, 0.026, 0.044, -0.038, 0.038, 0.02, 0x9ca3af],
+    [0.044, 0.026, 0.044, 0.038, 0.038, 0.02, 0x9ca3af],
+    [0.044, 0.026, 0.044, -0.038, 0.038, 0.10, 0x9ca3af],
+    [0.044, 0.026, 0.044, 0.038, 0.038, 0.10, 0x9ca3af],
+    [0.04, 0.024, 0.024, 0, 0.034, -0.232, 0xff3b3b]
   ]) }
 };
 // Dışarıdan eşya yerleştirirken zemine oturtmak için: türün yarı yüksekliği (m)
@@ -134,8 +134,10 @@ export class PropManager {
     const k = this.kinds[kind];
     if (!k || k.mesh.count >= CAP) return null;
     const p = {
-      kind, k, idx: k.mesh.count++, pos: new THREE.Vector3(x, y, z), vel: new THREE.Vector3(), yaw: opts.yaw || 0, roll: 0, pitch: 0, spin: 0,
-      half: k.half, held: false, hung: !!opts.hung, sleep: !opts.awake, still: 0, grounded: false
+      kind, k, idx: k.mesh.count++, pos: new THREE.Vector3(x, y, z), vel: new THREE.Vector3(),
+      yaw: opts.yaw || 0, roll: 0, pitch: 0,
+      spin: 0, wx: 0, wz: 0, restPitch: 0, restRoll: 0, tipped: false,
+      half: k.half.clone(), baseHalf: k.half, held: false, hung: !!opts.hung, sleep: !opts.awake, still: 0, grounded: false
     };
     if (k.tint) { const c = new THREE.Color(opts.color ?? PALETTE_TINT[Math.floor(Math.random() * PALETTE_TINT.length)]); k.mesh.setColorAt(p.idx, c); k.mesh.instanceColor.needsUpdate = true; }
     this.props.push(p);
@@ -203,16 +205,74 @@ export class PropManager {
     const r = this.pick(camera);
     if (!r) return false;
     const p = r.prop;
-    p.held = true; p.hung = false; p.sleep = false; p.still = 0;
+    p.held = true; p.hung = false; p.sleep = false; p.still = 0; p.tipped = false;
+    p.half.copy(p.baseHalf);
     this.held = p; this.cam = camera; this.holdDist = THREE.MathUtils.clamp(r.dist, 1.2, 3.4);
     sound.playWoodHit && sound.playWoodHit();
     return true;
   }
 
+  // Eşya bırakıldığında (sağ tık bırakma): eldeki ivmesi ve dönüşüyle savrularak düşer, düz durmaz, devrilir/çakılır
   endGrab() {
     if (!this.held) return;
-    this.held.held = false; this.held.sleep = false; this.held.still = 0;
+    const p = this.held;
+    p.held = false; p.sleep = false; p.still = 0;
+    const sp = p.vel.length();
+    if (this.cam && sp < 2.2) {
+      const d = new THREE.Vector3(); this.cam.getWorldDirection(d);
+      p.vel.addScaledVector(d, 2.0);
+    }
+    // Bırakıldığı anda havada takla / eğilme hızı kazanır ve yere yan/devrik çarpacak hedef açısı belirlenir
+    p.wx = (Math.random() - 0.5) * 9 + (p.vel.z * 0.45);
+    p.wz = (Math.random() - 0.5) * 9 - (p.vel.x * 0.45);
+    p.spin = (Math.random() - 0.5) * 8;
+    this._assignFallRestAngles(p, true);
     this.held = null;
+  }
+
+  // Sol tıkla eldeki eşyayı ileri fırlat (hızla savrulup yere/duvara çakılır)
+  throwHeld(camera) {
+    if (!this.held) return false;
+    const p = this.held;
+    const d = new THREE.Vector3(); camera.getWorldDirection(d);
+    p.held = false; p.sleep = false; p.still = 0;
+    const throwSpeed = 16 / Math.max(0.55, Math.sqrt(p.k.mass));
+    p.vel.copy(d).multiplyScalar(throwSpeed);
+    p.vel.y += 2.2;
+    p.wx = (Math.random() < 0.5 ? 1 : -1) * (8 + Math.random() * 7);
+    p.wz = (Math.random() - 0.5) * 11;
+    p.spin = (Math.random() - 0.5) * 12;
+    this._assignFallRestAngles(p, true);
+    this.held = null;
+    sound.playWoodHit && sound.playWoodHit();
+    return true;
+  }
+
+  // Eşya düştüğünde veya çarptığında dimdik durmak yerine yan/sırtüstü/yüzüstü devrilerek oturacağı açıyı hesaplar
+  _assignFallRestAngles(p, forceTip = false) {
+    const bh = p.baseHalf;
+    // Uzun/yüksek eşyalar (sandalye, şişe, kahve, saksı, oyuncak ayı, kıyafet) yan devrilir (±90 derece)
+    // Yassı eşyalar (kumanda, pizza kutusu, kitap, telefon, tepsi) hafif eğik/ters veya çarpık düşer
+    const tall = bh.y > Math.min(bh.x, bh.z) * 1.15;
+    if (tall || forceTip) {
+      if (bh.y >= bh.x && bh.y >= bh.z) {
+        // Dik duran eşya: tamamen yan yatar (pitch veya roll ±PI/2 civarı)
+        if (Math.random() < 0.55) {
+          p.restPitch = (Math.random() < 0.5 ? 1 : -1) * (Math.PI / 2 - 0.06 + (Math.random() - 0.5) * 0.16);
+          p.restRoll = (Math.random() - 0.5) * 0.35;
+        } else {
+          p.restRoll = (Math.random() < 0.5 ? 1 : -1) * (Math.PI / 2 - 0.06 + (Math.random() - 0.5) * 0.16);
+          p.restPitch = (Math.random() - 0.5) * 0.35;
+        }
+        p.tipped = true;
+      } else {
+        // Yassı/geniş eşya: bazen ters döner (PI), bazen yan/eğik çakılır
+        const flip = Math.random() < 0.45 ? Math.PI : 0;
+        p.restPitch = flip + (Math.random() - 0.5) * 0.38;
+        p.restRoll = (Math.random() - 0.5) * 0.42;
+        p.tipped = true;
+      }
+    }
   }
 
   adjustDistance(delta) { this.holdDist = THREE.MathUtils.clamp(this.holdDist + delta, 1.0, 4.2); }
@@ -224,7 +284,11 @@ export class PropManager {
       if (d > radius * 1.6) continue;
       const k = (1 - d / (radius * 1.6)) * force / Math.max(0.5, p.k.mass);
       const dir = p.pos.clone().sub(center).normalize(); dir.y = Math.abs(dir.y) * 0.5 + 0.6;
-      p.vel.addScaledVector(dir, k * 0.12); p.hung = false; p.sleep = false; p.still = 0; p.spin = (Math.random() - 0.5) * 12;
+      p.vel.addScaledVector(dir, k * 0.12); p.hung = false; p.sleep = false; p.still = 0;
+      p.spin = (Math.random() - 0.5) * 14;
+      p.wx = (Math.random() - 0.5) * 16;
+      p.wz = (Math.random() - 0.5) * 16;
+      this._assignFallRestAngles(p, true);
     }
   }
 
@@ -235,7 +299,11 @@ export class PropManager {
     for (let k = 0; k < 6 && n; k++) {
       this.rr = ((this.rr || 0) + 1) % n;
       const p = this.props[this.rr];
-      if (p.sleep && !p.held && !p.hung && !this._solid(p.pos.x, p.pos.y - 0.06, p.pos.z, p.half)) { p.sleep = false; p.still = 0; }
+      if (p.sleep && !p.held && !p.hung && !this._solid(p.pos.x, p.pos.y - 0.06, p.pos.z, p.half)) {
+        p.sleep = false; p.still = 0;
+        p.wx = (Math.random() - 0.5) * 6; p.wz = (Math.random() - 0.5) * 6;
+        this._assignFallRestAngles(p, true);
+      }
     }
     for (const p of this.props) {
       if (p.sleep && !p.held) continue;
@@ -253,30 +321,70 @@ export class PropManager {
     p.vel.copy(want.multiplyScalar(14));
     const sp = p.vel.length(); if (sp > 22) p.vel.multiplyScalar(22 / sp);
     this._move(p, dt, false);
-    // kamera yönüne doğru dön, eğiklik sönsün
+    // Elde tutarken hafifçe sallanır ve kamera yönüne döner
     const yawT = Math.atan2(d.x, d.z) + Math.PI;
     p.yaw += Math.atan2(Math.sin(yawT - p.yaw), Math.cos(yawT - p.yaw)) * Math.min(1, dt * 8);
-    p.pitch *= Math.exp(-6 * dt); p.roll *= Math.exp(-6 * dt);
+    p.pitch = (p.pitch + (-p.vel.y * 0.025 - p.pitch) * Math.min(1, dt * 8));
+    p.roll = (p.roll + ((p.vel.x * d.z - p.vel.z * d.x) * 0.025 - p.roll) * Math.min(1, dt * 8));
   }
 
   _stepFree(p, dt) {
-    p.vel.y = Math.max(-40, p.vel.y - GRAV * dt);
+    p.vel.y = Math.max(-42, p.vel.y - GRAV * dt);
+    // Devrilmiş eşyanın yere temas yüksekliğini (half.y) eğimine göre ayarla ki havada asılı kalmasın, yere tam otursun
+    if (p.tipped) {
+      const bh = p.baseHalf;
+      const tiltAmt = Math.min(1, (Math.abs(Math.sin(p.pitch)) + Math.abs(Math.sin(p.roll))) * 0.85);
+      const sideH = Math.min(bh.x, bh.z);
+      p.half.y = bh.y * (1 - tiltAmt) + sideH * tiltAmt;
+    }
     const hit = this._move(p, dt, true);
     if (p.grounded) {
-      const f = Math.pow(0.02, dt);
-      p.vel.x *= f; p.vel.z *= f; p.spin *= Math.pow(0.05, dt);
-      p.pitch *= Math.exp(-10 * dt); p.roll *= Math.exp(-10 * dt);
-    } else { p.pitch += p.spin * dt * 0.6; p.roll += p.spin * dt * 0.4; }
+      const f = Math.pow(0.035, dt);
+      p.vel.x *= f; p.vel.z *= f;
+      p.spin *= Math.pow(0.04, dt);
+      p.wx *= Math.pow(0.04, dt);
+      p.wz *= Math.pow(0.04, dt);
+      // Yere çarptığında dimdik (0,0) olmak yerine devrildiği açıya (restPitch, restRoll) doğru devrilip çakılır!
+      if (!p.tipped && (hit > 1.2 || Math.abs(p.pitch) > 0.18 || Math.abs(p.roll) > 0.18)) {
+        this._assignFallRestAngles(p, true);
+      }
+      const kSettle = 1 - Math.exp(-9 * dt);
+      p.pitch += (p.restPitch - p.pitch) * kSettle + p.wx * dt * 0.35;
+      p.roll += (p.restRoll - p.roll) * kSettle + p.wz * dt * 0.35;
+    } else {
+      // Havada düşerken 3 eksende gerçekçi takla atar / döner
+      p.pitch += p.wx * dt;
+      p.roll += p.wz * dt;
+    }
     p.yaw += p.spin * dt;
-    if (hit > 3.5 && sound.playWoodHit) sound.playWoodHit();
-    if (p.vel.lengthSq() < 0.01 && p.grounded) { p.still += dt; if (p.still > 0.6) { p.sleep = true; p.vel.set(0, 0, 0); p.spin = 0; p.pitch = p.roll = 0; } } else p.still = 0;
+    if (hit > 2.2) {
+      // Çarpma anında sekme ve açısal sarsıntı (çakılma hissi)
+      p.wx += (Math.random() - 0.5) * hit * 1.4;
+      p.wz += (Math.random() - 0.5) * hit * 1.4;
+      p.spin += (Math.random() - 0.5) * hit * 0.9;
+      if (sound.playWoodHit) sound.playWoodHit();
+      if (hit > 5.5 && this.vw.particleSystem && this.vw.particleSystem.createDust) {
+        this.vw.particleSystem.createDust(p.pos.clone());
+      }
+    }
+    if (p.vel.lengthSq() < 0.015 && p.grounded && Math.abs(p.pitch - p.restPitch) < 0.05 && Math.abs(p.roll - p.restRoll) < 0.05) {
+      p.still += dt;
+      if (p.still > 0.55) {
+        p.sleep = true;
+        p.vel.set(0, 0, 0);
+        p.spin = 0; p.wx = 0; p.wz = 0;
+        p.pitch = p.restPitch; p.roll = p.restRoll;
+      }
+    } else {
+      p.still = 0;
+    }
     if (p.pos.y < -6) { p.pos.set(0, -100, 0); p.sleep = true; this._upload(p); }
   }
 
-  // Eksen eksen hareket; çarpma hızını döndürür (ses için)
+  // Eksen eksen hareket; çarpma hızını döndürür (ses ve çakılma etkisi için)
   _move(p, dt, gravity) {
     let impact = 0; p.grounded = false;
-    for (const [a, i] of [['x', 0], ['z', 2], ['y', 1]]) {
+    for (const [a] of [['x', 0], ['z', 2], ['y', 1]]) {
       const delta = p.vel[a] * dt;
       if (delta === 0) continue;
       const np = p.pos.clone(); np[a] += delta;
@@ -289,8 +397,8 @@ export class PropManager {
       p.pos[a] += delta * lo;
       impact = Math.max(impact, Math.abs(p.vel[a]));
       if (a === 'y' && p.vel.y < 0) p.grounded = true;
-      p.vel[a] = gravity ? -p.vel[a] * 0.22 : 0;
-      if (Math.abs(p.vel[a]) < 0.6) p.vel[a] = 0;
+      p.vel[a] = gravity ? -p.vel[a] * 0.28 : 0;
+      if (Math.abs(p.vel[a]) < 0.5) p.vel[a] = 0;
     }
     if (gravity && !p.grounded) {                                  // ayak altında zemin var mı (küçük sıçramalarda yanlış havada kalmasın)
       if (this._solid(p.pos.x, p.pos.y - 0.04, p.pos.z, p.half) && p.vel.y <= 0) p.grounded = true;

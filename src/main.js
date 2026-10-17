@@ -354,7 +354,7 @@ function updateGame(dt) {
   if (introActive) { for (const k in inputState) inputState[k] = false; updateIntro(dt); }
   else if (seated && (inputState.forward || inputState.backward || inputState.left || inputState.right || inputState.jump)) seated = false;
   if (!introActive) eyeOffset += ((seated ? INTRO_SEAT_EYE : 1.8) - eyeOffset) * (1 - Math.exp(-5 * dt));
-  if (voxelWorld.homeTV) voxelWorld.homeTV.light.intensity = 14 + Math.sin(performance.now() * 0.011) * 2 + Math.sin(performance.now() * 0.0047) * 2.5;   // TV ışığı hafifçe titrer
+  if (voxelWorld.homeTV) voxelWorld.homeTV.light.intensity = voxelWorld.homeTV.broken ? 0 : (14 + Math.sin(performance.now() * 0.011) * 2 + Math.sin(performance.now() * 0.0047) * 2.5);   // TV ışığı hafifçe titrer, kırılınca söner
   // Birinci kişi: karakter her zaman baktığımız yöne dönük olsun (silah öne baksın)
   if (firstPerson && !inCar) character.mesh.rotation.y = cameraYaw + Math.PI;
   // Nişangâh yakınlaştırması (yumuşak)
@@ -449,7 +449,7 @@ function startIntro() {
     document.head.appendChild(st);
     const menu = document.createElement('div');
     menu.id = 'main-menu';
-    menu.innerHTML = '<h1>ATAHAN OYUN</h1>'
+    menu.innerHTML = '<h1>ŞEHİR YIKIMI</h1>'
       + '<div class="panel" id="mm-home" style="display:flex;gap:14px"><button id="mm-play">OYNA</button><button id="mm-settings">AYARLAR</button></div>'
       + '<div class="panel" id="mm-set"><div>AYARLAR</div>'
       + '<button id="mm-sound">SES: AÇIK</button>'
@@ -785,7 +785,15 @@ function updateCrosshair() {
 }
 
 function fireWeapon() {
-  if (inCar || rightHeld) return;   // kapı tutulurken ateş yok
+  if (inCar) return;
+  if (rightHeld) {
+    if (props.held) {
+      props.throwHeld(camera);
+      rightHeld = false;
+      setCrosshair(null);
+    }
+    return;   // kapı/el tutulurken silah ateşlenmez
+  }
   sound.init();
   const cur = weaponSystem.currentWeapon;
 
@@ -849,7 +857,11 @@ function useHammer() {
   // Çekiç menzilindeki NPC'ye de vurur
   npcs.hitSphere(charPos.clone().addScaledVector(dir, 1.8), 0.9);
 
-  // Çekiç menzilindeki kapıyı da kırar (menteşeli kapı birkaç vuruşta, vurdukça titrer)
+  // Çekiç menzilindeki kapıyı veya televizyon ekranını da kırar
+  if (voxelWorld.homeTV) {
+    const th = voxelWorld.homeTV.rayHit(camera.position, dir, HAMMER_REACH);
+    if (th) { voxelWorld.homeTV.hitAt(th.point.y, th.point.z); if (particleSystem.createSpark) particleSystem.createSpark(th.point); screenShake = 0.08; sound.playHammerHit(); }
+  }
   const dh = voxelWorld.doors.rayHit(camera.position, dir, HAMMER_REACH);
   if (dh) { voxelWorld.doors.damage(dh.door, 5); screenShake = 0.08; sound.playWoodHit(); }
 
