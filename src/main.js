@@ -964,8 +964,15 @@ function setupEventListeners() {
     // F: yerleştirilmiş uzaktan bombaları patlat (ekrandaki PATLAT butonuyla aynı)
     if (key === 'f' || e.code === 'KeyF') bombs.detonateRemote();
 
-    // R: şarjör değiştir (tabanca, pompalı, AK-47, sniper)
-    if ((key === 'r' || e.code === 'KeyR') && !inCar && !e.repeat) handWeapons.reload();
+    // R: Ahtapot modundaysa hedef aldığı yere iki kolunu kanca gibi atıp bizi o tarafa çeker; diğer silahlarda şarjör değiştirir
+    if ((key === 'r' || e.code === 'KeyR') && !inCar && !e.repeat) {
+      if (weaponSystem.currentWeapon === 16) {
+        if (seated) seated = false;
+        handWeapons.octopus.startDualGrapple(character, (s) => { screenShake = Math.max(screenShake, s); });
+      } else {
+        handWeapons.reload();
+      }
+    }
 
     // TAB: sıradaki silaha geç (son silahtan sonra başa döner); menü yoktur, imleç kilitli kalır
     if (e.code === 'Tab') {

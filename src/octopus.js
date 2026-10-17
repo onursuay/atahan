@@ -23,9 +23,9 @@ import { VOXEL_SIZE } from './teardown.js';
 
 const MAX_TENTACLE_RANGE = 65;     // kolun uzanabileceği en fazla mesafe (m)
 const EXTEND_SPEED = 92;           // kol fırlatma hızı (m/sn)
-const WRAP_DURATION = 0.85;        // binayı 3 tur sarma süresi (sn)
-const WRAP_TURNS = 3.0;            // binanın etrafında tam 3 kere sarar
-const WORLD_SEGS = 84;             // kalın, şekilli dokunaç boğum sayısı
+const WRAP_DURATION = 0.72;        // binayı sarma süresi (sn)
+const WRAP_TURNS = 1.65;           // binanın etrafında kaç tur döneceği
+const WORLD_SEGS = 48;             // uzayan ince kolun boğum sayısı
 const SPIN_DURATION = 1.15;        // E tuşu topaç dönüşü süresi (sn)
 const SPIN_TURNS = 3;              // E tuşu topaç dönüşünde tam tur sayısı
 const SPIN_RADIUS = 4.8;           // topaç dönüşünün etrafı kırma yarıçapı (m)
@@ -66,6 +66,13 @@ export class OctopusSystem {
     this.mouseVelY = 0;
     this.lastAimDir = new THREE.Vector3();
     this.aimSwingVel = new THREE.Vector3();
+
+    // R tuşu: Çift kol kanca (kendini hedefe çekme) durumu
+    this.grappleTarget = new THREE.Vector3();
+    this.grappleLeftTarget = new THREE.Vector3();
+    this.grappleRightTarget = new THREE.Vector3();
+    this.leftPullStartPts = [];
+    this.grappleBlockedTime = 0;
 
     // E tuşu: Topaç gibi dönme durumu
     this.spinT = -1;
@@ -278,12 +285,13 @@ export class OctopusSystem {
     this.hudEl.id = 'octopus-hud';
     this.hudEl.innerHTML = `
       <div class="octo-title">🐙 AHTAPOT KONTROLLERİ</div>
-      <div><span class="octo-key">SOL TIK</span> Dokunaç At (Bina 3 Tur Sar / İnsan Tut)</div>
+      <div><span class="octo-key">SOL TIK</span> Kol At (Bina Sar / İnsan Tut)</div>
       <div><span class="octo-key">FARE KAYDIR</span> Tutulan Binayı Sök / İnsanı Kaldır</div>
       <div><span class="octo-key">SOL TIK (TUTARKEN)</span> Binayı / İnsanı Fırlat!</div>
       <div><span class="octo-key">SAĞ TIK</span> Sarılan Binayı Çek ve Kır</div>
-      <div><span class="octo-key">E</span> Topaç Dönüşü (Etrafı Kır) &nbsp;|&nbsp; <span class="octo-key">Q</span> Dev Zıpla</div>
-      <div class="octo-status" id="octopus-status">DURUM: DOKUNAÇ HAZIR</div>
+      <div><span class="octo-key">R</span> İki Kolu Kanca Gibi At (Kendini Çek)</div>
+      <div><span class="octo-key">E</span> Topaç Dönüşü &nbsp;|&nbsp; <span class="octo-key">Q</span> Dev Zıpla</div>
+      <div class="octo-status" id="octopus-status">DURUM: KOL HAZIR</div>
     `;
     document.body.appendChild(this.hudEl);
     this.statusEl = document.getElementById('octopus-status');
@@ -485,67 +493,45 @@ export class OctopusSystem {
     this.fpGroup.add(this.leftArmFP.group, this.rightArmFP.group);
   }
 
-  // ───────────────────────── Dünya Sahnesinde Fırlatılan ŞEKİLLİ DOKUNAÇ KOLU (İp gibi değil, kalın vantuzlu kol!) ─────────────────────────
+  // ───────────────────────── Dünya Sahnesinde Fırlatılan ve Tutan İnce Kollar (Sağ ve Sol) ─────────────────────────
   _buildWorldTentacle() {
     this.worldGroup = new THREE.Group();
     this.worldGroup.visible = false;
     this.mainScene.add(this.worldGroup);
 
-    const dorsalMat = new THREE.MeshLambertMaterial({ color: 0x581c87 });   // üst sırt (koyu mor)
-    const skinMat = new THREE.MeshLambertMaterial({ color: 0x7e22ce });     // ana kaslı gövde
-    const sideMat = new THREE.MeshLambertMaterial({ color: 0x9333ea });     // yan kas boğumu ve yüzgeçsi çıkıntı
-    const bellyMat = new THREE.MeshLambertMaterial({ color: 0xc084fc });    // alt karın
-    const suckerMat = new THREE.MeshLambertMaterial({ color: 0xf5d0fe });   // iri kare vantuz dış halkası
-    const suckerCupMat = new THREE.MeshLambertMaterial({ color: 0x3b0764 });// vantuz çukuru
+    this.leftWorldGroup = new THREE.Group();
+    this.leftWorldGroup.visible = false;
+    this.mainScene.add(this.leftWorldGroup);
 
-    this.worldSegs = [];
-    for (let i = 0; i < WORLD_SEGS; i++) {
-      const segGroup = new THREE.Group();
+    const skinMat = new THREE.MeshLambertMaterial({ color: 0x7e22ce });
+    const stripeMat = new THREE.MeshLambertMaterial({ color: 0x9333ea });
+    const suckerMat = new THREE.MeshLambertMaterial({ color: 0xf5d0fe });
 
-      // 1) Kalın kaslı ana dokunaç gövdesi (ip gibi ince değil, dolgun kol kesiti!)
-      const core = new THREE.Mesh(
-        new THREE.BoxGeometry(0.72, 0.56, 1.05),
-        i % 2 === 0 ? skinMat : sideMat
-      );
-      segGroup.add(core);
+    const createArmSegs = (parentGroup) => {
+      const segs = [];
+      for (let i = 0; i < WORLD_SEGS; i++) {
+        const segGroup = new THREE.Group();
+        const body = new THREE.Mesh(
+          new THREE.BoxGeometry(0.28, 0.28, 1.0),
+          i % 2 === 0 ? skinMat : stripeMat
+        );
+        segGroup.add(body);
 
-      // 2) Üst sırt boğumu (dorsal ridge)
-      const ridge = new THREE.Mesh(
-        new THREE.BoxGeometry(0.46, 0.22, 0.96),
-        dorsalMat
-      );
-      ridge.position.y = 0.34;
-      segGroup.add(ridge);
+        // Her boğumun altında vantuzlar
+        const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.22), suckerMat);
+        s1.position.set(-0.08, -0.15, -0.2);
+        const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.22), suckerMat);
+        s2.position.set(0.08, -0.15, 0.2);
+        segGroup.add(s1, s2);
 
-      // 3) Yan yüzgeç/kas çıkıntıları (dokunaca gerçek kol formu verir)
-      if (i % 3 === 0) {
-        const lFlange = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.85), sideMat);
-        lFlange.position.set(-0.42, 0.04, 0);
-        const rFlange = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.85), sideMat);
-        rFlange.position.set(0.42, 0.04, 0);
-        segGroup.add(lFlange, rFlange);
+        parentGroup.add(segGroup);
+        segs.push({ group: segGroup, body });
       }
+      return segs;
+    };
 
-      // 4) Alt karın katmanı
-      const belly = new THREE.Mesh(
-        new THREE.BoxGeometry(0.58, 0.16, 1.0),
-        bellyMat
-      );
-      belly.position.y = -0.32;
-      segGroup.add(belly);
-
-      // 5) Çift sıra belirgin, iri kare VANTUZLAR (hem altta hem yan-içte)
-      for (const sx of [-0.22, 0.22]) {
-        const sRim = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.38), suckerMat);
-        sRim.position.set(sx, -0.44, sx < 0 ? -0.18 : 0.18);
-        const sCup = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.22), suckerCupMat);
-        sCup.position.set(sx, -0.51, sx < 0 ? -0.18 : 0.18);
-        segGroup.add(sRim, sCup);
-      }
-
-      this.worldGroup.add(segGroup);
-      this.worldSegs.push({ group: segGroup });
-    }
+    this.worldSegs = createArmSegs(this.worldGroup);
+    this.leftWorldSegs = createArmSegs(this.leftWorldGroup);
   }
 
   // ───────────────────────── E Tuşu: Topaç Dönüşü İçin Etrafa Açılan 4 Dokunaç Kolu ─────────────────────────
@@ -608,7 +594,6 @@ export class OctopusSystem {
       this.grabbedNpc = null;
     }
     if (this.heldChunk && this.heldChunk.phase === 'held') {
-      // Tutulan bina bırakılırsa olduğu yerden aşağı düşsün
       this.vw.collapse.throwChunk(this.heldChunk, new THREE.Vector3(0, -4, 0));
     }
     this.heldChunk = null;
@@ -618,9 +603,11 @@ export class OctopusSystem {
     this.hitPoint = null;
     this.wrapBox = null;
     this.wrapLocalPts = [];
+    this.leftPullStartPts = [];
     this.mouseSlideDist = 0;
     this.worldGroup.visible = false;
-    this._setStatus('DURUM: DOKUNAÇ HAZIR [SOL TIK]');
+    if (this.leftWorldGroup) this.leftWorldGroup.visible = false;
+    this._setStatus('DURUM: KOL HAZIR [SOL TIK / R: KANCA]');
   }
 
   // ───────────────────────── E Tuşu: Topaç Gibi Dönerek Etrafındaki Eşyaları Kırma ─────────────────────────
@@ -643,28 +630,23 @@ export class OctopusSystem {
     const u = Math.min(1, this.spinT / SPIN_DURATION);
     const prevU = Math.min(1, prevT / SPIN_DURATION);
 
-    // Kamera / oyuncu topaç gibi hızla döner (ease-in-out ile tam 3 tur = 6*PI radyan)
     const ease = (x) => x < 0.5 ? 2 * x * x : 1 - Math.pow(-2 * x + 2, 2) / 2;
     const dAngle = (ease(u) - ease(prevU)) * Math.PI * 2 * SPIN_TURNS;
     if (onYawDelta) onYawDelta(dAngle);
 
-    // Birinci şahıs kolları da iki yana açılıp döner
     const pPos = character ? character.mesh.position : this.camera.position;
     this.spinGroup.position.set(pPos.x, pPos.y + 1.1, pPos.z);
     this.spinGroup.rotation.y += dt * 28;
 
-    // Etrafındaki eşyaları, duvarları, kapıları, TV'yi, araçları ve NPC'leri kırıp savurur
     this.spinLastCutT -= dt;
     if (this.spinLastCutT <= 0) {
       this.spinLastCutT = 0.055;
       const center = new THREE.Vector3(pPos.x, pPos.y + 1.1, pPos.z);
 
-      // 1) Etraftaki fiziksel eşyaları (props: koltuk kumandası, sandalye, masa eşyaları vb.) şiddetle savur
       if (this.hw.props) {
         this.hw.props.impulse(center, SPIN_RADIUS, 95);
       }
 
-      // 2) Etraftaki kapıları, TV'yi, arabaları ve NPC'leri vur
       if (this.vw.doors) this.vw.doors.hitSphere(center, SPIN_RADIUS, 8);
       if (this.vw.homeTV && center.distanceTo(new THREE.Vector3(this.vw.homeTV.x, this.vw.homeTV.y0, this.vw.homeTV.z0)) < SPIN_RADIUS) {
         this.vw.homeTV.hitAt(this.vw.homeTV.y0, this.vw.homeTV.z0);
@@ -672,7 +654,6 @@ export class OctopusSystem {
       if (this.hw.cars) this.hw.cars.bladeHit(center, SPIN_RADIUS);
       if (this.hw.npcs) this.hw.npcs.hitSphere(center, SPIN_RADIUS);
 
-      // 3) Çevredeki 360 derece halkadaki bina duvarlarını / eşya küplerini kır
       for (let a = 0; a < 8; a++) {
         const ang = this.spinGroup.rotation.y + (a / 8) * Math.PI * 2;
         const ca = Math.cos(ang), sa = Math.sin(ang);
@@ -688,7 +669,7 @@ export class OctopusSystem {
     if (this.spinT >= SPIN_DURATION) {
       this.spinT = -1;
       this.spinGroup.visible = false;
-      if (this.state === 'idle') this._setStatus('DURUM: DOKUNAÇ HAZIR [SOL TIK]');
+      if (this.state === 'idle') this._setStatus('DURUM: KOL HAZIR [SOL TIK / R: KANCA]');
     }
   }
 
@@ -712,6 +693,74 @@ export class OctopusSystem {
       feet.y += 0.2;
       this.ps.createExplosion(feet, 1.4, 0xa855f7);
     }
+  }
+
+  // ───────────────────────── R Tuşu: İki Kolu Kanca Gibi Atarak Hedefe Çekme ─────────────────────────
+  startDualGrapple(character, onScreenShake) {
+    if (!this.active || !character) return false;
+
+    // Eğer zaten kanca ile çekiliyorsa tekrar R'ye basınca kancayı bırak
+    if (this.state === 'grapple_shoot' || this.state === 'grapple_pull') {
+      this._startRetract();
+      return true;
+    }
+
+    this._resetTentacle();
+    sound.playTentacleShoot();
+
+    const cam = this.camera;
+    const dir = new THREE.Vector3();
+    cam.getWorldDirection(dir);
+
+    const MAX_GRAPPLE_RANGE = 88;
+    const step = VOXEL_SIZE * 0.45;
+    const p = new THREE.Vector3();
+    let hit = null;
+
+    for (let d = 1.2; d <= MAX_GRAPPLE_RANGE; d += step) {
+      p.copy(cam.position).addScaledVector(dir, d);
+      const ix = Math.round(p.x / VOXEL_SIZE);
+      const iy = Math.round((p.y - VOXEL_SIZE / 2) / VOXEL_SIZE);
+      const iz = Math.round(p.z / VOXEL_SIZE);
+      const v = this.vw.voxels.get(`${ix},${iy},${iz}`);
+      if (v && v.active) {
+        hit = p.clone();
+        break;
+      }
+      const gy = this.vw.terrain.topYAt(p.x, p.z);
+      if (p.y <= gy && this.vw.terrain.topIntactAt(p.x, p.z)) {
+        hit = new THREE.Vector3(p.x, gy + 0.3, p.z);
+        break;
+      }
+    }
+
+    // Eğer açık havaya veya çok uzağa nişan alındıysa da baktığı yönde 45m ileriye kanca atıp çeksin
+    if (!hit) {
+      hit = cam.position.clone().addScaledVector(dir, 45);
+      const gy = this.vw.terrain.topYAt(hit.x, hit.z);
+      if (gy > -Infinity && hit.y < gy + 0.5) hit.y = gy + 0.5;
+    }
+
+    this.grappleTarget.copy(hit);
+    const right = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0));
+    if (right.lengthSq() > 1e-4) right.normalize(); else right.set(1, 0, 0);
+
+    this.grappleLeftTarget.copy(hit).addScaledVector(right, -0.45);
+    this.grappleRightTarget.copy(hit).addScaledVector(right, 0.45);
+
+    this.launchOrigin.copy(this._getHandWorldPos());
+    this.launchDir.copy(dir);
+    this.currentDist = 1.0;
+    this.targetDist = Math.max(2.0, cam.position.distanceTo(hit));
+    this.state = 'grapple_shoot';
+    this.stateT = 0;
+    this.grappleBlockedTime = 0;
+
+    this.worldGroup.visible = true;
+    this.leftWorldGroup.visible = true;
+    if (onScreenShake) onScreenShake(0.12);
+    this._setStatus('İKİ KOL KANCA OLARAK FIRLATILDI...');
+    return true;
   }
 
   // ───────────────────────── Fare Hareketi: Binayı Yerinden Söküp Kaldırma & İnsanı Havada Sallama ─────────────────────────
@@ -896,27 +945,26 @@ export class OctopusSystem {
     };
   }
 
-  // Binanın dış cephesi etrafında TAM 3 TUR (WRAP_TURNS = 3.0) dönen kalın dokunaç sarmalı üretir
+  // Binanın dış cephesi etrafında dönen ince kol sarmal noktaları üretir
   _buildWrapPoints(box, hitPos) {
-    const pad = 0.52;
+    const pad = 0.28;
     const x0 = box.minX - pad, x1 = box.maxX + pad;
     const z0 = box.minZ - pad, z1 = box.maxZ + pad;
     const cx = box.cx, cz = box.cz;
     const rx = (x1 - x0) * 0.5, rz = (z1 - z0) * 0.5;
 
     const startAngle = Math.atan2(hitPos.z - cz, hitPos.x - cx);
-    const totalSteps = 60; // 3 tam tur için yüksek çözünürlüklü sarmal
+    const totalSteps = 32;
     const pts = [hitPos.clone()];
 
     for (let i = 1; i <= totalSteps; i++) {
       const u = i / totalSteps;
       const ang = startAngle + u * Math.PI * 2 * WRAP_TURNS;
       const ca = Math.cos(ang), sa = Math.sin(ang);
-      const scale = 1 / Math.max(Math.abs(ca), Math.abs(sa), 0.74);
-      const px = cx + ca * rx * Math.min(1.16, scale * 0.9);
-      const pz = cz + sa * rz * Math.min(1.16, scale * 0.9);
-      // 3 tur üst üste binip ip gibi görünmesin diye her turda belirgin dikey yükselme (-1.6m .. +3.2m)
-      const py = hitPos.y + (u - 0.32) * 4.8 + Math.sin(ang * 2) * 0.18;
+      const scale = 1 / Math.max(Math.abs(ca), Math.abs(sa), 0.72);
+      const px = cx + ca * rx * Math.min(1.18, scale * 0.92);
+      const pz = cz + sa * rz * Math.min(1.18, scale * 0.92);
+      const py = hitPos.y + Math.sin(u * Math.PI) * 0.35 - u * 0.45;
       pts.push(new THREE.Vector3(px, py, pz));
     }
     return pts;
@@ -985,7 +1033,7 @@ export class OctopusSystem {
     this.buildingAnchorOffset.copy(anchor).sub(chunk.com);
 
     if (this.ps && this.ps.createExplosion) {
-      this.ps.createExplosion(new THREE.Vector3(box.cx, groundY + 0.5, box.cz), 2.6, 0x9c9484);
+      this.ps.createExplosion(new THREE.Vector3(box.cx, groundY + 0.5, box.cz), 2.2, 0x9c9484);
     }
     this._setStatus('BİNA YERİNDEN SÖKÜLDÜ! [FARE: SALLA | SOL TIK: FIRLAT]');
   }
@@ -996,7 +1044,6 @@ export class OctopusSystem {
     if (this.state === 'idle') return false;
 
     if (this.state === 'holding_npc' && this.grabbedNpc) {
-      // Sağ tıkla tutulan insanı yere çarpıp parçala
       const npc = this.grabbedNpc;
       npc.grabbed = false;
       npc.thrownVel = new THREE.Vector3(0, -32, 0);
@@ -1006,12 +1053,11 @@ export class OctopusSystem {
     }
 
     if (this.state === 'holding_building' && this.heldChunk) {
-      // Havada tutulan binayı kendine doğru çekip yere çak
       const toPlayer = this.camera.position.clone().sub(this.heldChunk.com).normalize();
-      this.vw.collapse.throwChunk(this.heldChunk, toPlayer.multiplyScalar(26).add(new THREE.Vector3(0, -10, 0)));
+      this.vw.collapse.throwChunk(this.heldChunk, toPlayer.multiplyScalar(22).add(new THREE.Vector3(0, -8, 0)));
       this.heldChunk = null;
       sound.playTentaclePull();
-      if (onScreenShake) onScreenShake(0.4);
+      if (onScreenShake) onScreenShake(0.35);
       this._startRetract();
       return true;
     }
@@ -1026,17 +1072,22 @@ export class OctopusSystem {
   }
 
   _startRetract() {
+    this.pullStartPts = this._currentTentaclePoints();
+    if (this.leftWorldGroup && this.leftWorldGroup.visible) {
+      this.leftPullStartPts = this._currentLeftTentaclePoints();
+    } else {
+      this.leftPullStartPts = [];
+    }
     this.state = 'retracting';
     this.stateT = 0;
-    this.pullStartPts = this._currentTentaclePoints();
-    this._setStatus('DOKUNAÇ GERİ ÇEKİLİYOR...');
+    this._setStatus('KOL GERİ ÇEKİLİYOR...');
   }
 
-  // Binayı komple kendine doğru çeker ve sarılan/alt kısmı parçalayarak binayı oyuncuya doğru yıkar!
+  // Binanın sarılan kısmını kesip Teardown fiziğiyle oyuncuya doğru devirir
   _executeBuildingPull(onScreenShake) {
     sound.playTentaclePull();
-    sound.playExplosion(1.15);
-    if (onScreenShake) onScreenShake(0.45);
+    sound.playExplosion(0.95);
+    if (onScreenShake) onScreenShake(0.35);
 
     const box = this.wrapBox;
     const playerPos = this.camera.position.clone();
@@ -1045,24 +1096,21 @@ export class OctopusSystem {
       if (toPlayer.lengthSq() < 1e-4) toPlayer.set(0, 0, 1);
       toPlayer.normalize();
 
-      const pullVel = new THREE.Vector3(toPlayer.x * 22, 4.5, toPlayer.z * 22);
+      const pullVel = new THREE.Vector3(toPlayer.x * 16, 3.0, toPlayer.z * 16);
 
+      // Sadece kolun sardığı hattı ve oyuncuya bakan alt kesiti kır (binayı komple patlatmaz!)
       let cutCount = 0;
       for (const pt of this.wrapLocalPts) {
-        cutCount += this.vw.sweepCut(pt, 1.35, pullVel);
+        cutCount += this.vw.sweepCut(pt, 0.95, pullVel);
       }
 
       const groundH = Math.max(0, this.vw.terrain.heightAt(box.cx, box.cz));
-      const cutBaseY = Math.max(groundH + VOXEL_SIZE * 0.5, Math.min(box.baseY - 1.5, groundH + 3.0));
-      const cutTopY = Math.max(box.baseY + 1.5, cutBaseY + 3.0);
-
-      for (let x = box.minX - 0.5; x <= box.maxX + 0.5; x += 1.1) {
-        for (let z = box.minZ - 0.5; z <= box.maxZ + 0.5; z += 1.1) {
+      const cutY = Math.max(groundH + VOXEL_SIZE * 0.5, Math.min(box.baseY, groundH + 2.2));
+      for (let x = box.minX; x <= box.maxX; x += 1.4) {
+        for (let z = box.minZ; z <= box.maxZ; z += 1.4) {
           const dot = (x - box.cx) * toPlayer.x + (z - box.cz) * toPlayer.z;
-          if (dot >= -1.2) {
-            for (let y = cutBaseY; y <= cutTopY; y += 1.1) {
-              cutCount += this.vw.sweepCut(new THREE.Vector3(x, y, z), 1.25, pullVel);
-            }
+          if (dot >= -0.4) {
+            cutCount += this.vw.sweepCut(new THREE.Vector3(x, cutY, z), 0.95, pullVel);
           }
         }
       }
@@ -1070,10 +1118,10 @@ export class OctopusSystem {
       this._tipBuildingTowardPlayer(box, toPlayer);
 
       if (this.ps && this.ps.createExplosion) {
-        this.ps.createExplosion(new THREE.Vector3(box.cx, box.baseY, box.cz), 3.2, 0xa855f7);
+        this.ps.createExplosion(new THREE.Vector3(box.cx, box.baseY, box.cz), 2.2, 0xa855f7);
       }
       if (this.hw.onScore && cutCount > 0) {
-        const pts = Math.max(250, Math.round(cutCount * 3));
+        const pts = Math.max(150, Math.round(cutCount * 3));
         this.hw.onScore(pts, `+${pts} AHTAPOT YIKIMI!`);
       }
     }
@@ -1138,7 +1186,7 @@ export class OctopusSystem {
           creak: 0
         });
         if (chunk) {
-          chunk.omega = 0.55;
+          chunk.omega = 0.18;
         }
         return;
       }
@@ -1152,7 +1200,7 @@ export class OctopusSystem {
           px: c.com.x + toPlayer.x * 2,
           py: c.lowBy,
           pz: c.com.z + toPlayer.z * 2
-        }, 0.08, 0.55);
+        }, 0.04, 0.22);
       }
     }
   }
@@ -1161,17 +1209,82 @@ export class OctopusSystem {
     return this.hw._handWorld({ x: 0.36, y: -0.24, z: -0.55 });
   }
 
-  // O anki duruma göre dünya uzayındaki kalın dokunaç kolunun omurga noktalarını üretir
+  _getLeftHandWorldPos() {
+    return this.hw._handWorld({ x: -0.36, y: -0.24, z: -0.55 });
+  }
+
+  // R tuşu çift kanca modunda sol kolun omurga noktalarını üretir
+  _currentLeftTentaclePoints() {
+    const start = this._getLeftHandWorldPos();
+    const pts = [];
+
+    if (this.state === 'grapple_shoot') {
+      const ratio = Math.min(1, this.currentDist / Math.max(0.1, this.targetDist));
+      const end = new THREE.Vector3().lerpVectors(start, this.grappleLeftTarget, ratio);
+      for (let i = 0; i <= WORLD_SEGS; i++) {
+        const u = i / WORLD_SEGS;
+        const p = new THREE.Vector3().lerpVectors(start, end, u);
+        p.y += Math.sin(u * Math.PI * 3 - this.stateT * 32) * 0.18 * Math.sin(u * Math.PI);
+        pts.push(p);
+      }
+      return pts;
+    }
+
+    if (this.state === 'grapple_pull') {
+      for (let i = 0; i <= WORLD_SEGS; i++) {
+        const u = i / WORLD_SEGS;
+        const p = new THREE.Vector3().lerpVectors(start, this.grappleLeftTarget, u);
+        pts.push(p);
+      }
+      return pts;
+    }
+
+    if (this.state === 'retracting' && this.leftPullStartPts.length > 1) {
+      const dur = 0.28;
+      const u = Math.min(1, this.stateT / dur);
+      for (let i = 0; i <= WORLD_SEGS; i++) {
+        const idx = Math.min(this.leftPullStartPts.length - 1, Math.round((i / WORLD_SEGS) * (this.leftPullStartPts.length - 1)));
+        const p = new THREE.Vector3().lerpVectors(this.leftPullStartPts[idx], start, u);
+        pts.push(p);
+      }
+      return pts;
+    }
+
+    return [start, start];
+  }
+
+  // O anki duruma göre dünya uzayındaki ince sağ ahtapot kolunun omurga noktalarını üretir
   _currentTentaclePoints() {
     const start = this._getHandWorldPos();
     const pts = [];
+
+    if (this.state === 'grapple_shoot') {
+      const ratio = Math.min(1, this.currentDist / Math.max(0.1, this.targetDist));
+      const end = new THREE.Vector3().lerpVectors(start, this.grappleRightTarget, ratio);
+      for (let i = 0; i <= WORLD_SEGS; i++) {
+        const u = i / WORLD_SEGS;
+        const p = new THREE.Vector3().lerpVectors(start, end, u);
+        p.y += Math.sin(u * Math.PI * 3 - this.stateT * 32 + 0.8) * 0.18 * Math.sin(u * Math.PI);
+        pts.push(p);
+      }
+      return pts;
+    }
+
+    if (this.state === 'grapple_pull') {
+      for (let i = 0; i <= WORLD_SEGS; i++) {
+        const u = i / WORLD_SEGS;
+        const p = new THREE.Vector3().lerpVectors(start, this.grappleRightTarget, u);
+        pts.push(p);
+      }
+      return pts;
+    }
 
     if (this.state === 'extending') {
       const end = start.clone().addScaledVector(this.launchDir, this.currentDist);
       for (let i = 0; i <= WORLD_SEGS; i++) {
         const u = i / WORLD_SEGS;
         const p = new THREE.Vector3().lerpVectors(start, end, u);
-        const wave = Math.sin(u * Math.PI * 3.5 - this.stateT * 26) * 0.28 * Math.sin(u * Math.PI);
+        const wave = Math.sin(u * Math.PI * 3 - this.stateT * 28) * 0.22 * Math.sin(u * Math.PI);
         p.y += wave;
         pts.push(p);
       }
@@ -1180,24 +1293,25 @@ export class OctopusSystem {
 
     if (this.state === 'holding_npc' && this.grabbedNpc) {
       const npc = this.grabbedNpc;
-      const center = new THREE.Vector3(npc.x, npc.y + 1.25, npc.z);
-      const straightSegs = 34;
+      const center = new THREE.Vector3(npc.x, npc.y + 1.15, npc.z);
+      const straightSegs = 36;
       const coilSegs = WORLD_SEGS - straightSegs;
 
+      // Oyuncunun elinden insana uzanan ince kol
       for (let i = 0; i <= straightSegs; i++) {
         const u = i / straightSegs;
         const p = new THREE.Vector3().lerpVectors(start, center, u);
-        p.y += Math.sin(u * Math.PI) * 0.35;
+        p.y += Math.sin(u * Math.PI) * 0.18;
         pts.push(p);
       }
-      // İnsanın belini/gövdesini 3 tur saran dokunaç halkaları
+      // İnsanın belini saran ince kol ucu
       for (let i = 1; i <= coilSegs; i++) {
         const u = i / coilSegs;
-        const ang = u * Math.PI * 2 * WRAP_TURNS;
-        const r = 0.62 * (1 - u * 0.15);
+        const ang = u * Math.PI * 2 * 1.2;
+        const r = 0.32 * (1 - u * 0.15);
         pts.push(new THREE.Vector3(
           center.x + Math.cos(ang) * r,
-          center.y - 0.45 + u * 1.1,
+          center.y - 0.15 + u * 0.35,
           center.z + Math.sin(ang) * r
         ));
       }
@@ -1220,19 +1334,20 @@ export class OctopusSystem {
       };
 
       const hit = transformPt(this.wrapLocalPts[0] || this.hitPoint);
-      const straightSegs = 24;
+      const straightSegs = 14;
       const coilSegs = WORLD_SEGS - straightSegs;
 
-      // 1) Oyuncunun elinden binaya uzanan kıvrımlı güçlü dokunaç gövdesi
+      // 1) Oyuncunun elinden binaya kadar uzanan ince hat
       for (let i = 0; i <= straightSegs; i++) {
         const u = i / straightSegs;
         const p = new THREE.Vector3().lerpVectors(start, hit, u);
-        const arc = Math.sin(u * Math.PI);
-        p.y += arc * 0.45 + Math.sin(u * Math.PI * 2 + this.animTime * 4) * 0.12 * arc;
+        if (this.state === 'wrapping') {
+          p.y += Math.sin(u * Math.PI) * Math.sin(this.stateT * 18) * 0.12;
+        }
         pts.push(p);
       }
 
-      // 2) Binanın etrafını TAM 3 KERE döne döne saran kalın dokunaç halkaları
+      // 2) Binanın etrafını saran ince kol kısmı
       const maxIdx = Math.max(1, (this.wrapLocalPts.length - 1) * wrapU);
       for (let i = 1; i <= coilSegs; i++) {
         const cu = (i / coilSegs) * maxIdx;
@@ -1284,19 +1399,68 @@ export class OctopusSystem {
     const gentleY2 = Math.sin(t * 2.1 + 0.9) * 0.0085;
     const finWave = Math.sin(t * 2.6) * 0.025;
 
-    this.leftArmFP.group.position.set(-0.36, -0.26 + gentleY, -0.36);
+    const isDualGrapple = this.state === 'grapple_shoot' || this.state === 'grapple_pull' || (this.state === 'retracting' && this.leftPullStartPts.length > 1);
+    const leftOut = isDualGrapple ? 0.14 : 0;
+    this.leftArmFP.group.position.set(-0.36, -0.26 + gentleY, -0.36 - leftOut);
     this.leftArmFP.finPivot.rotation.z = 0.22 + finWave;
 
     const rightOut = this.state !== 'idle' ? 0.14 : 0;
     this.rightArmFP.group.position.set(0.36, -0.26 + gentleY2, -0.36 - rightOut);
     this.rightArmFP.finPivot.rotation.z = -0.22 - finWave;
 
-    // 2) Fırlatılan / Saran / Tutan Dokunaç Kolunun Durum Makinesi
+    // 2) Fırlatılan / Saran / Tutan / Kanca Kolunun Durum Makinesi
     if (this.state === 'idle') return;
 
     this.stateT += dt;
 
-    if (this.state === 'extending') {
+    if (this.state === 'grapple_shoot') {
+      this.currentDist += EXTEND_SPEED * 1.45 * dt;
+      if (this.currentDist >= this.targetDist) {
+        this.currentDist = this.targetDist;
+        this.state = 'grapple_pull';
+        this.stateT = 0;
+        this.grappleBlockedTime = 0;
+        sound.playTentacleWrap();
+        sound.playTentaclePull();
+        this._setStatus('İKİ KOL TUTUNDU! HEDEFE ÇEKİLİYORSUN...');
+      }
+    } else if (this.state === 'grapple_pull') {
+      const character = ctx && ctx.character;
+      if (!character) {
+        this._startRetract();
+      } else {
+        const pPos = character.body.position;
+        const target = this.grappleTarget;
+        const toTarget = new THREE.Vector3(
+          target.x - pPos.x,
+          (target.y + 0.65) - pPos.y,
+          target.z - pPos.z
+        );
+        const dist = toTarget.length();
+
+        if (character.blockedHoriz) {
+          this.grappleBlockedTime += dt;
+        } else {
+          this.grappleBlockedTime = Math.max(0, this.grappleBlockedTime - dt * 0.5);
+        }
+
+        if (dist <= 2.35 || this.stateT >= 1.35 || this.grappleBlockedTime >= 0.24) {
+          // Hedefe ulaştı: çatıya veya çıkıntıya rahatça çıkabilmesi için hafif yukarı ivme bırak
+          character.vel.y = Math.max(character.vel.y, 6.5);
+          character.knock.multiplyScalar(0.2);
+          this._startRetract();
+          this._setStatus('HEDEFE ULAŞILDI!');
+        } else {
+          toTarget.divideScalar(dist);
+          const PULL_SPEED = 38;
+          // Yatay çekiş knock üzerinden verilir ki W/A/S/D basılı değilken sönümlenmesin
+          character.knock.set(toTarget.x * PULL_SPEED, 0, toTarget.z * PULL_SPEED);
+          character.vel.y = toTarget.y * PULL_SPEED + (character.blockedHoriz ? 13.0 : 3.2);
+          character.isGrounded = false;
+          character.usedJet = false;
+        }
+      }
+    } else if (this.state === 'extending') {
       this.currentDist += EXTEND_SPEED * dt;
       if (this.currentDist >= this.targetDist) {
         this.currentDist = this.targetDist;
@@ -1310,7 +1474,7 @@ export class OctopusSystem {
           this.state = 'wrapping';
           this.stateT = 0;
           sound.playTentacleWrap();
-          this._setStatus('BİNA 3 TUR SARILIYOR...');
+          this._setStatus('BİNA SARILIYOR...');
         } else {
           this._startRetract();
         }
@@ -1327,7 +1491,6 @@ export class OctopusSystem {
         this.grabbedNpc = null;
         this._startRetract();
       } else {
-        // Fareyi hareket ettirdikçe insanı havaya kaldırır ve baktığımız yere taşır!
         const target = this.camera.position.clone().addScaledVector(curAim, this.holdDist);
         const gy = this.vw.terrain.topYAt(target.x, target.z);
         if (gy > -Infinity) target.y = Math.max(gy + 0.5, target.y);
@@ -1340,16 +1503,14 @@ export class OctopusSystem {
         this.heldChunk = null;
         this._startRetract();
       } else {
-        // Fareyi hareket ettirdikçe binayı yerinden sökülmüş halde havaya kaldırır ve sallar!
         const targetAnchor = this.camera.position.clone().addScaledVector(curAim, this.buildingHoldDist);
         targetAnchor.y = Math.max(this.buildingBaseCom.y + 3.5, targetAnchor.y + 3.0);
         const desiredCom = targetAnchor.sub(this.buildingAnchorOffset);
         const desiredOffset = desiredCom.sub(this.buildingBaseCom);
-        desiredOffset.y = Math.max(2.5, desiredOffset.y); // en az 2.5m havaya kalksın
+        desiredOffset.y = Math.max(2.5, desiredOffset.y);
 
         this.heldChunk.holdOffset.lerp(desiredOffset, Math.min(1, dt * 8));
 
-        // Sallarken hafif eğim (fare ivmesine göre)
         const tiltX = THREE.MathUtils.clamp(-this.aimSwingVel.z * 0.018, -0.32, 0.32);
         const tiltZ = THREE.MathUtils.clamp(this.aimSwingVel.x * 0.018, -0.32, 0.32);
         const targetQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(tiltX, 0, tiltZ));
@@ -1364,7 +1525,7 @@ export class OctopusSystem {
       }
     }
 
-    // 3) Dünya sahnesindeki kalın dokunaç boğumlarını omurga noktalarına yerleştir
+    // 3) Dünya sahnesindeki sağ ince kol boğumlarını omurga noktalarına yerleştir
     const pts = this._currentTentaclePoints();
     for (let i = 0; i < WORLD_SEGS; i++) {
       const p0 = pts[i];
@@ -1372,11 +1533,24 @@ export class OctopusSystem {
       const seg = this.worldSegs[i];
       seg.group.position.copy(p0).add(p1).multiplyScalar(0.5);
       const len = p0.distanceTo(p1);
-      // Kalın, kaslı dokunaç: tabanda dolgun (1.15), uca doğru kademeli incelen (0.42), ip gibi incecik olmaz!
-      const u = i / WORLD_SEGS;
-      const taper = 1.15 * (1 - u * 0.62);
-      seg.group.scale.set(taper, taper, Math.max(0.18, len * 1.18 + 0.12));
+      const taper = 1 - (i / WORLD_SEGS) * 0.55;
+      seg.group.scale.set(taper, taper, Math.max(0.05, len + 0.08));
       seg.group.lookAt(p1);
+    }
+
+    // 4) Eğer R tuşu (çift kol kanca) aktifse sol ince kol boğumlarını da yerleştir
+    if (this.leftWorldGroup && this.leftWorldGroup.visible) {
+      const lPts = this._currentLeftTentaclePoints();
+      for (let i = 0; i < WORLD_SEGS; i++) {
+        const p0 = lPts[i];
+        const p1 = lPts[i + 1] || p0;
+        const seg = this.leftWorldSegs[i];
+        seg.group.position.copy(p0).add(p1).multiplyScalar(0.5);
+        const len = p0.distanceTo(p1);
+        const taper = 1 - (i / WORLD_SEGS) * 0.55;
+        seg.group.scale.set(taper, taper, Math.max(0.05, len + 0.08));
+        seg.group.lookAt(p1);
+      }
     }
   }
 }
