@@ -892,6 +892,75 @@ class SoundEngine {
     this.playNoise(0.35, 0.3, 1200);
   }
 
+  // ───────────────────────── Ahtapot Silahı / Dönüşümü Sesleri ─────────────────────────
+  // Ahtapot ekrana atlayıp yavaşça kaybolurken çıkan "vıcık vıcık" ıslak/yapışkan sesler
+  playOctopusSquish() {
+    if (this.muted || !this.ctx) return;
+    const ctx = this.ctx, now = ctx.currentTime;
+    // İlk ekrana yapışma ("ŞLAP / VICIK")
+    this._thump(now, 0.22, 0.45, 220, 55, 'sine');
+    this._burst(now, 0.25, 0.38, 'bandpass', 1100, 320, 2.5);
+
+    // Yavaşça eriyip kaybolurken art arda "vıcık vıcık" kabarcıklı mukus sesleri (~2.3 sn)
+    const steps = [0.18, 0.36, 0.55, 0.78, 0.98, 1.22, 1.45, 1.68, 1.92, 2.15];
+    steps.forEach((dt, idx) => {
+      const t = now + dt;
+      const fade = 1 - (idx / steps.length) * 0.55;
+      const f0 = 320 + (idx % 3) * 180 + Math.random() * 140;
+      const f1 = (idx % 2 === 0) ? f0 * 2.1 : f0 * 0.42;
+      // Islak rezonanslı filtre süpürmesi
+      this._burst(t, 0.16, 0.28 * fade, 'bandpass', f0, f1, 4.5);
+      // Kabarcık / vantuz tonu
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f0 * 0.65, t);
+      osc.frequency.exponentialRampToValueAtTime(f1 * 0.75, t + 0.14);
+      g.gain.setValueAtTime(0.18 * fade, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.16);
+    });
+  }
+
+  // Sol tık: ahtapot kolunu kanca gibi fırlatma sesi
+  playTentacleShoot() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 0.18, 0.34, 190, 420, 'sine');
+    this._burst(now, 0.22, 0.28, 'bandpass', 550, 1900, 2.8);
+    this._burst(now + 0.05, 0.14, 0.2, 'bandpass', 1400, 480, 3.5);
+  }
+
+  // Kol binayı sararken çıkan vantuz / sarma sesi
+  playTentacleWrap() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 4; i++) {
+      const t = now + i * 0.14;
+      this._burst(t, 0.12, 0.22, 'bandpass', 600 + i * 160, 1250, 3.8);
+      this._thump(t, 0.1, 0.2, 160 + i * 30, 75, 'triangle');
+    }
+  }
+
+  // Sağ tık: sarılan binayı hızla çekip kırma sesi
+  playTentaclePull() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 0.45, 0.55, 160, 32, 'sine');
+    this._thump(now + 0.04, 0.35, 0.38, 110, 40, 'sawtooth');
+    this._burst(now, 0.38, 0.42, 'lowpass', 1800, 180, 1.2);
+    this._burst(now + 0.06, 0.22, 0.28, 'bandpass', 950, 380, 3.2);
+  }
+
+  // Q tuşu: dev ahtapot zıplaması sesi
+  playOctopusJump() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._thump(now, 0.32, 0.45, 120, 520, 'sine');
+    this._burst(now, 0.35, 0.32, 'bandpass', 420, 1800, 2.2);
+    this._burst(now + 0.08, 0.2, 0.22, 'bandpass', 1200, 500, 3.5);
+  }
+
   // Gürültü (Noise) Üreteci
   playNoise(duration, volume, filterFreq = 1000) {
     if (!this.ctx) return;

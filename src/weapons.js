@@ -33,7 +33,8 @@ export class WeaponSystem {
       { id: 12, type: 'melter', name: 'Eritici', ammo: Infinity, desc: 'Yapışan akkor çamur' },
       { id: 13, type: 'quake', name: 'Yer Sarsıcı', ammo: Infinity, desc: 'Genişleyen şok dalgası' },
       { id: 14, type: 'wrecker', name: 'Yıkım Topu', ammo: Infinity, desc: 'Ağır demir gülle' },
-      { id: 15, type: 'sawdisc', name: 'Testere Diski', ammo: Infinity, desc: 'Bumerang disk (Z: yön)' }
+      { id: 15, type: 'sawdisc', name: 'Testere Diski', ammo: Infinity, desc: 'Bumerang disk (Z: yön)' },
+      { id: 16, type: 'octopus', name: 'Ahtapot', ammo: Infinity, desc: 'Sol Tık: Sar | Sağ Tık: Çek | Q: Dev Zıpla' }
     ];
 
     this.cooldown = 0;

@@ -3,6 +3,7 @@ import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y } from './terrain.js';
 import { Arsenal } from './arsenal.js';
+import { OctopusSystem } from './octopus.js';
 
 // Elde taşınan silahlar: ekranın sağ altında görünen silah modelleri (birinci şahıs),
 // minigun (basılı tutunca otomatik ateş) ve ışın kılıcı (savurma ile yıkım).
@@ -103,6 +104,7 @@ export class HandWeapons {
     this._buildBomb();
     this._buildGuns();
     this.arsenal = new Arsenal(this);   // 6 yeni silah (kimlik 10-15)
+    this.octopus = new OctopusSystem(this); // Ahtapot silahı ve dönüşümü (kimlik 16)
     this.gunCooldown = 0;
     this.scoped = false;
     this.mag = { ...MAG_SIZE };   // her silahın şarjöründeki mermi
@@ -426,6 +428,7 @@ export class HandWeapons {
 
     // Cephanelik (10-15): model, ateş ve mermi/etki güncellemesi
     this.arsenal.update(dt, ctx, { swayX, swayY, drop });
+    if (this.octopus) this.octopus.update(dt, ctx);
 
     // Işın kılıcı: hafif parlama + savurma animasyonu
     const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.02);
@@ -698,6 +701,7 @@ export class HandWeapons {
   resetAmmo() {
     this._cancelReload();
     if (this.arsenal) this.arsenal.reset();
+    if (this.octopus) this.octopus._resetTentacle();
     this.mag = { ...MAG_SIZE };
     this._ammoChanged();
   }

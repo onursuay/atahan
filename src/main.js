@@ -439,7 +439,7 @@ function startIntro() {
     introFadeEl.style.cssText = 'position:fixed;inset:0;background:#000;z-index:200;pointer-events:none;opacity:1';
     document.body.appendChild(introFadeEl);
     const st = document.createElement('style');
-    st.textContent = 'body.intro #hud, body.intro #crosshair, body.intro #vitals, body.intro #daynight, body.intro #weapon-now, body.intro #weapon-hint, body.intro #mag-hud, body.intro #detonate-btn { display:none !important; }'
+    st.textContent = 'body.intro #hud, body.intro #crosshair, body.intro #vitals, body.intro #daynight, body.intro #weapon-now, body.intro #weapon-hint, body.intro #mag-hud, body.intro #detonate-btn, body.intro #octopus-hud, body.intro #octopus-vignette { display:none !important; }'
       + '#main-menu{position:fixed;inset:0;z-index:210;background:radial-gradient(ellipse at center,#1b2440 0%,#05070d 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;text-align:center}'
       + '#main-menu h1{font-size:44px;letter-spacing:4px;margin:0 0 26px;text-shadow:4px 4px #000,0 0 24px #5b8cff}'
       + '#main-menu button{font-family:inherit;font-size:20px;letter-spacing:2px;width:280px;padding:14px 0;color:#fff;background:#1f2a48;border:3px solid #5b8cff;cursor:pointer}'
@@ -804,6 +804,7 @@ function fireWeapon() {
   if (cur === 6) { handWeapons.fireGun('shotgun'); return; }
   if (cur === 8) { handWeapons.fireGun('sniper'); screenShake = 0.12; return; }
   if (cur >= 10 && cur <= 15) { handWeapons.arsenal.fire(cur); return; }   // cephanelik: kara delik, yıldırım, eritici, deprem, yıkım topu, testere
+  if (cur === 16) { handWeapons.octopus.onLeftClick(); return; }           // Ahtapot: sol tıkla kolunu kanca gibi fırlat ve binayı sar
   if (cur === 3 || cur === 4) {                           // Bombalar: yerleştir
     if (bombs.place(cur === 3 ? 'timed' : 'remote')) handWeapons.onRocketFired();
     return;
@@ -833,12 +834,16 @@ function selectWeapon(idx) {
   weaponSystem.setWeapon(idx);
   handWeapons.setWeapon(idx);
   character.pistolGroup.visible = idx === 0 && character.currentMode !== 'cyborg';
-  if (handWeapons) handWeapons.setBombModel(idx);
+  if (handWeapons) {
+    handWeapons.setBombModel(idx);
+    if (handWeapons.octopus) handWeapons.octopus.onSwitch(idx, character);
+  }
   updateWeaponUI();
 }
 
 // Bilgisayarın E Tuşuna Basınca Çekiç Vursun (Belli bir mesafeye kadar)
 function useHammer() {
+  if (weaponSystem.currentWeapon === 16) return; // Ahtapot modunda çekiç kullanılmaz ve görünmez
   sound.init();
   const swung = character.triggerHammerSwing();
   if (!swung) return;
@@ -923,6 +928,19 @@ function setupEventListeners() {
       }
     }
 
+    // T tuşu: Son silah olan Ahtapot silahını al (veya ahtapottaysa önceki silaha dön)
+    if ((key === 't' || e.code === 'KeyT') && !e.repeat && !inCar) {
+      releaseHand();
+      if (weaponSystem.currentWeapon === 16) selectWeapon(0);
+      else selectWeapon(16);
+    }
+
+    // Q tuşu: Ahtapota dönüştüğümüz zaman her basışta çok büyük bir zıplama yapıp geri aşağı iner (zıpla-in)
+    if ((key === 'q' || e.code === 'KeyQ') && !e.repeat && !inCar && weaponSystem.currentWeapon === 16) {
+      if (seated) seated = false;
+      handWeapons.octopus.superJump(character, camera);
+    }
+
     // X: sniper nişangâhı
     if (key === 'x' || e.code === 'KeyX') toggleScope();
 
@@ -968,7 +986,13 @@ function setupEventListeners() {
     if (e.button === 0) {
       fireWeapon();
     }
-    if (e.button === 2) grabDoor();
+    if (e.button === 2) {
+      if (weaponSystem.currentWeapon === 16) {
+        handWeapons.octopus.onRightClick((s) => { screenShake = Math.max(screenShake, s); });
+      } else {
+        grabDoor();
+      }
+    }
   });
 
   window.addEventListener('mousemove', (e) => {
