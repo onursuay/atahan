@@ -9,7 +9,7 @@ import * as THREE from 'three';
 // mass: göreli kütle (çarpışmada momentum). zhp: bölge panel canı. wr: tekerlek yarıçapı.
 // seatX/seatY: sürücünün kabindeki yeri.
 export const TYPES = {
-  sport:     { len: 4.4, wid: 1.85, h: 1.05, speed: [17, 23], mass: 1.0, zhp: 11, wr: 0.32, seatX: -0.1, seatY: 0.98 },
+  sport:     { len: 4.5, wid: 1.9,  h: 1.05, speed: [25, 33], mass: 1.15, zhp: 12, wr: 0.33, seatX: -0.1, seatY: 0.96 },
   mini:      { len: 2.7, wid: 1.45, h: 1.35, speed: [8, 11],  mass: 0.8, zhp: 8,  wr: 0.32, seatX: -0.1, seatY: 1.28 },
   sedan:     { len: 4.3, wid: 1.8,  h: 1.35, speed: [12, 16], mass: 1.2, zhp: 10, wr: 0.32, seatX: -0.1, seatY: 1.28 },
   suv:       { len: 4.7, wid: 1.95, h: 1.85, speed: [11, 15], mass: 1.7, zhp: 14, wr: 0.42, seatX: 0.1,  seatY: 1.5 },
@@ -49,12 +49,54 @@ export function zoneOfLocal(T, x, z) {
 // Tipe özel gövde parçaları. add(geo, material, x, y, z) bölgeye atanacak panel ekler.
 const BODY = {
   sport(add, T, body) {
-    add(box(T.len, 0.5, T.wid), body, 0, 0.5, 0);                      // alçak gövde
-    add(box(1.6, 0.4, T.wid - 0.35), body, 1.0, 0.82, 0);              // ön kaput eğimi
-    add(box(1.7, 0.5, T.wid - 0.3), glassMat, -0.2, 0.95, 0);          // kabin camı
-    add(box(1.0, 0.1, T.wid - 0.5), body, -0.2, 1.22, 0);              // tavan
-    add(box(0.3, 0.38, T.wid), body, -2.1, 1.0, 0);                    // spoyler
-    add(box(0.12, 0.3, 0.12), darkMat, -2.0, 0.78, 0.55); add(box(0.12, 0.3, 0.12), darkMat, -2.0, 0.78, -0.55);
+    const chrome = lam(0x94a3b8), engineRed = lam(0xdc2626), carbon = lam(0x1e293b);
+    // Ana alçak gövde ve kaslı çamurluk omuzları
+    add(box(T.len - 0.12, 0.44, T.wid - 0.08), body, 0, 0.48, 0);
+    for (const sz of [-1, 1]) {
+      add(box(1.25, 0.46, 0.12), body, 1.32, 0.52, sz * (T.wid / 2 - 0.03));   // ön kaslı çamurluklar
+      add(box(1.45, 0.50, 0.14), body, -1.25, 0.55, sz * (T.wid / 2 - 0.02));  // arka geniş çamurluklar
+      add(box(1.9, 0.10, 0.12), carbon, 0.05, 0.25, sz * (T.wid / 2 - 0.01));  // karbon yan marşpiyel (side skirt)
+      add(box(0.45, 0.24, 0.08), darkMat, -0.55, 0.56, sz * (T.wid / 2 - 0.02)); // yan motor hava girişleri
+      // Aerodinamik yan aynalar
+      add(box(0.08, 0.06, 0.14), carbon, 0.55, 0.82, sz * (T.wid / 2 - 0.02));
+      add(box(0.18, 0.09, 0.12), body, 0.52, 0.86, sz * (T.wid / 2 + 0.05));
+    }
+    // Ön splitter (lip), ızgara ve aerodinamik kaput
+    add(box(0.32, 0.07, T.wid + 0.04), carbon, T.len / 2 - 0.06, 0.24, 0);     // ön karbon splitter
+    add(box(0.16, 0.22, T.wid * 0.52), darkMat, T.len / 2 - 0.03, 0.40, 0);    // orta ön ızgara
+    for (const sz of [-1, 1]) {
+      add(box(0.16, 0.18, 0.34), darkMat, T.len / 2 - 0.03, 0.40, sz * 0.68);  // yan ön hava kanalları
+      add(box(0.10, 0.06, 0.38), lightMat, T.len / 2 - 0.01, 0.66, sz * 0.66); // agresif LED gündüz farları
+    }
+    add(box(1.45, 0.22, T.wid - 0.28), body, 1.25, 0.68, 0);                   // alçak eğimli ön kaput
+    add(box(0.55, 0.05, 0.68), darkMat, 1.35, 0.78, 0);                        // kaput hava tahliye kanalı
+    // Aerodinamik cam kabin ve tavan
+    add(box(1.75, 0.46, T.wid - 0.32), glassMat, -0.05, 0.92, 0);              // kabin camı
+    add(box(1.05, 0.09, T.wid - 0.46), body, -0.15, 1.18, 0);                  // tavan
+    add(box(0.38, 0.12, 0.22), carbon, -0.35, 1.25, 0);                        // tavan üstü hava girişi (roof scoop)
+    // Arka motor kapağı, panjurlar (louvers) ve iç motor bloğu detayı
+    add(box(1.15, 0.24, T.wid - 0.26), body, -1.35, 0.74, 0);                  // arka motor güvertesi
+    add(box(0.70, 0.08, 0.56), engineRed, -1.25, 0.84, 0);                     // görünür V10/V12 motor üst kapağı
+    for (let i = 0; i < 4; i++) {
+      add(box(0.10, 0.04, 0.78), carbon, -0.98 - i * 0.18, 0.88 - i * 0.015, 0); // arka motor panjurları
+    }
+    // Çok parçalı GT arka kanat (spoyler) ve dikmeleri
+    for (const sz of [-1, 1]) {
+      add(box(0.18, 0.32, 0.06), carbon, -2.02, 0.88, sz * 0.56);              // spoyler dikmeleri
+      add(box(0.42, 0.24, 0.04), body, -2.10, 1.04, sz * (T.wid / 2 - 0.02));  // spoyler yan plakaları (endplates)
+    }
+    add(box(0.34, 0.07, T.wid - 0.04), carbon, -2.10, 1.06, 0);                // ana spoyler kanadı
+    add(box(0.14, 0.06, T.wid - 0.10), body, -2.20, 1.11, 0);                  // üst Gurney flap
+    // Arka difüzör, dörtlü egzoz ve boydan boya LED stop barı
+    add(box(0.24, 0.18, T.wid - 0.12), carbon, -T.len / 2 + 0.08, 0.28, 0);    // arka difüzör
+    for (const zf of [-0.55, -0.18, 0.18, 0.55]) {
+      add(box(0.22, 0.16, 0.04), darkMat, -T.len / 2 + 0.04, 0.26, zf);        // difüzör bıçakları
+    }
+    for (const sz of [-1, 1]) {
+      add(box(0.16, 0.09, 0.09), chrome, -T.len / 2 + 0.02, 0.38, sz * 0.42);  // iç egzoz boruları
+      add(box(0.16, 0.09, 0.09), chrome, -T.len / 2 + 0.02, 0.38, sz * 0.56);  // dış egzoz boruları
+    }
+    add(box(0.06, 0.07, T.wid - 0.24), tailMat, -T.len / 2 + 0.01, 0.68, 0);   // kesintisiz arka LED stop şeridi
   },
   mini(add, T, body) {
     add(box(T.len, 0.7, T.wid), body, 0, 0.62, 0);                     // kısa, yüksek gövde
@@ -177,7 +219,14 @@ export function buildCar(kind, color, livery = null) {
 
   // Tekerlekler (bölgeye bağlı değil, her zaman kalır)
   const wx = T.len * 0.31, wz = T.wid / 2;
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) add(box(T.wr * 2, T.wr * 2, 0.28), darkMat, sx * wx, T.wr, sz * wz, true);
+  const rimMat = lam(0xcbd5e1), caliperMat = lam(0xef4444);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    add(box(T.wr * 2, T.wr * 2, kind === 'sport' ? 0.32 : 0.28), darkMat, sx * wx, T.wr, sz * wz, true);
+    if (kind === 'sport') {
+      add(box(T.wr * 1.25, T.wr * 1.25, 0.34), rimMat, sx * wx, T.wr, sz * wz, true);
+      add(box(T.wr * 0.55, T.wr * 0.85, 0.35), caliperMat, sx * wx - sx * 0.08, T.wr + 0.04, sz * wz, true);
+    }
+  }
 
   // Farlar ve stoplar bölgenin parçasıdır
   add(box(0.08, 0.2, 0.4), lightMat, T.len / 2, 0.62, 0.55); add(box(0.08, 0.2, 0.4), lightMat, T.len / 2, 0.62, -0.55);

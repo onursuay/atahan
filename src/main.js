@@ -1020,7 +1020,10 @@ function setupEventListeners() {
     }
     if (e.button === 2) {
       if (weaponSystem.currentWeapon === 16) {
-        handWeapons.octopus.onRightClick((s) => { screenShake = Math.max(screenShake, s); });
+        const handled = handWeapons.octopus.onRightClick((s) => { screenShake = Math.max(screenShake, s); });
+        if (!handled) {
+          grabDoor();
+        }
       } else {
         grabDoor();
       }

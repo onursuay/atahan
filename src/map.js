@@ -309,16 +309,16 @@ export class MapSystem {
   }
 
   _getLocationName(x, z) {
-    if (x >= 200 && x <= 368 && z >= 14 && z <= 186) return '🌳 Merkez Park (New York Tarzı)';
-    if (x >= 236 && x <= 314 && z >= -148 && z <= -48) return '🏰 Zengin Villası Platosu';
-    if (x >= 143 && x <= 180 && z >= -127 && z <= -50) return '🏬 Büyük AVM (Alışveriş Merkezi)';
-    if (x >= 148 && x <= 180 && z >= 50 && z <= 118) return '🏥 Merkez Şehir Hastanesi';
+    if (x >= 335 && x <= 503 && z >= 14 && z <= 186) return '🌳 Merkez Park (New York Tarzı)';
+    if (x >= 371 && x <= 449 && z >= -148 && z <= -48) return '🏰 Zengin Villası Platosu';
+    if (x >= 242 && x <= 270 && z >= -95 && z <= -38) return '🏬 Büyük AVM (Alışveriş Merkezi)';
+    if (x >= 246 && x <= 270 && z >= 38 && z <= 88) return '🏥 Merkez Şehir Hastanesi';
     if (x >= -192 && x <= -170) return '🏖️ Batı Sahili & Kumsal';
     if (x >= -170 && x <= -50 && (Math.abs(z - 170) < 60 || Math.abs(z + 170) < 60)) return '🏢 Silindir Şirket Kuleleri Plaza';
-    if (x >= -12 && x <= 78 && Math.abs(z) < 18) return '🌉 Boğaz Asma Köprüsü';
-    if (x < -12) return '🏙️ Batı Şehir Merkezi';
-    if (x >= 78 && x <= 220) return '🏢 Doğu Şehir & Ticaret Bölgesi';
-    if (x > 368) return '🏔️ Doğu Dağları & Açık Doğa';
+    if (x >= -10 && x <= 194 && Math.abs(z) < 18) return '🌉 Boğaz Asma Köprüsü';
+    if (x < -10) return '🏙️ Batı Şehir Merkezi';
+    if (x >= 194 && x <= 355) return '🏢 Doğu Şehir & Ticaret Bölgesi';
+    if (x > 503) return '🏔️ Doğu Dağları & Açık Doğa';
     return '🌊 Okyanus / Sahil Şeridi';
   }
 
@@ -396,7 +396,7 @@ export class MapSystem {
     rect(-450, 320, 750, 850, '#15803d');
     rect(-470, 320, -450, 850, '#fef08a');
     // Doğu Yaylaları ve Kanyonu
-    rect(500, -700, 1200, 700, '#14532d');
+    rect(635, -700, 1200, 700, '#14532d');
     // Batı Açık Deniz Fener Adası
     rect(-600, -140, -460, 140, '#fde047');
     rect(-580, -120, -480, 120, '#15803d');
@@ -432,61 +432,61 @@ export class MapSystem {
       ctx.beginPath(); ctx.arc(gx, gy, Math.max(2, 9 * zoom), 0, Math.PI * 2); ctx.fill();
     }
 
-    // 4. Asma Köprü (İki adayı bağlayan ikonik hat)
+    // 4. Asma Köprü (İki adayı bağlayan 3x uzun ikonik hat: -9 m .. 193.5 m)
     const [b0x, b0z] = pt(-9, 0);
-    const [b1x, b1z] = pt(58, 0);
+    const [b1x, b1z] = pt(193.5, 0);
     const bw = Math.max(3, 8 * zoom);
     ctx.fillStyle = '#475569';
     ctx.fillRect(Math.min(b0x, b1x), b0z - bw / 2, Math.abs(b1x - b0x), bw);
     // Köprü kuleleri
     ctx.fillStyle = '#f8fafc';
-    const [t1x,] = pt(8, 0), [t2x,] = pt(40, 0);
+    const [t1x,] = pt(40.5, 0), [t2x,] = pt(144, 0);
     ctx.fillRect(t1x - 3, b0z - bw / 2 - 2, 6, bw + 4);
     ctx.fillRect(t2x - 3, b0z - bw / 2 - 2, 6, bw + 4);
 
-    // 5. Doğu Şehir Adası & Bloklar
-    rect(58, -125, 142, 125, '#475569'); // doğu ada zemin betonu
-    rect(58, -125, 185, 125, '#15803d'); // doğu yeşil alan
+    // 5. Doğu Şehir Adası & Bloklar (+135 m doğuya kaydırıldı)
+    rect(193.5, -125, 277, 125, '#475569'); // doğu ada zemin betonu
+    rect(193.5, -125, 320, 125, '#15803d'); // doğu yeşil alan
     // Otoyol (kuzey-güney geniş yol)
-    const [ox, oz0] = pt(94 - 10, -100);
-    const [, oz1] = pt(94 + 10, 100);
+    const [ox, oz0] = pt(229 - 10, -100);
+    const [, oz1] = pt(229 + 10, 100);
     ctx.fillStyle = '#0f172a';
-    ctx.fillRect(ox, Math.min(oz0, oz1), Math.abs(pt(94 + 10, 0)[0] - ox), Math.abs(oz1 - oz0));
+    ctx.fillRect(ox, Math.min(oz0, oz1), Math.abs(pt(229 + 10, 0)[0] - ox), Math.abs(oz1 - oz0));
 
     // AVM (Alışveriş Merkezi)
-    rect(107, -95, 135, -38, '#f43f5e'); // pembe/kırmızı büyük AVM binası
+    rect(242, -95, 270, -38, '#f43f5e'); // pembe/kırmızı büyük AVM binası
     // Hastane
-    rect(111, 38, 135, 88, '#ffffff'); // beyaz hastane
+    rect(246, 38, 270, 88, '#ffffff'); // beyaz hastane
     // Kırmızı artı
-    const [hx, hz] = pt(123, 63);
+    const [hx, hz] = pt(258, 63);
     ctx.fillStyle = '#ef4444';
     ctx.fillRect(hx - 4, hz - 1.5, 8, 3);
     ctx.fillRect(hx - 1.5, hz - 4, 3, 8);
 
     // 6. Zenginler Bölgesi & Villa Platosu
-    rect(142, -52, 186, 52, '#94a3b8'); // zengin yaya meydanı
+    rect(277, -52, 321, 52, '#94a3b8'); // zengin yaya meydanı
     // Tepe Platosu (12 m)
-    rect(177, -111, 235, -36, '#15803d');
+    rect(371, -148, 449, -48, '#15803d');
     // Villa Kavisli Yolu
     ctx.strokeStyle = '#1e293b'; ctx.lineWidth = Math.max(2, 4 * zoom);
     ctx.beginPath();
-    const [vx0, vz0] = pt(140, 0);
-    const [vx1, vz1] = pt(166, 0);
-    const [vx2, vz2] = pt(186, -38);
-    const [vx3, vz3] = pt(195, -45);
+    const [vx0, vz0] = pt(321, 0);
+    const [vx1, vz1] = pt(357, 0);
+    const [vx2, vz2] = pt(391, -38);
+    const [vx3, vz3] = pt(397, -50);
     ctx.moveTo(vx0, vz0); ctx.lineTo(vx1, vz1);
-    ctx.quadraticCurveTo(vx2, vz1, vx3, vz2);
+    ctx.quadraticCurveTo(vx2, vz1, vx3, vz3);
     ctx.stroke();
     // Villa Binası & Havuz
-    rect(190, -95, 230, -50, '#f8fafc'); // lüks villa
-    rect(200, -78, 222, -62, '#0ea5e9'); // parıldayan havuz
+    rect(379, -123, 425, -90, '#f8fafc'); // lüks villa
+    rect(391, -135, 420, -125, '#0ea5e9'); // parıldayan havuz
 
     // ══════════════════════════════════════════════════════════
     // 7. NEW YORK TARZI MERKEZ PARK (Central Park esintili)
     // ══════════════════════════════════════════════════════════
-    // Park Alanı: 200..368 x, 14..186 z
-    const [pk0x, pk0z] = pt(200, 14);
-    const [pk1x, pk1z] = pt(368, 186);
+    // Park Alanı: 335..503 x, 14..186 z
+    const [pk0x, pk0z] = pt(335, 14);
+    const [pk1x, pk1z] = pt(503, 186);
     const pkw = Math.abs(pk1x - pk0x), pkh = Math.abs(pk1z - pk0z);
 
     // Park çim zemini (canlı New York Central Park yeşili)
@@ -500,21 +500,21 @@ export class MapSystem {
     // Park içi ana patikalar (açık kum rengi)
     ctx.strokeStyle = '#fde68a'; ctx.lineWidth = Math.max(1.5, 3 * zoom);
     // Doğu-Batı ana patika
-    const [pp0x, pp0z] = pt(200, 100), [pp1x, pp1z] = pt(368, 100);
+    const [pp0x, pp0z] = pt(335, 100), [pp1x, pp1z] = pt(503, 100);
     ctx.beginPath(); ctx.moveTo(pp0x, pp0z); ctx.lineTo(pp1x, pp1z); ctx.stroke();
     // Kuzey-Güney ana patika
-    const [pp2x, pp2z] = pt(284, 14), [pp3x, pp3z] = pt(284, 186);
+    const [pp2x, pp2z] = pt(419, 14), [pp3x, pp3z] = pt(419, 186);
     ctx.beginPath(); ctx.moveTo(pp2x, pp2z); ctx.lineTo(pp3x, pp3z); ctx.stroke();
 
     // Çeşme Meydanı (Taş Plaza + Su Havuzu)
-    const [plzX, plzZ] = pt(284, 100);
+    const [plzX, plzZ] = pt(419, 100);
     ctx.fillStyle = '#94a3b8';
     ctx.beginPath(); ctx.arc(plzX, plzZ, Math.max(3, 13 * zoom), 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#38bdf8'; // fıskiye havuzu
     ctx.beginPath(); ctx.arc(plzX, plzZ, Math.max(2, 8 * zoom), 0, Math.PI * 2); ctx.fill();
 
     // Göl ve İskele (Doğu-Güney)
-    const [lakeX, lakeZ] = pt(332, 150);
+    const [lakeX, lakeZ] = pt(467, 150);
     if (ctx.ellipse) ctx.ellipse(lakeX, lakeZ, Math.max(4, 20 * zoom), Math.max(3, 12 * zoom), 0, 0, Math.PI * 2);
     else ctx.arc(lakeX, lakeZ, Math.max(4, 16 * zoom), 0, Math.PI * 2);
     ctx.fill();
@@ -522,14 +522,14 @@ export class MapSystem {
     ctx.fillRect(lakeX - Math.max(3, 15 * zoom), lakeZ - 2, Math.max(4, 12 * zoom), 4);
 
     // Buz Pisti (Açık mavi)
-    const [rinkX0, rinkZ0] = pt(226, 44), [rinkX1, rinkZ1] = pt(266, 68);
+    const [rinkX0, rinkZ0] = pt(361, 44), [rinkX1, rinkZ1] = pt(401, 68);
     ctx.fillStyle = '#bae6fd';
     ctx.fillRect(Math.min(rinkX0, rinkX1), Math.min(rinkZ0, rinkZ1), Math.abs(rinkX1 - rinkX0), Math.abs(rinkZ1 - rinkZ0));
     ctx.strokeStyle = '#f8fafc'; ctx.lineWidth = 1.5;
     ctx.strokeRect(Math.min(rinkX0, rinkX1), Math.min(rinkZ0, rinkZ1), Math.abs(rinkX1 - rinkX0), Math.abs(rinkZ1 - rinkZ0));
 
     // Çocuk Oyun Parkı (Renkli kum alanı)
-    const [playX0, playZ0] = pt(320, 41), [playX1, playZ1] = pt(360, 71);
+    const [playX0, playZ0] = pt(455, 41), [playX1, playZ1] = pt(495, 71);
     ctx.fillStyle = '#fef08a';
     ctx.fillRect(Math.min(playX0, playX1), Math.min(playZ0, playZ1), Math.abs(playX1 - playX0), Math.abs(playZ1 - playZ0));
     // Salıncak & Kaydırak sembolleri
@@ -539,7 +539,7 @@ export class MapSystem {
     ctx.fillRect(Math.max(playX0, playX1) - 10, Math.min(playZ0, playZ1) + 4, 6, 6);
 
     // Köpek Parkı (Çitli alan)
-    const [dpX0, dpZ0] = pt(225, 131), [dpX1, dpZ1] = pt(263, 161);
+    const [dpX0, dpZ0] = pt(360, 131), [dpX1, dpZ1] = pt(398, 161);
     ctx.fillStyle = '#bbf7d0';
     ctx.fillRect(Math.min(dpX0, dpX1), Math.min(dpZ0, dpZ1), Math.abs(dpX1 - dpX0), Math.abs(dpZ1 - dpZ0));
     ctx.strokeStyle = '#ea580c'; ctx.lineWidth = 1.5;
@@ -548,10 +548,10 @@ export class MapSystem {
     // Park İçi Ağaç Grupları (koyu yeşil noktalar)
     ctx.fillStyle = '#14532d';
     for (const [tx, tz] of [
-      [220, 25], [240, 25], [260, 25], [300, 25], [330, 25], [350, 25],
-      [220, 175], [240, 175], [260, 175], [290, 175], [320, 175], [350, 175],
-      [212, 60], [212, 100], [212, 140], [358, 100], [358, 130],
-      [265, 80], [305, 80], [265, 120], [305, 120]
+      [355, 25], [375, 25], [395, 25], [435, 25], [465, 25], [485, 25],
+      [355, 175], [375, 175], [395, 175], [425, 175], [455, 175], [485, 175],
+      [347, 60], [347, 100], [347, 140], [493, 100], [493, 130],
+      [400, 80], [440, 80], [400, 120], [440, 120]
     ]) {
       const [ax, az] = pt(tx, tz);
       ctx.beginPath(); ctx.arc(ax, az, Math.max(1.5, 3 * zoom), 0, Math.PI * 2); ctx.fill();
@@ -600,15 +600,15 @@ export class MapSystem {
         ctx.fillText(text, lx, lz);
       };
 
-      drawLabel('🌳 MERKEZ PARK', 284, 100, '#4ade80');
-      drawLabel('🏰 VİLLA', 210, -70, '#fde047');
-      drawLabel('🏬 AVM', 121, -66, '#fb7185');
+      drawLabel('🌳 MERKEZ PARK', 419, 100, '#4ade80');
+      drawLabel('🏰 VİLLA', 405, -100, '#fde047');
+      drawLabel('🏬 AVM', 256, -66, '#fb7185');
       drawLabel('🏢 SİLİNDİR KULELER', -81, 165, '#38bdf8');
       drawLabel('🏢 ŞİRKETLER', -81, -165, '#fb923c');
-      drawLabel('🌉 ASMA KÖPRÜ', 24, 0, '#94a3b8');
+      drawLabel('🌉 ASMA KÖPRÜ', 92, 0, '#94a3b8');
       if (!isMini) {
         drawLabel('🏖️ BATI SAHİLİ', -150, 0, '#fef08a');
-        drawLabel('🏥 HASTANE', 123, 63, '#38bdf8');
+        drawLabel('🏥 HASTANE', 258, 63, '#38bdf8');
         drawLabel('🏔️ KUZEY DAĞLARI', 150, -550, '#86efac');
         drawLabel('🏝️ GÜNEY LAGÜNÜ', 150, 550, '#67e8f9');
         drawLabel('⛵ FENER ADASI', -530, 0, '#fef08a');

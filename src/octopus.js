@@ -66,6 +66,7 @@ export class OctopusSystem {
     this.mouseVelY = 0;
     this.lastAimDir = new THREE.Vector3();
     this.aimSwingVel = new THREE.Vector3();
+    this.recentSwipeSpeed = 0;
 
     // R tuşu: Çift kol kanca (kendini hedefe çekme) durumu
     this.grappleTarget = new THREE.Vector3();
@@ -589,12 +590,26 @@ export class OctopusSystem {
   }
 
   _resetTentacle() {
+    if (this.grabbedProp) {
+      this.grabbedProp.held = false;
+      this.grabbedProp.sleep = false;
+      this.grabbedProp.vel.set(0, 0, 0);
+      this.grabbedProp.wx = 0; this.grabbedProp.wz = 0; this.grabbedProp.spin = 0;
+      this.grabbedProp.pitch = 0; this.grabbedProp.roll = 0;
+      this.grabbedProp.restPitch = 0; this.grabbedProp.restRoll = 0;
+      this.grabbedProp.tipped = false; this.grabbedProp.thrown = false;
+      this.grabbedProp.steadyDrop = true;
+      this.grabbedProp = null;
+    }
     if (this.grabbedNpc) {
       this.grabbedNpc.grabbed = false;
+      this.grabbedNpc.thrownVel = new THREE.Vector3(0, -3, 0);
+      this.grabbedNpc.thrownSpin = false;
       this.grabbedNpc = null;
     }
     if (this.heldChunk && this.heldChunk.phase === 'held') {
-      this.vw.collapse.throwChunk(this.heldChunk, new THREE.Vector3(0, -4, 0));
+      this.heldChunk.holdQuat.identity();
+      this.vw.collapse.throwChunk(this.heldChunk, new THREE.Vector3(0, -3, 0), new THREE.Vector3(0, 0, 0));
     }
     this.heldChunk = null;
     this.state = 'idle';
@@ -769,6 +784,7 @@ export class OctopusSystem {
     const moveMag = Math.hypot(movementX, movementY);
     this.mouseVelX = movementX;
     this.mouseVelY = movementY;
+    this.recentSwipeSpeed = (this.recentSwipeSpeed || 0) + moveMag;
 
     // Binayı sarmış durumdayken fare kaydırılırsa binayı yerinden söküp havaya kaldırır!
     if (this.state === 'wrapped') {
@@ -783,40 +799,62 @@ export class OctopusSystem {
   onLeftClick(onScreenShake) {
     if (!this.active) return false;
 
-    // 1) Eğer şu an bir İNSANI (NPC) havada tutuyorsak: sol tıkla baktığımız yöne hızla FIRLAT!
+    // Fare kaydırılarak mı fırlatılıyor yoksa sabit mi bırakılıyor kontrolü
+    const isSwiped = this.aimSwingVel.length() > 2.0 || (this.recentSwipeSpeed || 0) > 10.0;
+
+    // 1) Eğer şu an bir İNSANI (NPC) havada tutuyorsak:
     if (this.state === 'holding_npc' && this.grabbedNpc) {
       sound.playOctopusThrow();
       const dir = new THREE.Vector3();
       this.camera.getWorldDirection(dir);
       const npc = this.grabbedNpc;
       npc.grabbed = false;
-      npc.thrownVel = dir.multiplyScalar(38).add(this.aimSwingVel.clone().multiplyScalar(0.6));
-      npc.thrownVel.y += 6.5;
+      if (isSwiped) {
+        npc.thrownSpin = true;
+        npc.thrownVel = dir.multiplyScalar(38).add(this.aimSwingVel.clone().multiplyScalar(0.6));
+        npc.thrownVel.y += 6.5;
+        this._setStatus('İNSAN DÖNE DÖNE FIRLATILDI!');
+      } else {
+        npc.thrownSpin = false;
+        npc.thrownVel = dir.multiplyScalar(16);
+        npc.thrownVel.y += 1.5;
+        this._setStatus('İNSAN BIRAKILDI!');
+      }
       this.grabbedNpc = null;
-      if (onScreenShake) onScreenShake(0.22);
+      if (onScreenShake) onScreenShake(isSwiped ? 0.22 : 0.08);
       this._startRetract();
-      this._setStatus('İNSAN FIRLATILDI!');
       return true;
     }
 
-    // 2) Eğer şu an yerinden söktüğümüz bir BİNAYI havada tutuyorsak: sol tıkla binayı baktığımız yere FIRLAT!
+    // 2) Eğer şu an yerinden söktüğümüz bir BİNAYI havada tutuyorsak:
     if (this.state === 'holding_building' && this.heldChunk) {
       sound.playOctopusThrow();
       sound.playExplosion(1.1);
       const dir = new THREE.Vector3();
       this.camera.getWorldDirection(dir);
-      const throwVel = dir.multiplyScalar(34).add(this.aimSwingVel.clone().multiplyScalar(0.5));
-      throwVel.y = Math.max(5.5, throwVel.y + 6.0);
-      const angVel = new THREE.Vector3(
-        (Math.random() - 0.5) * 1.4 - dir.z * 0.8,
-        (Math.random() - 0.5) * 1.0,
-        (Math.random() - 0.5) * 1.4 + dir.x * 0.8
-      );
-      this.vw.collapse.throwChunk(this.heldChunk, throwVel, angVel);
+      this.heldChunk.wasThrown = true;
+      if (isSwiped) {
+        // Sadece mouse'u kaydırıp attığımız zaman döne döne gitsin
+        const throwVel = dir.multiplyScalar(34).add(this.aimSwingVel.clone().multiplyScalar(0.5));
+        throwVel.y = Math.max(5.5, throwVel.y + 6.0);
+        const angVel = new THREE.Vector3(
+          (Math.random() - 0.5) * 1.4 - dir.z * 0.8,
+          (Math.random() - 0.5) * 1.0,
+          (Math.random() - 0.5) * 1.4 + dir.x * 0.8
+        );
+        this.vw.collapse.throwChunk(this.heldChunk, throwVel, angVel);
+        this._setStatus('BİNA DÖNE DÖNE FIRLATILDI!');
+      } else {
+        // Normal bıraksın/atsın, döndürmeden sabit bir şekilde
+        const throwVel = dir.multiplyScalar(22);
+        throwVel.y = Math.max(3.0, throwVel.y + 3.0);
+        const angVel = new THREE.Vector3(0, 0, 0);
+        this.vw.collapse.throwChunk(this.heldChunk, throwVel, angVel);
+        this._setStatus('BİNA SABİT BIRAKILDI!');
+      }
       this.heldChunk = null;
-      if (onScreenShake) onScreenShake(0.45);
+      if (onScreenShake) onScreenShake(isSwiped ? 0.45 : 0.18);
       this._startRetract();
-      this._setStatus('BİNA FIRLATILDI!');
       return true;
     }
 
@@ -1038,7 +1076,7 @@ export class OctopusSystem {
     this._setStatus('BİNA YERİNDEN SÖKÜLDÜ! [FARE: SALLA | SOL TIK: FIRLAT]');
   }
 
-  // ───────────────────────── Sağ Tık: Sarılan Binayı Çek / Altını Kır ─────────────────────────
+  // ───────────────────────── Sağ Tık: Sarılan Binayı Çek / Tutulan Eşyayı Sabit Bırak ─────────────────────────
   onRightClick(onScreenShake) {
     if (!this.active) return false;
     if (this.state === 'idle') return false;
@@ -1046,19 +1084,23 @@ export class OctopusSystem {
     if (this.state === 'holding_npc' && this.grabbedNpc) {
       const npc = this.grabbedNpc;
       npc.grabbed = false;
-      npc.thrownVel = new THREE.Vector3(0, -32, 0);
+      npc.thrownSpin = false;
+      npc.thrownVel = new THREE.Vector3(0, -3.5, 0);
       this.grabbedNpc = null;
       this._startRetract();
+      this._setStatus('İNSAN SABİT BIRAKILDI');
       return true;
     }
 
     if (this.state === 'holding_building' && this.heldChunk) {
-      const toPlayer = this.camera.position.clone().sub(this.heldChunk.com).normalize();
-      this.vw.collapse.throwChunk(this.heldChunk, toPlayer.multiplyScalar(22).add(new THREE.Vector3(0, -8, 0)));
+      // Normal bıraksın: döndürmeden sabit bir şekilde aşağı bırak
+      this.heldChunk.wasThrown = false;
+      this.vw.collapse.throwChunk(this.heldChunk, new THREE.Vector3(0, -3.0, 0), new THREE.Vector3(0, 0, 0));
       this.heldChunk = null;
       sound.playTentaclePull();
-      if (onScreenShake) onScreenShake(0.35);
+      if (onScreenShake) onScreenShake(0.12);
       this._startRetract();
+      this._setStatus('BİNA SABİT BIRAKILDI');
       return true;
     }
 
@@ -1390,6 +1432,11 @@ export class OctopusSystem {
       this.aimSwingVel.lerp(instVel, Math.min(1, dt * 12));
     }
     this.lastAimDir.copy(curAim);
+
+    if (this.recentSwipeSpeed > 0) {
+      this.recentSwipeSpeed *= Math.exp(-6 * dt);
+      if (this.recentSwipeSpeed < 0.05) this.recentSwipeSpeed = 0;
+    }
 
     // E tuşu topaç dönüşü güncellemesi
     this._updateTopacSpin(dt, ctx && ctx.character, ctx && ctx.onYawDelta, ctx && ctx.onScreenShake);

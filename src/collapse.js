@@ -435,8 +435,73 @@ export class CollapseSystem {
       holdOffset: new THREE.Vector3(),
       holdQuat: new THREE.Quaternion(),
       vel: new THREE.Vector3(),
-      angVel: new THREE.Vector3()
+      angVel: new THREE.Vector3(),
+      wasThrown: false,
+      attachedNpcs: [],
+      attachedProps: []
     };
+
+    // Ahtapot tarafından kaldırılan bina: içindeki insanları oturduğu yerden ayağa kaldır, AFK bırak ve binayla birlikte taşı!
+    if (opts.held) {
+      const heldBuildingIds = new Set();
+      if (vw.officeBuildings) {
+        for (const b of vw.officeBuildings) {
+          if (b.maxX >= minX - 1.5 && b.minX <= maxX + 1.5 && b.maxZ >= minZ - 1.5 && b.minZ <= maxZ + 1.5) {
+            b.heldByOctopus = true;
+            b.evacuated = true;
+            heldBuildingIds.add(b.id);
+          }
+        }
+      }
+      if (vw.npcs && vw.npcs.npcs) {
+        for (const npc of vw.npcs.npcs) {
+          const inBox = npc.x >= minX - 1.5 && npc.x <= maxX + 1.5 &&
+                        npc.z >= minZ - 1.5 && npc.z <= maxZ + 1.5 &&
+                        npc.y >= minY - 1.5 && npc.y <= maxY + 3.0;
+          const inBld = npc.buildingId && heldBuildingIds.has(npc.buildingId);
+          if (inBox || inBld) {
+            // Oturduğu yerden ayağa kalksın ve AFK kalsın
+            npc.sit = false;
+            npc.drop = 0;
+            npc.frozen = null;
+            npc.lie = false;
+            npc.eat = false;
+            npc.watchTV = false;
+            npc.cook = false;
+            npc.evacPhase = null;
+            npc.evacMode = null;
+            npc.route = null;
+            npc.afkInBuilding = true;
+            npc.heldChunk = c;
+            npc.chunkLocalPos = new THREE.Vector3(npc.x, npc.y, npc.z);
+            npc.chunkBaseYaw = npc.heading || 0;
+            if (npc.lLeg) npc.lLeg.rotation.set(0, 0, 0);
+            if (npc.rLeg) npc.rLeg.rotation.set(0, 0, 0);
+            if (npc.lArm) npc.lArm.rotation.set(0, 0, 0);
+            if (npc.rArm) npc.rArm.rotation.set(0, 0, 0);
+            if (npc.head) npc.head.rotation.set(0, 0, 0);
+            if (npc.briefcase) npc.briefcase.visible = false;
+            c.attachedNpcs.push(npc);
+          }
+        }
+      }
+      if (vw.props && vw.props.props) {
+        for (const p of vw.props.props) {
+          if (p.broken || p.held) continue;
+          if (p.pos.x >= minX - 1.0 && p.pos.x <= maxX + 1.0 &&
+              p.pos.z >= minZ - 1.0 && p.pos.z <= maxZ + 1.0 &&
+              p.pos.y >= minY - 1.0 && p.pos.y <= maxY + 2.5) {
+            p.sleep = true;
+            c.attachedProps.push({
+              prop: p,
+              localPos: p.pos.clone(),
+              baseYaw: p.yaw
+            });
+          }
+        }
+      }
+    }
+
     if (!opts.held) {
       if (c.creak > 0) c.phase = 'creak';
       if (opts.tip) this._beginTip(c, opts.tip, 0.004, 0);
@@ -448,14 +513,14 @@ export class CollapseSystem {
     return c;
   }
 
-  // Ahtapot tarafından tutulan binayı (c.phase === 'held') verilen hızla ileri fırlatır
+  // Ahtapot tarafından tutulan binayı (c.phase === 'held') verilen hızla ileri fırlatır veya bırakır
   throwChunk(c, velocity, angVel) {
     if (!c || c.settled) return;
     c.phase = 'thrown';
     c.t = 0;
     c.vel.copy(velocity);
     if (angVel) c.angVel.copy(angVel);
-    else c.angVel.set((Math.random() - 0.5) * 1.2, (Math.random() - 0.5) * 0.8, (Math.random() - 0.5) * 1.2);
+    else c.angVel.set(0, 0, 0);
   }
 
   _support(ix, iz, iy, x, z) {
@@ -490,6 +555,34 @@ export class CollapseSystem {
       c.meshes.forEach(m => { m.quaternion.copy(q); m.position.set(v.x + m0.x, v.y + m0.y, v.z + m0.z); });
     } else {
       c.meshes.forEach(m => { m.quaternion.identity(); m.position.set(0, c.oy0 + c.oy1, 0); });
+    }
+
+    // Binanın içindeki bağlı çalışanları (NPC) ve eşyaları (prop) binayla birlikte hareket ettir ve döndür
+    if (c.attachedNpcs && c.attachedNpcs.length > 0) {
+      const yawQ = new THREE.Quaternion();
+      const upAxis = new THREE.Vector3(0, 1, 0);
+      for (const npc of c.attachedNpcs) {
+        if (!this.vw.npcs || !this.vw.npcs.npcs.includes(npc)) continue;
+        this._place(c, npc.chunkLocalPos.x, npc.chunkLocalPos.y, npc.chunkLocalPos.z, this._v);
+        npc.x = this._v.x;
+        npc.y = this._v.y;
+        npc.z = this._v.z;
+        npc.group.position.set(npc.x, npc.y, npc.z);
+        yawQ.setFromAxisAngle(upAxis, npc.chunkBaseYaw || 0);
+        if (c.phase === 'held' || c.phase === 'thrown') {
+          npc.group.quaternion.copy(c.holdQuat).multiply(yawQ);
+        } else {
+          npc.group.quaternion.copy(yawQ);
+        }
+      }
+    }
+    if (c.attachedProps && c.attachedProps.length > 0 && this.vw.props) {
+      for (const ap of c.attachedProps) {
+        const p = ap.prop;
+        if (!p || p.broken || p.held) continue;
+        this._place(c, ap.localPos.x, ap.localPos.y, ap.localPos.z, p.pos);
+        this.vw.props._upload(p);
+      }
     }
   }
 
@@ -866,6 +959,13 @@ export class CollapseSystem {
     const vw = this.vw;
     if (vw.particleSystem.createSplash) vw.particleSystem.createSplash(new THREE.Vector3(c.com.x, WATER_Y, c.com.z), Math.min(6, 1.5 + c.n / 700));
     sound.playSplash && sound.playSplash();
+    if (c.attachedNpcs && c.attachedNpcs.length > 0 && vw.npcs) {
+      for (const npc of c.attachedNpcs) {
+        npc.heldChunk = null;
+        if (vw.npcs.npcs.includes(npc)) vw.npcs._kill(npc, new THREE.Vector3(npc.x, npc.y, npc.z));
+      }
+      c.attachedNpcs.length = 0;
+    }
   }
 
   _stepSink(c, dt) {
@@ -1002,6 +1102,34 @@ export class CollapseSystem {
 
     c.meshes.forEach(m => { m.quaternion.identity(); m.position.set(0, 0, 0); m.instanceMatrix.needsUpdate = true; });
     vw.destroyedVoxels += broken;
+
+    // Binanın içindeki çalışanlar (attachedNpcs): bina atıldığında veya hızla çarptığında bina içinde hasar görürler!
+    if (c.attachedNpcs && c.attachedNpcs.length > 0 && vw.npcs) {
+      const damageEmployees = c.wasThrown || speed >= 2.0;
+      for (const npc of c.attachedNpcs) {
+        npc.heldChunk = null;
+        if (!vw.npcs.npcs.includes(npc)) continue;
+        if (damageEmployees) {
+          vw.npcs._kill(npc, contact || new THREE.Vector3(npc.x, npc.y, npc.z));
+        } else {
+          npc.group.rotation.set(0, npc.chunkBaseYaw || 0, 0);
+        }
+      }
+      c.attachedNpcs.length = 0;
+    }
+    if (c.attachedProps && c.attachedProps.length > 0 && vw.props) {
+      const breakProps = c.wasThrown || speed >= 3.0;
+      for (const ap of c.attachedProps) {
+        const pr = ap.prop;
+        if (!pr || pr.broken) continue;
+        if (breakProps) {
+          vw.props.breakProp(pr, contact || pr.pos);
+        } else {
+          pr.sleep = false;
+        }
+      }
+      c.attachedProps.length = 0;
+    }
 
     // Çarpma hızına orantılı toz, ses ve sarsıntı
     if (speed >= 2.0) {

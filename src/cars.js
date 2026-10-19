@@ -414,9 +414,9 @@ export class CarManager {
   // refY: aracın şu anki yüksekliği. Üst geçit alanında iki yol vardır: tabliye (5.0 m) ve altındaki zemin/otoyol.
   // Araç hangisine daha yakınsa onun üstündedir (alttaki otoyoldan geçen araç tabliyeye çıkmaz).
   _roadY(x, z, refY = null) {
-    if (Math.abs(z) < 4.5 && x > -9.2 && x < 58.7) return BRIDGE_Y;
+    if (Math.abs(z) < 4.5 && x > -9.2 && x < 193.7) return BRIDGE_Y;
     const ground = this.vw.terrain.heightAt(x, z);   // rampalarda basamaksız (sürekli) yükseklik
-    if (Math.abs(z) < 4.9 && x > 106 * U - 0.5 && x < 145 * U) {   // tabliye (voxel); ramp ucu zaten 5.0
+    if (Math.abs(z) < 4.9 && x > 286 * U - 0.5 && x < 325 * U) {   // tabliye (voxel); ramp ucu zaten 5.0
       if (refY === null || ground === -Infinity) return 5.0;
       return Math.abs(refY - 5.0) <= Math.abs(refY - ground) ? 5.0 : ground;
     }

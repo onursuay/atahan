@@ -9,20 +9,20 @@ import { Kit, P } from './kit.js';
 //  • Yaşam: pistte patenle kayan çocuklar ve yetişkinler, oyun parkında oynayan/salıncakta sallanan çocuklar, banklarda oturanlar,
 //    köpeğini tasmayla gezdirenler ve köpek parkında serbest koşan köpekler.
 // ─────────────────────────────────────────────────────────────────────────────
-export const PARK = { x0: 200, x1: 368, z0: 14, z1: 186, cx: 284, cz: 100 };
+export const PARK = { x0: 335, x1: 503, z0: 14, z1: 186, cx: 419, cz: 100 };
 const ICE = { name: 'Buz', color: 0xc9edf9 }, LAKE = { name: 'Göl', color: 0x2b6cb0 };
 const V = (m) => Math.round(m / 0.5);                                   // metre → voxel indeksi
 const PATHS = [                                                          // [ax, az, bx, bz, genişlik]
-  [200, 100, 368, 100, 4], [284, 14, 284, 186, 4],
-  [214, 28, 272, 86, 3], [354, 28, 296, 86, 3], [214, 172, 272, 114, 3], [354, 172, 296, 114, 3],
-  [284, 56, 268, 56, 3], [284, 56, 318, 56, 3], [284, 146, 265, 146, 3]
+  [335, 100, 503, 100, 4], [419, 14, 419, 186, 4],
+  [349, 28, 407, 86, 3], [489, 28, 431, 86, 3], [349, 172, 407, 114, 3], [489, 172, 431, 114, 3],
+  [419, 56, 403, 56, 3], [419, 56, 453, 56, 3], [419, 146, 400, 146, 3]
 ];
 const FEAT = {
-  plaza: { cx: 284, cz: 100, r: 17 },
-  rink: { cx: 246, cz: 56, w: 40, d: 24 },
-  play: { cx: 340, cz: 56, w: 40, d: 30 },
-  dogp: { cx: 244, cz: 146, w: 38, d: 30 },
-  lake: { cx: 332, cz: 150, rx: 26, rz: 16 }
+  plaza: { cx: 419, cz: 100, r: 17 },
+  rink: { cx: 381, cz: 56, w: 40, d: 24 },
+  play: { cx: 475, cz: 56, w: 40, d: 30 },
+  dogp: { cx: 379, cz: 146, w: 38, d: 30 },
+  lake: { cx: 467, cz: 150, rx: 26, rz: 16 }
 };
 const segDist = (x, z, [ax, az, bx, bz]) => { const dx = bx - ax, dz = bz - az, t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz))); return Math.hypot(x - ax - t * dx, z - az - t * dz); };
 const inRect = (x, z, f, m = 0) => Math.abs(x - f.cx) <= f.w / 2 + m && Math.abs(z - f.cz) <= f.d / 2 + m;
@@ -171,13 +171,13 @@ export function buildCentralPark(lm) {
 
   // ── 8. Yol kenarı banklar, piknik masaları, lambalar ──
   for (let i = 0; i < 9; i++) { const t = (i + 0.5) / 9; bench(V(Pk.x0 + 6 + t * 70), V(100) + 4, true, i % 3 === 1); bench(V(Pk.x1 - 6 - t * 70), V(100) - 5, true, i % 3 === 0); }
-  for (const [px, pz] of [[286, 40], [300, 36], [270, 160], [296, 164], [318, 100]]) {
+  for (const [px, pz] of [[421, 40], [435, 36], [405, 160], [431, 164], [453, 100]]) {
     const x = V(px), z = V(pz);
     kit.put(x - 2, 2, z, x + 2, 2, z + 1, P.WOOD); kit.put(x - 2, 1, z, x - 2, 1, z, P.IRON); kit.put(x + 2, 1, z, x + 2, 1, z, P.IRON); kit.put(x - 2, 1, z + 1, x - 2, 1, z + 1, P.IRON); kit.put(x + 2, 1, z + 1, x + 2, 1, z + 1, P.IRON);
     kit.put(x - 2, 1, z - 2, x + 2, 1, z - 2, P.WOOD); kit.put(x - 2, 1, z + 3, x + 2, 1, z + 3, P.WOOD);
     kit.prop('tray', 0.5 * x, 0.5 * 3, 0.5 * z + 0.25, { yaw: rnd() * 3 }); kit.prop('burger', 0.5 * x + 0.8, 0.5 * 3, 0.5 * z + 0.2, { yaw: rnd() * 6 });
   }
-  for (let t = 22; t <= 164; t += 26) { lm.lamp(284 / 0.75 + 3, (Pk.z0 + t) / 0.75, 0, 0, false, true); lm.lamp(284 / 0.75 - 3, (Pk.z0 + t + 13) / 0.75, 0, 0, false, true); }
+  for (let t = 22; t <= 164; t += 26) { lm.lamp(Pk.cx / 0.75 + 3, (Pk.z0 + t) / 0.75, 0, 0, false, true); lm.lamp(Pk.cx / 0.75 - 3, (Pk.z0 + t + 13) / 0.75, 0, 0, false, true); }
   for (let t = 18; t <= 150; t += 26) { lm.lamp((Pk.x0 + t) / 0.75, 100 / 0.75 + 3, 0, 0, false, true); lm.lamp((Pk.x0 + t + 13) / 0.75, 100 / 0.75 - 3, 0, 0, false, true); }
   for (let a = 0; a < 6.283; a += 0.5236) lm.lamp((Pk.cx + Math.cos(a) * 25) / 0.75, (Pk.cz + Math.sin(a) * 25) / 0.75, 0, 0, false, true);
 

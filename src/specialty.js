@@ -113,7 +113,7 @@ function bank(f, theme) {
   f.b(mid - 2, mid + 1, d0 + 1, d1 - 8, 1, 1, P.ROOF);                                                                                      // kırmızı halı
   const gy = d1 - 9;
   f.b(u0 + 2, u1 - 2, gy, gy, 1, 2, P.BLACK); f.b(u0 + 2, u1 - 2, gy, gy, 3, 3, P.WHITE);                                                    // gişe tezgâhı
-  for (let u = u0 + 4; u < u1 - 3; u += 5) { f.b(u, u + 2, gy, gy, 4, 6, P.GLASS); f.b(u + 1, u + 1, gy + 1, gy + 1, 4, 4, P.LAMP_GREEN); f.b(u, u, gy + 1, gy + 1, 4, 5, P.IRON); }   // cam bölme + bilgisayar
+  for (let u = u0 + 4; u < u1 - 3; u += 5) { f.b(u, u + 2, gy, gy, 4, 6, P.GLASS); f.prop('desktop_pc', u + 1, gy + 1, 4, { yaw: f.yawOut() }); }   // cam bölme + normal bilgisayar
   f.b(u0 + 2, u1 - 2, gy - 1, gy - 1, 4, 4, T.accent);                                                                                      // LED şerit
   f.b(mid - 3, mid + 2, d1 - 1, d1, 2, 7, P.IRON); f.b(mid - 1, mid, d1 - 2, d1 - 2, 4, 5, P.GOLD); f.b(mid - 2, mid + 1, d1 - 2, d1 - 2, 3, 3, P.GOLD);   // kasa kapısı (demir) + altın çark
   for (let k = 0; k < 4; k++) { f.b(u0 + 3 + k * 2, u0 + 3 + k * 2, d1, d1, 2, 3, P.IRON); }
@@ -218,7 +218,7 @@ function tower(f, theme) {
 
   // Giriş katı: resepsiyon, bekleme koltukları, bitkiler
   const rd = dc - 4;
-  f.b(u - 3, u + 3, rd, rd, 1, 2, P.BLACK); f.b(u - 3, u + 3, rd, rd, 3, 3, P.WHITE); f.b(u - 1, u - 1, rd - 1, rd - 1, 3, 3, P.IRON); f.b(u - 1, u - 1, rd - 1, rd - 1, 4, 4, P.LAMP_BLUE);
+  f.b(u - 3, u + 3, rd, rd, 1, 2, P.BLACK); f.b(u - 3, u + 3, rd, rd, 3, 3, P.WHITE); f.prop('desktop_pc', u - 1, rd, 4, { yaw: f.yawOut() });
   world.workers.push({
     x: f.wx(u, rd + 2), y: 0.5, z: f.wz(u, rd + 2), yaw: f.yawOut(), pose: 'stand', style: 'office',
     buildingId: bldId, doorPos,
@@ -257,7 +257,7 @@ function tower(f, theme) {
     pts.push({ x: f.wx(u, -2), y: 0.5, z: f.wz(u, -2), outside: true, tol: 0.7 });
     return pts;
   };
-  // Katlar: masalar + oturan çalışanlar (zemin kat hariç)
+  // Katlar: masalar + normal bilgisayarlar + oturan çalışanlar (zemin kat hariç)
   for (let k = 1; k < F; k++) {
     const r = flr(k);
     const floorExit = buildStairExitPath(k);
@@ -266,8 +266,8 @@ function tower(f, theme) {
       if (Math.cos(ang) < -0.5) continue;                          // merdiven tarafı (batı) boş
       const px = cx + Math.round(Math.cos(ang) * 10), pz = cz + Math.round(Math.sin(ang) * 10);
       kit.put(px - 1, r, pz - 1, px + 1, r, pz + 1, P.BLACK); kit.put(px - 1, r + 1, pz - 1, px + 1, r + 1, pz + 1, P.WHITE);   // masa
-      kit.put(px, r + 2, pz, px, r + 2, pz, P.IRON); kit.put(px, r + 3, pz, px, r + 3, pz, P.LAMP_BLUE);                      // monitör
       const wx = 0.5 * (cx + Math.round(Math.cos(ang) * 6.4)), wz = 0.5 * (cz + Math.round(Math.sin(ang) * 6.4)), yaw = Math.atan2(Math.cos(ang), Math.sin(ang));   // çalışan masaya (dışa) bakar
+      kit.prop('desktop_pc', 0.5 * px, 0.5 * (r + 2), 0.5 * pz, { yaw });                                                      // küp yerine gerçek bilgisayar (monitör, klavye, fare, kasa)
       kit.prop('chair', wx, 0.5 * r, wz, { yaw, color: 0x111827 });
       world.workers.push({
         x: wx, y: 0.5 * r, z: wz, yaw, pose: 'sit', style: 'office',

@@ -11,17 +11,17 @@ import { PALETTE } from './teardown.js';
 //  • Konumlar metre cinsindendir (dünya koordinatı); voxel indeksi = metre / 0.5.
 // ─────────────────────────────────────────────────────────────────────────────
 export const H = 12;                                   // plato yüksekliği (m)
-export const PLATEAU = { x0: 236, x1: 314, z0: -148, z1: -48 };
+export const PLATEAU = { x0: 371, x1: 449, z0: -148, z1: -48 };
 const SKIRT = 37;                                      // plato kenarından zemine inen eğim genişliği (m)
 const ROAD_HALF = 3;                                   // yol yarı genişliği (m)
 const VERGE = 1.5;                                     // yol kenarı düz çim şeridi
-const APRON = { x0: 248, x1: 276, z0: -70, z1: -50 };  // platodaki araç önü asfalt alan
+const APRON = { x0: 383, x1: 411, z0: -70, z1: -50 };  // platodaki araç önü asfalt alan
 // Villa çevre duvarı (voxel merkezleri, m): içinde yalnız villa sahibi ve güvenlikler bulunur; güney duvarında araç kapısı vardır
-export const VILLA_WALL = { x0: 240, x1: 312.5, z0: -146, z1: -49.5, gateX0: 255.75, gateW: 8.5 };
+export const VILLA_WALL = { x0: 375, x1: 447.5, z0: -146, z1: -49.5, gateX0: 390.75, gateW: 8.5 };
 export const insideVillaWalls = (x, z, m = 0) => x > VILLA_WALL.x0 - m && x < VILLA_WALL.x1 + m && z > VILLA_WALL.z0 - m && z < VILLA_WALL.z1 + m;
 
-// Yol ekseni: (186,0) → doğuya düz 36 m → sola R=34 m yay, 80° → plato kenarını geçip ön avluya
-const X0 = 186, SEG1 = 36, R = 34, CX = X0 + SEG1, CZ = -R, TH = 80 * Math.PI / 180;
+// Yol ekseni: (321,0) → doğuya düz 36 m → sola R=34 m yay, 80° → plato kenarını geçip ön avluya
+const X0 = 321, SEG1 = 36, R = 34, CX = X0 + SEG1, CZ = -R, TH = 80 * Math.PI / 180;
 const ARC = R * TH;
 const A = [CX + R * Math.sin(TH), CZ + R * Math.cos(TH)];
 const HD = [Math.cos(TH), -Math.sin(TH)];
@@ -48,14 +48,14 @@ export function pathInfo(x, z) {
 
 // Yol yüzeyinin zemin üstü yüksekliği (m) — yol hücrelerinin köşe yüksekliği
 export function villaRoadProfile(x, z) {
-  if (x < X0 - 8 || x > 310 || z > 8 || z < -90) return 0;
+  if (x < X0 - 8 || x > 445 || z > 8 || z < -90) return 0;
   return roadH(pathInfo(x, z).s);
 }
 
 // Çim zemin yüksekliği (m): plato + yumuşak etek; yol çevresinde yol seviyesine bağlanır (yarma/dolgu 45°)
 export function villaHeight(x, z) {
   const inSkirt = x > PLATEAU.x0 - SKIRT && x < PLATEAU.x1 + SKIRT && z > PLATEAU.z0 - SKIRT && z < PLATEAU.z1 + SKIRT;
-  const nearRoad = x > X0 - 8 && x < 310 && z < 8 && z > -90;
+  const nearRoad = x > X0 - 8 && x < 445 && z < 8 && z > -90;
   if (!inSkirt && !nearRoad) return 0;
   const dx = Math.max(PLATEAU.x0 - x, 0, x - PLATEAU.x1), dz = Math.max(PLATEAU.z0 - z, 0, z - PLATEAU.z1);
   const d = Math.hypot(dx, dz);
@@ -75,13 +75,13 @@ export function paintVillaRoad(terrain, asphalt) {
     const zc = j * 0.5;
     let start = null;
     const flush = (endI) => { if (start !== null) { terrain.addRect(start * 0.5 - 0.25, zc - 0.25, (endI - 1) * 0.5 + 0.25, zc + 0.25, asphalt); start = null; } };
-    for (let i = Math.round(184 / 0.5); i <= Math.round(300 / 0.5); i++) {
+    for (let i = Math.round(319 / 0.5); i <= Math.round(435 / 0.5); i++) {
       const xc = i * 0.5;
       const on = pathInfo(xc, zc).d <= ROAD_HALF || inApron(xc, zc);
       if (on && start === null) start = i;
       else if (!on) flush(i);
     }
-    flush(Math.round(300 / 0.5) + 1);
+    flush(Math.round(435 / 0.5) + 1);
   }
 }
 
@@ -125,7 +125,7 @@ function hudTexture(kind) {
 // ─────────────────────────────────────────────────────────────────────────────
 export function buildVilla(world) {
   const { WHITE, WOOD, BLACK, GLASS, CONCRETE, GRASS, IRON, GOLD, BRICK, LAMP, LAMP_BLUE, LAMP_PINK, LAMP_GREEN, LAMP_PURPLE, LAMP_ORANGE } = PALETTE;
-  const OXV = 484, OZV = -278, YB = 25;           // yerel (0,0,0): x=242 m, z=-139 m, taban satırı y=12.5 m (plato yüzeyi)
+  const OXV = 754, OZV = -278, YB = 25;           // yerel (0,0,0): x=377 m, z=-139 m, taban satırı y=12.5 m (plato yüzeyi)
   // Villa ilk tasarımın yatayda 1.25 katıdır: tasarım koordinatları (u, w) hücre sınırlarından büyütülür, satırlar (yükseklik) aynıdır.
   // Bir tasarım hücresi 1 ya da 2 voxel olur; komşu parçalar aynı sınır tablosunu kullandığı için dikiş/boşluk kalmaz.
   const SC = 1.25;
@@ -365,21 +365,109 @@ export function buildVilla(world) {
     kind: 'rich', x: Xc(14), z: Zc(54), y: Yb(1), script: ownerScript,
     bounds: { minX: Xe(4) + 0.5, maxX: Xs(100) - 0.5, minZ: Zs(0) + 0.6, maxZ: Zs(75) - 0.5 }   // villa + havuz terası + konsol altı salon
   });
-  // Hizmetçi: mutfakta tezgâhın başında sürekli yemek hazırlar (kolları kesme/karıştırma hareketiyle)
+  // Hizmetçi 1: mutfakta tezgâhın başında sürekli yemek hazırlar (kolları kesme/karıştırma hareketiyle)
   world.workers = world.workers || [];
   world.workers.push({ x: Xc(56), y: Yb(1), z: Zc(38.5), yaw: Math.PI, pose: 'stand', style: 'maid', cook: true });
+
+  // ── 8a-2. DUVARIN İÇİNDE U ŞEKLİNDE ÇALILAR VE ÇALILARI KONTROL EDİP MAKASLA KESEN 2. HİZMETÇİ ──
+  {
+    const hput = (xa, za, xb, zb, ra, rb, mat) => {
+      for (let x = lo(xa, xb); x <= hi(xa, xb); x++) for (let z = lo(za, zb); z <= hi(za, zb); z++) for (let r = ra; r <= rb; r++) {
+        world.voxels.delete(`${x},${YB + r},${z}`);
+        world.setVoxel(x, YB + r, z, mat);
+      }
+    };
+    // 1) Dış duvarın hemen içinde evi U şeklinde saran çalı kuşağı (batı kolu + kuzey tabanı + doğu kolu)
+    hput(752, -289, 753, -108, 0, 1, GRASS);   // batı çalı kolu
+    hput(752, -290, 892, -289, 0, 1, GRASS);   // kuzey çalı tabanı
+    hput(891, -289, 892, -108, 0, 1, GRASS);   // doğu çalı kolu
+
+    // 2) Ön bahçede (duvarın içinde, villanın önünde) belirgin U şeklinde budanmış bahçe çalıları
+    hput(826, -174, 828, -116, 0, 1, GRASS);   // U sol (batı) kol: x = 413..414, z = -87..-58
+    hput(826, -118, 874, -116, 0, 1, GRASS);   // U alt (güney) taban: x = 413..437, z = -59..-58
+    hput(872, -174, 874, -116, 0, 1, GRASS);   // U sağ (doğu) kol: x = 436..437, z = -87..-58
+    // Çalı üstü dekoratif budama topları
+    for (const [bx, bz] of [[827, -173], [827, -154], [827, -135], [827, -117], [850, -117], [873, -117], [873, -135], [873, -154], [873, -173]]) {
+      hput(bx, bz, bx, bz, 2, 2, GRASS);
+    }
+
+    // Hizmetçi 2: U şeklindeki çalıların etrafında dolaşır, durup çalıları kontrol eder, eline makas alıp biraz keser ve yürümeye devam eder
+    const bushStops = [
+      { x: 411.4, y: 12.5, z: -82.0, bushYaw: Math.PI / 2 },
+      { x: 411.4, y: 12.5, z: -69.0, bushYaw: Math.PI / 2 },
+      { x: 419.0, y: 12.5, z: -56.4, bushYaw: Math.PI },
+      { x: 430.0, y: 12.5, z: -56.4, bushYaw: Math.PI },
+      { x: 438.6, y: 12.5, z: -67.0, bushYaw: -Math.PI / 2 },
+      { x: 438.6, y: 12.5, z: -81.0, bushYaw: -Math.PI / 2 },
+      { x: 425.0, y: 12.5, z: -60.6, bushYaw: 0 },
+      { x: 415.6, y: 12.5, z: -74.0, bushYaw: -Math.PI / 2 }
+    ];
+    const gardenerMaidScript = () => {
+      let idx = 0, st = 'walk', timer = 0, initialized = false;
+      return {
+        update(n, dt, api) {
+          if (!initialized) {
+            initialized = true;
+            api.walkPath(n, [{ x: bushStops[0].x, y: bushStops[0].y, z: bushStops[0].z, tol: 0.55 }]);
+          }
+          if (st === 'walk') {
+            n.inspecting = false;
+            n.trimming = false;
+            if (!n.route) {
+              const cur = bushStops[idx];
+              n.heading = cur.bushYaw;
+              st = 'inspect';
+              n.inspecting = true;
+              timer = 1.6 + Math.random() * 1.0;
+            }
+          } else if (st === 'inspect') {
+            const cur = bushStops[idx];
+            n.heading = cur.bushYaw;
+            timer -= dt;
+            if (timer <= 0) {
+              // Kontrol ettikten sonra eline makas alıp çalıları biraz keser
+              n.inspecting = false;
+              st = 'trim';
+              n.trimming = true;
+              timer = 2.8 + Math.random() * 1.6;
+            }
+          } else if (st === 'trim') {
+            const cur = bushStops[idx];
+            n.heading = cur.bushYaw;
+            timer -= dt;
+            if (timer <= 0) {
+              // Kesmeyi bitirir, makası indirir ve sıradaki çalıyı kontrol etmek için yürümeye devam eder
+              n.trimming = false;
+              n.inspecting = false;
+              idx = (idx + 1) % bushStops.length;
+              const nxt = bushStops[idx];
+              api.walkPath(n, [{ x: nxt.x, y: nxt.y, z: nxt.z, tol: 0.55 }]);
+              st = 'walk';
+            }
+          }
+        }
+      };
+    };
+    world.residents.push({
+      kind: 'gardener_maid', style: 'maid',
+      x: bushStops[0].x, y: 12.5, z: bushStops[0].z,
+      script: gardenerMaidScript,
+      bounds: { minX: 376.5, maxX: 445.5, minZ: -144.0, maxZ: -51.5 }
+    });
+  }
+
   // Malikanenin spor arabası: normal bir spor araç, kırmızı, ortasında beyaz şerit. Ön avluda park etmiştir (binilebilir, trafikte gezmez).
   world.parkedCars = world.parkedCars || [];
-  world.parkedCars.push({ kind: 'sport', color: 0xdc2626, livery: { color: 0xffffff, color2: 0xffffff, style: 'center' }, x: 270, z: -61, y: 12.5, heading: -Math.PI / 2 });
+  world.parkedCars.push({ kind: 'sport', color: 0xdc2626, livery: { color: 0xffffff, color2: 0xffffff, style: 'center' }, x: 405, z: -61, y: 12.5, heading: -Math.PI / 2 });
 
   // ── 8b. GÜVENLİKLER (lacivert üniforma, kasket, sarı kol bandı): kapıda, ön girişte ve iki yanda devriyede. Sahipten ayrı tipte. ──
   world.guards = world.guards || [];
   const G = (x, z, yaw) => world.guards.push({ x, y: 12.5, z, yaw, pose: 'stand', style: 'guard' });
-  G(253.6, -52.4, 0); G(266.4, -52.4, 0);                          // kapının iki yanı (dışa bakar)
-  G(262, -85, Math.PI);                                              // ön girişin önü (kuzeye, villaya bakar)
+  G(388.6, -52.4, 0); G(401.4, -52.4, 0);                          // kapının iki yanı (dışa bakar)
+  G(397, -85, Math.PI);                                              // ön girişin önü (kuzeye, villaya bakar)
   const patrol = (x, z0, z1) => world.guards.push({ route: [{ x, y: 12.5, z: z0 }, { x, y: 12.5, z: 0.5 * (z0 + z1) }, { x, y: 12.5, z: z1 }], style: 'guard' });
-  patrol(242.2, -60, -134);                                          // batı şeridi
-  patrol(308, -60, -134);                                            // doğu şeridi
+  patrol(377.2, -60, -134);                                          // batı şeridi
+  patrol(443, -60, -134);                                            // doğu şeridi
 
   // ── 8c. ÇEVRE DUVARI + ARAÇ KAPISI ──
   // 4 m beyaz duvar (0.5 m kalın), siyah başlık; güney duvarında 8.5 m'lik otomatik demir kapı (araç yaklaşınca kayar). Kapı direkleri lambalıdır.
@@ -407,7 +495,7 @@ export function buildVilla(world) {
     world.voxels.delete(`${ix},${hq + 7},${iz}`); world.setVoxel(ix, hq + 7, iz, LAMP);
   }
   // Plato çevresi ağaçları (gövde + yaprak topu)
-  const trees = [[238, -144], [238, -122], [238, -100], [238, -80], [238, -62], [238, -52], [311, -144], [311, -122], [311, -100], [311, -80], [311, -62], [311, -52], [292, -54], [302, -56]];
+  const trees = [[373, -144], [373, -122], [373, -100], [373, -80], [373, -62], [373, -52], [446, -144], [446, -122], [446, -100], [446, -80], [446, -62], [446, -52], [427, -54], [437, -56]];
   for (const [x, z] of trees) {
     const [ix, hq, iz] = col(x, z, 9, WOOD);
     for (let dx = -2; dx <= 2; dx++) for (let dy = 0; dy <= 3; dy++) for (let dz = -2; dz <= 2; dz++) {

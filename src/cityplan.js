@@ -32,22 +32,22 @@ add('s6-orta', -87, RN.cz + RC, -87, RS.cz - RC, 9, { paint: [[RN.cz + 22, RS.cz
 add('s6-guney', -87, RS.cz + RC, -87, 266, 9, { paint: [[RS.cz + 22, 266]] });                    // güney göbeğin güneyi
 add('s7', -47, -266, -47, 266, 9);
 add('s8', -27, -266, -27, 266, 9);
-add('cadde-0', -170, 0, 186, 0, 11, { noMerge: true, paint: [[-170, -12], [78, 186]] });              // ana cadde: batı ada + köprü + doğu ada (üst geçitten geçer)
+add('cadde-0', -170, 0, 366, 0, 11, { noMerge: true, paint: [[-170, -12], [258, 366]] });              // ana cadde: batı ada + 3x uzun köprü + doğu ada (üst geçitten geçer)
 [-66, 66, -134, 134, -266, 266].forEach(z => add(`cadde${z}`, -170, z, -27, z, 11));
 for (const g of ROUNDABOUTS) {
   add(`cadde${g.cz}-bati`, -170, g.cz, g.cx - RC, g.cz, 11, { paint: [[-170, g.cx - 22]] });
   add(`cadde${g.cz}-dogu`, g.cx + RC, g.cz, -27, g.cz, 11, { paint: [[g.cx + 22, -27]] });
 }
 add('site', -67, -134, -67, -66, 7, { off: 1.3 });                         // konut sitesi iç yolu: iki caddeyi birleştirir (kapılar açık)
-// ── DOĞU ADA ──
-add('otoyol', 125, -134, 125, 134, 32, { lanes: 3, off: 1.75, cells: [110, 141] });
-add('ei-bati', 84, -134, 84, 134, 9);
-add('ei-dogu', 186, -134, 186, 134, 9);
-[-44, 44, -134, 134].forEach(z => add(`ei-cadde${z}`, 84, z, 186, z, 11));
-[-88, 88].forEach(z => add(`ei-cadde${z}`, 84, z, 125, z, 11, { paint: [[84, 109]] }));
+// ── DOĞU ADA (köprü 3 kat uzadığı için +180 eski birim / +135 m doğuya kaydırıldı) ──
+add('otoyol', 305, -134, 305, 134, 32, { lanes: 3, off: 1.75, cells: [290, 321] });
+add('ei-bati', 264, -134, 264, 134, 9);
+add('ei-dogu', 366, -134, 366, 134, 9);
+[-44, 44, -134, 134].forEach(z => add(`ei-cadde${z}`, 264, z, 366, z, 11));
+[-88, 88].forEach(z => add(`ei-cadde${z}`, 264, z, 305, z, 11, { paint: [[264, 289]] }));
 
 // Rampalı üst geçit şeridi: yalnız asfalt/temizlik için (trafik ağında değil; ana caddenin kendisi)
-add('ust-gecit-serit', 78, 0, 180, 0, 13, { graph: false });
+add('ust-gecit-serit', 258, 0, 360, 0, 13, { graph: false });
 
 // Her yolun boyalı aralıkları (boylamsal, eski birim) ve enine hücre aralığı [min,max]
 export function paintSegments(r) {

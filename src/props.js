@@ -13,7 +13,7 @@ import { VOXEL_SIZE } from './teardown.js';
 const S = VOXEL_SIZE;
 const GRAV = 22;
 const EPS = 1e-4;
-const CAP = 520;                  // tür başına en çok eşya
+const CAP = 900;                  // tür başına en çok eşya
 
 const parts = (list) => mergeGeometries(list.map(([w, h, d, x, y, z, c]) => {
   const g = new THREE.BoxGeometry(w, h, d); g.translate(x, y, z);
@@ -80,6 +80,42 @@ const KINDS = {
   phone: { half: [0.045, 0.012, 0.085], tint: false, mass: 0.1, geo: () => parts([[0.09, 0.014, 0.17, 0, 0, 0, 0x111827], [0.075, 0.004, 0.14, 0, 0.009, 0, 0x38bdf8]]) },
   laptop: { half: [0.15, 0.1, 0.11], tint: false, mass: 0.6, geo: () => parts([          // dizüstü: taban + açık ekran
     [0.3, 0.016, 0.21, 0, -0.095, 0.02, 0x9ca3af], [0.3, 0.2, 0.014, 0, 0.0, -0.085, 0x1f2937], [0.27, 0.17, 0.006, 0, 0.0, -0.077, 0x38bdf8], [0.24, 0.004, 0.1, 0, -0.085, 0.05, 0x374151]]) },
+  // ── Şirket binaları için gerçek masaüstü bilgisayar (ince LCD monitör + ayak + klavye + fare + bilgisayar kasası) ──
+  desktop_pc: { half: [0.34, 0.24, 0.24], tint: false, mass: 1.8, shatterColor: 0x38bdf8, geo: () => parts([
+    // Monitör alt tabanı ve dikme boynu
+    [0.20, 0.016, 0.14, -0.04, -0.232, 0.08, 0x1e293b],
+    [0.045, 0.14, 0.035, -0.04, -0.16, 0.10, 0x334155],
+    // İnce geniş ekran monitör çerçevesi ve arka gövdesi
+    [0.48, 0.29, 0.026, -0.04, 0.01, 0.08, 0x0f172a],
+    [0.28, 0.16, 0.02, -0.04, 0.01, 0.10, 0x1e293b],
+    // Parlak masaüstü ekranı (çalışana doğru -z yönüne bakar)
+    [0.44, 0.25, 0.006, -0.04, 0.015, 0.065, 0x0284c7],
+    // Ekrandaki açık pencereler, grafik çubukları ve görev çubuğu
+    [0.22, 0.16, 0.004, 0.05, 0.025, 0.061, 0xf8fafc],
+    [0.22, 0.026, 0.005, 0.05, 0.095, 0.060, 0x1d4ed8],
+    [0.16, 0.13, 0.004, -0.16, 0.03, 0.061, 0x0f172a],
+    [0.025, 0.05, 0.005, -0.20, 0.008, 0.060, 0x22c55e],
+    [0.025, 0.085, 0.005, -0.16, 0.025, 0.060, 0x38bdf8],
+    [0.025, 0.065, 0.005, -0.12, 0.016, 0.060, 0xfacc15],
+    [0.44, 0.022, 0.004, -0.04, -0.098, 0.061, 0x090d16],
+    [0.016, 0.008, 0.006, -0.24, -0.125, 0.065, 0x22c55e],
+    // Klavye (monitörün önünde, tuş sıraları ve boşluk tuşuyla)
+    [0.34, 0.018, 0.12, -0.02, -0.231, -0.11, 0x1e293b],
+    [0.31, 0.008, 0.022, -0.02, -0.219, -0.075, 0x94a3b8],
+    [0.31, 0.008, 0.022, -0.02, -0.219, -0.105, 0xcbd5e1],
+    [0.24, 0.008, 0.022, -0.02, -0.219, -0.135, 0x94a3b8],
+    [0.13, 0.008, 0.018, -0.02, -0.219, -0.155, 0xe2e8f0],
+    // Mousepad ve Fare (sağ elde)
+    [0.13, 0.005, 0.15, -0.26, -0.237, -0.11, 0x0f172a],
+    [0.055, 0.026, 0.085, -0.26, -0.224, -0.11, 0xe2e8f0],
+    [0.01, 0.01, 0.022, -0.26, -0.209, -0.09, 0xef4444],
+    // Bilgisayar Kasası (PC Tower, masanın sol yanında)
+    [0.14, 0.34, 0.28, 0.25, -0.07, 0.02, 0x111827],
+    [0.12, 0.31, 0.012, 0.25, -0.07, -0.122, 0x1e293b],
+    [0.025, 0.025, 0.014, 0.25, 0.05, -0.125, 0x38bdf8],
+    [0.08, 0.008, 0.014, 0.25, 0.01, -0.125, 0x22c55e],
+    [0.09, 0.12, 0.014, 0.25, -0.13, -0.124, 0x090d16]
+  ]) },
   gift: { half: [0.1, 0.1, 0.1], tint: true, mass: 0.3, geo: () => parts([[0.2, 0.2, 0.2, 0, 0, 0, 0xffffff], [0.05, 0.205, 0.205, 0, 0, 0, 0xfacc15], [0.205, 0.205, 0.05, 0, 0, 0, 0xfacc15], [0.08, 0.05, 0.05, 0, 0.12, 0, 0xfacc15]]) },
   can: { half: [0.04, 0.065, 0.04], tint: true, mass: 0.2, geo: () => parts([[0.075, 0.13, 0.075, 0, 0, 0, 0xffffff], [0.078, 0.02, 0.078, 0, 0.07, 0, 0xcbd5e1], [0.078, 0.02, 0.078, 0, -0.07, 0, 0xcbd5e1]]) },
   dumbbell: { half: [0.2, 0.07, 0.07], tint: true, mass: 0.8, geo: () => parts([       // minyatür dambıl: çubuk + iki yanda ağırlık plakaları
@@ -88,7 +124,7 @@ const KINDS = {
   toycar: { half: [0.13, 0.065, 0.06], tint: true, mass: 0.3, geo: () => parts([
     [0.26, 0.07, 0.12, 0, -0.02, 0, 0xffffff], [0.12, 0.06, 0.1, -0.01, 0.04, 0, 0xe5e7eb], ...[[-0.08, -0.06], [0.08, -0.06], [-0.08, 0.06], [0.08, 0.06]].map(([x, z]) => [0.05, 0.05, 0.02, x, -0.05, z, 0x2a2a30])]) },
   bag: { half: [0.11, 0.15, 0.06], tint: true, mass: 0.3, geo: () => parts([[0.22, 0.26, 0.1, 0, -0.02, 0, 0xffffff], [0.15, 0.03, 0.02, 0, 0.14, 0, 0x2a2a30], [0.02, 0.1, 0.02, -0.06, 0.1, 0, 0x2a2a30], [0.02, 0.1, 0.02, 0.06, 0.1, 0, 0x2a2a30]]) },
-  remote: { half: [0.11, 0.045, 0.25], tint: false, mass: 0.35, geo: () => parts([
+  remote: { half: [0.11, 0.045, 0.25], tint: false, mass: 0.35, shatterColor: 0x1e293b, geo: () => parts([
     [0.18, 0.065, 0.48, 0, 0, 0, 0x15181d],
     [0.044, 0.026, 0.044, -0.038, 0.038, -0.15, 0xdc2626],
     [0.044, 0.026, 0.044, 0.038, 0.038, -0.15, 0x22c55e],
@@ -359,45 +395,66 @@ export class PropManager {
     const r = this.pick(camera);
     if (!r) return false;
     const p = r.prop;
-    p.held = true; p.hung = false; p.sleep = false; p.still = 0; p.tipped = false; p.thrown = false;
+    p.held = true; p.hung = false; p.sleep = false; p.still = 0; p.tipped = false; p.thrown = false; p.steadyDrop = false;
     p.half.copy(p.baseHalf);
     this.held = p; this.cam = camera; this.holdDist = THREE.MathUtils.clamp(r.dist, 1.0, 3.4);
+    this.swipeSpeed = 0;
     sound.playWoodHit && sound.playWoodHit();
     return true;
   }
 
-  // Eşya bırakıldığında (sağ tık bırakma): eldeki ivmesi ve dönüşüyle savrularak düşer, düz durmaz, devrilir/çakılır
+  // Eşya bırakıldığında (sağ tık bırakma): fare kaydırılmadıysa döndürmeden sabit ve düz bir şekilde bırakır;
+  // sadece fare hızla kaydırılıp bırakıldıysa döne döne fırlatır.
   endGrab() {
     if (!this.held) return;
     const p = this.held;
     p.held = false; p.sleep = false; p.still = 0;
-    const sp = p.vel.length();
-    if (this.cam && sp < 2.2) {
-      const d = new THREE.Vector3(); this.cam.getWorldDirection(d);
-      p.vel.addScaledVector(d, 2.0);
+    const sp = Math.max(p.vel.length(), this.swipeSpeed || 0);
+    const swiped = sp > 5.0;
+    if (swiped) {
+      if (sp > 6.5) p.thrown = true;
+      p.steadyDrop = false;
+      p.wx = (Math.random() - 0.5) * 9 + (p.vel.z * 0.45);
+      p.wz = (Math.random() - 0.5) * 9 - (p.vel.x * 0.45);
+      p.spin = (Math.random() - 0.5) * 8;
+      this._assignFallRestAngles(p, true);
+    } else {
+      // Normal bırakma: döndürmeden sabit ve dik şekilde olduğu yere bırak
+      p.vel.set(0, 0, 0);
+      p.wx = 0; p.wz = 0; p.spin = 0;
+      p.pitch = 0; p.roll = 0;
+      p.restPitch = 0; p.restRoll = 0;
+      p.tipped = false; p.thrown = false;
+      p.steadyDrop = true;
     }
-    if (sp > 7.5) p.thrown = true;
-    // Bırakıldığı anda havada takla / eğilme hızı kazanır ve yere yan/devrik çarpacak hedef açısı belirlenir
-    p.wx = (Math.random() - 0.5) * 9 + (p.vel.z * 0.45);
-    p.wz = (Math.random() - 0.5) * 9 - (p.vel.x * 0.45);
-    p.spin = (Math.random() - 0.5) * 8;
-    this._assignFallRestAngles(p, true);
+    this.swipeSpeed = 0;
     this.held = null;
   }
 
-  // Sol tıkla eldeki eşyayı ileri fırlat (hızla savrulup yere/duvara çakılır ve kırılır)
+  // Sol tıkla eldeki eşyayı ileri fırlat: sadece fare kaydırıldıysa döne döne gider, sabit atıldıysa dönmeden gider
   throwHeld(camera) {
     if (!this.held) return false;
     const p = this.held;
     const d = new THREE.Vector3(); camera.getWorldDirection(d);
+    const swiped = Math.max(p.vel.length(), this.swipeSpeed || 0) > 3.2;
     p.held = false; p.sleep = false; p.still = 0; p.thrown = true;
     const throwSpeed = 16 / Math.max(0.55, Math.sqrt(p.k.mass));
     p.vel.copy(d).multiplyScalar(throwSpeed);
     p.vel.y += 2.2;
-    p.wx = (Math.random() < 0.5 ? 1 : -1) * (8 + Math.random() * 7);
-    p.wz = (Math.random() - 0.5) * 11;
-    p.spin = (Math.random() - 0.5) * 12;
-    this._assignFallRestAngles(p, true);
+    if (swiped) {
+      p.steadyDrop = false;
+      p.wx = (Math.random() < 0.5 ? 1 : -1) * (8 + Math.random() * 7);
+      p.wz = (Math.random() - 0.5) * 11;
+      p.spin = (Math.random() - 0.5) * 12;
+      this._assignFallRestAngles(p, true);
+    } else {
+      p.steadyDrop = true;
+      p.wx = 0; p.wz = 0; p.spin = 0;
+      p.pitch = 0; p.roll = 0;
+      p.restPitch = 0; p.restRoll = 0;
+      p.tipped = false;
+    }
+    this.swipeSpeed = 0;
     this.held = null;
     sound.playWoodHit && sound.playWoodHit();
     return true;
@@ -481,18 +538,19 @@ export class PropManager {
     if (want.length() > 7) { this.endGrab(); return; }
     p.vel.copy(want.multiplyScalar(14));
     const sp = p.vel.length(); if (sp > 22) p.vel.multiplyScalar(22 / sp);
+    this.swipeSpeed = Math.max(p.vel.length(), (this.swipeSpeed || 0) * Math.exp(-7 * dt));
     this._move(p, dt, false);
-    // Elde tutarken hafifçe sallanır ve kamera yönüne döner
+    // Elde tutarken kamera yönüne döner (sabit tutarken eğilmez)
     const yawT = Math.atan2(d.x, d.z) + Math.PI;
     p.yaw += Math.atan2(Math.sin(yawT - p.yaw), Math.cos(yawT - p.yaw)) * Math.min(1, dt * 8);
-    p.pitch = (p.pitch + (-p.vel.y * 0.025 - p.pitch) * Math.min(1, dt * 8));
-    p.roll = (p.roll + ((p.vel.x * d.z - p.vel.z * d.x) * 0.025 - p.roll) * Math.min(1, dt * 8));
+    p.pitch = 0;
+    p.roll = 0;
   }
 
   _stepFree(p, dt) {
     p.vel.y = Math.max(-42, p.vel.y - GRAV * dt);
     // Devrilmiş eşyanın yere temas yüksekliğini (half.y) eğimine göre ayarla ki havada asılı kalmasın, yere tam otursun
-    if (p.tipped) {
+    if (p.tipped && !p.steadyDrop) {
       const bh = p.baseHalf;
       const tiltAmt = Math.min(1, (Math.abs(Math.sin(p.pitch)) + Math.abs(Math.sin(p.roll))) * 0.85);
       const sideH = Math.min(bh.x, bh.z);
@@ -504,7 +562,15 @@ export class PropManager {
       this.breakProp(p);
       return;
     }
-    if (p.grounded) {
+    if (p.steadyDrop) {
+      p.wx = 0; p.wz = 0; p.spin = 0;
+      p.pitch = 0; p.roll = 0;
+      p.restPitch = 0; p.restRoll = 0;
+      if (p.grounded) {
+        const f = Math.pow(0.015, dt);
+        p.vel.x *= f; p.vel.z *= f;
+      }
+    } else if (p.grounded) {
       const f = Math.pow(0.035, dt);
       p.vel.x *= f; p.vel.z *= f;
       p.spin *= Math.pow(0.04, dt);
@@ -524,10 +590,12 @@ export class PropManager {
     }
     p.yaw += p.spin * dt;
     if (hit > 2.2) {
-      // Çarpma anında sekme ve açısal sarsıntı (çakılma hissi)
-      p.wx += (Math.random() - 0.5) * hit * 1.4;
-      p.wz += (Math.random() - 0.5) * hit * 1.4;
-      p.spin += (Math.random() - 0.5) * hit * 0.9;
+      if (!p.steadyDrop) {
+        // Çarpma anında sekme ve açısal sarsıntı (çakılma hissi)
+        p.wx += (Math.random() - 0.5) * hit * 1.4;
+        p.wz += (Math.random() - 0.5) * hit * 1.4;
+        p.spin += (Math.random() - 0.5) * hit * 0.9;
+      }
       if (sound.playWoodHit) sound.playWoodHit();
       if (hit > 5.5 && this.vw.particleSystem && this.vw.particleSystem.createDust) {
         this.vw.particleSystem.createDust(p.pos.clone());

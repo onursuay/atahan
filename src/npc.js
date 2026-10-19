@@ -144,9 +144,26 @@ export class NPCManager {
       const bag = new THREE.Mesh(boxGeo(0.22, 0.28, 0.1), mat(o.bag)); bag.position.set(0.02, -0.62, 0.1); rArm.add(bag);
       const handle = new THREE.Mesh(boxGeo(0.1, 0.05, 0.02), mat(0x2a2a30)); handle.position.set(0.02, -0.46, 0.1); rArm.add(handle);
     }
+    let shears = null, shearsBladeL = null, shearsBladeR = null;
     if (style === 'maid') {                                      // hizmetçi: koyu elbise, beyaz önlük, beyaz bone
       const apron = new THREE.Mesh(boxGeo(0.34, 0.46, 0.02), mat(0xffffff)); apron.position.set(0, 0.92, 0.12); g.add(apron);
       const cap = new THREE.Mesh(boxGeo(0.38, 0.08, 0.38), mat(0xffffff)); cap.position.y = 1.62; g.add(cap);
+      // Bahçe/çalı budama makası (kontrol yapan hizmetçi çalıları keserken eline alır)
+      shears = new THREE.Group();
+      const pivot = new THREE.Mesh(boxGeo(0.055, 0.03, 0.055), mat(0x1f2937));
+      shearsBladeL = new THREE.Group();
+      const handleL = new THREE.Mesh(boxGeo(0.036, 0.032, 0.22), mat(0xdc2626)); handleL.position.set(-0.04, 0, -0.11);
+      const bladeLM = new THREE.Mesh(boxGeo(0.045, 0.014, 0.34), mat(0xe2e8f0)); bladeLM.position.set(-0.015, 0.005, 0.17);
+      shearsBladeL.add(handleL, bladeLM);
+      shearsBladeR = new THREE.Group();
+      const handleR = new THREE.Mesh(boxGeo(0.036, 0.032, 0.22), mat(0xdc2626)); handleR.position.set(0.04, 0, -0.11);
+      const bladeRM = new THREE.Mesh(boxGeo(0.045, 0.014, 0.34), mat(0xcbd5e1)); bladeRM.position.set(0.015, -0.005, 0.17);
+      shearsBladeR.add(handleR, bladeRM);
+      shears.add(pivot, shearsBladeL, shearsBladeR);
+      shears.position.set(-0.08, -0.46, 0.14);
+      shears.rotation.x = Math.PI / 2 - 0.2;
+      shears.visible = false;
+      rArm.add(shears);
     }
     if (style === 'guard') {                                     // güvenlik: lacivert üniforma, siyah kasket + altın rozet, telsiz, sarı kol bandı (zengin adamdan ayırt edilsin)
       const cap = new THREE.Mesh(boxGeo(0.39, 0.12, 0.39), mat(0x0b0d12)); cap.position.y = 1.64; g.add(cap);
@@ -173,7 +190,7 @@ export class NPCManager {
       rArm.add(briefcase);
     }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
-    return { g, lArm, rArm, lLeg, rLeg, head, hairM, briefcase, colors: [shirt, pants, skin, hair] };
+    return { g, lArm, rArm, lLeg, rLeg, head, hairM, briefcase, shears, shearsBladeL, shearsBladeR, colors: [shirt, pants, skin, hair] };
   }
 
   // Çalışan (masasında oturan ya da tezgâhta ayakta duran): bina hasar alınca veya gece olunca sandalyesinden kalkıp binayı boşaltır
@@ -182,12 +199,12 @@ export class NPCManager {
     const k = spec.k || 1, body = this._makeBody(false, spec.style || 'office', spec);
     body.g.scale.setScalar(SCALE * k);
     const sit = spec.pose === 'sit', drop = sit ? Math.max(0, 0.62 * SCALE * k - 0.5) : 0;
-    if (sit) { body.lLeg.rotation.x = -Math.PI / 2; body.rLeg.rotation.x = -Math.PI / 2; body.lArm.rotation.x = -1.2; body.rArm.rotation.x = -1.2; }   // bacaklar ileri, kollar klavyede
+    if (sit) { body.lLeg.rotation.x = -Math.PI / 2; body.rLeg.rotation.x = -Math.PI / 2; body.lArm.rotation.x = spec.watchTV ? -0.75 : -1.2; body.rArm.rotation.x = spec.watchTV ? -0.85 : -1.2; }   // bacaklar ileri, kollar klavyede/koltukta
     body.g.position.set(spec.x, spec.y - drop, spec.z); body.g.rotation.y = spec.yaw;
     this.scene.add(body.g);
     this.npcs.push({
       ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0, heading: spec.yaw, turnTimer: 0, pause: 0, cycle: Math.random() * 6, grounded: true,
-      worker: true, sit, drop, k, eat: !!spec.eat, cook: !!spec.cook, cycleOff: Math.random() * 6,
+      worker: true, sit, drop, k, eat: !!spec.eat, cook: !!spec.cook, watchTV: !!spec.watchTV, cycleOff: Math.random() * 6,
       buildingId: spec.buildingId || null,
       doorPos: spec.doorPos || null,
       exitPath: spec.exitPath ? spec.exitPath.map(p => ({ ...p })) : null,
@@ -223,6 +240,7 @@ export class NPCManager {
     ];
     for (const n of this.npcs) {
       if (n.buildingId !== buildingId) continue;
+      if (n.afkInBuilding || n.heldChunk) continue;
       if (n.boss) {
         if (panic && n.doorPos && !n.evacPhase) {
           n.worker = true; n.sit = false; n.drop = 0;
@@ -509,6 +527,20 @@ export class NPCManager {
   }
 
   _step(n, dt) {
+    // Ahtapot koluyla kaldırılan binanın içindeki insanlar: oturduğu yerden kalkmış ve binanın içinde ayakta AFK bekler
+    if (n.heldChunk && !n.heldChunk.settled) {
+      n.lLeg.rotation.set(0, 0, 0); n.rLeg.rotation.set(0, 0, 0);
+      n.lArm.rotation.set(0, 0, 0); n.rArm.rotation.set(0, 0, 0);
+      if (n.head) n.head.rotation.set(0, 0, 0);
+      return;
+    }
+    if (n.afkInBuilding) {
+      n.lLeg.rotation.set(0, 0, 0); n.rLeg.rotation.set(0, 0, 0);
+      n.lArm.rotation.set(0, 0, 0); n.rArm.rotation.set(0, 0, 0);
+      if (n.head) n.head.rotation.set(0, 0, 0);
+      n.group.position.set(n.x, n.y, n.z);
+      return;
+    }
     // Ahtapot koluyla havada tutulan insan: çırpınır, normal yürüme/yerçekimi devre dışıdır
     if (n.grabbed) {
       n.cycle += dt * 18;
@@ -519,7 +551,7 @@ export class NPCManager {
       n.group.rotation.set(Math.sin(n.cycle * 0.5) * 0.25, n.heading, Math.cos(n.cycle * 0.5) * 0.2);
       return;
     }
-    // Ahtapot koluyla fırlatılan insan: havada takla atarak uçar, yere veya binaya çarpınca parçalanır
+    // Ahtapot koluyla fırlatılan veya bırakılan insan: sadece fare kaydırılıp atıldıysa döne döne uçar, normal bırakıldıysa dönmez
     if (n.thrownVel) {
       n.thrownVel.y -= GRAVITY * dt;
       n.x += n.thrownVel.x * dt;
@@ -527,13 +559,29 @@ export class NPCManager {
       n.z += n.thrownVel.z * dt;
       n.cycle += dt * 16;
       n.group.position.set(n.x, n.y, n.z);
-      n.group.rotation.set(n.cycle, n.heading, n.cycle * 0.7);
+      if (n.thrownSpin) {
+        n.group.rotation.set(n.cycle, n.heading, n.cycle * 0.7);
+      } else {
+        n.lLeg.rotation.set(0, 0, 0); n.rLeg.rotation.set(0, 0, 0);
+        n.lArm.rotation.set(0, 0, 0); n.rArm.rotation.set(0, 0, 0);
+        n.group.rotation.set(0, n.heading, 0);
+      }
       const gy = this.voxelWorld.terrain.topYAt(n.x, n.z);
       if (this._solid(n.x, n.y, n.z) || (gy > -Infinity && n.y <= gy + 0.1) || n.y < -2) {
-        const hitPos = new THREE.Vector3(n.x, n.y + 1.0, n.z);
-        this.voxelWorld.sweepCut(hitPos, 0.9, n.thrownVel);
-        n.thrownVel = null;
-        this._kill(n, hitPos);
+        if (n.thrownSpin || n.thrownVel.length() > 14) {
+          const hitPos = new THREE.Vector3(n.x, n.y + 1.0, n.z);
+          this.voxelWorld.sweepCut(hitPos, 0.9, n.thrownVel);
+          n.thrownVel = null;
+          n.thrownSpin = false;
+          this._kill(n, hitPos);
+        } else {
+          // Normal bırakıldıysa dönmeden ve ölmeden yere iner
+          if (gy > -Infinity && n.y < gy) n.y = gy;
+          n.group.position.set(n.x, n.y, n.z);
+          n.group.rotation.set(0, n.heading, 0);
+          n.thrownVel = null;
+          n.thrownSpin = false;
+        }
       }
       return;
     }
@@ -542,9 +590,15 @@ export class NPCManager {
     if (n.skate) { this._stepSkate(n, dt); return; }                   // buz pistinde patenle kayar
     if (n.worker) {                                                    // çalışan: tahliyedeyse merdivenden inip kaçar, değilse yerinde çalışır
       if (n.evacPhase) { this._stepEvac(n, dt); return; }
-      n.cycle += dt * (n.sit ? 7 : 1.5);
+      n.cycle += dt * (n.sit ? (n.watchTV ? 2.2 : 7) : 1.5);
       if (n.cook) { n.lArm.rotation.x = -0.9 + Math.sin(n.cycle * 1.1) * 0.45; n.rArm.rotation.x = -0.9 - Math.sin(n.cycle * 1.1 + 1.6) * 0.45; n.group.rotation.y = n.heading + Math.sin(n.cycle * 0.8) * 0.15; }   // mutfak tezgâhında kesip karıştırır
       else if (n.eat) { n.lArm.rotation.x = -1.1; n.rArm.rotation.x = -1.3 - 1.1 * Math.max(0, Math.sin(n.cycle * 0.3 + n.cycleOff)); }   // yemek yer: sağ elini ağzına götürür
+      else if (n.watchTV) {
+        n.lArm.rotation.x = -0.75 + Math.sin(n.cycle * 0.5 + n.cycleOff) * 0.06;
+        n.rArm.rotation.x = -0.85 - Math.max(0, Math.sin(n.cycle * 0.4 + n.cycleOff)) * 0.25;
+        n.head.rotation.y = Math.sin(n.cycle * 0.35 + n.cycleOff) * 0.14;
+        n.head.rotation.x = -0.05 + Math.sin(n.cycle * 0.6) * 0.04;
+      }
       else if (n.sit) { n.lArm.rotation.x = -1.15 + Math.sin(n.cycle) * 0.12; n.rArm.rotation.x = -1.15 + Math.sin(n.cycle + 2) * 0.12; }
       else { n.lArm.rotation.x = Math.sin(n.cycle) * 0.08; n.rArm.rotation.x = -Math.sin(n.cycle) * 0.08; }
       return;
@@ -560,7 +614,7 @@ export class NPCManager {
         else n.heading += (Math.random() - 0.5) * 1.4;
       }
     }
-    const moving = n.pause <= 0;
+    const moving = n.pause <= 0 && !n.trimming && !n.inspecting;
 
     if (moving) {
       const dx = Math.sin(n.heading) * SPEED * dt, dz = Math.cos(n.heading) * SPEED * dt;
@@ -605,7 +659,36 @@ export class NPCManager {
     // Görünüm
     const sw = moving ? Math.sin(n.cycle) * 0.7 : 0;
     n.lLeg.rotation.x = sw; n.rLeg.rotation.x = -sw;
-    n.lArm.rotation.x = -sw * 0.8; n.rArm.rotation.x = sw * 0.8;
+    if (n.trimming) {
+      // Hizmetçi eline makas alıp çalıları kesiyor!
+      if (n.shears) n.shears.visible = true;
+      n.cycle += dt * 11;
+      const snip = Math.abs(Math.sin(n.cycle * 1.5)) * 0.48;
+      if (n.shearsBladeL) { n.shearsBladeL.rotation.y = snip; n.shearsBladeR.rotation.y = -snip; }
+      n.lArm.rotation.x = -1.2 + Math.sin(n.cycle * 0.8) * 0.16;
+      n.rArm.rotation.x = -1.35 - Math.sin(n.cycle * 0.8) * 0.22;
+      n.head.rotation.set(0.18, Math.sin(n.cycle * 0.5) * 0.16, 0);
+      n.leafT = (n.leafT || 0) + dt;
+      if (n.leafT > 0.28) {
+        n.leafT = 0;
+        const vw = this.voxelWorld;
+        if (vw.dynamicDebris.length < vw.maxDynamicDebris) {
+          const lx = n.x + Math.sin(n.heading) * 1.15 + (Math.random() - 0.5) * 0.5;
+          const lz = n.z + Math.cos(n.heading) * 1.15 + (Math.random() - 0.5) * 0.5;
+          vw.spawnLooseVoxel(lx, n.y + 1.1 + Math.random() * 0.3, lz, { color: Math.random() < 0.5 ? 0x4f8f3a : 0x22c55e }, new THREE.Vector3(n.x, n.y + 1.0, n.z), 0.18, 0.9, 18, null, 0.55);
+        }
+      }
+    } else if (n.inspecting) {
+      // Hizmetçi çalıları kontrol ediyor (sağa sola eğilip bakıyor)
+      if (n.shears) n.shears.visible = false;
+      n.cycle += dt * 3.8;
+      n.lArm.rotation.x = -0.32; n.rArm.rotation.x = -0.32;
+      n.head.rotation.set(0.14, Math.sin(n.cycle) * 0.36, 0);
+    } else {
+      if (n.shears) n.shears.visible = false;
+      n.head.rotation.set(0, 0, 0);
+      n.lArm.rotation.x = -sw * 0.8; n.rArm.rotation.x = sw * 0.8;
+    }
     n.group.position.set(n.x, n.y, n.z);
     n.group.rotation.y = n.heading;
   }
