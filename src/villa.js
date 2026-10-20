@@ -482,6 +482,72 @@ export function buildVilla(world) {
     doors.addSliding({ sx: 0.5 * g0 - 0.25 + 0.04, sz: 0.5 * iz1 - 0.15, ax: 1, az: 0, width: 0.5 * (g1 - g0 + 1) - 0.08, height: 3.4, y: Yb(0), gate: true });
   }
 
+  // ── 8d. ZENGİN VİLLASI BAHÇESİNDE ÇEVRE DUVARI İÇİNDE İNSAN BOYUNDA DETAYLI KUŞ ÇALILIKLARI (BIRD TOPIARY) ──
+  // İnsan boyu (~1.8m - 2m), detaylı budanmış kuş heykeli: kaide, gövde, göğüs, kanatlar, yükselen kuyruk tüyleri, boyun, baş, ibik ve gaga.
+  const buildBirdTopiary = (cx, cz, yaw = 0) => {
+    const cxV = Math.round(cx / 0.5), czV = Math.round(cz / 0.5);
+    const cosY = Math.cos(yaw), sinY = Math.sin(yaw);
+    const putV = (u, v, r, mat = GRASS) => {
+      const rx = Math.round(u * cosY - v * sinY);
+      const rz = Math.round(u * sinY + v * cosY);
+      const vx = cxV + rx, vy = YB + r, vz = czV + rz;
+      world.voxels.delete(`${vx},${vy},${vz}`);
+      world.setVoxel(vx, vy, vz, mat);
+    };
+
+    // 1) Kaide / Budanmış çalı tabanı (r = 0..1)
+    for (let u = -1; u <= 1; u++) for (let v = -1; v <= 1; v++) {
+      putV(u, v, 0);
+    }
+    putV(0, 0, 1); putV(1, 0, 1); putV(-1, 0, 1); putV(0, 1, 1); putV(0, -1, 1);
+
+    // 2) Gövde, kabarık kuş göğsü ve kanatlar (r = 1..2, insan gövdesi seviyesi)
+    putV(1, 0, 1); putV(2, 0, 1); // öne doğru çıkan dolgun göğüs
+    putV(-2, 0, 1); // kuyruk başlangıcı
+    for (let u = -1; u <= 1; u++) {
+      putV(u, 0, 2);
+      putV(u, 1, 2);  // sağ kanat
+      putV(u, -1, 2); // sol kanat
+    }
+    putV(2, 0, 2); // yüksek göğüs kavisi
+    putV(-1, 2, 2); // açılan sağ kanat ucu
+    putV(-1, -2, 2); // açılan sol kanat ucu
+
+    // 3) Yükselen zarif kuyruk tüyleri (r = 2..3)
+    putV(-2, 0, 2); putV(-3, 0, 2);
+    putV(-2, 1, 2); putV(-2, -1, 2);
+    putV(-3, 0, 3); putV(-4, 0, 3); // yukarı ve arkaya uzanan kuyruk
+    putV(-3, 1, 3); putV(-3, -1, 3);
+
+    // 4) Kuşun boynu, başı, ibiği ve sivri gagası (r = 3..5, insan boyu zirvesi ~1.8m - 2.0m)
+    putV(2, 0, 3); // dik boyun
+    putV(2, 0, 4); // kuş başı
+    putV(2, 0, 5); // başındaki süslü çalı ibiği (taç)
+    putV(3, 0, 4, WOOD); // ileri uzanan sivri gaga!
+    putV(0, 1, 3); putV(0, -1, 3); // kanat üst kıvrımları
+  };
+
+  // Duvarların içinde, ancak evin dışında kalan bahçe sınırları boyunca yerleştirilen kuş çalılıkları:
+  const birdSpots = [
+    // Giriş kapısı ve güney avlusu (araç yolunun iki yanı)
+    { x: 386.0, z: -55.0, yaw: -Math.PI / 2 },
+    { x: 405.0, z: -55.0, yaw: Math.PI / 2 },
+    // Batı çevre duvarı boyunca (bahçe çimi üstünde, duvara yakın)
+    { x: 377.5, z: -75.0, yaw: 0 },
+    { x: 377.5, z: -100.0, yaw: 0 },
+    { x: 377.5, z: -125.0, yaw: 0 },
+    { x: 377.5, z: -140.0, yaw: 0.3 },
+    // Doğu çevre duvarı boyunca (havuz ve terasın doğu çimleri)
+    { x: 444.5, z: -75.0, yaw: Math.PI },
+    { x: 444.5, z: -100.0, yaw: Math.PI },
+    { x: 444.5, z: -125.0, yaw: Math.PI },
+    { x: 444.5, z: -140.0, yaw: Math.PI - 0.3 },
+    // Kuzey çevre duvarı boyunca
+    { x: 400.0, z: -143.5, yaw: Math.PI / 2 },
+    { x: 424.0, z: -143.5, yaw: Math.PI / 2 }
+  ];
+  birdSpots.forEach(s => buildBirdTopiary(s.x, s.z, s.yaw));
+
   // ── 9. YOL KENARI AYDINLATMASI VE AĞAÇLAR ──
   const col = (x, z, hgt, mat) => { const ix = Math.round(x / 0.5), iz = Math.round(z / 0.5), hq = Math.max(0, Math.round(villaHeight(x, z) / 0.5)); for (let k = 0; k < hgt; k++) { world.voxels.delete(`${ix},${hq + k},${iz}`); world.setVoxel(ix, hq + k, iz, mat); } return [ix, hq, iz]; };
   for (let s = 8, i = 0; s < S_EDGE; s += 13, i++) {          // yol boyunca sıralı sokak lambaları (iki tarafa dönüşümlü)

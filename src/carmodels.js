@@ -10,6 +10,8 @@ import * as THREE from 'three';
 // seatX/seatY: sürücünün kabindeki yeri.
 export const TYPES = {
   sport:     { len: 4.5, wid: 1.9,  h: 1.05, speed: [25, 33], mass: 1.15, zhp: 12, wr: 0.33, seatX: -0.1, seatY: 0.96 },
+  bvm:       { len: 4.65, wid: 1.88, h: 1.28, speed: [23, 31], mass: 1.35, zhp: 13, wr: 0.35, seatX: -0.15, seatY: 1.05 },
+  merzedes:  { len: 4.90, wid: 1.92, h: 1.32, speed: [21, 28], mass: 1.55, zhp: 15, wr: 0.36, seatX: -0.18, seatY: 1.10 },
   mini:      { len: 2.7, wid: 1.45, h: 1.35, speed: [8, 11],  mass: 0.8, zhp: 8,  wr: 0.32, seatX: -0.1, seatY: 1.28 },
   sedan:     { len: 4.3, wid: 1.8,  h: 1.35, speed: [12, 16], mass: 1.2, zhp: 10, wr: 0.32, seatX: -0.1, seatY: 1.28 },
   suv:       { len: 4.7, wid: 1.95, h: 1.85, speed: [11, 15], mass: 1.7, zhp: 14, wr: 0.42, seatX: 0.1,  seatY: 1.5 },
@@ -22,8 +24,8 @@ export const TYPES = {
 
 // Trafikte görülme olasılığı (toplam 1)
 export const SPAWN_WEIGHTS = [
-  ['sport', 0.14], ['mini', 0.14], ['sedan', 0.16], ['suv', 0.13], ['pickup', 0.11],
-  ['van', 0.09], ['truck', 0.07], ['police', 0.08], ['ambulance', 0.08]
+  ['bvm', 0.13], ['merzedes', 0.13], ['sport', 0.11], ['mini', 0.10], ['sedan', 0.12],
+  ['suv', 0.11], ['pickup', 0.08], ['van', 0.07], ['truck', 0.05], ['police', 0.05], ['ambulance', 0.05]
 ];
 
 export const ZONE_NAMES = ['front', 'rear', 'left', 'right'];
@@ -98,33 +100,168 @@ const BODY = {
     }
     add(box(0.06, 0.07, T.wid - 0.24), tailMat, -T.len / 2 + 0.01, 0.68, 0);   // kesintisiz arka LED stop şeridi
   },
+  bvm(add, T, body, color) {
+    const chrome = lam(0x94a3b8), carbon = lam(0x1e293b), dark = darkMat;
+    const bvmBlue = lam(0x1d4ed8), bvmWhite = lam(0xf8fafc);
+    // Ana gövde ve agresif spor sedan hatları
+    add(box(T.len - 0.15, 0.52, T.wid - 0.08), body, 0, 0.56, 0);
+    // Ön kaput (çift güç kubbesi çizgisiyle)
+    add(box(1.55, 0.22, T.wid - 0.18), body, 1.28, 0.72, 0);
+    add(box(1.20, 0.05, 0.28), carbon, 1.30, 0.84, 0);
+    // Ön M-Tampon ve İkonik İkili Böbrek Izgara (BVM Twin Kidney Grille)
+    add(box(0.24, 0.22, T.wid - 0.04), carbon, T.len / 2 - 0.04, 0.38, 0);
+    add(box(0.12, 0.22, 0.34), dark, T.len / 2 - 0.02, 0.62, 0.22); // sağ böbrek ızgara
+    add(box(0.12, 0.22, 0.34), dark, T.len / 2 - 0.02, 0.62, -0.22); // sol böbrek ızgara
+    add(box(0.08, 0.18, 0.04), chrome, T.len / 2 - 0.01, 0.62, 0.22);
+    add(box(0.08, 0.18, 0.04), chrome, T.len / 2 - 0.01, 0.62, -0.22);
+    // BVM Yuvarlak Logo (Mavi-Beyaz çeyrekli amblem)
+    add(box(0.06, 0.06, 0.10), bvmBlue, T.len / 2 - 0.12, 0.84, 0);
+    add(box(0.062, 0.03, 0.05), bvmWhite, T.len / 2 - 0.12, 0.85, 0.02);
+    // "Angel Eyes" çift halkalı agresif LED farlar
+    for (const sz of [-1, 1]) {
+      add(box(0.12, 0.12, 0.38), lightMat, T.len / 2 - 0.03, 0.64, sz * 0.64);
+      add(box(0.14, 0.08, 0.14), new THREE.MeshBasicMaterial({ color: 0x67e8f9 }), T.len / 2 - 0.01, 0.64, sz * 0.56);
+      add(box(0.14, 0.08, 0.14), new THREE.MeshBasicMaterial({ color: 0x67e8f9 }), T.len / 2 - 0.01, 0.64, sz * 0.72);
+    }
+    // Kabin, camlar, Hofmeister Kink ve tavan
+    add(box(2.25, 0.54, T.wid - 0.22), glassMat, -0.15, 1.08, 0);
+    add(box(1.85, 0.08, T.wid - 0.34), body, -0.18, 1.36, 0);
+    add(box(0.24, 0.10, 0.08), carbon, -0.85, 1.42, 0); // köpekbalığı yüzgeci anten (shark fin)
+    // Yan aynalar ve kapı kolları
+    for (const sz of [-1, 1]) {
+      add(box(0.14, 0.08, 0.16), carbon, 0.65, 0.96, sz * (T.wid / 2 + 0.06));
+      add(box(0.16, 0.04, 0.03), chrome, 0.22, 0.72, sz * (T.wid / 2 + 0.01));
+      add(box(0.16, 0.04, 0.03), chrome, -0.48, 0.72, sz * (T.wid / 2 + 0.01));
+    }
+    // Arka bagaj kapağı, M dudak spoyler ve BVM logosu
+    add(box(1.05, 0.28, T.wid - 0.18), body, -1.55, 0.74, 0);
+    add(box(0.14, 0.06, T.wid - 0.26), carbon, -T.len / 2 + 0.06, 0.90, 0);
+    add(box(0.06, 0.06, 0.10), bvmBlue, -T.len / 2 + 0.08, 0.78, 0);
+    for (const sz of [-1, 1]) {
+      add(box(0.08, 0.12, 0.38), tailMat, -T.len / 2 + 0.02, 0.72, sz * 0.62);
+    }
+    // Arka difüzör ve Dörtlü Egzoz Çıkışları (M Quad Exhausts)
+    add(box(0.22, 0.20, T.wid - 0.20), carbon, -T.len / 2 + 0.06, 0.34, 0);
+    for (const sz of [-1, 1]) {
+      add(box(0.18, 0.08, 0.08), chrome, -T.len / 2 + 0.01, 0.36, sz * 0.44);
+      add(box(0.18, 0.08, 0.08), chrome, -T.len / 2 + 0.01, 0.36, sz * 0.58);
+    }
+  },
+  merzedes(add, T, body, color) {
+    const chrome = lam(0xe2e8f0), carbon = darkMat;
+    // Uzun, zarif, prestijli VIP lüks sedan gövdesi
+    add(box(T.len - 0.12, 0.56, T.wid - 0.06), body, 0, 0.58, 0);
+    // Ön kaput (uzun, asil eğimli)
+    add(box(1.75, 0.22, T.wid - 0.16), body, 1.38, 0.74, 0);
+    // İkonik Merzedes Yatay Krom Izgarası (Grand Prestige Louver Grille)
+    add(box(0.14, 0.30, 0.72), chrome, T.len / 2 - 0.02, 0.62, 0);
+    for (let r = 0; r < 4; r++) {
+      add(box(0.16, 0.02, 0.68), chrome, T.len / 2 - 0.01, 0.52 + r * 0.06, 0);
+    }
+    add(box(0.16, 0.26, 0.03), chrome, T.len / 2 - 0.01, 0.62, 0);
+    // DİK DURAN MERZEDES ÜÇ KOLLU YILDIZ AMBLEMİ (Hood Ornament)
+    add(box(0.04, 0.08, 0.04), chrome, T.len / 2 - 0.08, 0.88, 0);
+    add(box(0.03, 0.14, 0.14), chrome, T.len / 2 - 0.08, 0.98, 0);
+    // Multi-Beam LED Farlar ve Kaş DRL Gündüz Şeridi
+    for (const sz of [-1, 1]) {
+      add(box(0.12, 0.14, 0.42), lightMat, T.len / 2 - 0.04, 0.66, sz * 0.68);
+      add(box(0.14, 0.03, 0.40), new THREE.MeshBasicMaterial({ color: 0xffffff }), T.len / 2 - 0.02, 0.74, sz * 0.68);
+    }
+    // Kabin, panoramik cam tavan ve krom çerçeveler
+    add(box(2.40, 0.56, T.wid - 0.20), glassMat, -0.15, 1.12, 0);
+    add(box(2.00, 0.08, T.wid - 0.30), body, -0.18, 1.41, 0);
+    add(box(1.20, 0.03, T.wid - 0.45), glassMat, -0.18, 1.44, 0);
+    // Krom kapı kolları, yan çıtalar ve dikiz aynaları
+    for (const sz of [-1, 1]) {
+      add(box(0.14, 0.08, 0.16), body, 0.72, 0.98, sz * (T.wid / 2 + 0.06));
+      add(box(0.02, 0.03, 0.14), chrome, 0.72, 0.98, sz * (T.wid / 2 + 0.07));
+      add(box(0.18, 0.04, 0.03), chrome, 0.32, 0.74, sz * (T.wid / 2 + 0.015));
+      add(box(0.18, 0.04, 0.03), chrome, -0.42, 0.74, sz * (T.wid / 2 + 0.015));
+      add(box(T.len * 0.65, 0.03, 0.02), chrome, -0.05, 0.44, sz * (T.wid / 2 + 0.015));
+    }
+    // Arka bagaj, krom bagaj çıtası ve arka yıldız
+    add(box(1.15, 0.30, T.wid - 0.16), body, -1.62, 0.76, 0);
+    add(box(0.06, 0.04, 0.65), chrome, -T.len / 2 + 0.06, 0.86, 0);
+    add(box(0.04, 0.09, 0.09), chrome, -T.len / 2 + 0.07, 0.78, 0);
+    for (const sz of [-1, 1]) {
+      add(box(0.08, 0.14, 0.42), tailMat, -T.len / 2 + 0.02, 0.74, sz * 0.64);
+    }
+    // Tampona gömülü Geniş Trapezoid Krom Egzoz Çıkışları
+    add(box(0.24, 0.20, T.wid - 0.16), carbon, -T.len / 2 + 0.06, 0.34, 0);
+    for (const sz of [-1, 1]) {
+      add(box(0.16, 0.08, 0.22), chrome, -T.len / 2 + 0.02, 0.36, sz * 0.55);
+      add(box(0.18, 0.05, 0.16), darkMat, -T.len / 2 + 0.01, 0.36, sz * 0.55);
+    }
+  },
   mini(add, T, body) {
+    const chrome = lam(0xcbd5e1), roofWhite = lam(0xf8fafc);
     add(box(T.len, 0.7, T.wid), body, 0, 0.62, 0);                     // kısa, yüksek gövde
     add(box(1.7, 0.7, T.wid - 0.15), glassMat, -0.1, 1.28, 0);         // geniş cam kabin
-    add(box(1.55, 0.1, T.wid - 0.25), body, -0.1, 1.68, 0);
+    add(box(1.55, 0.1, T.wid - 0.25), roofWhite, -0.1, 1.68, 0);       // kontrast beyaz tavan
+    // Yuvarlak krom çerçeveli sevimli farlar ve alt ızgara
+    for (const sz of [-1, 1]) {
+      add(box(0.12, 0.16, 0.16), chrome, T.len / 2 - 0.02, 0.68, sz * 0.48);
+      add(box(0.14, 0.12, 0.12), lightMat, T.len / 2 - 0.01, 0.68, sz * 0.48);
+      add(box(0.10, 0.08, 0.14), roofWhite, 0.45, 1.12, sz * (T.wid / 2 + 0.04)); // yuvarlak beyaz aynalar
+      add(box(0.14, 0.04, 0.02), chrome, 0.05, 0.74, sz * (T.wid / 2 + 0.01)); // krom kapı kolu
+    }
+    add(box(0.12, 0.20, 0.64), darkMat, T.len / 2 - 0.02, 0.42, 0); // ön ızgara
+    add(box(0.14, 0.06, 0.12), chrome, -T.len / 2 + 0.02, 0.34, 0); // ortadan çift krom egzoz
   },
   sedan(add, T, body) {
+    const chrome = lam(0x94a3b8);
     add(box(T.len, 0.65, T.wid), body, 0, 0.62, 0);
+    // Ön kaput eğimi ve tampon
+    add(box(1.35, 0.14, T.wid - 0.12), body, 1.25, 0.76, 0);
+    add(box(0.14, 0.22, 0.65), darkMat, T.len / 2 - 0.02, 0.54, 0); // ön ızgara
+    add(box(0.16, 0.03, 0.60), chrome, T.len / 2 - 0.01, 0.58, 0);  // ızgara krom şeridi
+    // Cam kabin ve tavan
     add(box(2.2, 0.6, T.wid - 0.2), glassMat, -0.2, 1.22, 0);
     add(box(1.9, 0.1, T.wid - 0.3), body, -0.2, 1.56, 0);
+    // Aynalar, kapı kolları ve egzoz
+    for (const sz of [-1, 1]) {
+      add(box(0.12, 0.08, 0.14), body, 0.55, 1.05, sz * (T.wid / 2 + 0.05)); // ayna
+      add(box(0.14, 0.03, 0.02), chrome, 0.15, 0.72, sz * (T.wid / 2 + 0.01)); // ön kapı kolu
+      add(box(0.14, 0.03, 0.02), chrome, -0.45, 0.72, sz * (T.wid / 2 + 0.01)); // arka kapı kolu
+      add(box(0.15, 0.07, 0.07), chrome, -T.len / 2 + 0.02, 0.35, sz * 0.45); // egzoz ucu
+    }
+    add(box(1.05, 0.18, T.wid - 0.12), body, -1.45, 0.76, 0); // bagaj kapağı
   },
   suv(add, T, body) {
+    const chrome = lam(0x94a3b8);
     add(box(T.len, 0.85, T.wid), body, 0, 0.85, 0);                    // yüksek, geniş gövde
     add(box(T.len * 0.58, 0.66, T.wid - 0.12), glassMat, -0.3, 1.5, 0);
     add(box(T.len * 0.54, 0.1, T.wid - 0.2), body, -0.3, 1.88, 0);     // tavan
     add(box(T.len * 0.46, 0.07, 0.07), darkMat, -0.3, 1.97, 0.55); add(box(T.len * 0.46, 0.07, 0.07), darkMat, -0.3, 1.97, -0.55); // tavan rayları
     add(box(0.28, 0.32, T.wid), darkMat, T.len / 2 - 0.05, 0.55, 0);   // ön tampon
     add(box(0.28, 0.32, T.wid), darkMat, -T.len / 2 + 0.05, 0.55, 0);  // arka tampon
+    add(box(0.18, 0.08, 0.70), chrome, T.len / 2 - 0.02, 0.38, 0);     // gümüş karter muhafaza (skid plate)
+    add(box(0.18, 0.08, 0.70), chrome, -T.len / 2 + 0.02, 0.38, 0);
+    // Sis farları, aynalar, kapı kolları
+    for (const sz of [-1, 1]) {
+      add(box(0.12, 0.10, 0.16), body, 0.75, 1.30, sz * (T.wid / 2 + 0.06)); // SUV aynaları
+      add(box(0.16, 0.04, 0.03), chrome, 0.25, 0.95, sz * (T.wid / 2 + 0.01));
+      add(box(0.16, 0.04, 0.03), chrome, -0.45, 0.95, sz * (T.wid / 2 + 0.01));
+      add(box(0.10, 0.08, 0.14), lightMat, T.len / 2 - 0.01, 0.48, sz * 0.65); // sis farı
+      add(box(0.16, 0.08, 0.12), chrome, -T.len / 2 + 0.02, 0.40, sz * 0.52); // çift egzoz
+    }
   },
   pickup(add, T, body) {
+    const chrome = lam(0xcbd5e1);
     add(box(T.len, 0.5, T.wid), body, 0, 0.72, 0);                     // şasi gövdesi
     add(box(2.0, 0.85, T.wid), body, 1.0, 1.2, 0);                     // kabin
     add(box(1.6, 0.5, T.wid - 0.14), glassMat, 1.0, 1.5, 0);
     add(box(1.7, 0.1, T.wid - 0.25), body, 1.0, 1.95, 0);              // kabin tavanı
-    for (const sz of [-1, 1]) add(box(2.5, 0.42, 0.1), body, -1.35, 1.1, sz * (T.wid / 2 - 0.05));   // kasa yan duvarları
+    for (const sz of [-1, 1]) {
+      add(box(2.5, 0.42, 0.1), body, -1.35, 1.1, sz * (T.wid / 2 - 0.05));   // kasa yan duvarları
+      add(box(1.8, 0.06, 0.08), chrome, 0.85, 0.46, sz * (T.wid / 2 + 0.04)); // krom yan basamaklar
+      add(box(0.12, 0.10, 0.16), darkMat, 1.45, 1.35, sz * (T.wid / 2 + 0.06)); // aynalar
+      add(box(2.2, 0.04, 0.04), chrome, -1.35, 1.34, sz * (T.wid / 2 - 0.04)); // kasa üstü koruma rayları
+    }
     add(box(0.1, 0.48, T.wid), body, -T.len / 2 + 0.05, 1.08, 0);      // kasa arka kapağı
     add(box(2.5, 0.05, T.wid - 0.2), darkMat, -1.35, 0.97, 0);         // kasa tabanı
-    add(box(0.28, 0.3, T.wid), darkMat, T.len / 2 - 0.05, 0.6, 0);
+    add(box(0.28, 0.3, T.wid), chrome, T.len / 2 - 0.05, 0.6, 0);      // krom ön tampon
+    add(box(0.28, 0.3, T.wid), darkMat, -T.len / 2 + 0.05, 0.6, 0);
   },
   van(add, T, body) {
     add(box(T.len, 1.55, T.wid), body, 0, 1.25, 0);                    // yüksek kutu gövde
@@ -173,8 +310,8 @@ const BODY = {
 // Gövde renginden farklı, ona yakışan şerit renkleri (rastgele seçilir): kırmızıya mavi/beyaz, maviye beyaz/sarı vb.
 const STRIPES = [0xffffff, 0x111827, 0x2563eb, 0x16a34a, 0xfacc15, 0xdc2626, 0x06b6d4, 0xf97316];
 export function randomLivery(kind, color) {
-  const sport = kind === 'sport';
-  if (!(sport ? Math.random() < 0.7 : ['mini', 'sedan', 'suv', 'pickup'].includes(kind) && Math.random() < 0.3)) return null;
+  const sport = kind === 'sport' || kind === 'bvm';
+  if (!(sport ? Math.random() < 0.7 : ['mini', 'sedan', 'suv', 'pickup', 'merzedes'].includes(kind) && Math.random() < 0.3)) return null;
   const c = new THREE.Color(color);
   const far = STRIPES.filter(h => { const d = new THREE.Color(h); return Math.abs(d.r - c.r) + Math.abs(d.g - c.g) + Math.abs(d.b - c.b) > 0.9; });
   const main = pick(far.length ? far : STRIPES), second = pick(far.length ? far : STRIPES);
@@ -185,15 +322,16 @@ export function randomLivery(kind, color) {
 // Gövde üstüne ince şerit panelleri (bölgeye atanır, panelle birlikte kopar). Yalnız spor araçta merkez şeritler; diğerlerinde yan bant.
 function addLivery(add, kind, T, lv) {
   const m1 = lam(lv.color), m2 = lam(lv.color2);
-  const side = lv.style.includes('side') || kind !== 'sport';
-  if (kind === 'sport' && lv.style.startsWith('center')) {
+  const isSport = kind === 'sport' || kind === 'bvm';
+  const side = lv.style.includes('side') || !isSport;
+  if (isSport && lv.style.startsWith('center')) {
     const ws = 0.34;
     [[1.6, 1.035, 1.0], [0.4, 0.76, 2.0], [1.0, 1.285, -0.2], [1.2, 0.76, -1.6]].forEach(([len, y, x]) => add(box(len, 0.02, ws), m1, x, y, 0));
-  } else if (kind === 'sport' && lv.style.startsWith('double')) {
+  } else if (isSport && lv.style.startsWith('double')) {
     for (const sz of [-1, 1]) [[1.6, 1.035, 1.0], [0.4, 0.76, 2.0], [1.0, 1.285, -0.2], [1.2, 0.76, -1.6]].forEach(([len, y, x]) => add(box(len, 0.02, 0.13), sz < 0 ? m1 : m2, x, y, sz * 0.14));
   }
   if (side) {
-    const y = kind === 'sport' ? 0.55 : kind === 'suv' ? 0.95 : kind === 'pickup' ? 0.8 : 0.66;
+    const y = isSport ? 0.58 : kind === 'merzedes' ? 0.60 : kind === 'suv' ? 0.95 : kind === 'pickup' ? 0.8 : 0.66;
     for (const sz of [-1, 1]) add(box(T.len * 0.9, 0.09, 0.022), m2, 0, y, sz * (T.wid / 2 + 0.012));
   }
 }
@@ -219,12 +357,13 @@ export function buildCar(kind, color, livery = null) {
 
   // Tekerlekler (bölgeye bağlı değil, her zaman kalır)
   const wx = T.len * 0.31, wz = T.wid / 2;
-  const rimMat = lam(0xcbd5e1), caliperMat = lam(0xef4444);
+  const rimMat = lam(0xcbd5e1), caliperMat = lam(0xef4444), chromeMat = lam(0xe2e8f0);
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
-    add(box(T.wr * 2, T.wr * 2, kind === 'sport' ? 0.32 : 0.28), darkMat, sx * wx, T.wr, sz * wz, true);
-    if (kind === 'sport') {
+    const hasSportWheels = kind === 'sport' || kind === 'bvm' || kind === 'merzedes';
+    add(box(T.wr * 2, T.wr * 2, hasSportWheels ? 0.32 : 0.28), darkMat, sx * wx, T.wr, sz * wz, true);
+    if (hasSportWheels) {
       add(box(T.wr * 1.25, T.wr * 1.25, 0.34), rimMat, sx * wx, T.wr, sz * wz, true);
-      add(box(T.wr * 0.55, T.wr * 0.85, 0.35), caliperMat, sx * wx - sx * 0.08, T.wr + 0.04, sz * wz, true);
+      add(box(T.wr * 0.55, T.wr * 0.85, 0.35), kind === 'merzedes' ? chromeMat : caliperMat, sx * wx - sx * 0.08, T.wr + 0.04, sz * wz, true);
     }
   }
 

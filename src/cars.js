@@ -109,7 +109,7 @@ export class CarManager {
       if (this.player.distanceTo(new THREE.Vector3(pos.x, this.player.y, pos.z)) < 8) continue;
       const r = Math.random(); let acc = 0, kind = 'sedan';
       for (const [k, w] of SPAWN_WEIGHTS) { acc += w; if (r < acc) { kind = k; break; } }
-      const color = kind === 'mini' || kind === 'van' ? pick(PASTELS) : pick(COLORS);
+      const color = kind === 'mini' || kind === 'van' ? pick(PASTELS) : kind === 'bvm' ? pick([0x1d4ed8, 0x2563eb, 0x0f172a, 0xf8fafc, 0x475569, 0xb91c1c]) : kind === 'merzedes' ? pick([0x0b0d12, 0x111827, 0xcbd5e1, 0x94a3b8, 0xf8fafc, 0x1e3a8a]) : pick(COLORS);
       const g = buildCar(kind, color, randomLivery(kind, color));
       this.scene.add(g);
       const T = TYPES[kind];

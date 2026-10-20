@@ -31,8 +31,8 @@ const FOOD = new Set(['doner', 'lahmacun', 'pizza', 'burger', 'kebap', 'tavuk', 
 const KITCHEN_HAT = new Set(['doner', 'lahmacun', 'pizza', 'burger', 'kebap', 'tavuk', 'baklava', 'kumpir', 'sushi', 'cigkofte']);
 // Dükkânın tezgâhlarına/raflarına serpiştirilen tutulabilir ürünler (sağ tık eli): [tür, adet]
 const PRODUCTS = {
-  tisort: [['bag', 3], ['shirt', 3], ['gift', 2]], jean: [['bag', 3], ['pants', 3], ['shoe', 3]], elektronik: [['phone', 9], ['laptop', 4], ['gift', 2]],
-  ayakkabi: [['shoe', 16], ['box', 3]], market: [['can', 18], ['bottle', 8], ['box', 4], ['bag', 3]], oyuncak: [['teddy', 4], ['toycar', 7], ['ball', 4], ['gift', 3]],
+  tisort: [['bag', 3], ['shirt', 3], ['gift', 2]], jean: [['bag', 3], ['pants', 3], ['shoe', 3]], elektronik: [['phone', 14], ['laptop', 6], ['desktop_pc', 4], ['game_console', 7], ['remote', 4], ['cash_register', 2]],
+  ayakkabi: [['shoe', 16], ['box', 3]], market: [['can', 18], ['bottle', 8], ['box', 4], ['bag', 3], ['cash_register', 1]], oyuncak: [['teddy', 4], ['toycar', 7], ['ball', 4], ['gift', 3]],
   kitap: [['book', 12]], mucevher: [['gift', 7]], spor: [['dumbbell', 9], ['ball', 6], ['shoe', 4], ['bottle', 3]], kozmetik: [['bottle', 9], ['gift', 4]],
   eczane: [['bottle', 8], ['gift', 5]], mobilya: [['cushion', 3], ['plant', 3], ['book', 2]],
   doner: [['wrap', 7], ['tray', 2], ['can', 4]], lahmacun: [['lahmacun', 8], ['can', 3]], pizza: [['pizzaslice', 10], ['pizzabox', 3], ['can', 3]],
@@ -241,10 +241,39 @@ const SHOP = {
     counter(s, 1, 3, s.W - 5, s.W - 2); register(s, 2, s.W - 4);
   },
   elektronik(s) {
-    for (let v = 1; v <= s.W - 3; v += 3) for (let r = 2; r <= 5; r += 2) { s.b(0, 0, v, v + 1, r, r + 1, P.BLACK); s.b(0, 0, v, v + 1, r + 1, r + 1, [P.LAMP_BLUE, P.LAMP_PURPLE, P.LAMP_PINK][(v + r) % 3]); }   // TV duvarı
-    for (let v = 2; v <= s.W - 4; v += 4) { counter(s, 5, 6, v, v + 2, P.GLASS, P.BLACK, 1); s.b(5, 5, v, v + 1, 2, 2, P.BLACK); s.b(5, 5, v, v + 1, 3, 3, P.LAMP_BLUE); }   // laptop tezgâhları
-    counter(s, 10, 11, 2, s.W - 3, P.GLASS, P.BLACK, 1); for (let v = 3; v < s.W - 3; v += 2) s.b(10, 10, v, v, 2, 2, COL[v % 6]);   // telefon vitrini
-    counter(s, 1, 3, s.W - 4, s.W - 2); register(s, 2, s.W - 3);
+    // 1) Tavanda detaylı havalandırma kanalları (metalik hava kanalları, ara bağlantılar ve menfez ızgaraları)
+    s.b(1, s.D - 2, 3, 3, 7, 7, P.IRON);
+    s.b(1, s.D - 2, s.W - 4, s.W - 4, 7, 7, P.IRON);
+    s.b(Math.floor(s.D / 2), Math.floor(s.D / 2), 3, s.W - 4, 7, 7, P.IRON);
+    // Havalandırma ızgaraları ve menfezler (siyah/demir ızgara çıkışları)
+    for (const d of [2, Math.floor(s.D / 2), s.D - 3]) {
+      s.b(d, d, 3, 3, 6, 6, P.BLACK);
+      s.b(d, d, s.W - 4, s.W - 4, 6, 6, P.BLACK);
+    }
+    // 2) Arka duvarda dev 4K TV / monitör duvarı (parlak paneller)
+    for (let v = 1; v <= s.W - 3; v += 3) for (let r = 2; r <= 5; r += 2) {
+      s.b(0, 0, v, v + 1, r, r + 1, P.BLACK);
+      s.b(0, 0, v, v + 1, r + 1, r + 1, [P.LAMP_BLUE, P.LAMP_PURPLE, P.LAMP_PINK][(v + r) % 3]);
+    }
+    // 3) Bilgisayar ve Laptop Reyonu: Masaüstü oyun bilgisayarları (desktop_pc) ve dizüstü bilgisayarlar (laptop)
+    for (let v = 2; v <= s.W - 4; v += 4) {
+      counter(s, 4, 6, v, v + 2, P.GLASS, P.BLACK, 1);
+      s.prop('desktop_pc', 5, v + 1, 1, { yaw: 0 });
+      s.prop('laptop', 5, v + 0.2, 1, { yaw: 0.2 });
+    }
+    // 4) Oyun Konsolu (PlayStation / Xbox) Demo İstasyonu:
+    counter(s, 8, 9, 2, 5, P.BLACK, P.IRON, 1);
+    s.b(8, 8, 3, 4, 2, 3, P.LAMP_BLUE); // konsol demo ekranı
+    s.prop('game_console', 9, 3.5, 1, { yaw: Math.PI / 2 });
+    s.prop('game_console', 9, 4.5, 1, { yaw: Math.PI / 2 });
+    // 5) Akıllı Telefon ve Tablet vitrini:
+    counter(s, 11, 12, 2, s.W - 3, P.GLASS, P.BLACK, 1);
+    for (let v = 3; v < s.W - 3; v += 2) {
+      s.prop('phone', 11.5, v, 1, { yaw: 0 });
+    }
+    // 6) Kasa Tezgâhı ve Detaylı POS Kasası:
+    counter(s, 1, 3, s.W - 5, s.W - 2, P.WHITE, P.BLACK, 1);
+    s.prop('cash_register', 2, s.W - 3.5, 1, { yaw: -Math.PI / 2 });
   },
   ayakkabi(s) {
     [1, 3, 5].forEach((r, ri) => { s.b(0, 1, 1, s.W - 2, r, r, P.IRON); for (let v = 1; v <= s.W - 3; v += 2) s.b(0, 1, v, v, r + 1, r + 1, [P.BRICK, P.WHITE, P.BLACK, P.GOLD, P.LAMP_BLUE][(v + ri) % 5]); });   // ayakkabı çiftleri
