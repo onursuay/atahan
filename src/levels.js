@@ -163,7 +163,7 @@ export class LevelManager {
         title: 'BÜYÜK ŞEHİR, SAHİL & ZENGİN ADA',
         desc: 'Geniş caddelerde dolaş, tepelere çık, binaların içine gir, köprüden adaya geç ve sinemayı/villaları yık!',
         targetPercent: 35,
-        spawn: { x: -118.5, y: 2.5, z: 0 },
+        spawn: { x: -110.25, y: 7.05, z: 19.75 },   // 2. kattaki televizyon odasında koltuğun üstü
         builder: this.buildFullCityWorld.bind(this)
       }
     ];
@@ -904,8 +904,11 @@ export class LevelManager {
         for (let z = za + 1; z < zb - 2; z += 5) for (let x = xa; x + 3 <= xb; x += 5) {
           F(b, x, z, x + 2, z + 1, 3, PALETTE.WOOD);                      // masa
           const wx = (x + 1) * 0.75, wz = (z + 2.2) * 0.75;
-          // Küp monitör yerine gerçek masaüstü bilgisayar (ince ekran, klavye, fare, kasa)
+          // Teknomarket tarzı RGB kasa ve ultra-wide ekranlı masaüstü bilgisayar + modern laptop
           this.world.propSpawns.push({ kind: 'desktop_pc', x: wx, y: deskTopY + 0.24, z: (z + 0.5) * 0.75, yaw: Math.PI });
+          if ((x + z) % 2 === 0) {
+            this.world.propSpawns.push({ kind: 'laptop', x: wx + 0.45, y: deskTopY + 0.24, z: (z + 0.5) * 0.75, yaw: Math.PI + 0.1 });
+          }
           this.world.propSpawns.push({ kind: 'chair', x: wx, y: wy + 0.46, z: wz, yaw: Math.PI, color: 0x1e293b });
           // Merdivenlerden dar çıkış kapısına iniş rotası
           const exitPath = [];
@@ -1385,6 +1388,8 @@ export class LevelManager {
     const upIy = 11;                                                         // 2. katın ilk voxel satırı (zemin üst yüzü 5.5 m)
 
     // ── ÜST KAT (2. KAT): TELEVİZYON ODASI (KOLTUK + TV + KUMANDA) & YATAK ──
+    // Koltuk altı döşemesi garanti sağlam zemin (alt kata düşmeyi kesinlikle engeller)
+    vput(wv + 2, upIy - 1, zr0 - 1, wv + 8, upIy - 1, zr1 + 1, PALETTE.WOOD);
     // Koltuk (doğuya, TV'ye bakar): sırtlık batıda, oturma yeri ve iki kol
     vput(wv + 3, upIy, zr0 + 1, wv + 3, upIy + 1, zr1 - 1, PALETTE.BRICK);             // sırtlık
     vput(wv + 4, upIy, zr0 + 1, wv + 5, upIy, zr1 - 1, PALETTE.BRICK);                 // oturma yeri

@@ -63,7 +63,7 @@ export class Character {
     this.usedJet = false;   // itki kullanıldı: bırakınca hava direnci uygulanır
     this.airTime = 0;
     this.jetTick = 0;   // patlama savrulması (yatay, zamanla söner)     // kendi hızımız (gövde kinematik, Cannon hareket ettirmez)
-    this.spawn = { x: 0, y: 3, z: 26 };
+    this.spawn = { x: -110.25, y: 7.05, z: 19.75 };
     this.walkCycle = 0;
     this.stepTimer = 0;
 
@@ -111,7 +111,7 @@ export class Character {
       mass: 0,
       type: CANNON.Body.KINEMATIC,
       shape: shape,
-      position: new CANNON.Vec3(0, 2, 28)
+      position: new CANNON.Vec3(-110.25, 7.05, 19.75)
     });
 
     this.physicsWorld.addBody(this.body);
@@ -704,7 +704,7 @@ export class Character {
     }
   }
 
-  resetPosition(x = 0, y = 3, z = 26) {
+  resetPosition(x = -110.25, y = 7.05, z = 19.75) {
     this.spawn = { x, y, z };
     this.vel.set(0, 0, 0);
     this.inWater = false;

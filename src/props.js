@@ -78,43 +78,56 @@ const KINDS = {
   sweet: { half: [0.15, 0.04, 0.1], tint: false, mass: 0.2, geo: () => parts([           // baklava tepsisi: altın tepsi + bal rengi dilimler
     [0.3, 0.02, 0.2, 0, -0.03, 0, 0xd4a017], [0.09, 0.05, 0.09, -0.09, 0.005, 0, 0xc98a1b], [0.09, 0.05, 0.09, 0.0, 0.005, 0, 0xd99a22], [0.09, 0.05, 0.09, 0.09, 0.005, 0, 0xc98a1b], [0.02, 0.012, 0.02, 0, 0.034, 0, 0x65a30d]]) },
   phone: { half: [0.045, 0.012, 0.085], tint: false, mass: 0.1, geo: () => parts([[0.09, 0.014, 0.17, 0, 0, 0, 0x111827], [0.075, 0.004, 0.14, 0, 0.009, 0, 0x38bdf8]]) },
-  laptop: { half: [0.15, 0.1, 0.11], tint: false, mass: 0.6, geo: () => parts([          // dizüstü: taban + açık ekran
-    [0.3, 0.016, 0.21, 0, -0.095, 0.02, 0x9ca3af], [0.3, 0.2, 0.014, 0, 0.0, -0.085, 0x1f2937], [0.27, 0.17, 0.006, 0, 0.0, -0.077, 0x38bdf8], [0.24, 0.004, 0.1, 0, -0.085, 0.05, 0x374151]]) },
-  // ── Şirket binaları için gerçek masaüstü bilgisayar (ince LCD monitör + ayak + klavye + fare + bilgisayar kasası) ──
-  desktop_pc: { half: [0.34, 0.24, 0.24], tint: false, mass: 1.8, shatterColor: 0x38bdf8, geo: () => parts([
-    // Monitör alt tabanı ve dikme boynu
-    [0.20, 0.016, 0.14, -0.04, -0.232, 0.08, 0x1e293b],
-    [0.045, 0.14, 0.035, -0.04, -0.16, 0.10, 0x334155],
-    // İnce geniş ekran monitör çerçevesi ve arka gövdesi
-    [0.48, 0.29, 0.026, -0.04, 0.01, 0.08, 0x0f172a],
-    [0.28, 0.16, 0.02, -0.04, 0.01, 0.10, 0x1e293b],
-    // Parlak masaüstü ekranı (çalışana doğru -z yönüne bakar)
-    [0.44, 0.25, 0.006, -0.04, 0.015, 0.065, 0x0284c7],
-    // Ekrandaki açık pencereler, grafik çubukları ve görev çubuğu
-    [0.22, 0.16, 0.004, 0.05, 0.025, 0.061, 0xf8fafc],
-    [0.22, 0.026, 0.005, 0.05, 0.095, 0.060, 0x1d4ed8],
-    [0.16, 0.13, 0.004, -0.16, 0.03, 0.061, 0x0f172a],
-    [0.025, 0.05, 0.005, -0.20, 0.008, 0.060, 0x22c55e],
-    [0.025, 0.085, 0.005, -0.16, 0.025, 0.060, 0x38bdf8],
-    [0.025, 0.065, 0.005, -0.12, 0.016, 0.060, 0xfacc15],
-    [0.44, 0.022, 0.004, -0.04, -0.098, 0.061, 0x090d16],
-    [0.016, 0.008, 0.006, -0.24, -0.125, 0.065, 0x22c55e],
-    // Klavye (monitörün önünde, tuş sıraları ve boşluk tuşuyla)
-    [0.34, 0.018, 0.12, -0.02, -0.231, -0.11, 0x1e293b],
-    [0.31, 0.008, 0.022, -0.02, -0.219, -0.075, 0x94a3b8],
-    [0.31, 0.008, 0.022, -0.02, -0.219, -0.105, 0xcbd5e1],
-    [0.24, 0.008, 0.022, -0.02, -0.219, -0.135, 0x94a3b8],
-    [0.13, 0.008, 0.018, -0.02, -0.219, -0.155, 0xe2e8f0],
-    // Mousepad ve Fare (sağ elde)
-    [0.13, 0.005, 0.15, -0.26, -0.237, -0.11, 0x0f172a],
-    [0.055, 0.026, 0.085, -0.26, -0.224, -0.11, 0xe2e8f0],
-    [0.01, 0.01, 0.022, -0.26, -0.209, -0.09, 0xef4444],
-    // Bilgisayar Kasası (PC Tower, masanın sol yanında)
-    [0.14, 0.34, 0.28, 0.25, -0.07, 0.02, 0x111827],
-    [0.12, 0.31, 0.012, 0.25, -0.07, -0.122, 0x1e293b],
-    [0.025, 0.025, 0.014, 0.25, 0.05, -0.125, 0x38bdf8],
-    [0.08, 0.008, 0.014, 0.25, 0.01, -0.125, 0x22c55e],
-    [0.09, 0.12, 0.014, 0.25, -0.13, -0.124, 0x090d16]
+  laptop: { half: [0.18, 0.12, 0.14], tint: false, mass: 0.7, shatterColor: 0x38bdf8, geo: () => parts([          // teknomarket vitrin laptopu: ince metalik gövde + ultra parlak IPS ekran + RGB klavye
+    [0.34, 0.016, 0.24, 0, -0.095, 0.02, 0x1e293b],                                    // alt gövde (uzay grisi / alüminyum)
+    [0.32, 0.005, 0.09, 0, -0.086, 0.08, 0x38bdf8],                                     // RGB aydınlatmalı klavye alanı
+    [0.10, 0.004, 0.07, 0, -0.086, -0.04, 0x0f172a],                                    // geniş cam touchpad
+    [0.34, 0.22, 0.012, 0, 0.01, -0.095, 0x0b0f19],                                     // ince ekran kapağı ve çerçeve
+    [0.32, 0.19, 0.005, 0, 0.012, -0.088, 0x06b6d4],                                    // parlak teknomarket demo ekranı (cyan)
+    [0.18, 0.12, 0.004, 0.05, 0.02, -0.085, 0xf8fafc],                                  // ekranda açık ürün tanıtım sayfası
+    [0.08, 0.08, 0.004, -0.09, 0.02, -0.085, 0x8b5cf6],                                 // ekranda renkli grafik penceresi
+    [0.32, 0.016, 0.004, 0, -0.075, -0.085, 0x0284c7]                                   // görev çubuğu
+  ]) },
+  // ── Şirket binaları & Teknomarketler için son model gaming masaüstü bilgisayar (RGB cam kasa + ultra-wide kavisli monitör + RGB mekanik klavye + gaming mouse) ──
+  desktop_pc: { half: [0.38, 0.28, 0.28], tint: false, mass: 2.2, shatterColor: 0x38bdf8, geo: () => parts([
+    // Monitör metal tabanı ve modern çift mafsallı dikme
+    [0.24, 0.016, 0.16, -0.05, -0.232, 0.08, 0x0f172a],
+    [0.05, 0.16, 0.04, -0.05, -0.15, 0.11, 0x334155],
+    // Ultra-wide kavisli çerçevesiz monitör arka gövdesi
+    [0.56, 0.32, 0.026, -0.05, 0.02, 0.08, 0x090d16],
+    [0.32, 0.18, 0.02, -0.05, 0.02, 0.10, 0x1e293b],
+    // Monitör arka RGB halkası (teknomarket ambiyans ışığı)
+    [0.18, 0.18, 0.006, -0.05, 0.02, 0.115, 0xa855f7],
+    // Parlak ultra-wide IPS panel (teknomarket yüksek çözünürlüklü demo ekranı)
+    [0.53, 0.29, 0.006, -0.05, 0.02, 0.064, 0x0284c7],
+    // Ekranda teknomarket canlı demo pencereleri ve benchmark grafikleri
+    [0.26, 0.18, 0.004, 0.07, 0.04, 0.060, 0xf8fafc],
+    [0.26, 0.028, 0.005, 0.07, 0.115, 0.059, 0x2563eb],
+    [0.18, 0.15, 0.004, -0.18, 0.045, 0.060, 0x0f172a],
+    [0.03, 0.07, 0.005, -0.22, 0.02, 0.059, 0x10b981],                                  // FPS göstergesi (yeşil)
+    [0.03, 0.11, 0.005, -0.17, 0.04, 0.059, 0x06b6d4],                                  // GPU yük grafiği (cyan)
+    [0.03, 0.09, 0.005, -0.12, 0.03, 0.059, 0xf43f5e],                                  // CPU sıcaklık grafiği (pembe/kırmızı)
+    [0.53, 0.022, 0.004, -0.05, -0.115, 0.060, 0x030712],                               // görev çubuğu
+    [0.016, 0.008, 0.006, -0.29, -0.135, 0.064, 0x22c55e],                              // güç LED'i
+    // RGB Mekanik Klavye (tuş altından parlayan neon aydınlatma)
+    [0.36, 0.02, 0.13, -0.03, -0.231, -0.11, 0x111827],
+    [0.34, 0.006, 0.022, -0.03, -0.218, -0.07, 0x38bdf8],                               // mavi LED tuş sırası
+    [0.34, 0.006, 0.022, -0.03, -0.218, -0.10, 0xa855f7],                               // mor LED tuş sırası
+    [0.26, 0.006, 0.022, -0.03, -0.218, -0.13, 0xec4899],                               // pembe LED tuş sırası
+    [0.15, 0.008, 0.018, -0.03, -0.218, -0.155, 0xffffff],                              // boşluk tuşu (beyaz)
+    // RGB Işıklı Geniş Gaming Mousepad ve LED Fare
+    [0.16, 0.006, 0.18, -0.28, -0.236, -0.11, 0x0b0f19],
+    [0.164, 0.003, 0.184, -0.28, -0.237, -0.11, 0x06b6d4],                              // mousepad kenar RGB neon şerit
+    [0.06, 0.028, 0.095, -0.28, -0.222, -0.11, 0x1e293b],                               // ergonomik gaming mouse gövdesi
+    [0.015, 0.012, 0.026, -0.28, -0.207, -0.09, 0xf43f5e],                              // aydınlatmalı tekerlek (RGB)
+    // Şeffaf Temperli Camlı RGB Gaming PC Kasası (PC Tower)
+    [0.16, 0.38, 0.32, 0.27, -0.05, 0.02, 0x090d16],                                    // ana metal gövde (siyah mat)
+    [0.01, 0.35, 0.29, 0.185, -0.05, 0.02, 0x38bdf8],                                   // şeffaf temperli cam panel ve iç neon aydınlatma
+    [0.14, 0.35, 0.014, 0.27, -0.05, -0.142, 0x111827],                                 // ön mesh ızgara
+    [0.08, 0.08, 0.012, 0.27, 0.06, -0.140, 0x06b6d4],                                  // ön üst RGB fan (cyan)
+    [0.08, 0.08, 0.012, 0.27, -0.05, -0.140, 0xa855f7],                                 // ön orta RGB fan (mor)
+    [0.08, 0.08, 0.012, 0.27, -0.15, -0.140, 0xf43f5e],                                 // ön alt RGB fan (kırmızı)
+    [0.06, 0.035, 0.012, 0.27, 0.11, 0.02, 0x22c55e]                                    // iç GPU LED barı
   ]) },
   gift: { half: [0.1, 0.1, 0.1], tint: true, mass: 0.3, geo: () => parts([[0.2, 0.2, 0.2, 0, 0, 0, 0xffffff], [0.05, 0.205, 0.205, 0, 0, 0, 0xfacc15], [0.205, 0.205, 0.05, 0, 0, 0, 0xfacc15], [0.08, 0.05, 0.05, 0, 0.12, 0, 0xfacc15]]) },
   can: { half: [0.04, 0.065, 0.04], tint: true, mass: 0.2, geo: () => parts([[0.075, 0.13, 0.075, 0, 0, 0, 0xffffff], [0.078, 0.02, 0.078, 0, 0.07, 0, 0xcbd5e1], [0.078, 0.02, 0.078, 0, -0.07, 0, 0xcbd5e1]]) },

@@ -349,7 +349,15 @@ function updateGame(dt) {
     sound.updateEngine(dc.speed / (dc.T.speed[1] * 1.4), inputState.forward, inputState.jump || inputState.backward && dc.speed > 0);
   } else {
     sound.stopEngine();
-    character.update(dt, inputState, cameraYaw);
+    if (introActive && introWaiting) {
+      // Menüde bekleme süresince fizik motorunun karakteri koltuktan düşürmesini veya kaydırmasını engelle
+      const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
+      character.body.position.set(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+      character.vel.set(0, 0, 0);
+      character.mesh.position.set(cfg.spawn.x, cfg.spawn.y - 0.525, cfg.spawn.z);
+    } else {
+      character.update(dt, inputState, cameraYaw);
+    }
   }
   // Jenerik: kontroller kapalı; bitince oyuncu ilk hareketinde koltuktan kalkar (göz yüksekliği yükselir)
   if (introActive) { for (const k in inputState) inputState[k] = false; updateIntro(dt); }
@@ -472,6 +480,11 @@ function startIntro() {
       menu.style.display = 'none';
       introWaiting = false; introT = 0;
       sound.init();
+      // Oyuna başlandığı an kesinlikle 2. kattaki televizyon odasında koltuğun üstünde başlasın
+      const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
+      character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+      seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
+      cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
       if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
     };
     introMenuEl = menu;
@@ -610,7 +623,7 @@ function loadLevel(index) {
   planes.clear();
   particleSystem.clear();
   handWeapons.resetAmmo();
-  character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // Batı kumsalı
+  character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // 2. kat televizyon odası koltuğu
   npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
   props.clear();
   for (const s of voxelWorld.propSpawns) props.add(s.kind, s.x, s.y, s.z, s);   // tutulabilir eşyalar (sağ tıkla tutulur)
@@ -623,7 +636,9 @@ function loadLevel(index) {
   npcs.day = () => DayNight.dayAmount(dayNight.t);   // villa sahibi geceleri uyur
   window.__gece = (sn) => dayNight.setTime(sn);   // hata ayıklama: __gece(630) = gecenin başı
   cameraYaw = -Math.PI / 2; // Evdeki koltuktan doğuya, televizyona doğru baksın
+  seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
   if (!introPlayed) startIntro();   // açılış jeneriği yalnız oyun ilk açıldığında
+  else cameraPitch = 0.0;
 
   levelTitleEl.innerText = cfg.title;
   levelDescEl.innerText = cfg.desc;
