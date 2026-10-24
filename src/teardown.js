@@ -65,7 +65,9 @@ export const PALETTE = {
   ORANGE:   { id: 21, color: 0xf97316, name: 'Turuncu', canBreakWithHammer: true },
   DGREEN:   { id: 22, color: 0x15803d, name: 'Koyu Yeşil', canBreakWithHammer: true },
   RED:      { id: 23, color: 0xdc2626, name: 'Kırmızı', canBreakWithHammer: true },
-  YELLOW:   { id: 24, color: 0xfacc15, name: 'Sarı', canBreakWithHammer: true }
+  YELLOW:   { id: 24, color: 0xfacc15, name: 'Sarı', canBreakWithHammer: true },
+  CACTUS_GREEN:  { id: 25, color: 0x16a34a, name: 'Yeşil Kaktüs', canBreakWithHammer: true },
+  CACTUS_PURPLE: { id: 26, color: 0xa855f7, name: 'Mor Kaktüs', canBreakWithHammer: true }
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
@@ -86,7 +88,8 @@ export const MATERIAL_HARDNESS = {
   [PALETTE.LAMP.id]: 0.4,     // Lamba: cam gibi kolay kırılır
   [PALETTE.BLACK.id]: 1.6,    // Siyah (villa): beton gibi
   [PALETTE.LAMP_BLUE.id]: 0.4, [PALETTE.LAMP_PINK.id]: 0.4, [PALETTE.LAMP_GREEN.id]: 0.4, [PALETTE.LAMP_PURPLE.id]: 0.4, [PALETTE.LAMP_ORANGE.id]: 0.4,
-  [PALETTE.BLUE.id]: 1.3, [PALETTE.NAVY.id]: 1.3, [PALETTE.ORANGE.id]: 1.3, [PALETTE.DGREEN.id]: 1.3, [PALETTE.RED.id]: 1.3, [PALETTE.YELLOW.id]: 1.2
+  [PALETTE.BLUE.id]: 1.3, [PALETTE.NAVY.id]: 1.3, [PALETTE.ORANGE.id]: 1.3, [PALETTE.DGREEN.id]: 1.3, [PALETTE.RED.id]: 1.3, [PALETTE.YELLOW.id]: 1.2,
+  [25]: 0.3, [26]: 0.3
 };
 
 export class VoxelWorld {

@@ -87,13 +87,13 @@ const levelsModal = document.getElementById('levels-modal');
 const levelsGrid = document.getElementById('levels-grid');
 
 function init() {
-  // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 10X Harita Görüşü)
+  // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 5X Genişletilmiş Harita Görüşü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
-  scene.fog = new THREE.Fog(0x78a7ff, 400, 3200);
+  scene.fog = new THREE.Fog(0x78a7ff, 600, 9500);
 
-  // 2. Kamera: 5000 m görüş mesafesi (10 kat geniş harita)
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 5000);
+  // 2. Kamera: 15000 m görüş mesafesi (5 kat geniş harita)
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 15000);
 
   // 3. Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -227,8 +227,8 @@ function init() {
 function createWorldArena() {
   // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
-  // Deniz / Okyanus Suyu Düzlemi (10 Kat Büyük Dünya Okyanusu: 12000 m)
-  waterGeo = new THREE.PlaneGeometry(12000, 12000, 40, 40);
+  // Deniz / Okyanus Suyu Düzlemi (5 Kat Genişletilmiş Harita Okyanusu: 50000 m)
+  waterGeo = new THREE.PlaneGeometry(50000, 50000, 40, 40);
   waterMat = new THREE.MeshLambertMaterial({
     color: 0x0369a1,
     transparent: true,

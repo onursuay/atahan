@@ -160,10 +160,10 @@ export class LevelManager {
     this.levelConfigs = [
       {
         id: 0,
-        title: 'BÜYÜK ŞEHİR, SAHİL & ZENGİN ADA',
-        desc: 'Geniş caddelerde dolaş, tepelere çık, binaların içine gir, köprüden adaya geç ve sinemayı/villaları yık!',
+        title: 'BÜYÜK ÇÖL, ŞEHİR, SAHİL & ZENGİN ADA',
+        desc: 'Çöldeki evinde televizyon izleyerek başla, garajındaki arabayla yola çık, kaktüsleri kır ve 5 kat genişleyen devasa dünyayı keşfet!',
         targetPercent: 35,
-        spawn: { x: -110.25, y: 7.05, z: 19.75 },   // 2. kattaki televizyon odasında koltuğun üstü
+        spawn: { x: -393.75, y: 7.05, z: 21.25 },   // Çöldeki evimizin 2. katındaki televizyon odasında koltuğun üstü
         builder: this.buildFullCityWorld.bind(this)
       }
     ];
@@ -184,16 +184,41 @@ export class LevelManager {
     const ISL = 346; // zengin bölgenin x kayması (eski birim): köprü 3x uzadığı için +180 birim doğuya alındı (166 + 180)
 
     // ==========================================
-    // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi) — yollar cityplan.js'ten gelir
+    // 1. ZEMİN, SAHİL, ÇÖL, YOLLAR (kaplama yüzeyi) — 5X BÜYÜK DÜNYA
     // ==========================================
+    // Doğu Ada & Zengin Bölgesi
     w.fillBox(258, 0, -165, 427, 0, 165, PALETTE.GRASS);         // doğu ada çimi (zengin bölgenin kuzeyi/güneyi)
     w.fillBox(428, 0, -260, 680, 0, 260, PALETTE.GRASS);         // zengin meydanının doğusu: villa tepesi
     this._setHills();
-    w.fillBox(-184, 0, -285, -12, 0, 285, PALETTE.CONCRETE);    // batı ada: kuzey/güney 120, batıya 30 birim genişledi
-    w.fillBox(-192, 0, -285, -185, 0, 285, PALETTE.SAND);       // batı kumsalı
-    w.fillBox(-185, 0, -283, -183, 0, 283, PALETTE.WOOD);       // gezinti yolu
-    w.fillBox(-200, 0, -18, -192, 0, -14, PALETTE.WOOD);        // iskeleler
-    w.fillBox(-200, 0, 14, -192, 0, 18, PALETTE.WOOD);
+
+    // Batı Ada: ŞEHİR (Daha da büyütülmüş şehir merkezi)
+    w.fillBox(-220, 0, -320, -12, 0, 320, PALETTE.CONCRETE);    // batı ada şehri: kuzey/güney ve batıya doğru genişletildi
+    w.fillBox(-228, 0, 100, -220, 0, 320, PALETTE.SAND);        // batı kumsalları
+    w.fillBox(-228, 0, -320, -220, 0, -100, PALETTE.SAND);
+    w.fillBox(-222, 0, -318, -220, 0, 318, PALETTE.WOOD);       // sahil ahşap gezinti yolu
+    w.fillBox(-235, 0, -18, -222, 0, -14, PALETTE.WOOD);        // iskeleler
+    w.fillBox(-235, 0, 14, -222, 0, 18, PALETTE.WOOD);
+
+    // ── BÜYÜK ÇÖL (Şehrin arkasında, şehir boyutunun iki katından da büyük devasa çöl) ──
+    w.fillBox(-860, 0, -380, -220, 0, 380, PALETTE.SAND);
+
+    // ── ÇÖL İÇİ DÜMDÜZ YOL & SONUNDA HAFİF KIRILMIŞ YOL ÇIKMAZI ──
+    // Şehir merkezinden (z=0) batıya doğru dümdüz uzanan geniş asfalt çöl yolu
+    w.fillBox(-820, 0, -5, -220, 0, 5, PALETTE.ASPHALT);
+    this.buildBrokenRoadEnd(-820, -805, -5, 5);
+
+    // ── 5X HARİTA GENİŞLEMESİ: Önden, arkadan, sağdan, soldan devasa çevre arazileri ──
+    // Kuzey Dağları & Sahilleri (Soldan genişleme)
+    w.fillBox(-600, 0, -680, 800, 0, -420, PALETTE.GRASS);
+    w.fillBox(-620, 0, -680, -600, 0, -420, PALETTE.SAND);
+    // Güney Yarımadası & Kanyonları (Sağdan genişleme)
+    w.fillBox(-600, 0, 420, 800, 0, 680, PALETTE.GRASS);
+    w.fillBox(-620, 0, 420, -600, 0, 680, PALETTE.SAND);
+    // Doğu Yaylaları & Açık Doğa (Önden genişleme)
+    w.fillBox(681, 0, -350, 1100, 0, 350, PALETTE.GRASS);
+    // Batı Çöl Kıyısı & Dış Sahiller (Arkadan genişleme)
+    w.fillBox(-900, 0, -420, -860, 0, 420, PALETTE.SAND);
+
     w.fillBox(258, 0, -165, 290, 0, 165, PALETTE.CONCRETE);     // doğu ada: şehir blokları (köprüden sonra)
     w.fillBox(321, 0, -165, 370, 0, 165, PALETTE.CONCRETE);
     w.fillBox(370, 0, -70, 428, 0, 70, PALETTE.CONCRETE);       // zengin bölge meydanı (yayalar; araç yolu yok)
@@ -244,12 +269,29 @@ export class LevelManager {
     this.buildTower(-120, 1, -100, -96, 14, -74, { ...CC, side: 'z2' });
     this.buildTower(-120, 1, 104, -96, 18, 126, { ...CC, side: 'z1' });
     this.buildTower(-120, 1, -126, -96, 16, -104, { ...BR, side: 'z2' });
-    this.buildHome(-150, 1, 8, -134, 13, 40);                       // oyuncunun iki katlı Teardown tarzı evi: üst kat salonda başlar, yan ve alt katta detaylı mutfak vardır
+    this.buildTower(-150, 1, 8, -134, 20, 40, { ...CC, side: 'x1' });
     this.buildTower(-150, 1, -40, -134, 10, -8, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, 74, -134, 12, 110, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, -110, -134, 12, -74, { ...BR, side: 'x2' });
     this.buildTower(-81, 1, 10, -74, 20, 36, { ...CC, side: 'z1' });
     this.buildTower(-81, 1, -36, -74, 18, -10, { ...BR, side: 'z2' });
+
+    // Genişletilen Batı Şehir Blokları & Kuleleri
+    this.buildTower(-180, 1, 8, -164, 16, 40, { ...BR, side: 'x1' });
+    this.buildTower(-180, 1, -40, -164, 14, -8, { ...CC, side: 'x1' });
+    this.buildTower(-180, 1, 74, -164, 14, 110, { ...BR, side: 'x1' });
+    this.buildTower(-180, 1, -110, -164, 14, -74, { ...CC, side: 'x1' });
+
+    // ── ÇÖLÜN ORTASINDAKİ DÜZ YOLDA BİZİM EVİMİZ, GARAJIMIZ & KAKTÜSLER ──
+    // Yolun tam ortasında iki katlı evimiz (içinde TV odası, koltuk, mutfak, banyo, jenerik burada başlar)
+    this.buildHome(-528, 1, 10, -512, 13, 42);
+    w.fillBox(-528, 0, 5, -512, 0, 10, PALETTE.CONCRETE); // Ev önü yürüyüş yolu
+
+    // Evimizin yanında garaj ve içinde normal sedan arabamız (spor araba değil)
+    this.buildGarage(-508, 1, 10, -494, 8, 26);
+
+    // Çöl boyunca dağılmış yeşil ve mor kaktüsler
+    this.buildDesertCacti();
 
     // Uzatılan kuzey/güney mahalleleri (yeni caddeler z=±134 boyunca)
     [[1, 142, 164, 'z1'], [-1, -164, -142, 'z2']].forEach(([sg, za, zb, door]) => {
@@ -825,7 +867,17 @@ export class LevelManager {
     this.world.terrain.rampArea = (xm, zm) => { if (xm >= 295) return xm < 455 && zm > -95 && zm < 12; const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 258 && x < 286) || (x >= 325 && x < 360)); };   // x≥295 m: yalnız villa yolu asfaltı vardır
     this.world.terrain.heightFn = (xm, zm, mat) => {
       const x = xm / U, z = zm / U;
-      if (!mat.isGrass) return 0;
+
+      // Çölde minik minik tepecikler (karakter bacağına kadar ulaşacak 0.5 m küçük tepeler, engebeli çöl arazisi)
+      if (mat && mat.id === PALETTE.SAND.id && xm <= -165 && xm >= -645 && Math.abs(zm) <= 285) {
+        if (Math.abs(zm) < 7.5) return 0; // Yolun üstü dümdüz kalsın
+        if (xm >= -415 && xm <= -365 && zm >= 0 && zm <= 35) return 0; // Ev ve Garaj altı düz olsun
+        // Yumuşak, dalgalı çöl engebeleri (karakterin diz/bacak hizası = 0.5 m)
+        const wave = Math.sin(xm * 0.08) * Math.cos(zm * 0.08) + 0.5 * Math.sin(xm * 0.14 + zm * 0.11);
+        return wave > 0.3 ? 0.5 : 0;
+      }
+
+      if (!mat || !mat.isGrass) return 0;
       let h = 0;
       for (const [cx, cz, sg, A] of hills) h += A * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * sg * sg));
       let d = Infinity;
@@ -1764,6 +1816,135 @@ export class LevelManager {
     // Yanımızda koltuğun üstünde ve önümüzdeki sehpanın üstünde kumanda
     this.world.propSpawns.push({ kind: 'remote', x: seatX + 0.08, y: seatTopY + 0.055, z: seatZ + 0.62, yaw: -Math.PI / 2 + 0.28 });
     this.world.propSpawns.push({ kind: 'remote', x: 0.5 * (wv + 9.5), y: seatTopY + 0.055, z: seatZ, yaw: -Math.PI / 2 });
+  }
+
+  // Çöl yolunun sonundaki hafif kırılmış, çatlamış yol çıkmazı
+  buildBrokenRoadEnd(x0, x1, z0, z1) {
+    const w = this.world;
+    const F = 0.75;
+    for (let x = x0; x <= x1; x++) {
+      const rx = Math.floor(K * x);
+      const frac = (x - x0) / (x1 - x0);
+      for (let z = z0; z <= z1; z++) {
+        const rz = Math.floor(K * z);
+        if (frac < 0.35 && Math.random() < 0.55) continue;
+        if (frac < 0.7 && Math.random() < 0.25) continue;
+
+        if (Math.random() < 0.28) {
+          w.setVoxel(rx, 1, rz, PALETTE.ASPHALT);
+          if (Math.random() < 0.35) w.setVoxel(rx, 2, rz, PALETTE.CONCRETE);
+        }
+      }
+    }
+
+    // Yol sonu uyarı bariyerleri
+    const endX = Math.floor(K * (x0 + 4));
+    for (const pz of [-8, -2, 3, 9]) {
+      const vz = Math.floor(pz * F / 0.5);
+      w.setVoxel(endX, 1, vz, PALETTE.IRON);
+      w.setVoxel(endX, 2, vz, PALETTE.RED);
+      w.setVoxel(endX, 3, vz, PALETTE.WHITE);
+      w.setVoxel(endX, 4, vz, PALETTE.RED);
+    }
+  }
+
+  // Evimizin yanında garaj ve içinde normal araba (sedan)
+  buildGarage(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.beginBuilding();
+    // Garaj ana kabuğu (beton)
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.CONCRETE);
+    w.fillBox(x1 + 1, 0, z1 + 1, x2 - 1, 0, z2 - 1, PALETTE.CONCRETE); // Garaj içi sağlam beton zemin
+
+    // Ön garaj kapısı açıklığı (güney duvarı, z = z1): geniş araç girişi
+    w.clearBox(x1 + 2, y1, z1, x2 - 2, y1 + 5, z1);
+
+    // Çöl yolundan garaja bağlanan giriş yolu (asfalt)
+    w.fillBox(x1 + 1, 0, 5, x2 - 1, 0, z1, PALETTE.ASPHALT);
+
+    // Garaj tavanı ve çatı kenar pervazı
+    w.fillBox(x1, y2, z1, x2, y2, z2, PALETTE.CONCRETE);
+    w.fillBox(x1 - 1, y2, z1 - 1, x2 + 1, y2, z1 - 1, PALETTE.ROOF);
+    w.fillBox(x1 - 1, y2, z2 + 1, x2 + 1, y2, z2 + 1, PALETTE.ROOF);
+
+    // Tavan aydınlatması
+    const grp = new THREE.Group();
+    const midX = (x1 + x2) * 0.75 / 2;
+    const midZ = (z1 + z2) * 0.75 / 2;
+    this._addHangingBulb(grp, midX, (y2 - 1) * 0.5, midZ);
+    this.world.scene.add(grp);
+    this.world.decor.push(grp);
+
+    // Garaj içi arka tezgahı ve tamir takımları
+    w.fillBox(x1 + 2, y1, z2 - 2, x2 - 2, y1 + 1, z2 - 1, PALETTE.WOOD);
+    this.world.propSpawns.push({ kind: 'canned_food', x: (x1 + 3) * 0.75, y: 1.5, z: (z2 - 1.5) * 0.75 });
+    this.world.propSpawns.push({ kind: 'water_bottle', x: (x1 + 5) * 0.75, y: 1.5, z: (z2 - 1.5) * 0.75 });
+    this.world.propSpawns.push({ kind: 'mug', x: (x2 - 3) * 0.75, y: 1.5, z: (z2 - 1.5) * 0.75 });
+
+    // Garajda normal bir araba (spor araba falan olmasın: sedan!)
+    // Arabamız güneye, çöl yoluna doğru bakar
+    const carX = midX;
+    const carZ = midZ - 0.5;
+    this.world.parkedCars.push({
+      kind: 'sedan',
+      color: 0x2563eb, // Şık mavi normal sedan
+      x: carX,
+      y: 0.8,
+      z: carZ,
+      heading: Math.PI / 2 // Güneye (yola doğru) bakar
+    });
+  }
+
+  // Çöldeki yeşil ve mor kaktüsler (çekiçle tek vuruşta rahatça kırılır)
+  buildDesertCacti() {
+    const w = this.world;
+    let seed = 4289123;
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+
+    // Çöl alanı: x: -840..-230, z: -350..350 (eski birim)
+    const cactusCount = 140;
+    for (let i = 0; i < cactusCount; i++) {
+      const cx = -830 + Math.floor(rnd() * 590);
+      const cz = -340 + Math.floor(rnd() * 680);
+
+      // Yola ya da ev/garaj bölgesine çok yakın olmasın
+      if (Math.abs(cz) < 14) continue;
+      if (cx >= -545 && cx <= -475 && cz >= 0 && cz <= 55) continue;
+
+      // Kaktüs tipi: Bazıları mor olsun! (%72 yeşil, %28 mor)
+      const mat = rnd() < 0.28 ? PALETTE.CACTUS_PURPLE : PALETTE.CACTUS_GREEN;
+
+      const vx = Math.floor(cx * 0.75 / VOXEL_SIZE);
+      const vz = Math.floor(cz * 0.75 / VOXEL_SIZE);
+      const h = 4 + Math.floor(rnd() * 5); // 4-8 blok yükseklik (2 - 4 metre)
+
+      // Ana gövde
+      for (let y = 1; y <= h; y++) {
+        w.setVoxel(vx, y, vz, mat);
+      }
+
+      // Sol kol
+      if (h >= 5) {
+        const armY1 = 2 + Math.floor(rnd() * 2);
+        w.setVoxel(vx + 1, armY1, vz, mat);
+        w.setVoxel(vx + 2, armY1, vz, mat);
+        const armH1 = armY1 + 2 + Math.floor(rnd() * 2);
+        for (let y = armY1; y <= armH1; y++) {
+          w.setVoxel(vx + 2, y, vz, mat);
+        }
+      }
+
+      // Sağ kol
+      if (h >= 6 && rnd() > 0.3) {
+        const armY2 = 3 + Math.floor(rnd() * 2);
+        w.setVoxel(vx - 1, armY2, vz, mat);
+        w.setVoxel(vx - 2, armY2, vz, mat);
+        const armH2 = armY2 + 2 + Math.floor(rnd() * 2);
+        for (let y = armY2; y <= armH2; y++) {
+          w.setVoxel(vx - 2, y, vz, mat);
+        }
+      }
+    }
   }
 
   // Genel bina: çok katlı, şerit pencereli, kapılı ve çatısında tank olan kule/ofis/dükkân
