@@ -688,13 +688,30 @@
       pointer-events: none;
       opacity: 1;
     }
+    #mm-play {
+      background: linear-gradient(180deg, #2563eb, #1d4ed8);
+      border: 3px solid #60a5fa;
+      box-shadow: 0 0 24px rgba(59, 130, 246, 0.6);
+      font-weight: bold;
+    }
+    #mm-play:hover {
+      background: linear-gradient(180deg, #3b82f6, #2563eb);
+      box-shadow: 0 0 32px rgba(96, 165, 250, 0.9);
+    }
   </style>
 
   <div id="intro-fade"></div>
   <div id="main-menu">
     <h1>ŞEHİR YIKIMI</h1>
-    <div class="panel" id="mm-home" style="display:flex;gap:14px">
-      <button id="mm-play">OYNA</button>
+    <div id="mm-loading" style="display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:8px;">
+      <div id="mm-loading-text" style="font-size:15px; letter-spacing:2px; color:#93c5fd; font-weight:bold;">ŞEHİR YÜKLENİYOR...</div>
+      <div style="width:300px; height:12px; background:rgba(15,23,42,0.85); border-radius:6px; overflow:hidden; border:2px solid #3b82f6; box-shadow:0 0 16px rgba(59,130,246,0.4);">
+        <div id="mm-loading-bar" style="width:10%; height:100%; background:linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd); border-radius:4px; transition:width 0.25s ease;"></div>
+      </div>
+      <div id="mm-loading-sub" style="font-size:12px; color:#94a3b8; letter-spacing:1px;">100X GTA haritası inşa ediliyor...</div>
+    </div>
+    <div class="panel" id="mm-home" style="display:none;gap:14px">
+      <button id="mm-play">▶ OYNA</button>
       <button id="mm-settings">AYARLAR</button>
     </div>
     <div class="panel" id="mm-set">

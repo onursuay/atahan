@@ -86,7 +86,17 @@ const star3 = document.getElementById('star-3');
 const levelsModal = document.getElementById('levels-modal');
 const levelsGrid = document.getElementById('levels-grid');
 
+function setLoadingProgress(pct, title, sub) {
+  const bar = document.getElementById('mm-loading-bar');
+  const txt = document.getElementById('mm-loading-text');
+  const subTxt = document.getElementById('mm-loading-sub');
+  if (bar) bar.style.width = `${pct}%`;
+  if (txt && title) txt.innerText = title;
+  if (subTxt && sub) subTxt.innerText = sub;
+}
+
 function init() {
+  setLoadingProgress(20, 'GRAFİK VE FİZİK MOTORU BAŞLATILIYOR...', 'Üç boyutlu dünya oluşturuluyor...');
   // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 5X Genişletilmiş Harita Görüşü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
@@ -203,6 +213,7 @@ function init() {
   levelManager = new LevelManager(voxelWorld);
 
   // İlk Bölümü Yükle
+  setLoadingProgress(55, '100X GTA HARİTASI İNŞA EDİLİYOR...', 'Bulvarlar, caddeler ve kumsal hazırlanıyor...');
   loadLevel(0);
 
   setupEventListeners();
@@ -323,6 +334,24 @@ function updateWaves(dt) {
 const doorActors = [];
 let sunLight = null, ambientLight = null, sunMesh = null, waterMat = null, dayNight = null, clockT = 0;
 function updateGame(dt) {
+  if (introActive && introWaiting) {
+    // Menüde bekleme süresince dünya simülasyonu çalışmasın, tam başlangıç anında dondurulsun
+    const cfg = levelManager ? levelManager.levelConfigs[levelManager.currentLevelIndex] : null;
+    if (cfg && character && character.body) {
+      character.body.position.set(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+      character.vel.set(0, 0, 0);
+      character.mesh.position.set(cfg.spawn.x, cfg.spawn.y - 0.525, cfg.spawn.z);
+    }
+    if (sunLight) {
+      const sx = Math.round(camera.position.x / 8) * 8, sz = Math.round(camera.position.z / 8) * 8;
+      sunLight.target.position.set(sx, 0, sz);
+      const sd = dayNight ? dayNight.dir : new THREE.Vector3(0.45, 0.72, 0.34);
+      sunLight.position.set(sx + sd.x * 118, sd.y * 118, sz + sd.z * 118);
+    }
+    updateCamera(dt);
+    return;
+  }
+
   physicsWorld.step(1 / 60, dt, 3);
   // Güneş ve gölge alanı oyuncuyu izler (8 m'lik adımlarla: gölgeler titremesin)
   if (sunLight) {
@@ -480,6 +509,13 @@ function startIntro() {
   remoteModel.visible = true;
   handWeapons.root.visible = false;
   cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
+
+  // Yükleme tamamlandı: Yükleme göstergesini kaldır, OYNA butonunu aktif et
+  setLoadingProgress(100, 'ŞEHİR HAZIR!', 'Başlamak için OYNA butonuna tıkla.');
+  const loadEl = document.getElementById('mm-loading');
+  if (loadEl) loadEl.style.display = 'none';
+  const homeEl = document.getElementById('mm-home');
+  if (homeEl) homeEl.style.display = 'flex';
 }
 
 function updateIntro(dt) {
@@ -608,6 +644,7 @@ function loadLevel(index) {
   levelModal.classList.remove('active');
   levelsModal.classList.remove('active');
 
+  setLoadingProgress(80, 'BİNALAR VE YAŞAM ALANLARI KURULUYOR...', 'Okul, hastane, gökdelenler ve yapay zeka ekleniyor...');
   const cfg = levelManager.loadLevel(index);
   weaponSystem.clear();
   bombs.clear();
@@ -938,6 +975,16 @@ function useHammer() {
 function setupEventListeners() {
   window.addEventListener('keydown', (e) => {
     sound.init();
+    if (introWaiting) {
+      if (e.code === 'Enter' || e.code === 'Space') {
+        const home = document.getElementById('mm-home');
+        if (home && home.style.display !== 'none') {
+          const pBtn = document.getElementById('mm-play');
+          if (pBtn) pBtn.click();
+        }
+      }
+      return;
+    }
     const key = e.key.toLowerCase();
     if (introActive) {
       if (key === 'w' || key === 'a' || key === 's' || key === 'd' || e.code === 'Space' || key === 'e') {
