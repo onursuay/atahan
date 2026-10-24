@@ -180,26 +180,27 @@ export class LevelManager {
     this.world.shelves = [];     // mutfak dolabı, fırın ve buzdolabı içindeki ince raflar
     this.world.officeBuildings = []; // şirket binaları (hasar alınca çalışanların kaçması için)
     this.world.workers = []; this.world.bosses = []; this.world.guards = []; this.world.dogs = [];
+    this.world.doctors = []; this.world.schoolChildren = [];
     this.world.lamps = [];       // sokak lambası kafaları (gece ışık havuzları ve gerçek ışık için): { x, y, z, gy }
     const ISL = 346; // zengin bölgenin x kayması (eski birim): köprü 3x uzadığı için +180 birim doğuya alındı (166 + 180)
 
     // ==========================================
-    // 1. ZEMİN, SAHİL, ÇÖL, YOLLAR (kaplama yüzeyi) — 25X DEVASA DÜNYA
+    // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi) — 100X GTA HARİTASI
     // ==========================================
     // Doğu Ada & Zengin Bölgesi: Zengin abimizin villası için tepe çimi
-    w.fillBox(240, 0, -165, 427, 0, 165, PALETTE.GRASS);
-    w.fillBox(428, 0, -260, 680, 0, 260, PALETTE.GRASS); // MUST BE GRASS for heightFn to build the mountain!
+    w.fillBox(240, 0, -400, 427, 0, 400, PALETTE.GRASS);
+    w.fillBox(428, 0, -300, 720, 0, 300, PALETTE.GRASS); // MUST BE GRASS for heightFn to build the mountain!
     this._setHills();
 
-    // Batı Ada: ŞEHİR (sahil + kumsal + gezinti yolu + genişletilmiş metropol)
-    w.fillBox(-230, 0, -340, 20, 0, 340, PALETTE.CONCRETE);
-    w.fillBox(-245, 0, -340, -230, 0, 340, PALETTE.SAND);        // batı sahil kumsalı
-    w.fillBox(-238, 0, -338, -230, 0, 338, PALETTE.WOOD);        // sahil ahşap gezinti yolu
-    w.fillBox(-252, 0, -18, -238, 0, -14, PALETTE.WOOD);         // iskeleler
-    w.fillBox(-252, 0, 14, -238, 0, 18, PALETTE.WOOD);
+    // Batı Ada: KOCAMAN 100X GTA METROPOL ŞEHRİ (x: -380..20, z: -800..800)
+    w.fillBox(-380, 0, -800, 20, 0, 800, PALETTE.CONCRETE);
+    w.fillBox(-395, 0, -800, -380, 0, 800, PALETTE.SAND);        // batı sahil kumsalı
+    w.fillBox(-388, 0, -798, -380, 0, 798, PALETTE.WOOD);        // sahil ahşap gezinti yolu
+    w.fillBox(-405, 0, -18, -388, 0, -14, PALETTE.WOOD);         // iskeleler
+    w.fillBox(-405, 0, 14, -388, 0, 18, PALETTE.WOOD);
 
-    w.fillBox(258, 0, -165, 290, 0, 165, PALETTE.CONCRETE);     // doğu ada: şehir blokları (köprüden sonra)
-    w.fillBox(321, 0, -165, 370, 0, 165, PALETTE.CONCRETE);
+    w.fillBox(258, 0, -380, 290, 0, 380, PALETTE.CONCRETE);     // doğu ada: şehir blokları (köprüden sonra)
+    w.fillBox(321, 0, -380, 370, 0, 380, PALETTE.CONCRETE);
     w.fillBox(370, 0, -70, 428, 0, 70, PALETTE.CONCRETE);       // zengin bölge meydanı (yayalar; araç yolu yok)
 
     // Dış çevre arazileri aşağıda bağımsız 3D çevre modelleri olarak eklenir (terrain dokusunu kilitlemez)
@@ -283,11 +284,11 @@ export class LevelManager {
     // ==========================================
     // 4. DOĞU ADA: ŞEHİR BLOKLARI (köprüden sonra) — hastane, itfaiye, polis, okul, AVM, apartmanlar
     // ==========================================
-    this.buildHospital(328, 1, 50, 360, 14, 118);                                   // çok büyük beyaz hastane (kırmızı artılı)
+    this.buildGrandHospital(320, 1, 38, 366, 26, 134);                               // devasa 4 katlı tıp merkezi (doktorlar & hemşireler)
     this.buildMall(323, 1, -127, 360, 34, -50);                                     // devasa AVM (38x78, 4 kat, kat yüksekliği 6 m)
     this.buildFireStation(270, 1, 52, 288, 14, 82);                                 // itfaiye istasyonu
     this.buildTower(270, 1, 96, 286, 12, 120, { ...CC, side: 'z1', sign: true, interior: 'police' });     // polis merkezi
-    this.buildTower(270, 1, 8, 288, 12, 38, { ...BR, side: 'z1', interior: 'school' });                   // okul
+    this.buildGrandSchoolCampus(262, 1, 148, 328, 18, 258);                         // KOCAMAN OKUL KAMPÜSÜ: duvarlar, futbol sahası, çocuklar ve okul zili!
     this.buildTower(270, 1, -38, 288, 26, -8, { ...CC, side: 'z2' });               // iş merkezi
     this.buildTower(270, 1, -82, 288, 20, -50, { ...BR, side: 'z1', interior: 'hotel' });  // otel
     this.buildTower(270, 1, -122, 286, 24, -96, { ...CC, side: 'z2' });             // apartmanlar
@@ -295,7 +296,7 @@ export class LevelManager {
     this.buildTower(324, 1, -38, 356, 22, -8, { ...BR, side: 'z2' });               // ofis kulesi
     this.buildTower(374, 1, 78, 394, 14, 100, { ...BR, side: 'x1' });
     this.buildTower(398, 1, 78, 416, 16, 104, { ...CC, side: 'x1' });
-    [[142, 164, 'z1'], [-164, -142, 'z2']].forEach(([za, zb, door]) => {
+    [[-164, -142, 'z2']].forEach(([za, zb, door]) => {
       this.buildTower(270, 1, za, 288, 14, zb, { ...BR, side: door });
       this.buildTower(324, 1, za, 356, 16, zb, { ...CC, side: door });
     });
@@ -307,14 +308,14 @@ export class LevelManager {
     // 5. SOKAK DONATIMI: lambalar, çöp kutuları, ağaçlar
     // ==========================================
     // Donatı (lamba, çöp kutusu, ağaç) yolun üstüne konmaz: lamp/trashBin/tree yol dikdörtgenlerini kendileri denetler
-    for (const zc of [0, 66, -66, 134, -134, 200, -200, 266, -266]) {
-      for (let x = -166; x <= -30; x += 14) {
-        this.lamp(x, zc + 6.5, 0, -1); this.trashBin(x + 3, zc + 7);
-        this.lamp(x + 7, zc - 6.5, 0, 1); this.trashBin(x + 10, zc - 7);
+    for (const zc of [-750, -650, -550, -450, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 450, 550, 650, 750]) {
+      for (let x = -340; x <= -30; x += 22) {
+        this.lamp(x, zc + 6.5, 0, -1); this.trashBin(x + 4, zc + 7);
+        this.lamp(x + 11, zc - 6.5, 0, 1); this.trashBin(x + 15, zc - 7);
       }
-      for (let x = -164; x <= -32; x += 26) { this.tree(x, zc + 6.5, 6); this.tree(x + 13, zc - 6.5, 6); }
+      for (let x = -336; x <= -32; x += 36) { this.tree(x, zc + 6.5, 6); this.tree(x + 18, zc - 6.5, 6); }
     }
-    for (let x = 270; x <= 352; x += 16) [44, -44, 88, -88, 134, -134].forEach(zz => { if (Math.abs(x - 305) > 20 && !(Math.abs(zz) === 88 && x > 286)) { this.lamp(x, zz + 6.5, 0, -1); this.lamp(x + 8, zz - 6.5, 0, 1); } });
+    for (let x = 270; x <= 352; x += 16) [-350, -250, -180, -134, -44, 44, 134, 180, 250, 350].forEach(zz => { if (Math.abs(x - 305) > 20 && !(Math.abs(zz) === 88 && x > 286)) { this.lamp(x, zz + 6.5, 0, -1); this.lamp(x + 8, zz - 6.5, 0, 1); } });
 
     // ==========================================
     // 5. ZENGİN BÖLGE (doğu adanın doğusu)
@@ -423,25 +424,36 @@ export class LevelManager {
     let seed = 20241014;
     const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     const CC = { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD }, BR = { wall: PALETTE.BRICK, floor: PALETTE.WOOD };
-    const cols = [[-202, -178], [-161, -137], [-119, -97], [-79, -57], [-41, -33], [-21, -15]];
-    const lots = [[168, 191], [209, 231], [235, 257], [273, 298]];                 // z bantları (kuzey & güney ön/arka şehir genişlemesi)
-    const existing = [[142, 164, [0, 1, 3, 4]]];                       // z 142..164'te A, B, D, E sütunları zaten dolu; yalnız C boş
+    const cols = [
+      [-346, -324], [-296, -274], [-246, -224], [-198, -176],
+      [-161, -137], [-119, -97], [-79, -57], [-41, -33], [-21, -15]
+    ];
+    const lots = [
+      [142, 164], [168, 191], [209, 231], [235, 257], [273, 298],
+      [330, 370], [390, 440], [460, 540], [560, 640], [660, 740]
+    ];
+    const existing = [[142, 164, [4, 5, 7, 8]]];
     const near = (x1, x2, z1, z2) => ROUNDABOUTS.some(g => { const dx = Math.max(x1 - g.cx, 0, g.cx - x2), dz = Math.max(Math.min(z1, z2) - g.cz, 0, g.cz - Math.max(z1, z2)); return Math.hypot(dx, dz) < g.rOuter + 8; });
     const place = (ci, za, zb, sign) => {
       const [x1, x2] = cols[ci];
       const zlo = sign > 0 ? za : -zb, zhi = sign > 0 ? zb : -za;
       if (near(x1, x2, zlo, zhi) || isSpecialLot(x1, x2, zlo, zhi)) return;
-      const bType = (ci + Math.floor(rnd() * 6)) % 6;
+      const bType = (ci * 3 + Math.floor(rnd() * 8)) % 8;
       if (bType === 0) {
         this.buildOutdoorTeknoMarket(x1, 1, zlo, x2, 12, zhi);
       } else if (bType === 1) {
         this.buildMarket(x1, 1, zlo, x2, 10, zhi);
       } else if (bType === 2) {
-        this.buildCityApartment(x1, 1, zlo, x2, 22, zhi);
+        this.buildCityApartment(x1, 1, zlo, x2, 24, zhi);
       } else if (bType === 3) {
         this.buildOutdoorFashionStore(x1, 1, zlo, x2, 12, zhi);
       } else if (bType === 4) {
         this.buildCityBank(x1, 1, zlo, x2, 18, zhi);
+      } else if (bType === 5) {
+        const h = 26 + Math.floor(rnd() * 24);
+        this.buildTower(x1, 1, zlo, x2, h, zhi, { ...CC, side: sign > 0 ? 'z1' : 'z2', sign: true });
+      } else if (bType === 6) {
+        this.buildCityWarehouse(x1, 1, zlo, x2, 12, zhi);
       } else {
         const h = 14 + Math.floor(rnd() * 18);
         const style = rnd() < 0.5 ? CC : BR;
@@ -449,7 +461,7 @@ export class LevelManager {
       }
     };
     for (const sign of [1, -1]) {
-      place(2, 142, 164, sign);                                        // C sütunu, mevcut sıranın boşluğu
+      place(6, 142, 164, sign);
       for (const [za, zb] of lots) for (let ci = 0; ci < cols.length; ci++) place(ci, za, zb, sign);
     }
   }
@@ -587,6 +599,172 @@ export class LevelManager {
       this.buildTower(cx + 5, 1, a, x2 - 2, 10, b, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'x1', interior: 'apt' });
     });
     for (let z = z1 + 6; z < z2 - 4; z += 14) { this.lamp(cx - 4, z, 1, 0); this.lamp(cx + 4, z + 7, -1, 0); }
+  }
+
+  // ── KOCAMAN ŞEHİR HASTANESİ: 4 katlı tıp merkezi, acil servis, ambulanslar, doktorlar ve hemşireler ──
+  buildGrandHospital(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.WHITE, PALETTE.CONCRETE);
+    const zc = Math.round((z1 + z2) / 2);
+    w.clearBox(x1, y1, zc - 4, x1, y1 + 5, zc + 4);
+    w.clearBox(x1, y1, z1 + 10, x1, y1 + 5, z1 + 18);
+
+    const sx = K * x1 - 2, sy = w._y0(y1 + 12), sz = K * zc;
+    w.rawReplace(sx, sy - 7, sz - 2, sx + 1, sy + 7, sz + 2, PALETTE.BRICK);
+    w.rawReplace(sx, sy - 2, sz - 7, sx + 1, sy + 2, sz + 7, PALETTE.BRICK);
+
+    w.fillBox(x1 - 8, y1 + 6, z1 + 6, x1 - 1, y1 + 6, z1 + 28, PALETTE.WHITE);
+    for (const pz of [z1 + 7, z1 + 17, z1 + 27]) {
+      w.fillBox(x1 - 8, y1, pz, x1 - 8, y1 + 5, pz, PALETTE.IRON);
+    }
+
+    [z1 + 9, z1 + 16, z1 + 23].forEach((az) => {
+      const ax = x1 - 5;
+      w.fillBox(ax - 2, y1, az - 2, ax + 2, y1 + 3, az + 2, PALETTE.WHITE);
+      w.fillBox(ax - 2, y1 + 1, az - 2, ax + 2, y1 + 1, az + 2, PALETTE.BRICK);
+      w.fillBox(ax - 2, y1 + 2, az + 1, ax + 2, y1 + 3, az + 2, PALETTE.GLASS);
+      w.fillBox(ax, y1 + 4, az, ax, y1 + 4, az, PALETTE.LAMP_RED);
+    });
+
+    this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
+    this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE);
+    this.addStairs(x1, y1, z1, x2, y2, z2);
+
+    w.fillBox(x1 + 3, y1, zc - 8, x1 + 6, y1 + 1, zc + 8, PALETTE.WOOD);
+    for (let z = zc - 6; z <= zc + 6; z += 3) {
+      w.fillBox(x1 + 8, y1, z, x1 + 8, y1 + 3, z + 1, PALETTE.GLASS);
+    }
+
+    for (let f = y1; f < y2 - 4; f += 6) {
+      for (let z = z1 + 6; z < z2 - 6; z += 9) {
+        w.fillBox(x1 + 12, f, z, x2 - 4, f + 4, z, PALETTE.WHITE);
+        w.fillBox(x1 + 14, f, z + 2, x1 + 18, f, z + 5, PALETTE.WOOD);
+        w.fillBox(x1 + 14, f + 1, z + 2, x1 + 18, f + 1, z + 5, PALETTE.WHITE);
+        w.fillBox(x1 + 13, f, z + 2, x1 + 13, f + 3, z + 2, PALETTE.IRON);
+      }
+    }
+
+    const midZ = Math.round((z1 + z2) / 2);
+    w.fillBox(x2 - 14, y2 + 1, midZ - 7, x2 - 2, y2 + 1, midZ + 7, PALETTE.CONCRETE);
+    w.fillBox(x2 - 11, y2 + 2, midZ - 4, x2 - 5, y2 + 2, midZ - 4, PALETTE.GOLD);
+    w.fillBox(x2 - 11, y2 + 2, midZ + 4, x2 - 5, y2 + 2, midZ + 4, PALETTE.GOLD);
+    w.fillBox(x2 - 8, y2 + 2, midZ - 4, x2 - 8, y2 + 2, midZ + 4, PALETTE.GOLD);
+
+    const docs = [
+      { x: (x1 + 5) * 0.75, y: 1.0, z: (zc - 2) * 0.75, yaw: 0, style: 'doctor', role: 'Chief Doctor' },
+      { x: (x1 + 15) * 0.75, y: 1.0, z: (z1 + 14) * 0.75, yaw: 1.57, style: 'doctor', role: 'ER Doctor' },
+      { x: (x1 + 22) * 0.75, y: 7.0, z: (zc + 10) * 0.75, yaw: -1.57, style: 'doctor', role: 'Surgeon' },
+      { x: (x1 + 18) * 0.75, y: 13.0, z: (z1 + 20) * 0.75, yaw: 3.14, style: 'doctor', role: 'Physician' },
+      { x: (x1 + 16) * 0.75, y: 7.0, z: (zc - 12) * 0.75, yaw: 0, style: 'doctor', role: 'Pediatrician' }
+    ];
+    const nurses = [
+      { x: (x1 + 4) * 0.75, y: 1.0, z: (zc + 3) * 0.75, yaw: 3.14, style: 'nurse', role: 'Reception Nurse' },
+      { x: (x1 + 12) * 0.75, y: 1.0, z: (z1 + 16) * 0.75, yaw: -1.57, style: 'nurse', role: 'Triage Nurse' },
+      { x: (x1 + 15) * 0.75, y: 7.0, z: (zc + 8) * 0.75, yaw: 0, style: 'nurse', role: 'Ward Nurse' },
+      { x: (x1 + 20) * 0.75, y: 7.0, z: (zc - 10) * 0.75, yaw: 1.57, style: 'nurse', role: 'ICU Nurse' },
+      { x: (x1 + 16) * 0.75, y: 13.0, z: (z1 + 28) * 0.75, yaw: -1.57, style: 'nurse', role: 'Care Nurse' },
+      { x: (x1 + 22) * 0.75, y: 13.0, z: (zc + 15) * 0.75, yaw: 3.14, style: 'nurse', role: 'Night Nurse' }
+    ];
+    docs.forEach(d => this.world.doctors.push(d));
+    nurses.forEach(n => this.world.doctors.push(n));
+  }
+
+  // ── KOCAMAN OKUL KAMPÜSÜ: çevre duvarları, kapı, futbol & oyun sahası, saat kulesi ve çocuklar ──
+  buildGrandSchoolCampus(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.beginBuilding();
+
+    w.fillBox(x1, y1, z1, x2, y1, z1, PALETTE.BRICK);
+    w.fillBox(x1, y1 + 1, z1, x2, y1 + 3, z1, PALETTE.IRON);
+    w.fillBox(x1, y1, z2, x2, y1, z2, PALETTE.BRICK);
+    w.fillBox(x1, y1 + 1, z2, x2, y1 + 3, z2, PALETTE.IRON);
+    w.fillBox(x1, y1, z1, x1, y1, z2, PALETTE.BRICK);
+    w.fillBox(x1, y1 + 1, z1, x1, y1 + 3, z2, PALETTE.IRON);
+    w.fillBox(x2, y1, z1, x2, y1, z2, PALETTE.BRICK);
+    w.fillBox(x2, y1 + 1, z1, x2, y1 + 3, z2, PALETTE.IRON);
+
+    for (let x = x1; x <= x2; x += 8) {
+      w.fillBox(x, y1, z1, x, y1 + 4, z1, PALETTE.BRICK);
+      w.fillBox(x, y1, z2, x, y1 + 4, z2, PALETTE.BRICK);
+    }
+    for (let z = z1; z <= z2; z += 8) {
+      w.fillBox(x1, y1, z, x1, y1 + 4, z, PALETTE.BRICK);
+      w.fillBox(x2, y1, z, x2, y1 + 4, z, PALETTE.BRICK);
+    }
+
+    const gateZ = z1;
+    const gateX0 = x1 + 14, gateX1 = x1 + 22;
+    w.clearBox(gateX0, y1, gateZ, gateX1, y1 + 4, gateZ);
+    w.fillBox(gateX0 - 1, y1, gateZ - 1, gateX0, y1 + 5, gateZ + 1, PALETTE.BRICK);
+    w.fillBox(gateX1, y1, gateZ - 1, gateX1 + 1, y1 + 5, gateZ + 1, PALETTE.BRICK);
+    w.fillBox(gateX0 - 1, y1 + 5, gateZ, gateX1 + 1, y1 + 5, gateZ, PALETTE.GOLD);
+
+    const fx0 = x1 + 6, fx1 = x1 + 32, fz0 = z1 + 10, fz1 = z1 + 60;
+    w.fillBox(fx0, 0, fz0, fx1, 0, fz1, PALETTE.GRASS);
+    const fMidZ = Math.round((fz0 + fz1) / 2);
+    w.fillBox(fx0, 0, fMidZ, fx1, 0, fMidZ, PALETTE.WHITE);
+    w.fillBox(fx0 + 7, 0, fz0, fx1 - 7, 0, fz0 + 6, PALETTE.WHITE);
+    w.fillBox(fx0 + 7, 0, fz1 - 6, fx1 - 7, 0, fz1, PALETTE.WHITE);
+    w.fillBox(fx0 + 10, y1, fz0, fx0 + 16, y1 + 2, fz0, PALETTE.IRON);
+    w.clearBox(fx0 + 11, y1, fz0, fx0 + 15, y1 + 1, fz0);
+    w.fillBox(fx0 + 10, y1, fz1, fx0 + 16, y1 + 2, fz1, PALETTE.IRON);
+    w.clearBox(fx0 + 11, y1, fz1, fx0 + 15, y1 + 1, fz1);
+
+    const bx0 = x1 + 38, bx1 = x2 - 4, bz0 = z1 + 10, bz1 = z1 + 45;
+    w.fillBox(bx0, 0, bz0, bx1, 0, bz1, PALETTE.BRICK);
+    w.fillBox(bx0 + 6, y1, bz0 + 2, bx0 + 6, y1 + 4, bz0 + 2, PALETTE.IRON);
+    w.fillBox(bx0 + 5, y1 + 4, bz0 + 3, bx0 + 7, y1 + 5, bz0 + 3, PALETTE.WHITE);
+    w.fillBox(bx0 + 6, y1 + 4, bz0 + 4, bx0 + 6, y1 + 4, bz0 + 4, PALETTE.ORANGE);
+
+    const sx0 = x1 + 6, sx1 = x2 - 6, sz0 = z1 + 66, sz1 = z2 - 6;
+    w.fillHollowBox(sx0, y1, sz0, sx1, y1 + 18, sz1, PALETTE.BRICK, PALETTE.WOOD);
+    this.addFloors(sx0, y1, sz0, sx1, y1 + 18, sz1, PALETTE.WOOD);
+    this.addStairs(sx0, y1, sz0, sx1, y1 + 18, sz1);
+    this.addWindowBands(sx0, y1, sz0, sx1, y1 + 18, sz1, 'z1');
+
+    const smidX = Math.round((sx0 + sx1) / 2);
+    w.clearBox(smidX - 3, y1, sz0, smidX + 3, y1 + 5, sz0);
+    w.fillBox(smidX - 4, y1 + 6, sz0 - 2, smidX + 4, y1 + 6, sz0, PALETTE.WHITE);
+    w.fillBox(smidX - 5, y1 + 7, sz0 - 1, smidX + 5, y1 + 7, sz0 - 1, PALETTE.GOLD);
+
+    const twX0 = smidX - 3, twX1 = smidX + 3, twZ0 = sz0 + 2, twZ1 = sz0 + 8;
+    w.fillHollowBox(twX0, y1 + 18, twZ0, twX1, y1 + 27, twZ1, PALETTE.BRICK, PALETTE.WHITE);
+    w.fillBox(smidX - 1, y1 + 22, twZ0 - 1, smidX + 1, y1 + 24, twZ0 - 1, PALETTE.GOLD);
+    w.fillBox(twX0 - 1, y1 + 27, twZ0 - 1, twX1 + 1, y1 + 27, twZ1 + 1, PALETTE.IRON);
+    w.fillBox(smidX, y1 + 28, Math.round((twZ0 + twZ1) / 2), smidX, y1 + 31, Math.round((twZ0 + twZ1) / 2), PALETTE.GOLD);
+
+    for (let f = y1; f <= y1 + 12; f += 6) {
+      w.fillBox(sx0 + 4, f + 2, sz1 - 1, sx0 + 12, f + 4, sz1 - 1, PALETTE.DGREEN);
+      w.fillBox(sx1 - 12, f + 2, sz1 - 1, sx1 - 4, f + 4, sz1 - 1, PALETTE.DGREEN);
+      for (let rx = sx0 + 4; rx <= sx0 + 12; rx += 3) {
+        for (let rz = sz0 + 6; rz <= sz1 - 6; rz += 4) {
+          w.fillBox(rx, f, rz, rx + 1, f, rz + 1, PALETTE.WOOD);
+          w.fillBox(rx, f + 1, rz, rx + 1, f + 1, rz, PALETTE.WOOD);
+        }
+      }
+    }
+
+    const ballPos = { x: (fx0 + (fx1 - fx0) / 2) * 0.75, y: 0.6, z: fMidZ * 0.75 };
+    const kids = [
+      { x: (fx0 + 8) * 0.75, y: 0.5, z: (fz0 + 14) * 0.75, activity: 'soccer', ballPos, k: 0.58 },
+      { x: (fx0 + 18) * 0.75, y: 0.5, z: (fz0 + 20) * 0.75, activity: 'soccer', k: 0.62 },
+      { x: (fx0 + 12) * 0.75, y: 0.5, z: (fz1 - 14) * 0.75, activity: 'soccer', k: 0.56 },
+      { x: (fx0 + 20) * 0.75, y: 0.5, z: (fz1 - 20) * 0.75, activity: 'soccer', k: 0.6 },
+      { x: (bx0 + 4) * 0.75, y: 0.5, z: (bz0 + 8) * 0.75, activity: 'tag', isIt: true, k: 0.6 },
+      { x: (bx0 + 10) * 0.75, y: 0.5, z: (bz0 + 14) * 0.75, activity: 'tag', isIt: false, k: 0.58 },
+      { x: (bx0 + 16) * 0.75, y: 0.5, z: (bz0 + 22) * 0.75, activity: 'tag', isIt: false, k: 0.62 },
+      { x: (x1 + 36) * 0.75, y: 0.5, z: (z1 + 52) * 0.75, activity: 'rope_swing', k: 0.6 },
+      { x: (x1 + 42) * 0.75, y: 0.5, z: (z1 + 52) * 0.75, activity: 'rope_swing', k: 0.6 },
+      { x: (x1 + 39) * 0.75, y: 0.5, z: (z1 + 52) * 0.75, activity: 'rope_jump', k: 0.56 },
+      { x: (sx0 + 5) * 0.75, y: 1.0, z: (sz0 + 8) * 0.75, pose: 'sit', activity: 'study', k: 0.58 },
+      { x: (sx0 + 8) * 0.75, y: 1.0, z: (sz0 + 8) * 0.75, pose: 'sit', activity: 'study', k: 0.6 },
+      { x: (sx0 + 5) * 0.75, y: 1.0, z: (sz0 + 12) * 0.75, pose: 'sit', activity: 'study', k: 0.56 },
+      { x: (sx0 + 8) * 0.75, y: 1.0, z: (sz0 + 12) * 0.75, pose: 'sit', activity: 'study', k: 0.6 },
+      { x: (sx0 + 5) * 0.75, y: 7.0, z: (sz0 + 8) * 0.75, pose: 'sit', activity: 'study', k: 0.58 },
+      { x: (sx0 + 8) * 0.75, y: 7.0, z: (sz0 + 8) * 0.75, pose: 'sit', activity: 'study', k: 0.6 }
+    ];
+    kids.forEach(k => this.world.schoolChildren.push(k));
   }
 
   // HASTANE: çok büyük, beyaz; girişte küçük kırmızı artı (can sembolü), ambulans sundurması, koridorlar ve yataklar

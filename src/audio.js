@@ -980,6 +980,31 @@ class SoundEngine {
     this._burst(now, 0.32, 0.38, 'bandpass', 520, 2200, 1.8);
   }
 
+  // Okul zili tınısı: neşeli melodi ("DİNG DONG DİNG DONG")
+  playSchoolBell() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [659.25, 523.25, 587.33, 392.0]; // E5, C5, D5, G4
+    notes.forEach((freq, idx) => {
+      const t = now + idx * 0.32;
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.35, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.connect(g); g.connect(this.ctx.destination);
+      osc.start(t); osc.stop(t + 0.52);
+
+      const osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(freq * 2.76, t);
+      g2.gain.setValueAtTime(0.12, t);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      osc2.connect(g2); g2.connect(this.ctx.destination);
+      osc2.start(t); osc2.stop(t + 0.3);
+    });
+  }
+
   // Gürültü (Noise) Üreteci
   playNoise(duration, volume, filterFreq = 1000) {
     if (!this.ctx) return;

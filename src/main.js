@@ -44,10 +44,10 @@ const cameraHeight = 3.2;
 // Siyah ekran → ekran yavaşça açılır; karakter kendi evinde koltukta otururken yere doğru bakar, ekran görünmeye başlayınca
 // yavaşça kafasını kaldırıp televizyona bakar. Jenerik boyunca kontroller kapalıdır; televizyona bakınca kontroller geri gelir.
 const INTRO_TURN = 0;                         // doğrudan TV hizasında yere bakar, kafasını yavaşça TV'ye kaldırır
-const INTRO_PITCH0 = 1.18;                    // başlangıçta yere doğru bakış (rad)
+const INTRO_PITCH0 = 1.05;                    // başlangıçta yere doğru bakış (rad, aşağı bakış)
 const INTRO_BASE_YAW = -Math.PI / 2;          // TV yönü (doğu, +x)
 const INTRO_SEAT_EYE = 0.85;                  // oturan karakterin göz yüksekliği (ayak seviyesinden, m)
-const INTRO_T = { fadeStart: 0.1, fadeEnd: 1.4, lookStart: 0.2, lookEnd: 2.5, remoteDown: 2.8, end: 3.3 };   // saniye: sinematik TV açılış jeneriği
+const INTRO_T = { fadeEnd: 0.35, lookStart: 0.15, lookEnd: 2.2, remoteDown: 1.8, end: 2.2 };   // televizyona yavaşça bakar ve baktığı an kontroller açılır
 let introActive = false, introPlayed = false, introT = 0, introWaiting = false;
 let eyeOffset = 1.8;                          // kamera göz yüksekliği (ayaktan); oturunca düşer
 let seated = false;                           // koltukta oturuyor (ilk hareketle kalkar)
@@ -486,16 +486,25 @@ function updateIntro(dt) {
   if (introWaiting) return;   // oyuncu başlat ekranına tıklayana kadar siyah ekranda bekler
   introT += dt;
   const T = INTRO_T;
-  introFadeEl.style.opacity = String(1 - smoothstep01((introT - T.fadeStart) / (T.fadeEnd - T.fadeStart)));
-  // Baş hareketi: önce aşağı bakıyor, yavaşça başını kaldırır ve TV'ye döner
+  if (introFadeEl) {
+    const fadeVal = 1 - smoothstep01(introT / T.fadeEnd);
+    introFadeEl.style.opacity = String(Math.max(0, fadeVal));
+    if (fadeVal <= 0) introFadeEl.style.display = 'none';
+  }
+  // Baş hareketi: önce aşağı (yere/dizlere) bakıyor, yavaşça başını yukarı kaldırır ve TV'ye bakar
   const k = smoothstep01((introT - T.lookStart) / (T.lookEnd - T.lookStart));
   cameraPitch = INTRO_PITCH0 * (1 - k) + 0.0 * k;
-  cameraYaw = INTRO_BASE_YAW + INTRO_TURN * (1 - k);
-  // Kumanda: hafif nefes salınımı; TV'ye bakınca basma hareketi, sonra elden iner
-  const down = smoothstep01((introT - T.remoteDown) / (T.end - T.remoteDown));
-  const press = Math.max(0, Math.sin((introT - (T.lookEnd + 0.1)) * 14)) * (introT > T.lookEnd + 0.1 && introT < T.lookEnd + 0.35 ? 1 : 0);
-  remoteModel.position.set(0.16, -0.27 + Math.sin(introT * 1.7) * 0.004 - down * 0.35, -0.42);
-  remoteModel.rotation.set(0.55 + press * 0.12, -0.25, 0.08);
+  cameraYaw = INTRO_BASE_YAW;
+
+  // Kumanda: elinde tutar, TV'ye doğru bakarken butona basar, sonra el aşağı iner
+  if (remoteModel) {
+    const down = smoothstep01((introT - T.remoteDown) / (T.end - T.remoteDown));
+    const press = Math.max(0, Math.sin((introT - 1.4) * 14)) * (introT > 1.4 && introT < 1.65 ? 1 : 0);
+    remoteModel.position.set(0.16, -0.27 + Math.sin(introT * 1.7) * 0.004 - down * 0.35, -0.42);
+    remoteModel.rotation.set(0.55 + press * 0.12, -0.25, 0.08);
+  }
+
+  // Televizyona bakar bakmaz jenerik biter, kontroller geri gelir
   if (introT >= T.end) endIntro();
 }
 
@@ -929,6 +938,7 @@ function useHammer() {
 function setupEventListeners() {
   window.addEventListener('keydown', (e) => {
     sound.init();
+    const key = e.key.toLowerCase();
     if (introActive) {
       if (key === 'w' || key === 'a' || key === 's' || key === 'd' || e.code === 'Space' || key === 'e') {
         endIntro();
@@ -937,7 +947,6 @@ function setupEventListeners() {
         return;
       }
     }
-    const key = e.key.toLowerCase();
 
     // W tuşu: Karakter öne gider
     if (key === 'w' || e.code === 'KeyW') inputState.forward = true;

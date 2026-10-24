@@ -14,12 +14,12 @@ export class MapSystem {
     this.playerYaw = 0;
     this.pulse = 0;
 
-    // Dünya sınırları: metropol şehir, asma köprü ve zengin adası
+    // Dünya sınırları: 100X GTA metropol şehri, asma köprü, okul ve zengin adası
     this.worldBounds = {
-      minX: -260,
-      maxX: 540,
-      minZ: -360,
-      maxZ: 360
+      minX: -420,
+      maxX: 720,
+      minZ: -820,
+      maxZ: 820
     };
 
     this._createDOM();
@@ -310,13 +310,14 @@ export class MapSystem {
 
   _getLocationName(x, z) {
     if (Math.abs(x - (-110)) < 24 && Math.abs(z - 20) < 24) return '🏠 Bizim Evimiz & Garajımız';
-    if (x >= -230 && x <= -10 && Math.abs(z) <= 340) return '🏙️ Metropol Şehir Merkezi';
+    if (x >= 262 && x <= 330 && z >= 148 && z <= 258) return '🏫 Şehir Koleji & Okul Kampüsü (Çocuklar)';
+    if (x >= 320 && x <= 366 && z >= 38 && z <= 134) return '🏥 Devasa Şehir Hastanesi (Tıp Merkezi)';
+    if (x >= -380 && x <= -10 && Math.abs(z) <= 800) return '🏙️ GTA Metropol Şehri';
     if (x >= 250 && x <= 450 && z >= 20 && z <= 260) return '🌳 Merkez Park (New York Tarzı)';
     if (x >= 300 && x <= 450 && z >= -148 && z <= -48) return '🏰 Zengin Abimizin Tepedeki Villası';
     if (x >= 242 && x <= 270 && z >= -95 && z <= -38) return '🏬 Büyük AVM (Alışveriş Merkezi)';
-    if (x >= 246 && x <= 270 && z >= 38 && z <= 88) return '🏥 Merkez Şehir Hastanesi';
     if (x >= -10 && x <= 194 && Math.abs(z) < 18) return '🌉 Boğaz Asma Köprüsü';
-    if (x >= 194 && x <= 500) return '🏰 Doğu Adası (Lüks & Sağlık Bölgesi)';
+    if (x >= 194 && x <= 720) return '🏰 Doğu Adası (Lüks & Eğitim & Sağlık)';
     return '🌊 Okyanus / Sahil Şeridi';
   }
 
@@ -386,23 +387,23 @@ export class MapSystem {
     ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Batı Şehir Adası (Genişletilmiş Metropol Merkezi)
-    rect(-230, -340, 20, 340, '#475569'); // şehir tabanı
-    rect(-245, -340, -230, 340, '#fde047'); // sahil kumsalı
-    rect(-238, -338, -230, 338, '#92400e'); // ahşap sahil yolu
+    // 2. Batı Şehir Adası (100X Devasa GTA Metropol Merkezi)
+    rect(-380, -800, 20, 800, '#475569'); // devasa şehir tabanı
+    rect(-395, -800, -380, 800, '#fde047'); // sahil kumsalı
+    rect(-388, -798, -380, 798, '#92400e'); // ahşap sahil yolu
 
     // Batı caddeleri & yolları
     const roadColor = '#1e293b';
     ctx.fillStyle = roadColor;
-    // Kuzey-güney sokaklar ve bulvarlar (x = -210, -170, -130, -90, -50, -10)
-    for (const sx of [-210, -170, -130, -90, -50, -10]) {
-      const [rx, rz0] = pt(sx - 3.5, -320);
-      const [, rz1] = pt(sx + 3.5, 320);
+    // Kuzey-güney sokaklar ve bulvarlar (x = -360 .. -10)
+    for (const sx of [-360, -310, -260, -210, -170, -130, -90, -50, -10]) {
+      const [rx, rz0] = pt(sx - 3.5, -750);
+      const [, rz1] = pt(sx + 3.5, 750);
       ctx.fillRect(rx, Math.min(rz0, rz1), Math.abs(pt(sx + 3.5, 0)[0] - rx), Math.abs(rz1 - rz0));
     }
-    // Doğu-batı caddeler (z = -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320)
-    for (const cz of [-320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320]) {
-      const [rx0, rz] = pt(-210, cz - 3.5);
+    // Doğu-batı birbirine bağlı caddeler (z = -750 .. 750)
+    for (const cz of [-750, -650, -550, -450, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 450, 550, 650, 750]) {
+      const [rx0, rz] = pt(-360, cz - 3.5);
       const [rx1,] = pt(-10, cz + 3.5);
       ctx.fillRect(Math.min(rx0, rx1), rz, Math.abs(rx1 - rx0), Math.abs(pt(0, cz + 3.5)[1] - rz));
     }
@@ -451,13 +452,22 @@ export class MapSystem {
 
     // AVM (Alışveriş Merkezi)
     rect(242, -95, 270, -38, '#f43f5e'); // pembe/kırmızı büyük AVM binası
-    // Hastane
-    rect(246, 38, 270, 88, '#ffffff'); // beyaz hastane
-    // Kırmızı artı
-    const [hx, hz] = pt(258, 63);
+
+    // Devasa Şehir Hastanesi (Tıp Merkezi)
+    rect(320, 38, 366, 134, '#ffffff'); // beyaz tıp merkezi
+    rect(314, 50, 320, 80, '#94a3b8');  // ambulans girişi
+    const [hx, hz] = pt(343, 86);
     ctx.fillStyle = '#ef4444';
-    ctx.fillRect(hx - 4, hz - 1.5, 8, 3);
-    ctx.fillRect(hx - 1.5, hz - 4, 3, 8);
+    ctx.fillRect(hx - 8, hz - 2.5, 16, 5);
+    ctx.fillRect(hx - 2.5, hz - 8, 5, 16);
+
+    // Devasa Şehir Okulu & Kampüsü (Çocuklar, Futbol Sahası, Duvarlar)
+    rect(262, 148, 328, 258, '#1e293b'); // okul bahçe duvarı
+    rect(264, 150, 326, 256, '#334155'); // okul avlusu
+    rect(268, 156, 294, 206, '#15803d'); // futbol sahası
+    rect(300, 156, 322, 195, '#b45309'); // basketbol sahası
+    rect(270, 212, 320, 252, '#991b1b'); // okul ana binası (kırmızı tuğla)
+    rect(291, 214, 299, 222, '#facc15'); // saat & çan kulesi
 
     // 6. Zenginler Bölgesi & Villa Platosu
     rect(277, -52, 321, 52, '#94a3b8'); // zengin yaya meydanı
@@ -597,9 +607,11 @@ export class MapSystem {
       };
 
       drawLabel('🏠 BİZİM EVİMİZ & GARAJ', -110, 20, '#38bdf8');
-      drawLabel('🏙️ ŞEHİR MERKEZİ', -65, 0, '#38bdf8');
+      drawLabel('🏙️ GTA METROPOL ŞEHRİ', -180, 0, '#38bdf8');
       drawLabel('🍔 RESTORANLAR & KEBAPÇI', -110, -180, '#f97316');
       drawLabel('💻 TEKNO MARKET', -30, 30, '#38bdf8');
+      drawLabel('🏫 DEVAŞA ŞEHİR OKULU (ÇOCUKLAR)', 295, 205, '#facc15');
+      drawLabel('🏥 DEVASA TIP MERKEZİ', 343, 86, '#38bdf8');
       drawLabel('🌳 MERKEZ PARK', 419, 100, '#4ade80');
       drawLabel('🏰 ZENGİN ADAMIN VİLLASI', 400, -100, '#fde047');
       drawLabel('🏬 BÜYÜK AVM', 256, -66, '#fb7185');
@@ -607,8 +619,7 @@ export class MapSystem {
       drawLabel('🏢 ŞİRKETLER', -81, -165, '#fb923c');
       drawLabel('🌉 ASMA KÖPRÜ', 92, 0, '#94a3b8');
       if (!isMini) {
-        drawLabel('🏖️ BATI SAHİLİ', -180, 0, '#fef08a');
-        drawLabel('🏥 HASTANE', 258, 63, '#38bdf8');
+        drawLabel('🏖️ BATI SAHİLİ', -385, 0, '#fef08a');
       }
     }
 

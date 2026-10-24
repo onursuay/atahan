@@ -56,6 +56,11 @@ export class NPCManager {
     this.playerPos = new THREE.Vector3();
     this.dogs = new DogManager(scene);   // tasmalı ve serbest köpekler
     this.day = () => 1;        // gündüz miktarı 0..1 (main.js gece-gündüz döngüsüne bağlar); villa sahibi geceleri uyur
+    this.schoolChildren = [];
+    this.schoolBellTimer = 0;
+    this.schoolRecess = true;
+    this.soccerBall = null;
+    this.ropeAngle = 0;
   }
 
   reset() {
@@ -66,10 +71,16 @@ export class NPCManager {
     this.residentQueue = [];
     this._nightCommuteActive = false;
     this.dogs.clear();
+    if (this.soccerBall) { this.scene.remove(this.soccerBall); this.soccerBall = null; }
+    this.schoolChildren = [];
+    this.schoolBellTimer = 0;
+    this.schoolRecess = true;
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
     for (const r of this.voxelWorld.residents || []) this._spawnResident(r);
     for (const w of this.voxelWorld.workers || []) this._spawnWorker(w);     // şirket kuleleri, banka, restoran çalışanları
+    for (const d of this.voxelWorld.doctors || []) this._spawnWorker(d);     // hastanedeki doktorlar ve hemşireler
+    for (const s of this.voxelWorld.schoolChildren || []) this._spawnChild(s); // okul çocukları
     for (const b of this.voxelWorld.bosses || []) this._spawnBoss(b);       // kulelerin patronları
     for (const g of this.voxelWorld.guards || []) { if (g.route) this._spawnBoss(g); else this._spawnWorker(g); }   // villa güvenlikleri: nöbetçiler ve devriyeler
   }
@@ -106,8 +117,8 @@ export class NPCManager {
     // Zengin adam / patron: siyah takım, beyaz gömlek, gümüş saç, koyu gözlük, altın saat
     // Çalışan tarzları: office (beyaz/açık mavi gömlek, koyu pantolon), bank (mavi yelek), chef (beyaz önlük + aşçı şapkası)
     const OFFICE = [0xffffff, 0xbfdbfe, 0xe5e7eb, 0xfde68a], DARK = [0x1f2937, 0x374151, 0x111827];
-    const shirt = rich ? 0x0b0d12 : o.shirt != null ? o.shirt : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x1e3a8a : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
-    const pants = rich ? 0x0b0d12 : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x0f172a : style ? pick(DARK) : pick(PANTS);
+    const shirt = rich ? 0x0b0d12 : o.shirt != null ? o.shirt : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x1e3a8a : style === 'doctor' ? 0xf8fafc : style === 'nurse' ? 0x38bdf8 : style === 'child' ? pick([0xfacc15, 0xef4444, 0x3b82f6, 0xec4899, 0x10b981]) : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
+    const pants = rich ? 0x0b0d12 : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x0f172a : style === 'doctor' ? 0x0f766e : style === 'nurse' ? 0x0284c7 : style === 'child' ? pick([0x1e3a8a, 0x1e293b, 0x334155]) : style ? pick(DARK) : pick(PANTS);
     const skin = rich ? 0xf1c27d : pick(SKINS), hair = rich ? 0xd4d4d8 : pick(HAIRS);
 
     const head = new THREE.Mesh(GEO.head, mat(skin)); head.position.y = 1.38;
@@ -129,6 +140,16 @@ export class NPCManager {
       const shades = new THREE.Mesh(boxGeo(0.3, 0.07, 0.02), mat(0x050505)); shades.position.set(0, 1.4, 0.175);
       const watch = new THREE.Mesh(boxGeo(0.16, 0.05, 0.16), mat(0xfacc15)); watch.position.set(0, -0.42, 0); rArm.add(watch);
       g.add(shirtFront, tie, shades);
+    }
+    if (style === 'doctor') {
+      const steth = new THREE.Mesh(boxGeo(0.24, 0.28, 0.03), mat(0x1e293b)); steth.position.set(0, 0.95, 0.125); g.add(steth);
+      const chestPiece = new THREE.Mesh(boxGeo(0.06, 0.06, 0.02), mat(0x94a3b8)); chestPiece.position.set(0.04, 0.82, 0.135); g.add(chestPiece);
+    } else if (style === 'nurse') {
+      const ncap = new THREE.Mesh(boxGeo(0.28, 0.09, 0.22), mat(0xffffff)); ncap.position.set(0, 1.62, 0.06); g.add(ncap);
+      const ncross = new THREE.Mesh(boxGeo(0.08, 0.08, 0.02), mat(0xef4444)); ncross.position.set(0, 1.62, 0.18); g.add(ncross);
+    } else if (style === 'child') {
+      const backpack = new THREE.Mesh(boxGeo(0.3, 0.38, 0.16), mat(pick([0xdc2626, 0x2563eb, 0x7c3aed, 0x059669, 0xf59e0b])));
+      backpack.position.set(0, 0.95, -0.18); g.add(backpack);
     }
     if (o.hat === 'chef' || style === 'chef') { const hat = new THREE.Mesh(boxGeo(0.34, 0.3, 0.34), mat(0xffffff)); hat.position.y = 1.78; g.add(hat); }
     else if (o.hat === 'cap') {                                  // beyzbol şapkası (dükkânın rengi)
@@ -212,6 +233,54 @@ export class NPCManager {
       evacPhase: null, evacMode: null,
       respawn: () => this._spawnWorker(spec), value: 100
     });
+  }
+
+  // Okul Çocukları: boyları küçültülmüş (k=0.58), sırt çantalı ve renkli kıyafetli.
+  // Zille beraber bahçeye çıkıp futbol, kovalamaca (ebe) ve ip atlama oynarlar.
+  _spawnChild(spec) {
+    const k = spec.k || 0.58;
+    const body = this._makeBody(false, 'child', spec);
+    body.g.scale.setScalar(SCALE * k);
+    const sit = spec.pose === 'sit', drop = sit ? Math.max(0, 0.62 * SCALE * k - 0.4) : 0;
+    if (sit) {
+      body.lLeg.rotation.x = -Math.PI / 2; body.rLeg.rotation.x = -Math.PI / 2;
+      body.lArm.rotation.x = -1.1; body.rArm.rotation.x = -1.1;
+    }
+    body.g.position.set(spec.x, spec.y - drop, spec.z); body.g.rotation.y = spec.yaw || 0;
+    this.scene.add(body.g);
+
+    // Futbol sahası için top oluştur (ilk çocukla birlikte)
+    if (!this.soccerBall && spec.ballPos) {
+      const bGeo = new THREE.SphereGeometry(0.35, 12, 12);
+      const bMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      this.soccerBall = new THREE.Mesh(bGeo, bMat);
+      this.soccerBall.castShadow = true;
+      for (let i = 0; i < 6; i++) {
+        const p = new THREE.Mesh(GEO.torso, mat(0x111827));
+        p.scale.set(0.2, 0.2, 0.1);
+        const th = (i * Math.PI) / 3;
+        p.position.set(0.33 * Math.cos(th), 0.15 * (i % 2 === 0 ? 1 : -1), 0.33 * Math.sin(th));
+        p.lookAt(0, 0, 0);
+        this.soccerBall.add(p);
+      }
+      this.scene.add(this.soccerBall);
+      this.soccerBall.position.set(spec.ballPos.x, spec.ballPos.y, spec.ballPos.z);
+      this.soccerBall.vx = 0; this.soccerBall.vz = 0;
+    }
+
+    const rec = {
+      ...body, group: body.g, x: spec.x, y: spec.y, z: spec.z, vy: 0,
+      heading: spec.yaw || 0, turnTimer: 2 + Math.random() * 3, pause: 0, cycle: Math.random() * 6, grounded: true,
+      child: true, childActivity: spec.activity || 'soccer', k, sit, drop,
+      deskPos: { x: spec.x, y: spec.y, z: spec.z, yaw: spec.yaw || 0, sit, drop },
+      yardPos: spec.yardPos || { x: spec.x, y: spec.y, z: spec.z },
+      bounds: spec.bounds || null,
+      isIt: !!spec.isIt, tagCooldown: 0,
+      baseY: spec.y,
+      respawn: () => this._spawnChild(spec), value: 50
+    };
+    this.npcs.push(rec);
+    this.schoolChildren.push(rec);
   }
 
   // Patron: siyah takımlı dev; rotada (yukarıdan aşağıya, sonra tersine) sürekli gezer. spec: { route: [{x,y,z}], name }
@@ -334,9 +403,147 @@ export class NPCManager {
     }
   }
 
+  // Okul zili, teneffüs, futbol, kovalamaca (ebe) ve ip atlama oyun döngüsü
+  _updateSchool(dt) {
+    if (!this.schoolChildren || this.schoolChildren.length === 0) return;
+    this.schoolBellTimer += dt;
+    // Her 30 saniyede bir okul zili çalar (teneffüs <-> ders geçişi)
+    if (this.schoolBellTimer >= 30) {
+      this.schoolBellTimer = 0;
+      this.schoolRecess = !this.schoolRecess;
+      sound.playSchoolBell();
+      const popup = document.createElement('div');
+      popup.className = 'score-popup';
+      popup.innerText = this.schoolRecess ? '🔔 OKUL ZİLİ ÇALDI! (TENEFFÜS BAŞLADI)' : '🔔 DERS ZİLİ ÇALDI! (SINIFLARA DÖNÜŞ)';
+      popup.style.left = `${window.innerWidth / 2 - 140}px`;
+      popup.style.top = '100px';
+      popup.style.color = '#fde047';
+      popup.style.fontSize = '21px';
+      popup.style.textShadow = '0 2px 8px rgba(0,0,0,0.85)';
+      document.body.appendChild(popup);
+      setTimeout(() => popup.remove(), 3500);
+    }
+
+    this.ropeAngle = (this.ropeAngle + dt * 6) % (Math.PI * 2);
+
+    // Futbol topu fizik simülasyonu
+    if (this.soccerBall) {
+      const b = this.soccerBall;
+      b.position.x += b.vx * dt;
+      b.position.z += b.vz * dt;
+      b.vx *= Math.pow(0.88, dt * 60);
+      b.vz *= Math.pow(0.88, dt * 60);
+      // Saha sınırları (futbol sahası x: 268..294, z: 156..206)
+      if (b.position.x < 268) { b.position.x = 268; b.vx = -b.vx * 0.75; }
+      if (b.position.x > 294) { b.position.x = 294; b.vx = -b.vx * 0.75; }
+      if (b.position.z < 156) { b.position.z = 156; b.vz = -b.vz * 0.75; }
+      if (b.position.z > 206) { b.position.z = 206; b.vz = -b.vz * 0.75; }
+      b.rotation.x += b.vz * dt * 2.5;
+      b.rotation.z -= b.vx * dt * 2.5;
+    }
+
+    for (const c of this.schoolChildren) {
+      if (c.dead) continue;
+      // Ders saati: sınıfa dön ve masana otur
+      if (!this.schoolRecess && c.deskPos) {
+        c.sit = c.deskPos.sit; c.drop = c.deskPos.drop;
+        c.x = c.deskPos.x; c.y = c.deskPos.y; c.z = c.deskPos.z;
+        c.heading = c.deskPos.yaw;
+        if (c.sit) {
+          c.lLeg.rotation.x = -Math.PI / 2; c.rLeg.rotation.x = -Math.PI / 2;
+          c.lArm.rotation.x = -1.1; c.rArm.rotation.x = -1.1;
+        }
+        c.group.position.set(c.x, c.y - c.drop, c.z);
+        c.group.rotation.set(0, c.heading, 0);
+        continue;
+      }
+
+      // Teneffüs saati: bahçede canlı oyunlar!
+      c.sit = false; c.drop = 0;
+      if (c.childActivity === 'soccer' && this.soccerBall) {
+        const b = this.soccerBall;
+        const dx = b.position.x - c.x, dz = b.position.z - c.z;
+        const dist = Math.hypot(dx, dz);
+        c.heading = Math.atan2(dx, dz);
+        c.group.rotation.y = c.heading;
+        if (dist > 0.85) {
+          const spd = 2.85;
+          c.x += Math.sin(c.heading) * spd * dt;
+          c.z += Math.cos(c.heading) * spd * dt;
+          c.cycle += dt * 9;
+          c.lLeg.rotation.x = Math.sin(c.cycle) * 0.65;
+          c.rLeg.rotation.x = -Math.sin(c.cycle) * 0.65;
+          c.lArm.rotation.x = -Math.sin(c.cycle) * 0.6;
+          c.rArm.rotation.x = Math.sin(c.cycle) * 0.6;
+        } else {
+          c.rLeg.rotation.x = -1.35; // Şut animasyonu
+          const kickDir = c.z < 181 ? 1 : -1;
+          b.vx = (Math.random() - 0.5) * 6;
+          b.vz = kickDir * (6 + Math.random() * 6);
+        }
+        c.group.position.set(c.x, c.y, c.z);
+      } else if (c.childActivity === 'tag') {
+        c.tagCooldown = Math.max(0, (c.tagCooldown || 0) - dt);
+        if (c.isIt) {
+          const targets = this.schoolChildren.filter(o => o !== c && o.childActivity === 'tag');
+          let best = null, bd = Infinity;
+          for (const t of targets) {
+            const d = Math.hypot(t.x - c.x, t.z - c.z);
+            if (d < bd) { bd = d; best = t; }
+          }
+          if (best) {
+            c.heading = Math.atan2(best.x - c.x, best.z - c.z);
+            c.group.rotation.y = c.heading;
+            const spd = 3.3;
+            c.x += Math.sin(c.heading) * spd * dt;
+            c.z += Math.cos(c.heading) * spd * dt;
+            c.cycle += dt * 11;
+            c.lLeg.rotation.x = Math.sin(c.cycle) * 0.7;
+            c.rLeg.rotation.x = -Math.sin(c.cycle) * 0.7;
+            c.lArm.rotation.x = -0.9; c.rArm.rotation.x = -0.9;
+            if (bd < 0.85 && c.tagCooldown <= 0) {
+              c.isIt = false; best.isIt = true;
+              c.tagCooldown = 2.0; best.tagCooldown = 1.5;
+            }
+          }
+        } else {
+          const it = this.schoolChildren.find(o => o.childActivity === 'tag' && o.isIt);
+          if (it) {
+            const dx = c.x - it.x, dz = c.z - it.z;
+            c.heading = Math.atan2(dx, dz);
+            c.group.rotation.y = c.heading;
+            const spd = 2.9;
+            c.x += Math.sin(c.heading) * spd * dt;
+            c.z += Math.cos(c.heading) * spd * dt;
+            c.cycle += dt * 10;
+            c.lLeg.rotation.x = Math.sin(c.cycle) * 0.65;
+            c.rLeg.rotation.x = -Math.sin(c.cycle) * 0.65;
+            c.lArm.rotation.x = -Math.sin(c.cycle) * 0.6;
+            c.rArm.rotation.x = Math.sin(c.cycle) * 0.6;
+          }
+        }
+        c.x = Math.max(298, Math.min(322, c.x));
+        c.z = Math.max(156, Math.min(202, c.z));
+        c.group.position.set(c.x, c.y, c.z);
+      } else if (c.childActivity === 'rope_jump') {
+        const jumpH = Math.max(0, Math.sin(this.ropeAngle)) * 0.52;
+        c.group.position.set(c.x, c.baseY + jumpH, c.z);
+        c.lLeg.rotation.x = jumpH > 0.1 ? -0.45 : 0;
+        c.rLeg.rotation.x = jumpH > 0.1 ? -0.45 : 0;
+        c.lArm.rotation.x = -0.5 + jumpH * 0.5;
+        c.rArm.rotation.x = -0.5 + jumpH * 0.5;
+      } else if (c.childActivity === 'rope_swing') {
+        c.lArm.rotation.x = Math.sin(this.ropeAngle) * 0.8;
+        c.rArm.rotation.x = Math.sin(this.ropeAngle) * 0.8;
+        c.group.position.set(c.x, c.y, c.z);
+      }
+    }
+  }
+
   // ── Güncelleme ──
   update(dt, playerPos) {
     this.playerPos.copy(playerPos);
+    this._updateSchool(dt);
 
     // Gece olduğunda şirket binalarındaki çalışanlar ellerinde kahverengi şirket çantasıyla sakin bir şekilde binayı boşaltır;
     // gündüz olduğunda (bina yıkılmadıysa) masalarına geri dönerler.
