@@ -34,7 +34,10 @@ export class WeaponSystem {
       { id: 13, type: 'quake', name: 'Yer Sarsıcı', ammo: Infinity, desc: 'Genişleyen şok dalgası' },
       { id: 14, type: 'wrecker', name: 'Yıkım Topu', ammo: Infinity, desc: 'Ağır demir gülle' },
       { id: 15, type: 'sawdisc', name: 'Testere Diski', ammo: Infinity, desc: 'Bumerang disk (Z: yön)' },
-      { id: 16, type: 'octopus', name: 'Ahtapot', ammo: Infinity, desc: 'Sol Tık: Sar | Sağ Tık: Çek | Q: Dev Zıpla' }
+      { id: 16, type: 'octopus', name: 'Ahtapot', ammo: Infinity, desc: 'Sol Tık: Sar | Sağ Tık: Çek | Q: Dev Zıpla' },
+      { id: 17, type: 'plasma', name: 'Plazma Lazeri', ammo: Infinity, desc: 'Basılı tut: binaları eriten kesintisiz gök plazması' },
+      { id: 18, type: 'nuke', name: 'Mini Nuke', ammo: Infinity, desc: 'Tıkla: taktik nükleer roket, devasa patlama ve krater' },
+      { id: 19, type: 'cryo', name: 'Cryo Topu', ammo: Infinity, desc: 'Tıkla: buz patlaması, dondurup tuzla buz eder' }
     ];
 
     this.cooldown = 0;

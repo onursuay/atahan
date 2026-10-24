@@ -309,18 +309,20 @@ export class MapSystem {
   }
 
   _getLocationName(x, z) {
-    if (Math.abs(x - (-763)) < 26 && Math.abs(z - (-18)) < 26) return '🏠 Bizim Evimiz & Garajımız';
-    if (x < -165 && Math.abs(z) < 8) return '🛣️ Çöl Düz Yolu';
-    if (x <= -1320 && Math.abs(z) < 20) return '🚧 Kırılmış Yol Sonu (Çıkmaz)';
+    if (Math.abs(x - (-110)) < 24 && Math.abs(z - 20) < 24) return '🏠 Bizim Evimiz & Garajımız';
+    if (x < -165 && Math.abs(z) < 8) return '🛣️ Çöl Ana Otoyolu';
+    if (x < -165 && (Math.abs(z - (-345)) < 12 || Math.abs(z - 345) < 12)) return '🛣️ Çöl Çevre Yolu';
     if (x < -165) return '🏜️ Uçsuz Bucaksız Büyük Çöl';
-    if (x >= -165 && x <= 75 && Math.abs(z) <= 500) return '🏙️ Dubai Mega Şehri';
-    if (x >= 335 && x <= 503 && z >= 14 && z <= 186) return '🌳 Merkez Park (New York Tarzı)';
-    if (x >= 371 && x <= 449 && z >= -148 && z <= -48) return '🏰 Zengin Villası Platosu';
+    if (x >= -165 && x <= 20 && Math.abs(z) <= 500) return '🏙️ Dubai Mega Şehri';
+    if (x >= 250 && x <= 450 && z >= 20 && z <= 260) return '🌳 Merkez Park (New York Tarzı)';
+    if (x >= 300 && x <= 440 && z >= -148 && z <= -48) return '🏰 Villa 1: Hilltop Mansion';
+    if (x >= 300 && x <= 440 && z >= -340 && z <= -260) return '🏰 Villa 2: Glass Cliff Palace';
+    if (x >= 300 && x <= 440 && z >= 260 && z <= 340) return '🏰 Villa 3: Lakefront Estate';
+    if (x >= 380 && x <= 450 && z >= -170 && z <= -90) return '🏰 Villa 4: Mountain Palace';
     if (x >= 242 && x <= 270 && z >= -95 && z <= -38) return '🏬 Büyük AVM (Alışveriş Merkezi)';
     if (x >= 246 && x <= 270 && z >= 38 && z <= 88) return '🏥 Merkez Şehir Hastanesi';
     if (x >= -10 && x <= 194 && Math.abs(z) < 18) return '🌉 Boğaz Asma Köprüsü';
-    if (x >= 194 && x <= 355) return '🏢 Doğu Şehir & Ticaret Bölgesi';
-    if (x > 503) return '🏔️ Doğu Dağları & Açık Doğa';
+    if (x >= 194 && x <= 500) return '🏰 Zengin Şehri (25X Lüks Ada)';
     return '🌊 Okyanus / Sahil Şeridi';
   }
 
@@ -400,32 +402,25 @@ export class MapSystem {
       ctx.beginPath(); ctx.moveTo(d0x, d0z); ctx.quadraticCurveTo((d0x + d1x) / 2, d0z + 10, d1x, d1z); ctx.stroke();
     }
 
-    // ── ÇÖL İÇİ DÜMDÜZ UZUN YOL ──
-    rect(-1350, -4, -165, 4, '#1e293b'); // asfalt çöl yolu
+    // ── KESİNTİSİZ ÇÖL ÇEVRE OTOYOLU (Dairesel Kapalı Yol Ağı: Hiçbir Yol Sonlu Değil!) ──
+    rect(-900, -4, -155, 4, '#1e293b');         // Çöl ana yolu (orta)
+    rect(-900, -349, -155, -341, '#1e293b');    // Kuzey çöl çevre yolu
+    rect(-900, 341, -155, 349, '#1e293b');      // Güney çöl çevre yolu
+    rect(-904, -349, -896, 349, '#1e293b');     // Batı çöl dönüş bağlantı yolu
     // Yol sarı kesik orta çizgisi
     ctx.strokeStyle = '#facc15'; ctx.lineWidth = Math.max(1, 1.2 * zoom);
-    const [ry0x, ry0z] = pt(-1340, 0), [ry1x, ry1z] = pt(-165, 0);
+    const [ry0x, ry0z] = pt(-895, 0), [ry1x, ry1z] = pt(-155, 0);
     ctx.beginPath(); ctx.moveTo(ry0x, ry0z); ctx.lineTo(ry1x, ry1z); ctx.stroke();
 
-    // ── YOL SONU: HAFİF KIRILMIŞ YOL ÇIKMAZI ──
-    const [kx, kz] = pt(-1350, 0);
-    ctx.fillStyle = '#ef4444';
-    ctx.fillRect(kx - 3, kz - 6, 6, 12);
-    ctx.fillStyle = '#f8fafc';
-    ctx.fillRect(kx - 3, kz - 2, 6, 4);
-
-    // ── ÇÖL YOLUNUN SAĞINDAKİ EVİMİZ & GARAJ (z < 0 tarafında) ──
-    // Evimiz (-765m .. -753m, z: -31.5m .. -7.5m)
-    rect(-765, -31.5, -753, -7.5, '#f8fafc'); // ev tabanı
-    rect(-763, -30, -755, -9, '#b91c1c');     // ev çatısı
-    // Ev önü bağlantı yolu (yola doğru çıkar)
-    rect(-761, -7.5, -757, -4, '#64748b');
-
-    // Yanındaki Garaj (-748m .. -738m, z: -19.5m .. -7.5m)
-    rect(-748, -19.5, -738, -7.5, '#475569'); // garaj tabanı
-    rect(-747, -7.5, -739, -4, '#1e293b');    // garaj giriş yolu
+    // ── ŞEHİRDEKİ EVİMİZ & GARAJ (ESKİSİ GİBİ ŞEHİRDE!) ──
+    // Evimiz (x: -112.5m .. -100.5m, z: 6m .. 30m)
+    rect(-112.5, 6, -100.5, 30, '#f8fafc'); // ev tabanı
+    rect(-111, 7.5, -102, 28.5, '#b91c1c'); // ev çatısı
+    // Yanındaki Garaj (x: -112.5m .. -100.5m, z: 34.5m .. 46.5m)
+    rect(-112.5, 34.5, -100.5, 46.5, '#475569'); // garaj tabanı
+    rect(-120, 38, -112.5, 43, '#1e293b');       // garajdan caddeye çıkış yolu
     // Garaj içindeki normal araba (mavi sedan)
-    const [cx, cz] = pt(-743, -13.5);
+    const [cx, cz] = pt(-106.5, 40.5);
     ctx.fillStyle = '#2563eb';
     ctx.fillRect(cx - 3, cz - 4, 6, 8);
 
@@ -637,13 +632,13 @@ export class MapSystem {
         ctx.fillText(text, lx, lz);
       };
 
-      drawLabel('🏠 BİZİM EVİMİZ & GARAJ', -760, -20, '#38bdf8');
-      drawLabel('🏜️ BÜYÜK ÇÖL', -1050, -150, '#facc15');
-      drawLabel('🌵 KAKTÜSLER', -450, -100, '#4ade80');
-      drawLabel('🚧 KIRIK YOL ÇIKMAZI', -1350, 0, '#ef4444');
+      drawLabel('🏠 BİZİM EVİMİZ & GARAJ', -110, 20, '#38bdf8');
+      drawLabel('🏜️ BÜYÜK ÇÖL', -550, -150, '#facc15');
+      drawLabel('🌵 KAKTÜSLER', -350, -100, '#4ade80');
+      drawLabel('🛣️ ÇÖL ÇEVRE YOLU', -650, 0, '#38bdf8');
       drawLabel('🏙️ DUBAİ MEGA ŞEHRİ', -45, 0, '#38bdf8');
-      drawLabel('🌳 MERKEZ PARK', 419, 100, '#4ade80');
-      drawLabel('🏰 VİLLA', 405, -100, '#fde047');
+      drawLabel('🌳 MERKEZ PARK', 320, 100, '#4ade80');
+      drawLabel('🏰 4 LÜKS VİLLA & SARAYLAR', 380, -100, '#fde047');
       drawLabel('🏬 AVM', 256, -66, '#fb7185');
       drawLabel('🏢 SİLİNDİR KULELER', -81, 165, '#38bdf8');
       drawLabel('🏢 ŞİRKETLER', -81, -165, '#fb923c');

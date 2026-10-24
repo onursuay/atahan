@@ -160,10 +160,10 @@ export class LevelManager {
     this.levelConfigs = [
       {
         id: 0,
-        title: 'BÜYÜK ÇÖL & DUBAİ MEGA ŞEHRİ',
-        desc: 'Çöldeki evinde televizyon izleyerek başla, garajındaki sedan arabayla yola çık, kaktüsleri kır ve ufukta yükselen 10 kat büyük Dubai gökdelenlerini keşfet!',
+        title: 'DEVASA 25X ŞEHİR, SAHİL & ZENGİN ADA',
+        desc: 'Evindeki salonda televizyon izleyerek başla, garajındaki sedan arabayla yola çık, 25 kat büyüyen şehirleri ve kesintisiz yol ağını keşfet!',
         targetPercent: 35,
-        spawn: { x: -762.75, y: 7.05, z: -17.75 },   // Çöldeki evimizin 2. katındaki televizyon odasında koltuğun üstü
+        spawn: { x: -110.25, y: 7.05, z: 19.75 },   // Şehirdeki evimizin 2. katındaki televizyon odasında koltuğun üstü
         builder: this.buildFullCityWorld.bind(this)
       }
     ];
@@ -184,27 +184,22 @@ export class LevelManager {
     const ISL = 346; // zengin bölgenin x kayması (eski birim): köprü 3x uzadığı için +180 birim doğuya alındı (166 + 180)
 
     // ==========================================
-    // 1. ZEMİN, SAHİL, ÇÖL, YOLLAR (kaplama yüzeyi) — 5X BÜYÜK DÜNYA
+    // 1. ZEMİN, SAHİL, ÇÖL, YOLLAR (kaplama yüzeyi) — 25X DEVASA DÜNYA
     // ==========================================
-    // Doğu Ada & Zengin Bölgesi
-    w.fillBox(258, 0, -165, 427, 0, 165, PALETTE.GRASS);         // doğu ada çimi (zengin bölgenin kuzeyi/güneyi)
-    w.fillBox(428, 0, -260, 680, 0, 260, PALETTE.GRASS);         // zengin meydanının doğusu: villa tepesi
+    // Doğu Ada & Zengin Bölgesi: 25 kat genişletilmiş lüks plato ve tepe arazisi
+    w.fillBox(240, 0, -680, 680, 0, 680, PALETTE.GRASS);
+    w.fillBox(250, 0, -650, 650, 0, 650, PALETTE.CONCRETE);
     this._setHills();
 
-    // Batı Ada: 10 KAT BÜYÜTÜLMÜŞ ŞEHİR MERKEZİ (Dubai Metropolis Alanı)
-    w.fillBox(-220, 0, -650, 100, 0, 650, PALETTE.CONCRETE);     // 10 kat geniş mega-şehir taban betonu
-    w.fillBox(-228, 0, -650, -220, 0, 650, PALETTE.SAND);        // batı sahil kumsalı
-    w.fillBox(-222, 0, -648, -220, 0, 648, PALETTE.WOOD);        // sahil ahşap gezinti yolu
-    w.fillBox(-235, 0, -18, -222, 0, -14, PALETTE.WOOD);         // iskeleler
-    w.fillBox(-235, 0, 14, -222, 0, 18, PALETTE.WOOD);
+    // Batı Ada: 25 KAT BÜYÜTÜLMÜŞ METROPOL MERKEZİ (Büyük Şehir Alanı)
+    w.fillBox(-240, 0, -680, 20, 0, 680, PALETTE.CONCRETE);
+    w.fillBox(-252, 0, -680, -240, 0, 680, PALETTE.SAND);        // batı sahil kumsalı
+    w.fillBox(-246, 0, -678, -240, 0, 678, PALETTE.WOOD);        // sahil ahşap gezinti yolu
+    w.fillBox(-260, 0, -18, -246, 0, -14, PALETTE.WOOD);         // iskeleler
+    w.fillBox(-260, 0, 14, -246, 0, 18, PALETTE.WOOD);
 
-    // ── DEVASA UÇSUZ BUCAKSIZ ÇÖL (Şehrin arkasında, çok daha uzun ve çok daha geniş) ──
-    w.fillBox(-1900, 0, -850, -220, 0, 850, PALETTE.SAND);
-
-    // ── ÇÖL İÇİ DÜMDÜZ UZUN YOL & SONUNDA HAFİF KIRILMIŞ YOL ÇIKMAZI ──
-    // Şehir merkezinden (z=0) batıya doğru dümdüz uzanan geniş asfalt çöl otoyolu
-    w.fillBox(-1800, 0, -5, -220, 0, 5, PALETTE.ASPHALT);
-    this.buildBrokenRoadEnd(-1800, -1780, -5, 5);
+    // ── DEVASA UÇSUZ BUCAKSIZ ÇÖL (Şehrin batısında kesintisiz uzanan çöl) ──
+    w.fillBox(-1400, 0, -680, -240, 0, 680, PALETTE.SAND);
 
     w.fillBox(258, 0, -165, 290, 0, 165, PALETTE.CONCRETE);     // doğu ada: şehir blokları (köprüden sonra)
     w.fillBox(321, 0, -165, 370, 0, 165, PALETTE.CONCRETE);
@@ -269,20 +264,20 @@ export class LevelManager {
     this.buildTower(-180, 1, 74, -164, 14, 110, { ...BR, side: 'x1' });
     this.buildTower(-180, 1, -110, -164, 14, -74, { ...CC, side: 'x1' });
 
-    // ── ÇÖLÜN SAĞ YOLUNDA BİZİM EVİMİZ, GARAJIMIZ & KAKTÜSLER ──
-    // Çöl yolunun sağına geçtik (z = -42..-10), evin çıkış kapısı yola (z = -10) doğru bakar
-    this.buildHome(-1020, 1, -42, -1004, 13, -10);
-    w.fillBox(-1014, 0, -10, -1010, 0, -5, PALETTE.CONCRETE); // Ev çıkış kapısından yola yürüyüş yolu
-
-    // Evimizin yanında garaj (çıkış kapısı yola bakar) ve içinde normal mavi sedan
-    this.buildGarage(-998, 1, -26, -984, 8, -10);
-    w.fillBox(-997, 0, -10, -985, 0, -5, PALETTE.ASPHALT);    // Garajdan çöl yoluna araç çıkışı
+    // ── ŞEHİRDEKİ EVİMİZ, GARAJIMIZ & SEDAN ARABA (ESKİSİ GİBİ ŞEHİRDE!) ──
+    this.buildHome(-150, 1, 8, -134, 13, 40);                       // Oyuncunun iki katlı evi: üst kat TV odasında başlar, alt katta mutfak
+    this.buildGarage(-150, 1, 46, -134, 8, 62);                     // Yanındaki garaj ve içinde normal mavi sedan araba
 
     // Çöl boyunca dağılmış yeşil ve mor kaktüsler
     this.buildDesertCacti();
 
-    // ── 10 KAT BÜYÜK DUBAİ MEGA ŞEHRİ (Upuzun gökdelenler, neonlar, kuleler) ──
+    // ── 25 KAT BÜYÜK DUBAİ MEGA ŞEHRİ (Upuzun gökdelenler, neonlar, kuleler) ──
     this.buildDubaiMegaCity();
+
+    // ── 25 KAT BÜYÜK ZENGİN ŞEHRİ LÜKS VİLLALARI & SARAYLARI ──
+    this.buildVilla2(420, 1, -430, 470, 16, -360);                  // Kuzey Cam Sahil Malikanesi (Sonsuzluk havuzlu)
+    this.buildVilla3(420, 1, 360, 470, 15, 430);                    // Güney Göl Kıyısı Malikânesi
+    this.buildVilla4(520, 1, -210, 570, 18, -140);                  // Doğu Dağları Zirve Sarayı (Altın kubbeli dağ köşkü)
 
     // Uzatılan kuzey/güney mahalleleri (yeni caddeler z=±134 boyunca)
     [[1, 142, 164, 'z1'], [-1, -164, -142, 'z2']].forEach(([sg, za, zb, door]) => {
@@ -1414,9 +1409,9 @@ export class LevelManager {
     w.beginBuilding();
     w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.WOOD);
     w.fillBox(x1 + 1, 0, z1 + 1, x2 - 1, 0, z2 - 1, PALETTE.WOOD);          // iç zemin: ahşap parke
-    const doorX = Math.round((x1 + x2) / 2);
-    w.clearBox(doorX - 1, y1, z2, doorX + 1, y1 + 4, z2);                          // giriş: çöl yoluna bakan kapı (z2 yüzü)
-    this.addWindowBands(x1, y1, z1, x2, y2, z2, 'z2');
+    const cz = Math.round((z1 + z2) / 2);
+    w.clearBox(x1, y1, cz - 1, x1, y1 + 4, cz + 1);                          // giriş (batı yüzü): caddeye bakan gerçek kapı
+    this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
     this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);                    // 2. kat döşemesi (y = 5.0..5.5 m)
     this.addStairs(x1, y1, z1, x2, y2, z2);                                  // üst kata çıkan/inen ahşap merdiven
 
@@ -1836,7 +1831,7 @@ export class LevelManager {
     }
   }
 
-  // Evimizin yanında garaj ve içinde normal araba (sedan)
+  // Evimizin yanında garaj ve içinde normal araba (sedan) - şehir caddesine bakar
   buildGarage(x1, y1, z1, x2, y2, z2) {
     const w = this.b;
     w.beginBuilding();
@@ -1844,11 +1839,11 @@ export class LevelManager {
     w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.CONCRETE);
     w.fillBox(x1 + 1, 0, z1 + 1, x2 - 1, 0, z2 - 1, PALETTE.CONCRETE); // Garaj içi sağlam beton zemin
 
-    // Ön garaj kapısı açıklığı (kuzey duvarı, z = z2): yola doğru bakan geniş araç girişi
-    w.clearBox(x1 + 2, y1, z2, x2 - 2, y1 + 5, z2);
+    // Ön garaj kapısı açıklığı (batı duvarı, x = x1): caddeye doğru bakan geniş araç girişi
+    w.clearBox(x1, y1, z1 + 2, x1, y1 + 5, z2 - 2);
 
-    // Garajdan çöl yoluna bağlanan giriş yolu (asfalt)
-    w.fillBox(x1 + 1, 0, z2, x2 - 1, 0, -5, PALETTE.ASPHALT);
+    // Garajdan caddeye bağlanan giriş yolu (asfalt)
+    w.fillBox(-170, 0, z1 + 2, x1, 0, z2 - 2, PALETTE.ASPHALT);
 
     // Garaj tavanı ve çatı kenar pervazı
     w.fillBox(x1, y2, z1, x2, y2, z2, PALETTE.CONCRETE);
@@ -1863,23 +1858,21 @@ export class LevelManager {
     this.world.scene.add(grp);
     this.world.decor.push(grp);
 
-    // Garaj içi arka tezgahı ve tamir takımları (arka güney duvarı z = z1)
-    w.fillBox(x1 + 2, y1, z1 + 1, x2 - 2, y1 + 1, z1 + 2, PALETTE.WOOD);
-    this.world.propSpawns.push({ kind: 'canned_food', x: (x1 + 3) * 0.75, y: 1.5, z: (z1 + 1.5) * 0.75 });
-    this.world.propSpawns.push({ kind: 'water_bottle', x: (x1 + 5) * 0.75, y: 1.5, z: (z1 + 1.5) * 0.75 });
-    this.world.propSpawns.push({ kind: 'mug', x: (x2 - 3) * 0.75, y: 1.5, z: (z1 + 1.5) * 0.75 });
+    // Garaj içi arka tezgahı ve tamir takımları (arka doğu duvarı x = x2)
+    w.fillBox(x2 - 2, y1, z1 + 1, x2 - 1, y1 + 1, z2 - 1, PALETTE.WOOD);
+    this.world.propSpawns.push({ kind: 'canned_food', x: (x2 - 1.5) * 0.75, y: 1.5, z: (z1 + 2) * 0.75 });
+    this.world.propSpawns.push({ kind: 'water_bottle', x: (x2 - 1.5) * 0.75, y: 1.5, z: (z1 + 4) * 0.75 });
+    this.world.propSpawns.push({ kind: 'mug', x: (x2 - 1.5) * 0.75, y: 1.5, z: (z2 - 2) * 0.75 });
 
     // Garajda normal bir araba (spor araba falan olmasın: sedan!)
-    // Arabamız kuzeye, çöl yoluna doğru bakar
-    const carX = midX;
-    const carZ = midZ + 0.5;
+    // Arabamız batıya, şehir caddesine doğru bakar
     this.world.parkedCars.push({
       kind: 'sedan',
       color: 0x2563eb, // Şık mavi normal sedan
-      x: carX,
+      x: midX,
       y: 0.8,
-      z: carZ,
-      heading: -Math.PI / 2 // Kuzeye (yola doğru) bakar
+      z: midZ,
+      heading: Math.PI // Batıya (caddeye doğru) bakar
     });
   }
 
@@ -1980,19 +1973,18 @@ export class LevelManager {
     }
   }
 
-  // 10 KAT BÜYÜK DUBAİ MEGA ŞEHRİ
+  // 25 KAT BÜYÜK DUBAİ MEGA ŞEHRİ
   buildDubaiMegaCity() {
     let seed = 558812;
     const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
 
-    // Şehir kuzey-güney bantları: z = -620..+620 (10 kat geniş mega-şehir alanı)
-    // Sütunlar: x = -210..-175, -155..-125, -100..-70, -45..-15, 15..50
+    // Şehir kuzey-güney blokları: yollarla çakışmayan ada parselleri
     const xCols = [
-      [-210, -180], [-155, -125], [-100, -70], [-45, -18], [15, 48]
+      [-202, -178], [-162, -135], [-119, -95], [-79, -55], [-39, -32]
     ];
     const zBands = [
-      [-620, -580], [-550, -510], [-480, -440], [-410, -370], [-340, -300],
-      [300, 340], [370, 410], [440, 480], [510, 550], [580, 620]
+      [-540, -480], [-440, -380], [-340, -280],
+      [280, 340], [380, 440], [480, 540]
     ];
 
     for (let ci = 0; ci < xCols.length; ci++) {
@@ -2001,11 +1993,61 @@ export class LevelManager {
         const [z1, z2] = zBands[bi];
         // Çölün ön cephesinde en uzun kuleler (h = 50..85 kat = 40..80 metre + 25m spire = 105m!)
         const isFrontLine = ci === 0;
-        const h = isFrontLine ? 45 + Math.floor(rnd() * 35) : 32 + Math.floor(rnd() * 30);
+        const h = isFrontLine ? 48 + Math.floor(rnd() * 38) : 34 + Math.floor(rnd() * 32);
         const style = (ci * 3 + bi) % 4;
         this.buildDubaiSkyscraper(x1, 1, z1, x2, h, z2, style);
       }
     }
+  }
+
+  // ZENGİN ŞEHRİ LÜKS VİLLA 2: Kuzey Cam Sahil Malikanesi (Sonsuzluk havuzlu, cam teraslı)
+  buildVilla2(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.WHITE, PALETTE.WOOD);
+    this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);
+    const cz = Math.round((z1 + z2) / 2);
+    w.clearBox(x1, y1, cz - 2, x1, y1 + 5, cz + 2); // Dev çift cam giriş
+    w.fillBox(x1 - 4, y1 + 5, cz - 3, x1, y1 + 5, cz + 3, PALETTE.GOLD); // Altın giriş kanopisi
+    // Sonsuzluk cam havuzu
+    w.fillHollowBox(x2, y1, z1 + 4, x2 + 14, y1 + 3, z2 - 4, PALETTE.GLASS, PALETTE.GLASS);
+    w.fillBox(x2 + 1, y1 + 1, z1 + 5, x2 + 13, y1 + 2, z2 - 5, PALETTE.LAMP_BLUE);
+    // Geniş panoramik cam cepheler
+    for (let f = y1 + 4; f < y2 - 2; f += 4) {
+      w.fillBox(x1 + 1, f, z1, x2 - 1, f + 2, z1, PALETTE.GLASS);
+      w.fillBox(x1 + 1, f, z2, x2 - 1, f + 2, z2, PALETTE.GLASS);
+      w.fillBox(x2, f, z1 + 1, x2, f + 2, z2 - 1, PALETTE.GLASS);
+    }
+  }
+
+  // ZENGİN ŞEHRİ LÜKS VİLLA 3: Güney Göl Kıyısı Malikânesi
+  buildVilla3(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.BRICK, PALETTE.WOOD);
+    this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);
+    const cx = Math.round((x1 + x2) / 2);
+    w.clearBox(cx - 2, y1, z1, cx + 2, y1 + 4, z1);
+    // Bahçe havuzu ve teras
+    w.fillBox(x1 - 10, 0, z1, x1, 0, z2, PALETTE.CONCRETE);
+    w.fillHollowBox(x1 - 9, y1, z1 + 3, x1 - 1, y1 + 2, z2 - 3, PALETTE.WHITE, PALETTE.CONCRETE);
+    w.fillBox(x1 - 8, y1 + 1, z1 + 4, x1 - 2, y1 + 1, z2 - 4, PALETTE.LAMP_BLUE);
+  }
+
+  // ZENGİN ŞEHRİ LÜKS VİLLA 4: Doğu Dağları Zirve Sarayı (Altın kubbeli dağ köşkü)
+  buildVilla4(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.WHITE, PALETTE.CONCRETE);
+    this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);
+    const cx = Math.round((x1 + x2) / 2), cz = Math.round((z1 + z2) / 2);
+    // Görkemli mermer giriş
+    w.clearBox(cx - 3, y1, z1, cx + 3, y1 + 6, z1);
+    w.fillBox(cx - 4, y1, z1 - 2, cx - 3, y1 + 6, z1, PALETTE.GOLD); // Altın sütun
+    w.fillBox(cx + 3, y1, z1 - 2, cx + 4, y1 + 6, z1, PALETTE.GOLD); // Altın sütun
+    // Çatı altın seyir kubbesi
+    w.fillHollowBox(cx - 5, y2, cz - 5, cx + 5, y2 + 6, cz + 5, PALETTE.GOLD, PALETTE.GLASS);
+    w.fillBox(cx, y2 + 7, cz, cx, y2 + 11, cz, PALETTE.LAMP_PURPLE); // Parıldayan zirve feneri
   }
 
   // Genel bina: çok katlı, şerit pencereli, kapılı ve çatısında tank olan kule/ofis/dükkân

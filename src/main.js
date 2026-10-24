@@ -47,7 +47,7 @@ const INTRO_TURN = 0;                         // doğrudan TV hizasında yere ba
 const INTRO_PITCH0 = 1.18;                    // başlangıçta yere doğru bakış (rad)
 const INTRO_BASE_YAW = -Math.PI / 2;          // TV yönü (doğu, +x)
 const INTRO_SEAT_EYE = 0.85;                  // oturan karakterin göz yüksekliği (ayak seviyesinden, m)
-const INTRO_T = { fadeStart: 0.05, fadeEnd: 1.0, lookStart: 0.15, lookEnd: 1.8, remoteDown: 1.9, end: 2.2 };   // saniye
+const INTRO_T = { fadeStart: 0.1, fadeEnd: 1.4, lookStart: 0.2, lookEnd: 2.5, remoteDown: 2.8, end: 3.3 };   // saniye: sinematik TV açılış jeneriği
 let introActive = false, introPlayed = false, introT = 0, introWaiting = false;
 let eyeOffset = 1.8;                          // kamera göz yüksekliği (ayaktan); oturunca düşer
 let seated = false;                           // koltukta oturuyor (ilk hareketle kalkar)
@@ -462,7 +462,7 @@ function startIntro() {
       menu.style.display = 'none';
       introWaiting = false; introT = 0;
       sound.init();
-      // Oyuna başlandığı an çöldeki evimizin 2. katındaki televizyon odasında koltukta başlasın
+      // Oyuna başlandığı an şehirdeki evimizin 2. katındaki televizyon odasında koltukta başlasın
       const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
       character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
       seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
@@ -813,7 +813,8 @@ function fireWeapon() {
   if (cur === 5) { handWeapons.fireGun('pistol'); return; }
   if (cur === 6) { handWeapons.fireGun('shotgun'); return; }
   if (cur === 8) { handWeapons.fireGun('sniper'); screenShake = 0.12; return; }
-  if (cur >= 10 && cur <= 15) { handWeapons.arsenal.fire(cur); return; }   // cephanelik: kara delik, yıldırım, eritici, deprem, yıkım topu, testere
+  if (cur === 17) { handWeapons.fireHeld = true; return; } // Plazma lazeri: basılı tutunca ateş
+  if (cur >= 10 && cur <= 15 || cur === 18 || cur === 19) { handWeapons.arsenal.fire(cur); return; }   // cephanelik: kara delik, yıldırım, eritici, deprem, yıkım topu, testere, nuke, cryo
   if (cur === 16) { handWeapons.octopus.onLeftClick((s) => { screenShake = Math.max(screenShake, s); }); return; } // Ahtapot: sol tıkla dokunaç at / sar / tut / fırlat
   if (cur === 3 || cur === 4) {                           // Bombalar: yerleştir
     if (bombs.place(cur === 3 ? 'timed' : 'remote')) handWeapons.onRocketFired();
@@ -928,7 +929,14 @@ function useHammer() {
 function setupEventListeners() {
   window.addEventListener('keydown', (e) => {
     sound.init();
-    if (introActive) { if (e.code === 'Space' || e.code === 'Tab') e.preventDefault(); return; }   // jenerik: kontroller kapalı
+    if (introActive) {
+      if (key === 'w' || key === 'a' || key === 's' || key === 'd' || e.code === 'Space' || key === 'e') {
+        endIntro();
+      } else {
+        if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
+        return;
+      }
+    }
     const key = e.key.toLowerCase();
 
     // W tuşu: Karakter öne gider

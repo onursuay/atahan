@@ -23,27 +23,40 @@ const add = (name, x0, z0, x1, z1, w, o = {}) => {
 };
 
 const RC = ROUNDABOUT.rMid;
-// ── BATI ADA ──
-add('bulvar', -170, -266, -170, 266, 11);                                  // kıyı bulvarı
-add('s5', -127, -266, -127, 266, 9);
+// ── BATI ADA (BÜYÜK ŞEHİR) ──
+add('bulvar-bati', -210, -560, -210, 560, 11);                            // batı kıyı çevre yolu
+add('bulvar', -170, -560, -170, 560, 11);                                 // kıyı bulvarı
+add('s5', -127, -560, -127, 560, 9);
 const RN = ROUNDABOUTS[0], RS = ROUNDABOUTS[1];
-add('s6-kuzey', -87, -266, -87, RN.cz - RC, 9, { paint: [[-266, RN.cz - 22]] });                  // kuzey göbeğin kuzeyi
+add('s6-kuzey', -87, -560, -87, RN.cz - RC, 9, { paint: [[-560, RN.cz - 22]] });                  // kuzey göbeğin kuzeyi
 add('s6-orta', -87, RN.cz + RC, -87, RS.cz - RC, 9, { paint: [[RN.cz + 22, RS.cz - 22]] });       // iki göbek arası
-add('s6-guney', -87, RS.cz + RC, -87, 266, 9, { paint: [[RS.cz + 22, 266]] });                    // güney göbeğin güneyi
-add('s7', -47, -266, -47, 266, 9);
-add('s8', -27, -266, -27, 266, 9);
-add('cadde-0', -170, 0, 366, 0, 11, { noMerge: true, paint: [[-170, -12], [258, 366]] });              // ana cadde: batı ada + 3x uzun köprü + doğu ada (üst geçitten geçer)
-[-66, 66, -134, 134, -266, 266].forEach(z => add(`cadde${z}`, -170, z, -27, z, 11));
+add('s6-guney', -87, RS.cz + RC, -87, 560, 9, { paint: [[RS.cz + 22, 560]] });                    // güney göbeğin güneyi
+add('s7', -47, -560, -47, 560, 9);
+add('s8', -27, -560, -27, 560, 9);                                        // doğu sahil yolu
+add('cadde-0', -210, 0, 366, 0, 11, { noMerge: true, paint: [[-210, -12], [258, 366]] });              // ana cadde: batı ada + 3x uzun köprü + doğu ada (üst geçitten geçer)
+
+[-560, -460, -360, -266, -134, -66, 66, 134, 266, 360, 460, 560].forEach(z => add(`cadde${z}`, -210, z, -27, z, 11));
 for (const g of ROUNDABOUTS) {
-  add(`cadde${g.cz}-bati`, -170, g.cz, g.cx - RC, g.cz, 11, { paint: [[-170, g.cx - 22]] });
+  add(`cadde${g.cz}-bati`, -210, g.cz, g.cx - RC, g.cz, 11, { paint: [[-210, g.cx - 22]] });
   add(`cadde${g.cz}-dogu`, g.cx + RC, g.cz, -27, g.cz, 11, { paint: [[g.cx + 22, -27]] });
 }
 add('site', -67, -134, -67, -66, 7, { off: 1.3 });                         // konut sitesi iç yolu: iki caddeyi birleştirir (kapılar açık)
-// ── DOĞU ADA (köprü 3 kat uzadığı için +180 eski birim / +135 m doğuya kaydırıldı) ──
-add('otoyol', 305, -134, 305, 134, 32, { lanes: 3, off: 1.75, cells: [290, 321] });
-add('ei-bati', 264, -134, 264, 134, 9);
-add('ei-dogu', 366, -134, 366, 134, 9);
-[-44, 44, -134, 134].forEach(z => add(`ei-cadde${z}`, 264, z, 366, z, 11));
+
+// ── ÇÖL DEV ÇEVRE OTOYOLU (Kesintisiz Dairesel Bağlantı: Hiçbir Yol Sonlu Değil!) ──
+add('col-ana-yol', -1200, 0, -210, 0, 11);                                // Çöl ana yolu (şehirden batıya)
+add('col-kuzey-yol', -1200, -460, -210, -460, 11);                        // Kuzey çöl çevre yolu
+add('col-guney-yol', -1200, 460, -210, 460, 11);                          // Güney çöl çevre yolu
+add('col-bati-kuzey', -1200, -460, -1200, 0, 11);                         // Çöl batı dönüş halkası (kuzey)
+add('col-bati-guney', -1200, 0, -1200, 460, 11);                          // Çöl batı dönüş halkası (güney)
+
+// ── DOĞU ADA (ZENGİN ŞEHRİ: 25 KAT BÜYÜK DÜNYA) ──
+add('otoyol', 305, -560, 305, 560, 32, { lanes: 3, off: 1.75, cells: [290, 321] });
+add('ei-bati', 264, -560, 264, 560, 9);
+add('ei-dogu', 366, -560, 366, 560, 9);
+add('ei-luks', 460, -560, 460, 560, 9);                                   // Villalar ve Merkez Park bulvarı
+add('ei-dag', 580, -560, 580, 560, 9);                                    // Doğu Dağları & Tepe çevre yolu
+add('cadde-0-dogu', 366, 0, 580, 0, 11);                                  // Ana caddenin doğu dağlarına uzantısı
+[-560, -460, -360, -266, -134, -44, 44, 134, 266, 360, 460, 560].forEach(z => add(`ei-cadde${z}`, 264, z, 580, z, 11));
 [-88, 88].forEach(z => add(`ei-cadde${z}`, 264, z, 305, z, 11, { paint: [[264, 289]] }));
 
 // Rampalı üst geçit şeridi: yalnız asfalt/temizlik için (trafik ağında değil; ana caddenin kendisi)

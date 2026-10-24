@@ -12,7 +12,7 @@ import { VOXEL_SIZE, PALETTE } from './teardown.js';
 //   15  TESTERE DİSKİ     tıkla: bumerang disk; yatay (kat keser) ya da dikey (dilim keser) — Z ile değişir; gidip kesip geri gelir
 // Hasar hep mevcut yıkım sistemini kullanır: voxel kesme, zemin kırma, araç/kapı/insan/uçak/köprü ipi.
 // ─────────────────────────────────────────────────────────────────────────────
-export const ARSENAL_IDS = [10, 11, 12, 13, 14, 15];
+export const ARSENAL_IDS = [10, 11, 12, 13, 14, 15, 17, 18, 19];
 const S = VOXEL_SIZE;
 const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -27,7 +27,10 @@ const HINTS = {
   12: 'ERİTİCİ: sol tık = yapışan akkor çamur (yapıyı eritir, lav damlatır)',
   13: 'YER SARSICI: sol tık = yerden genişleyen şok dalgası (zemini çatlatır, binaların dibini ezer)',
   14: 'YIKIM TOPU: sol tık = ağır demir gülle (içinden geçerek yıkar, zıplar)',
-  15: 'TESTERE DİSKİ: sol tık = bumerang disk fırlat   Z = yatay / dikey kesim'
+  15: 'TESTERE DİSKİ: sol tık = bumerang disk fırlat   Z = yatay / dikey kesim',
+  17: 'PLAZMA LAZERİ: sol tık basılı tut = kesintisiz gök plazması (binaları buharlaştırıp keser)',
+  18: 'MİNİ NUKE: sol tık = taktik nükleer roket fırlat (devasa patlama ve krater)',
+  19: 'CRYO TOPU: sol tık = buz küresi fırlat (yapıyı dondurup tuzla buz eder)'
 };
 
 export class Arsenal {
@@ -46,6 +49,10 @@ export class Arsenal {
     this.zapLight = new THREE.PointLight(0x9bdcff, 0, 14); hw.mainScene.add(this.zapLight);
     this.meltLight = new THREE.PointLight(0xff7a1a, 0, 10); hw.mainScene.add(this.meltLight);
     this.wellLight = new THREE.PointLight(0x7c3aed, 0, 16); hw.mainScene.add(this.wellLight);
+    this.plasmaLight = new THREE.PointLight(0x00f0ff, 0, 16); hw.mainScene.add(this.plasmaLight);
+    this.plasmaBeamMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1, 8), glow(0x00ffff, 0.85, true));
+    this.plasmaBeamMesh.visible = false; hw.mainScene.add(this.plasmaBeamMesh);
+    this.nukes = []; this.cryos = [];
     this.zapT = 0;
   }
 
@@ -109,6 +116,32 @@ export class Arsenal {
     const stem = B(0.045, 0.34, 0.045, iron, 0, -0.1, -0.2);
     this.models[15] = mk([stem, B(0.07, 0.07, 0.07, dark, 0, -0.27, -0.2), this.sawDiscHand], [0.24, -0.16, -0.5]);
     this.sawDiscHand.position.set(0.02, 0.08, -0.22);
+
+    // 17 Plazma Lazeri: siber gövde + parıldayan mavi çekirdek + odak halkaları
+    this.plasmaTip = new THREE.Mesh(new THREE.IcosahedronGeometry(0.06, 1), glow(0x00f0ff));
+    this.plasmaTip.position.set(0, 0, -0.72);
+    const pRings = [
+      B(0.16, 0.16, 0.035, glow(0x00e5ff), 0, 0.01, -0.45),
+      B(0.14, 0.14, 0.035, glow(0x38bdf8), 0, 0.01, -0.55),
+      B(0.12, 0.12, 0.035, glow(0xa855f7), 0, 0.01, -0.65)
+    ];
+    this.models[17] = mk([B(0.11, 0.14, 0.52, dark, 0, 0, -0.2), B(0.065, 0.18, 0.09, black, 0, -0.15, 0.0), ...pRings, this.plasmaTip], [0.27, -0.24, -0.5]);
+
+    // 18 Mini Nuke: zeytin yeşili roket tüpü + nükleer uyarı bantları + sivri savaş başlığı
+    const nukeTube = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.16, 0.65, 8), lam(0x3f4b3b));
+    nukeTube.rotation.x = Math.PI / 2; nukeTube.position.set(0, 0, -0.3);
+    this.nukeHead = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.28, 8), lam(0xca8a04));
+    this.nukeHead.rotation.x = -Math.PI / 2; this.nukeHead.position.set(0, 0, -0.72);
+    const hazardRing = new THREE.Mesh(new THREE.CylinderGeometry(0.165, 0.165, 0.08, 8), lam(0xeab308));
+    hazardRing.rotation.x = Math.PI / 2; hazardRing.position.set(0, 0, -0.48);
+    this.models[18] = mk([nukeTube, hazardRing, this.nukeHead, B(0.08, 0.2, 0.1, black, 0, -0.18, -0.05)], [0.28, -0.23, -0.5]);
+
+    // 19 Cryo Topu: buzlu gümüş gövde + parıldayan mavi buz kristali
+    const cryoBody = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.55, 8), lam(0x94a3b8));
+    cryoBody.rotation.x = Math.PI / 2; cryoBody.position.set(0, 0, -0.32);
+    this.cryoShard = new THREE.Mesh(new THREE.OctahedronGeometry(0.09), glow(0x67e8f9));
+    this.cryoShard.position.set(0, 0, -0.65);
+    this.models[19] = mk([cryoBody, this.cryoShard, B(0.07, 0.18, 0.09, dark, 0, -0.16, -0.08), B(0.15, 0.15, 0.04, glow(0x38bdf8), 0, 0, -0.45)], [0.26, -0.23, -0.5]);
   }
 
   _makeDisc(r) {
@@ -132,12 +165,14 @@ export class Arsenal {
   }
 
   reset() {
-    [...this.orbs, ...this.globs, ...this.balls].forEach(o => this.group.remove(o.mesh));
+    [...this.orbs, ...this.globs, ...this.balls, ...this.nukes, ...this.cryos].forEach(o => this.group.remove(o.mesh));
     this.wells.forEach(w => this.group.remove(w.mesh)); this.melts.forEach(m => this.group.remove(m.mesh)); this.quakes.forEach(q => this.group.remove(q.mesh));
     if (this.saw) this.group.remove(this.saw.mesh);
     this.bolts.forEach(b => b.segs.forEach(s => { s.visible = false; }));
     this.orbs = []; this.wells = []; this.globs = []; this.melts = []; this.quakes = []; this.balls = []; this.saw = null; this.bolts = [];
-    this.zapLight.intensity = 0; this.meltLight.intensity = 0; this.wellLight.intensity = 0;
+    this.nukes = []; this.cryos = [];
+    if (this.plasmaBeamMesh) this.plasmaBeamMesh.visible = false;
+    this.zapLight.intensity = 0; this.meltLight.intensity = 0; this.wellLight.intensity = 0; this.plasmaLight.intensity = 0;
     sound.stopWell && sound.stopWell(); sound.updateSaw && sound.updateSaw(false);
   }
 
@@ -181,6 +216,9 @@ export class Arsenal {
       case 13: this.cd[id] = now + 3.4; this._fireQuake(); break;
       case 14: this.cd[id] = now + 1.7; this._fireBall(); break;
       case 15: if (this.saw) return false; this._throwSaw(); break;
+      case 17: this.hw.fireHeld = true; break;
+      case 18: this.cd[id] = now + 2.5; this._fireNuke(); break;
+      case 19: this.cd[id] = now + 1.2; this._fireCryo(); break;
     }
     return true;
   }
@@ -646,6 +684,123 @@ export class Arsenal {
     for (let i = this.balls.length - 1; i >= 0; i--) this._updateBall(this.balls[i], dt);
     if (this.saw) this._updateSaw(dt);
     else if (this.sawDiscHand.visible === false && cur === 15) this.sawDiscHand.visible = true;
+    // ── 17 PLAZMA LAZERİ ──
+    if (cur === 17 && hw.fireHeld) {
+      this._firePlasmaBeam(dt);
+    } else if (this.plasmaBeamMesh && this.plasmaBeamMesh.visible) {
+      this.plasmaBeamMesh.visible = false;
+      this.plasmaLight.intensity = 0;
+    }
+
+    for (let i = this.nukes.length - 1; i >= 0; i--) this._updateNuke(this.nukes[i], dt);
+    for (let i = this.cryos.length - 1; i >= 0; i--) this._updateCryo(this.cryos[i], dt);
     if (!this.melts.length && this.meltLight.intensity > 0) this.meltLight.intensity = 0;
+  }
+
+  // ── 17 PLAZMA LAZERİ METODLARI ──
+  _firePlasmaBeam(dt) {
+    const hw = this.hw, vw = this.vw, m = this._muzzle({ x: 0.27, y: -0.22, z: -0.9 }), dir = this._fwd();
+    const maxD = 100;
+    const tr = this.trace(m, dir, maxD);
+    const hitP = tr.point || m.clone().addScaledVector(dir, maxD);
+    const dist = m.distanceTo(hitP);
+
+    if (this.plasmaBeamMesh) {
+      this.plasmaBeamMesh.visible = true;
+      const mid = m.clone().add(hitP).multiplyScalar(0.5);
+      this.plasmaBeamMesh.position.copy(mid);
+      this.plasmaBeamMesh.scale.set(1 + Math.sin(performance.now() * 0.03) * 0.3, dist, 1 + Math.sin(performance.now() * 0.03) * 0.3);
+      this.plasmaBeamMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+    }
+    this.plasmaLight.position.copy(hitP);
+    this.plasmaLight.intensity = 4.0;
+
+    const n = vw.sweepCut(hitP, 1.3, dir.clone().multiplyScalar(4));
+    if (n > 0) this._score(n, 'PLAZMA YIKIMI');
+    if (hw.particleSystem.createSpark) hw.particleSystem.createSpark(hitP);
+    if (hw.cars) hw.cars.bladeHit(hitP, 1.6);
+    if (hw.npcs && tr.type === 'npc') hw.npcs.killNpc(tr.obj, hitP);
+    if (vw.doors) vw.doors.hitSphere(hitP, 1.6, 6);
+    this._shake(0.04);
+    if (Math.random() < 0.2) sound.playLaserShot && sound.playLaserShot();
+  }
+
+  // ── 18 MİNİ NUKE METODLARI ──
+  _fireNuke() {
+    const hw = this.hw, m = this._muzzle({ x: 0.28, y: -0.22, z: -0.95 }), dir = this._fwd();
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 1.1, 8), lam(0x3f4b3b));
+    body.rotation.x = Math.PI / 2;
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.38, 8), lam(0xca8a04));
+    nose.rotation.x = -Math.PI / 2; nose.position.z = -0.65;
+    const fins = B(0.65, 0.65, 0.05, lam(0xeab308), 0, 0, 0.45);
+    g.add(body, nose, fins);
+    g.position.copy(m); this.group.add(g);
+    this.nukes.push({ mesh: g, pos: m.clone(), vel: dir.clone().multiplyScalar(42), life: 6.0 });
+    sound.playShoot();
+    hw.kick = 1.4; this._shake(0.3);
+  }
+
+  _updateNuke(n, dt) {
+    const hw = this.hw, vw = this.vw;
+    n.life -= dt;
+    const step = n.vel.length() * dt, dir = n.vel.clone().normalize();
+    const tr = this.trace(n.pos, dir, step + 0.4);
+    if (tr.type !== 'none' || n.life <= 0) {
+      const hit = tr.point || n.pos;
+      this.group.remove(n.mesh);
+      const idx = this.nukes.indexOf(n); if (idx >= 0) this.nukes.splice(idx, 1);
+      const removed = vw.explode(hit, 10.5, 600);
+      vw.breakGround(hit, 7.5, 350);
+      if (hw.particleSystem.createExplosion) hw.particleSystem.createExplosion(hit, 12, 0xfacc15);
+      if (hw.cars) hw.cars.hitSphere(hit, 12);
+      if (hw.npcs) for (const npc of [...hw.npcs.npcs]) if (hit.distanceTo(new THREE.Vector3(npc.x, npc.y, npc.z)) < 16) hw.npcs.killNpc(npc, hit);
+      if (vw.doors) vw.doors.hitSphere(hit, 12, 50);
+      sound.playTNTExplosion && sound.playTNTExplosion();
+      this._shake(1.2);
+      this._score(removed, 'NÜKLEER PATLAMA!');
+      return;
+    }
+    n.pos.addScaledVector(n.vel, dt);
+    n.mesh.position.copy(n.pos);
+    n.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir);
+  }
+
+  // ── 19 CRYO TOPU METODLARI ──
+  _fireCryo() {
+    const hw = this.hw, m = this._muzzle({ x: 0.26, y: -0.22, z: -0.9 }), dir = this._fwd();
+    const g = new THREE.Group();
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 1), glow(0x67e8f9, 0.9, true));
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(0.48), glow(0xbae6fd, 0.6, true));
+    g.add(core, shard);
+    g.position.copy(m); this.group.add(g);
+    this.cryos.push({ mesh: g, core, shard, pos: m.clone(), vel: dir.clone().multiplyScalar(38), life: 5.0 });
+    sound.playShoot();
+    hw.kick = 0.9; this._shake(0.15);
+  }
+
+  _updateCryo(c, dt) {
+    const hw = this.hw, vw = this.vw;
+    c.life -= dt;
+    const step = c.vel.length() * dt, dir = c.vel.clone().normalize();
+    const tr = this.trace(c.pos, dir, step + 0.3);
+    if (tr.type !== 'none' || c.life <= 0) {
+      const hit = tr.point || c.pos;
+      this.group.remove(c.mesh);
+      const idx = this.cryos.indexOf(c); if (idx >= 0) this.cryos.splice(idx, 1);
+      const removed = vw.explode(hit, 5.5, 200);
+      vw.breakGround(hit, 4.0, 150);
+      if (hw.particleSystem.createExplosion) hw.particleSystem.createExplosion(hit, 5, 0x38bdf8);
+      if (hw.cars) hw.cars.hitSphere(hit, 6);
+      if (hw.npcs) for (const npc of [...hw.npcs.npcs]) if (hit.distanceTo(new THREE.Vector3(npc.x, npc.y, npc.z)) < 7) hw.npcs.killNpc(npc, hit);
+      sound.playBlockHit && sound.playBlockHit();
+      this._shake(0.35);
+      this._score(removed, 'CRYO BUZLANMA!');
+      return;
+    }
+    c.pos.addScaledVector(c.vel, dt);
+    c.vel.y -= 4 * dt;
+    c.mesh.position.copy(c.pos);
+    c.shard.rotation.x += dt * 8; c.shard.rotation.y += dt * 6;
   }
 }
