@@ -1005,6 +1005,55 @@ class SoundEngine {
     });
   }
 
+  // Metro kapı uyarı melodisi (Ding-Dong-Dang)
+  playMetroChime() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99];
+    notes.forEach((freq, idx) => {
+      const t = now + idx * 0.16;
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.18, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+      osc.connect(g); g.connect(this.ctx.destination);
+      osc.start(t); osc.stop(t + 0.46);
+    });
+  }
+
+  // Sevimli Kedi Miyavlaması
+  playMeow() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(460, now);
+    osc.frequency.linearRampToValueAtTime(740, now + 0.14);
+    osc.frequency.exponentialRampToValueAtTime(520, now + 0.42);
+    g.gain.setValueAtTime(0.001, now);
+    g.gain.linearRampToValueAtTime(0.09, now + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 0.43);
+  }
+
+  // Market Kasa ve Para Ödeme Sesi
+  playCashRegister() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    [ [987.77, 0.0], [1318.51, 0.08] ].forEach(([freq, delay]) => {
+      const t = now + delay;
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.15, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(g); g.connect(this.ctx.destination);
+      osc.start(t); osc.stop(t + 0.23);
+    });
+  }
+
   // Gürültü (Noise) Üreteci
   playNoise(duration, volume, filterFreq = 1000) {
     if (!this.ctx) return;

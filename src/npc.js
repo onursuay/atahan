@@ -3,7 +3,7 @@ import { sound } from './audio.js';
 import { VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y, BEDROCK_Y } from './terrain.js';
 import { insideVillaWalls } from './villa.js';
-import { DogManager } from './animals.js';
+import { DogManager, CatManager } from './animals.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // NPC İNSANLAR: normal insanın bir buçuk katı boyunda (2.5 m) voxel devler. Rastgele dolaşırlar; deniz, çukur kenarı veya duvara
@@ -55,12 +55,16 @@ export class NPCManager {
     this.corpses = [];         // kurşunla vurulup yere yığılan cesetler: { group, t, dir }
     this.playerPos = new THREE.Vector3();
     this.dogs = new DogManager(scene);   // tasmalı ve serbest köpekler
+    this.cats = new CatManager(scene);   // market önündeki kediler ve mama kapları
     this.day = () => 1;        // gündüz miktarı 0..1 (main.js gece-gündüz döngüsüne bağlar); villa sahibi geceleri uyur
     this.schoolChildren = [];
     this.schoolBellTimer = 0;
     this.schoolRecess = true;
     this.soccerBall = null;
     this.ropeAngle = 0;
+    this.bakkalKids = [];
+    this.marketShoppers = [];
+    this.carOwners = [];
   }
 
   reset() {
@@ -71,11 +75,16 @@ export class NPCManager {
     this.residentQueue = [];
     this._nightCommuteActive = false;
     this.dogs.clear();
+    this.cats.clear();
     if (this.soccerBall) { this.scene.remove(this.soccerBall); this.soccerBall = null; }
     this.schoolChildren = [];
     this.schoolBellTimer = 0;
     this.schoolRecess = true;
+    this.bakkalKids = [];
+    this.marketShoppers = [];
+    this.carOwners = [];
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
+    for (const m of this.voxelWorld.marketCats || []) this.cats.addMarketCats(m.x, m.y, m.z); // market kedileri
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
     for (const r of this.voxelWorld.residents || []) this._spawnResident(r);
     for (const w of this.voxelWorld.workers || []) this._spawnWorker(w);     // şirket kuleleri, banka, restoran çalışanları
@@ -83,6 +92,9 @@ export class NPCManager {
     for (const s of this.voxelWorld.schoolChildren || []) this._spawnChild(s); // okul çocukları
     for (const b of this.voxelWorld.bosses || []) this._spawnBoss(b);       // kulelerin patronları
     for (const g of this.voxelWorld.guards || []) { if (g.route) this._spawnBoss(g); else this._spawnWorker(g); }   // villa güvenlikleri: nöbetçiler ve devriyeler
+    for (const bk of this.voxelWorld.bakkalKids || []) this._spawnBakkalKid(bk);
+    for (const ms of this.voxelWorld.marketShoppers || []) this._spawnMarketShopper(ms);
+    for (const co of this.voxelWorld.carOwners || []) this._spawnCarOwner(co);
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
@@ -407,8 +419,8 @@ export class NPCManager {
   _updateSchool(dt) {
     if (!this.schoolChildren || this.schoolChildren.length === 0) return;
     this.schoolBellTimer += dt;
-    // Her 30 saniyede bir okul zili çalar (teneffüs <-> ders geçişi)
-    if (this.schoolBellTimer >= 30) {
+    // Her 3 dakikada bir (180 saniye) okul zili çalar (teneffüs <-> ders geçişi)
+    if (this.schoolBellTimer >= 180) {
       this.schoolBellTimer = 0;
       this.schoolRecess = !this.schoolRecess;
       sound.playSchoolBell();
@@ -587,6 +599,283 @@ export class NPCManager {
     }
     this._updateCorpses(dt);
     this.dogs.update(dt, playerPos, new Set(this.npcs));
+    this.cats.update(dt, playerPos);
+    this._updateBakkalKids(dt);
+    this._updateMarketShoppers(dt);
+    this._updateCarOwners(dt);
+  }
+
+  // ── MAHALLE BAKKALI: Ekmek alan, parasını ödeyip çıkan çocuklar ──
+  _spawnBakkalKid(spec) {
+    const body = this._makeBody(false, 'child', { shirt: pick([0xef4444, 0x3b82f6, 0x10b981, 0xf59e0b]) });
+    body.g.scale.setScalar(SCALE * 0.58);
+    body.g.position.set(spec.spawnPos.x, spec.spawnPos.y, spec.spawnPos.z);
+    this.scene.add(body.g);
+
+    // Eline verilecek taze somun ekmek modeli (raftan alınca görünür)
+    const bread = new THREE.Mesh(boxGeo(0.2, 0.14, 0.35), mat(0xd97706));
+    bread.position.set(0.02, -0.42, 0.12);
+    bread.visible = false;
+    body.rArm.add(bread);
+
+    this.bakkalKids.push({
+      ...body, group: body.g, bread, spec,
+      x: spec.spawnPos.x, y: spec.spawnPos.y, z: spec.spawnPos.z,
+      phase: 'walk_to_shelf', timer: 0, cycle: 0
+    });
+  }
+
+  _updateBakkalKids(dt) {
+    for (const kid of this.bakkalKids) {
+      kid.cycle += dt * 8;
+      const walk = () => {
+        kid.lLeg.rotation.x = Math.sin(kid.cycle) * 0.55;
+        kid.rLeg.rotation.x = -Math.sin(kid.cycle) * 0.55;
+        kid.lArm.rotation.x = -Math.sin(kid.cycle) * 0.45;
+        if (!kid.bread.visible) kid.rArm.rotation.x = Math.sin(kid.cycle) * 0.45;
+      };
+
+      if (kid.phase === 'walk_to_shelf') {
+        const target = kid.spec.shelfPos;
+        const dx = target.x - kid.x, dz = target.z - kid.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.4) {
+          kid.phase = 'take_bread';
+          kid.timer = 1.2;
+          kid.rArm.rotation.x = -1.2;
+        } else {
+          kid.heading = Math.atan2(dx, dz);
+          kid.group.rotation.y = kid.heading;
+          kid.x += (dx / d) * dt * 1.5;
+          kid.z += (dz / d) * dt * 1.5;
+          walk();
+        }
+      } else if (kid.phase === 'take_bread') {
+        kid.timer -= dt;
+        kid.bread.visible = true;
+        kid.rArm.rotation.x = -0.8;
+        if (kid.timer <= 0) {
+          kid.phase = 'walk_to_cashier';
+        }
+      } else if (kid.phase === 'walk_to_cashier') {
+        const target = kid.spec.cashierPos;
+        const dx = target.x - kid.x, dz = target.z - kid.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.4) {
+          kid.phase = 'pay';
+          kid.timer = 1.3;
+          sound.playCashRegister();
+        } else {
+          kid.heading = Math.atan2(dx, dz);
+          kid.group.rotation.y = kid.heading;
+          kid.x += (dx / d) * dt * 1.4;
+          kid.z += (dz / d) * dt * 1.4;
+          walk();
+        }
+      } else if (kid.phase === 'pay') {
+        kid.timer -= dt;
+        kid.rArm.rotation.x = -0.6;
+        if (kid.timer <= 0) {
+          kid.phase = 'walk_to_exit';
+        }
+      } else if (kid.phase === 'walk_to_exit') {
+        const target = kid.spec.exitPos;
+        const dx = target.x - kid.x, dz = target.z - kid.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.5) {
+          kid.phase = 'cooldown';
+          kid.timer = 15 + Math.random() * 10;
+          kid.group.visible = false;
+        } else {
+          kid.heading = Math.atan2(dx, dz);
+          kid.group.rotation.y = kid.heading;
+          kid.x += (dx / d) * dt * 1.5;
+          kid.z += (dz / d) * dt * 1.5;
+          walk();
+        }
+      } else if (kid.phase === 'cooldown') {
+        kid.timer -= dt;
+        if (kid.timer <= 0) {
+          kid.x = kid.spec.spawnPos.x;
+          kid.z = kid.spec.spawnPos.z;
+          kid.bread.visible = false;
+          kid.group.visible = true;
+          kid.phase = 'walk_to_shelf';
+        }
+      }
+      kid.group.position.set(kid.x, kid.y, kid.z);
+    }
+  }
+
+  // ── SÜPERMARKET: Raflardan ürün seçen, kasada ödeyip kapıdan poşetle çıkan müşteriler ──
+  _spawnMarketShopper(spec) {
+    const body = this._makeBody(false, null, { shirt: pick(SHIRTS) });
+    body.g.scale.setScalar(SCALE);
+    body.g.position.set(spec.spawnPos.x, spec.spawnPos.y, spec.spawnPos.z);
+    this.scene.add(body.g);
+
+    // Elde tutulan market ürünü (cips / kutu içecek)
+    const item = new THREE.Mesh(boxGeo(0.16, 0.22, 0.1), mat(0xef4444));
+    item.position.set(0.02, -0.44, 0.1);
+    item.visible = false;
+    body.rArm.add(item);
+
+    // Kasadan geçince verilen market poşeti
+    const bag = new THREE.Mesh(boxGeo(0.24, 0.3, 0.12), mat(pick(BAG_COLORS)));
+    bag.position.set(0.02, -0.6, 0.1);
+    bag.visible = false;
+    body.rArm.add(bag);
+
+    this.marketShoppers.push({
+      ...body, group: body.g, item, bag, spec,
+      x: spec.spawnPos.x, y: spec.spawnPos.y, z: spec.spawnPos.z,
+      phase: 'browse_aisle1', timer: 0, cycle: 0
+    });
+  }
+
+  _updateMarketShoppers(dt) {
+    for (const sh of this.marketShoppers) {
+      sh.cycle += dt * 7;
+      const walk = () => {
+        sh.lLeg.rotation.x = Math.sin(sh.cycle) * 0.55;
+        sh.rLeg.rotation.x = -Math.sin(sh.cycle) * 0.55;
+        sh.lArm.rotation.x = -Math.sin(sh.cycle) * 0.45;
+        if (!sh.bag.visible) sh.rArm.rotation.x = Math.sin(sh.cycle) * 0.45;
+      };
+
+      if (sh.phase === 'browse_aisle1') {
+        const target = sh.spec.aislePos1;
+        const dx = target.x - sh.x, dz = target.z - sh.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.5) {
+          sh.phase = 'pick_item1';
+          sh.timer = 1.5;
+          sh.rArm.rotation.x = -1.1;
+        } else {
+          sh.heading = Math.atan2(dx, dz);
+          sh.group.rotation.y = sh.heading;
+          sh.x += (dx / d) * dt * 1.6;
+          sh.z += (dz / d) * dt * 1.6;
+          walk();
+        }
+      } else if (sh.phase === 'pick_item1') {
+        sh.timer -= dt;
+        sh.item.visible = true;
+        if (sh.timer <= 0) sh.phase = 'browse_aisle2';
+      } else if (sh.phase === 'browse_aisle2') {
+        const target = sh.spec.aislePos2;
+        const dx = target.x - sh.x, dz = target.z - sh.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.5) {
+          sh.phase = 'pick_item2';
+          sh.timer = 1.3;
+          sh.lArm.rotation.x = -0.9;
+        } else {
+          sh.heading = Math.atan2(dx, dz);
+          sh.group.rotation.y = sh.heading;
+          sh.x += (dx / d) * dt * 1.5;
+          sh.z += (dz / d) * dt * 1.5;
+          walk();
+        }
+      } else if (sh.phase === 'pick_item2') {
+        sh.timer -= dt;
+        if (sh.timer <= 0) sh.phase = 'walk_to_cashier';
+      } else if (sh.phase === 'walk_to_cashier') {
+        const target = sh.spec.cashierPos;
+        const dx = target.x - sh.x, dz = target.z - sh.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.5) {
+          sh.phase = 'checkout';
+          sh.timer = 1.4;
+          sound.playCashRegister();
+        } else {
+          sh.heading = Math.atan2(dx, dz);
+          sh.group.rotation.y = sh.heading;
+          sh.x += (dx / d) * dt * 1.6;
+          sh.z += (dz / d) * dt * 1.6;
+          walk();
+        }
+      } else if (sh.phase === 'checkout') {
+        sh.timer -= dt;
+        sh.item.visible = false;
+        sh.bag.visible = true;
+        if (sh.timer <= 0) sh.phase = 'walk_to_exit';
+      } else if (sh.phase === 'walk_to_exit') {
+        const target = sh.spec.exitPos;
+        const dx = target.x - sh.x, dz = target.z - sh.z;
+        const d = Math.hypot(dx, dz);
+        if (d < 0.6) {
+          sh.phase = 'cooldown';
+          sh.timer = 18 + Math.random() * 8;
+          sh.group.visible = false;
+        } else {
+          sh.heading = Math.atan2(dx, dz);
+          sh.group.rotation.y = sh.heading;
+          sh.x += (dx / d) * dt * 1.7;
+          sh.z += (dz / d) * dt * 1.7;
+          walk();
+        }
+      } else if (sh.phase === 'cooldown') {
+        sh.timer -= dt;
+        if (sh.timer <= 0) {
+          sh.x = sh.spec.spawnPos.x;
+          sh.z = sh.spec.spawnPos.z;
+          sh.item.visible = false;
+          sh.bag.visible = false;
+          sh.group.visible = true;
+          sh.phase = 'browse_aisle1';
+        }
+      }
+      sh.group.position.set(sh.x, sh.y, sh.z);
+    }
+  }
+
+  // ── PARK HALİNDEKİ ARABALARA BİNEN SAHİPLERİ ──
+  _spawnCarOwner(spec) {
+    const body = this._makeBody(false, null, { shirt: pick(SHIRTS) });
+    body.g.scale.setScalar(SCALE);
+    body.g.position.set(spec.spawnPos.x, spec.spawnPos.y, spec.spawnPos.z);
+    this.scene.add(body.g);
+
+    this.carOwners.push({
+      ...body, group: body.g, spec,
+      x: spec.spawnPos.x, y: spec.spawnPos.y, z: spec.spawnPos.z,
+      heading: 0, cycle: 0, done: false
+    });
+  }
+
+  _updateCarOwners(dt) {
+    for (let i = this.carOwners.length - 1; i >= 0; i--) {
+      const o = this.carOwners[i];
+      if (o.done) continue;
+      o.cycle += dt * 7;
+      const target = o.spec.carPos;
+      const dx = target.x - o.x, dz = target.z - o.z;
+      const d = Math.hypot(dx, dz);
+
+      if (d < 1.4) {
+        o.done = true;
+        this.scene.remove(o.group);
+        if (this.voxelWorld.cars && o.spec.carIndex != null) {
+          const car = this.voxelWorld.cars.cars[o.spec.carIndex];
+          if (car && car.state === 'parked') {
+            sound.playMetroChime();
+            this.voxelWorld.cars.startDriving(car);
+          }
+        }
+        this.carOwners.splice(i, 1);
+      } else {
+        o.heading = Math.atan2(dx, dz);
+        o.group.rotation.y = o.heading;
+        o.x += (dx / d) * dt * 1.8;
+        o.z += (dz / d) * dt * 1.8;
+        o.lLeg.rotation.x = Math.sin(o.cycle) * 0.55;
+        o.rLeg.rotation.x = -Math.sin(o.cycle) * 0.55;
+        o.lArm.rotation.x = -Math.sin(o.cycle) * 0.45;
+        o.rArm.rotation.x = Math.sin(o.cycle) * 0.45;
+        o.group.position.set(o.x, o.y, o.z);
+      }
+    }
   }
 
   // Şirket çalışanının sandalyesinden kalkıp merdivenlerden inmesi, dar çıkış kapısında sıkışması ve dışarı püskürerek evlere kaçması

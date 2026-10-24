@@ -116,6 +116,11 @@ export class Terrain {
   // Alt katman (taban kayası) her kara hücresinde katıdır; üst katman yalnız sağlam hücrelerde.
   solidAt(x, feet, z, halfW) {
     if (!this.land) return false;
+    // Yeraltı Metro İstasyonları ve Tünel Geçişi
+    if (z >= 14 && z <= 30 && x >= -120 && x <= 340) {
+      if (feet < -4.5) return true;  // istasyon peronu & ray tabanı
+      if (feet < 0.5) return false; // istasyon içi, merdivenler ve tünel boşluğu
+    }
     const b = this.bounds;
     const c0 = Math.floor((x - halfW - b.minX) / CELL);
     const c1 = Math.floor((x + halfW - 1e-4 - b.minX) / CELL);

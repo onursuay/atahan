@@ -316,7 +316,7 @@ export class MapSystem {
     if (Math.abs(x - (-110)) < 24 && Math.abs(z - 20) < 24) return '🏠 Bizim Evimiz & Garajımız';
     if (x >= 262 && x <= 330 && z >= 148 && z <= 258) return '🏫 Şehir Koleji & Okul Kampüsü (Çocuklar)';
     if (x >= 320 && x <= 366 && z >= 38 && z <= 134) return '🏥 Devasa Şehir Hastanesi (Tıp Merkezi)';
-    if (x >= -380 && x <= -10 && Math.abs(z) <= 800) return '🏙️ GTA Metropol Şehri';
+    if (x >= -380 && x <= -10 && Math.abs(z) <= 800) return '🏙️ Büyük Metropol Şehri';
     if (x >= 250 && x <= 450 && z >= 20 && z <= 260) return '🌳 Merkez Park (New York Tarzı)';
     if (x >= 300 && x <= 450 && z >= -148 && z <= -48) return '🏰 Zengin Abimizin Tepedeki Villası';
     if (x >= 242 && x <= 270 && z >= -95 && z <= -38) return '🏬 Büyük AVM (Alışveriş Merkezi)';
@@ -611,7 +611,7 @@ export class MapSystem {
       };
 
       drawLabel('🏠 BİZİM EVİMİZ & GARAJ', -110, 20, '#38bdf8');
-      drawLabel('🏙️ GTA METROPOL ŞEHRİ', -180, 0, '#38bdf8');
+      drawLabel('🏙️ BÜYÜK METROPOL ŞEHRİ', -180, 0, '#38bdf8');
       drawLabel('🍔 RESTORANLAR & KEBAPÇI', -110, -180, '#f97316');
       drawLabel('💻 TEKNO MARKET', -30, 30, '#38bdf8');
       drawLabel('🏫 DEVAŞA ŞEHİR OKULU (ÇOCUKLAR)', 295, 205, '#facc15');

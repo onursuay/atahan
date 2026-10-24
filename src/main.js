@@ -18,13 +18,14 @@ import { PropManager } from './props.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 import { MapSystem } from './map.js';
+import { MetroSystem } from './metro.js';
 
 let scene, camera, renderer;
 let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
-let props, mapSystem;
+let props, mapSystem, metro;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -47,7 +48,8 @@ const INTRO_TURN = 0;                         // doğrudan TV hizasında yere ba
 const INTRO_PITCH0 = 1.05;                    // başlangıçta yere doğru bakış (rad, aşağı bakış)
 const INTRO_BASE_YAW = -Math.PI / 2;          // TV yönü (doğu, +x)
 const INTRO_SEAT_EYE = 0.85;                  // oturan karakterin göz yüksekliği (ayak seviyesinden, m)
-const INTRO_T = { fadeEnd: 0.35, lookStart: 0.15, lookEnd: 2.2, remoteDown: 1.8, end: 2.2 };   // televizyona yavaşça bakar ve baktığı an kontroller açılır
+// 2 kat yavaş jenerik: Ekran önce siyah kalır, yavaş yavaş açılır ve yavaşça televizyona bakar
+const INTRO_T = { fadeStart: 0.4, fadeEnd: 3.6, lookStart: 0.6, lookEnd: 4.5, remoteDown: 3.8, end: 4.5 };
 let introActive = false, introPlayed = false, introT = 0, introWaiting = false;
 let eyeOffset = 1.8;                          // kamera göz yüksekliği (ayaktan); oturunca düşer
 let seated = false;                           // koltukta oturuyor (ilk hareketle kalkar)
@@ -209,11 +211,13 @@ function init() {
   npcs = new NPCManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   voxelWorld.npcs = npcs;
   handWeapons.npcs = npcs;
+  metro = new MetroSystem(scene, voxelWorld, (s) => { screenShake = Math.max(screenShake, s); });
+  voxelWorld.metro = metro;
 
   levelManager = new LevelManager(voxelWorld);
 
   // İlk Bölümü Yükle
-  setLoadingProgress(55, '100X GTA HARİTASI İNŞA EDİLİYOR...', 'Bulvarlar, caddeler ve kumsal hazırlanıyor...');
+  setLoadingProgress(55, 'DEVASA METROPOL HARİTASI İNŞA EDİLİYOR...', 'Bulvarlar, caddeler ve kumsal hazırlanıyor...');
   loadLevel(0);
 
   setupEventListeners();
@@ -420,6 +424,7 @@ function updateGame(dt) {
   bombs.update(dt);
   planes.update(dt);
   cars.update(dt, character.mesh.position);
+  if (metro && !introWaiting) metro.update(dt, character);
   // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik
   doorActors.length = 0;
   doorActors.push({ x: character.mesh.position.x, y: character.mesh.position.y, z: character.mesh.position.z });
@@ -523,11 +528,11 @@ function updateIntro(dt) {
   introT += dt;
   const T = INTRO_T;
   if (introFadeEl) {
-    const fadeVal = 1 - smoothstep01(introT / T.fadeEnd);
+    const fadeVal = 1 - smoothstep01((introT - T.fadeStart) / (T.fadeEnd - T.fadeStart));
     introFadeEl.style.opacity = String(Math.max(0, fadeVal));
     if (fadeVal <= 0) introFadeEl.style.display = 'none';
   }
-  // Baş hareketi: önce aşağı (yere/dizlere) bakıyor, yavaşça başını yukarı kaldırır ve TV'ye bakar
+  // Baş hareketi: önce aşağı (yere/dizlere) bakıyor, 2 kat yavaşça başını yukarı kaldırır ve TV'ye bakar
   const k = smoothstep01((introT - T.lookStart) / (T.lookEnd - T.lookStart));
   cameraPitch = INTRO_PITCH0 * (1 - k) + 0.0 * k;
   cameraYaw = INTRO_BASE_YAW;
@@ -535,8 +540,8 @@ function updateIntro(dt) {
   // Kumanda: elinde tutar, TV'ye doğru bakarken butona basar, sonra el aşağı iner
   if (remoteModel) {
     const down = smoothstep01((introT - T.remoteDown) / (T.end - T.remoteDown));
-    const press = Math.max(0, Math.sin((introT - 1.4) * 14)) * (introT > 1.4 && introT < 1.65 ? 1 : 0);
-    remoteModel.position.set(0.16, -0.27 + Math.sin(introT * 1.7) * 0.004 - down * 0.35, -0.42);
+    const press = Math.max(0, Math.sin((introT - 2.8) * 10)) * (introT > 2.8 && introT < 3.3 ? 1 : 0);
+    remoteModel.position.set(0.16, -0.27 + Math.sin(introT * 1.5) * 0.003 - down * 0.35, -0.42);
     remoteModel.rotation.set(0.55 + press * 0.12, -0.25, 0.08);
   }
 
@@ -658,6 +663,7 @@ function loadLevel(index) {
   npcs.reset();
   voxelWorld.traffic = new TrafficLights(voxelWorld);   // trafik ışıkları (kavşaklarda döngü); arabalar buna uyar
   cars.build();
+  if (metro) metro.initWorld();
   // Gece-gündüz: 10 dk gündüz, 10 dk gece; her seviye yüklemesinde gündüzün başından başlar
   if (dayNight) dayNight.dispose();
   dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });

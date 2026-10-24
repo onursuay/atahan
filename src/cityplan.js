@@ -54,7 +54,8 @@ add('site', -67, -134, -67, -66, 7, { off: 1.3 });                         // ko
 add('otoyol', 305, -350, 305, 350, 32, { lanes: 3, off: 1.75, cells: [290, 321] });
 add('ei-bati', 264, -350, 264, 350, 9);
 add('ei-dogu', 366, -350, 366, 350, 9);
-[-350, -250, -180, -134, -44, 44, 134, 180, 250, 350].forEach(z => add(`ei-cadde${z}`, 264, z, 366, z, 11));
+// Okul ve hastane kampüs alanlarını bölmeyecek şekilde düzenlenmiş kesintisiz cadde ağı
+[-350, -250, -180, -134, -44, 44, 134, 270, 350].forEach(z => add(`ei-cadde${z}`, 264, z, 366, z, 11));
 [-88, 88].forEach(z => add(`ei-cadde${z}`, 264, z, 305, z, 11, { paint: [[264, 289]] }));
 
 // Rampalı üst geçit şeridi

@@ -176,6 +176,10 @@ export class LevelManager {
     this.world.fountains = [];
     this.world.residents = [];
     this.world.parkedCars = [];
+    this.world.carOwners = [];
+    this.world.marketCats = [];
+    this.world.marketShoppers = [];
+    this.world.bakkalKids = [];
     this.world.propSpawns = [];  // tutulabilir eşyalar: { kind, x, y, z, yaw, color, hung } (main.js props.js'e aktarır)
     this.world.shelves = [];     // mutfak dolabı, fırın ve buzdolabı içindeki ince raflar
     this.world.officeBuildings = []; // şirket binaları (hasar alınca çalışanların kaçması için)
@@ -185,7 +189,7 @@ export class LevelManager {
     const ISL = 346; // zengin bölgenin x kayması (eski birim): köprü 3x uzadığı için +180 birim doğuya alındı (166 + 180)
 
     // ==========================================
-    // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi) — 100X GTA HARİTASI
+    // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi) — DEVASA METROPOL HARİTASI
     // ==========================================
     // Doğu Ada & Zengin Bölgesi: Zengin abimizin villası için tepe çimi
     w.fillBox(240, 0, -400, 427, 0, 400, PALETTE.GRASS);
@@ -255,11 +259,12 @@ export class LevelManager {
     this.buildTower(-81, 1, 10, -74, 20, 36, { ...CC, side: 'z1' });
     this.buildTower(-81, 1, -36, -74, 18, -10, { ...BR, side: 'z2' });
 
-    // Genişletilen Batı Şehir Blokları & Kuleleri
-    this.buildTower(-180, 1, 8, -164, 16, 40, { ...BR, side: 'x1' });
-    this.buildTower(-180, 1, -40, -164, 14, -8, { ...CC, side: 'x1' });
-    this.buildTower(-180, 1, 74, -164, 14, 110, { ...BR, side: 'x1' });
-    this.buildTower(-180, 1, -110, -164, 14, -74, { ...CC, side: 'x1' });
+    // Genişletilen Batı Şehir Blokları & Kuleleri (bulvar x=-170 ile çakışmayacak şekilde x: -202..-182 bloğuna alındı)
+    this.buildTower(-202, 1, 8, -182, 16, 40, { ...BR, side: 'x2' });
+    this.buildTower(-202, 1, -40, -182, 14, -8, { ...CC, side: 'x2' });
+    this.buildTower(-202, 1, 74, -182, 14, 110, { ...BR, side: 'x2' });
+    this.buildTower(-202, 1, -110, -182, 14, -74, { ...CC, side: 'x2' });
+    this.buildBakkal(-94, 1, -38, -78, 8, -18);                                    // MAHALLE BAKKALI: Taze ekmekler, bakkal amca ve ekmek alan çocuklar
 
     // ── ŞEHİRDEKİ EVİMİZ, GARAJIMIZ & SEDAN ARABA (Müstakil & Şirket binasından arındırılmış!) ──
     this.buildHome(-150, 1, 8, -134, 13, 40);                       // Oyuncunun iki katlı evi: üst kat TV odasında başlar, alt katta mutfak
@@ -284,11 +289,11 @@ export class LevelManager {
     // ==========================================
     // 4. DOĞU ADA: ŞEHİR BLOKLARI (köprüden sonra) — hastane, itfaiye, polis, okul, AVM, apartmanlar
     // ==========================================
-    this.buildGrandHospital(320, 1, 38, 366, 26, 134);                               // devasa 4 katlı tıp merkezi (doktorlar & hemşireler)
+    this.buildGrandHospital(318, 1, 52, 358, 26, 126);                               // devasa 4 katlı tıp merkezi (doktorlar & hemşireler)
     this.buildMall(323, 1, -127, 360, 34, -50);                                     // devasa AVM (38x78, 4 kat, kat yüksekliği 6 m)
     this.buildFireStation(270, 1, 52, 288, 14, 82);                                 // itfaiye istasyonu
     this.buildTower(270, 1, 96, 286, 12, 120, { ...CC, side: 'z1', sign: true, interior: 'police' });     // polis merkezi
-    this.buildGrandSchoolCampus(262, 1, 148, 328, 18, 258);                         // KOCAMAN OKUL KAMPÜSÜ: duvarlar, futbol sahası, çocuklar ve okul zili!
+    this.buildGrandSchoolCampus(274, 1, 146, 356, 18, 258);                         // KOCAMAN OKUL KAMPÜSÜ: duvarlar, futbol sahası, çocuklar ve okul zili!
     this.buildTower(270, 1, -38, 288, 26, -8, { ...CC, side: 'z2' });               // iş merkezi
     this.buildTower(270, 1, -82, 288, 20, -50, { ...BR, side: 'z1', interior: 'hotel' });  // otel
     this.buildTower(270, 1, -122, 286, 24, -96, { ...CC, side: 'z2' });             // apartmanlar
@@ -303,6 +308,29 @@ export class LevelManager {
     this.buildOverpass();
     this.buildTower(374, 1, -104, 394, 14, -78, { ...CC, side: 'x1' });
     this.buildTower(398, 1, -108, 416, 18, -80, { ...BR, side: 'x1' });
+
+    // ── CADDE KENARLARINDA PARK EDİLMİŞ ARABALAR VE SAHİPLERİ ──
+    const vw = this.world;
+    const p1Idx = vw.parkedCars.length;
+    vw.parkedCars.push({ kind: 'sedan', color: 0x2563eb, x: -72 * 0.75, y: 0.5, z: -14 * 0.75, heading: 0 }); // Bakkal önü park aracı
+    const p2Idx = vw.parkedCars.length;
+    vw.parkedCars.push({ kind: 'suv', color: 0xdc2626, x: -30 * 0.75, y: 0.5, z: 70 * 0.75, heading: Math.PI / 2 }); // Market önü SUV
+    const p3Idx = vw.parkedCars.length;
+    vw.parkedCars.push({ kind: 'van', color: 0xfacc15, x: 268 * 0.75, y: 0.5, z: 142 * 0.75, heading: 0 }); // Okul önü servis minibüsü
+    const p4Idx = vw.parkedCars.length;
+    vw.parkedCars.push({ kind: 'merzedes', color: 0x111827, x: 314 * 0.75, y: 0.5, z: 48 * 0.75, heading: Math.PI / 2 }); // Hastane önü lüks sedan
+
+    // Arabalarına doğru yürüyüp binen sahipleri
+    vw.carOwners.push({
+      spawnPos: { x: -66 * 0.75, y: 0.5, z: -20 * 0.75 },
+      carPos: { x: -72 * 0.75, y: 0.5, z: -14 * 0.75 },
+      carIndex: p1Idx
+    });
+    vw.carOwners.push({
+      spawnPos: { x: -35 * 0.75, y: 0.5, z: 78 * 0.75 },
+      carPos: { x: -30 * 0.75, y: 0.5, z: 70 * 0.75 },
+      carIndex: p2Idx
+    });
 
     // ==========================================
     // 5. SOKAK DONATIMI: lambalar, çöp kutuları, ağaçlar
@@ -868,15 +896,22 @@ export class LevelManager {
     kit.sign('SÜPERMARKET', { neon: true, color: 0x16a34a, fg: 0xffffff, w: 6.4, h: 1.2 }, (x1 - 0.25) * 0.75, (y1 + 7) * 0.5, zc * 0.75, Math.PI / 2);
 
     const goods = [PALETTE.GOLD, PALETTE.BRICK, PALETTE.ROOF, PALETTE.GLASS];
+    const snackKinds = ['chips', 'cola', 'iced_tea', 'brownie', 'pasta', 'rice', 'bread', 'water_bottle', 'canned_food'];
     for (let ax = x1 + 4; ax <= x2 - 5; ax += 3) {
       w.fillBox(ax, y1, z1 + 2, ax, y1 + 3, z2 - 6, PALETTE.WOOD);
       for (let z = z1 + 3; z <= z2 - 7; z += 2) {
         w.fillBox(ax + 1, y1 + 1, z, ax + 1, y1 + 1, z, goods[(z + ax) & 3]);
         w.fillBox(ax + 1, y1 + 3, z, ax + 1, y1 + 3, z, goods[(z + ax + 1) & 3]);
-        // Tutulabilir market ürünleri: konserveler, su şişeleri, kolalar
-        vw.propSpawns.push({ kind: (z % 3 === 0 ? 'canned_food' : z % 3 === 1 ? 'water_bottle' : 'cola'), x: (ax + 1) * 0.75, y: (y1 + 3.5) * 0.5, z: z * 0.75 });
+        // Tutulabilir market ürünleri: cips, kola, buzlu çay, brownie, makarna, pilav, ekmek
+        const k = snackKinds[(z + ax) % snackKinds.length];
+        vw.propSpawns.push({ kind: k, x: (ax + 1) * 0.75, y: (y1 + 3.5) * 0.5, z: z * 0.75 });
       }
     }
+
+    // Manav Meyve-Sebze Reyonu (kasalar dolusu taze meyve ve sebze)
+    w.fillBox(x1 + 3, y1, z1 + 3, x1 + 5, y1 + 1, z1 + 5, PALETTE.WOOD);
+    vw.propSpawns.push({ kind: 'produce_crate', x: (x1 + 4) * 0.75, y: (y1 + 1.6) * 0.5, z: (z1 + 4) * 0.75 });
+
     // Soğutucu dolap ve kasa
     w.fillBox(x2 - 2, y1, z1 + 2, x2 - 1, y1 + 3, z2 - 6, PALETTE.IRON);
     w.fillBox(x2 - 3, y1 + 1, z1 + 2, x2 - 3, y1 + 3, z2 - 6, PALETTE.GLASS);
@@ -886,7 +921,66 @@ export class LevelManager {
     vw.propSpawns.push({ kind: 'cash_register', x: (csX + 0.5) * 0.75, y: (y1 + 2.5) * 0.5, z: (zc + 3.5) * 0.75, yaw: -Math.PI / 2 });
     vw.workers.push({ x: (csX + 0.2) * 0.75, y: 0.5, z: (zc + 3.5) * 0.75, yaw: Math.PI / 2, pose: 'stand', style: 'shop', shirt: 0x16a34a });
 
+    // Market Önü Kedileri (yatan kedi, yürüyen kedi, maskot kedi ve mama kabı)
+    vw.marketCats = vw.marketCats || [];
+    vw.marketCats.push({ x: (x1 - 1.8) * 0.75, y: 0.5, z: zc * 0.75 });
+
+    // Süpermarket Müşterileri (raflardan ürün alıp kasada ödeyen ve poşetle çıkan yapay zeka)
+    vw.marketShoppers = vw.marketShoppers || [];
+    vw.marketShoppers.push({
+      spawnPos: { x: (x1 - 2.8) * 0.75, y: 0.5, z: zc * 0.75 },
+      aislePos1: { x: (x1 + 4.5) * 0.75, y: 0.5, z: (zc - 2) * 0.75 },
+      aislePos2: { x: (x1 + 4) * 0.75, y: 0.5, z: (z1 + 4) * 0.75 },
+      cashierPos: { x: (csX + 1.4) * 0.75, y: 0.5, z: (zc + 3.5) * 0.75 },
+      exitPos: { x: (x1 - 3.8) * 0.75, y: 0.5, z: zc * 0.75 }
+    });
+
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
+  }
+
+  // MAHALLE BAKKALI: Taze ekmek bölmesi, bakkal amca, ekmek alan çocuklar
+  buildBakkal(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.WOOD);
+    const zc = Math.round((z1 + z2) / 2);
+    // Vitrin camı ve giriş kapısı (+x yönüne doğru açılır)
+    w.clearBox(x2, y1, zc - 1, x2, y1 + 4, zc + 1);
+    w.fillBox(x2, y1 + 1, z1 + 1, x2, y2 - 2, zc - 2, PALETTE.GLASS);
+    w.fillBox(x2, y1 + 1, zc + 2, x2, y2 - 2, z2 - 1, PALETTE.GLASS);
+
+    // Bakkal Tabelası
+    const kit = new Kit(vw);
+    kit.sign('MAHALLE BAKKALI', { neon: true, color: 0xb45309, fg: 0xfef08a, w: 5.6, h: 1.1 }, (x2 + 0.25) * 0.75, (y1 + 5.5) * 0.5, zc * 0.75, -Math.PI / 2);
+
+    // Ekmek Dolabı / Rafları (Ahşap bölmeler ve taze ekmekler)
+    w.fillBox(x1 + 1, y1, z1 + 1, x1 + 2, y1 + 3, zc - 1, PALETTE.WOOD);
+    for (let z = z1 + 2; z <= zc - 2; z += 2) {
+      vw.propSpawns.push({ kind: 'bread', x: (x1 + 1.5) * 0.75, y: (y1 + 3.5) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'bread', x: (x1 + 1.5) * 0.75, y: (y1 + 1.8) * 0.5, z: z * 0.75 });
+    }
+
+    // Atıştırmalıklar ve içecekler
+    vw.propSpawns.push({ kind: 'cola', x: (x1 + 1.5) * 0.75, y: (y1 + 3.5) * 0.5, z: (zc + 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'iced_tea', x: (x1 + 1.5) * 0.75, y: (y1 + 3.5) * 0.5, z: (zc + 4) * 0.75 });
+    vw.propSpawns.push({ kind: 'chips', x: (x1 + 3.5) * 0.75, y: (y1 + 2.5) * 0.5, z: (z2 - 2) * 0.75 });
+
+    // Kasa Tezgâhı & Bakkal Amca
+    const csX = x2 - 2;
+    w.fillBox(csX - 1, y1, zc - 2, csX, y1 + 2, zc - 1, PALETTE.WHITE);
+    vw.propSpawns.push({ kind: 'cash_register', x: (csX - 0.5) * 0.75, y: (y1 + 2.5) * 0.5, z: (zc - 1.5) * 0.75, yaw: Math.PI / 2 });
+    vw.workers.push({ x: (csX - 0.8) * 0.75, y: 0.5, z: (zc - 1.5) * 0.75, yaw: -Math.PI / 2, pose: 'stand', style: 'shop', shirt: 0xd97706 });
+
+    // Bakkala gelip ekmek alan çocuk
+    vw.bakkalKids = vw.bakkalKids || [];
+    vw.bakkalKids.push({
+      spawnPos: { x: (x2 + 3.5) * 0.75, y: 0.5, z: zc * 0.75 },
+      shelfPos: { x: (x1 + 2.8) * 0.75, y: 0.5, z: (z1 + 2) * 0.75 },
+      cashierPos: { x: (csX - 0.4) * 0.75, y: 0.5, z: (zc - 1.5) * 0.75 },
+      exitPos: { x: (x2 + 4.5) * 0.75, y: 0.5, z: zc * 0.75 }
+    });
+
+    this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x2');
   }
 
   // TEKNO MARKET (AVM dışı bağımsız teknoloji mağazası):

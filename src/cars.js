@@ -80,6 +80,35 @@ export class CarManager {
     for (const p of this.vw.parkedCars || []) this._addParked(p);   // seviyenin sabit park etmiş arabaları (ör. villanın kırmızı spor arabası)
   }
 
+  // Park halindeki aracı trafiğe sok (sahibi binince çalışır)
+  startDriving(car) {
+    if (!car || car.state !== 'parked') return;
+    let bestEdge = null, bestDist = Infinity, bestS = 0;
+    for (const e of this.edges) {
+      const dx = e.to.x - e.from.x, dz = e.to.z - e.from.z;
+      const len = e.len;
+      if (len < 1) continue;
+      const t = Math.max(0, Math.min(1, ((car.pos.x - e.from.x) * dx + (car.pos.z - e.from.z) * dz) / (len * len)));
+      const px = e.from.x + dx * t, pz = e.from.z + dz * t;
+      const d = Math.hypot(car.pos.x - px, car.pos.z - pz);
+      if (d < bestDist && d < 15) {
+        bestDist = d;
+        bestEdge = e;
+        bestS = t * len;
+      }
+    }
+    if (bestEdge) {
+      car.edge = bestEdge;
+      car.s = bestS;
+      car.lane = 0;
+      car.speed = 1.0;
+      car.target = rnd(car.T.speed[0], car.T.speed[1]);
+      car.state = 'drive';
+      car.permanent = false;
+      car.g.traverse(o => { if (o.userData && o.userData.person) o.visible = true; });
+    }
+  }
+
   // Sabit park etmiş araç: trafikte değil, kaybolmaz; binilebilir. p: { kind, color, livery, x, y, z, heading }
   _addParked(p) {
     const g = buildCar(p.kind, p.color, p.livery || null);

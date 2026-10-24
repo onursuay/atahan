@@ -100,3 +100,159 @@ export class DogManager {
     }
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KEDİLER: Market önündeki sevimli kediler (yatan, yürüyen ve maskot kedi).
+// ─────────────────────────────────────────────────────────────────────────────
+export function makeCat(coat = 0) {
+  const colors = [
+    [0xf97316, 0xffedd5], // Sarman (Orange tabby)
+    [0x18181b, 0xf8fafc], // Siyah-Beyaz (Tuxedo)
+    [0x78350f, 0xfde047]  // Alacalı (Calico)
+  ][coat % 3];
+  const [mainCol, whiteCol] = colors;
+  const g = new THREE.Group();
+  const add = (geo, color, x, y, z, parent = g) => {
+    const m = new THREE.Mesh(geo, mat(color));
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    parent.add(m);
+    return m;
+  };
+
+  const body = add(box(0.22, 0.2, 0.44), mainCol, 0, 0.24, 0);
+  add(box(0.18, 0.08, 0.3), whiteCol, 0, 0.18, 0.04); // göğüs
+
+  const head = new THREE.Group();
+  head.position.set(0, 0.36, 0.24);
+  g.add(head);
+  add(box(0.2, 0.18, 0.18), mainCol, 0, 0, 0, head);
+  add(box(0.1, 0.08, 0.08), 0xfca5a5, 0, -0.03, 0.1, head); // pembe burun
+  add(box(0.04, 0.04, 0.02), 0x15803d, -0.06, 0.03, 0.09, head); // gözler
+  add(box(0.04, 0.04, 0.02), 0x15803d, 0.06, 0.03, 0.09, head);
+  // Kulaklar
+  add(box(0.05, 0.08, 0.04), mainCol, -0.07, 0.12, -0.02, head);
+  add(box(0.05, 0.08, 0.04), mainCol, 0.07, 0.12, -0.02, head);
+  add(box(0.03, 0.05, 0.02), 0xfca5a5, -0.07, 0.11, 0.0, head);
+  add(box(0.03, 0.05, 0.02), 0xfca5a5, 0.07, 0.11, 0.0, head);
+
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.3, -0.22);
+  g.add(tail);
+  add(box(0.05, 0.05, 0.28), mainCol, 0, 0.08, -0.1, tail);
+  tail.rotation.x = 0.5;
+
+  const legs = [[-0.08, 0.16], [0.08, 0.16], [-0.08, -0.16], [0.08, -0.16]].map(([x, z]) => {
+    const l = new THREE.Group();
+    l.position.set(x, 0.16, z);
+    g.add(l);
+    add(box(0.06, 0.16, 0.06), mainCol, 0, -0.08, 0, l);
+    add(box(0.07, 0.04, 0.07), whiteCol, 0, -0.14, 0.01, l);
+    return l;
+  });
+
+  return { g, body, head, tail, legs };
+}
+
+export class CatManager {
+  constructor(scene) {
+    this.scene = scene;
+    this.cats = [];
+    this.bowls = [];
+  }
+
+  clear() {
+    for (const c of this.cats) this.scene.remove(c.m.g);
+    for (const b of this.bowls) this.scene.remove(b);
+    this.cats = [];
+    this.bowls = [];
+  }
+
+  addMarketCats(mx, my, mz) {
+    // 1) Yatan Kedi (Sleeping)
+    const m1 = makeCat(0);
+    m1.body.scale.set(1.1, 0.7, 0.9);
+    m1.head.position.set(0.08, 0.16, 0.12);
+    m1.head.rotation.set(-0.2, 0.4, 0.2);
+    m1.tail.rotation.set(0.2, 0.5, 0);
+    m1.legs.forEach(l => l.scale.set(0.8, 0.4, 0.8));
+    m1.g.position.set(mx - 1.8, my, mz + 1.2);
+    m1.g.rotation.y = 0.8;
+    this.scene.add(m1.g);
+    this.cats.push({ m: m1, type: 'sleeping', x: mx - 1.8, y: my, z: mz + 1.2, t: 0 });
+
+    // 2) Yürüyen Kedi (Walking)
+    const m2 = makeCat(1);
+    m2.g.position.set(mx + 1.5, my, mz + 2.5);
+    this.scene.add(m2.g);
+    this.cats.push({
+      m: m2, type: 'walking',
+      x: mx + 1.5, y: my, z: mz + 2.5,
+      startX: mx + 1.5, startZ: mz + 2.5,
+      heading: 0, speed: 0.8, t: 0
+    });
+
+    // 3) Maskot Kedi (Friendly Mascot)
+    const m3 = makeCat(2);
+    const crate = new THREE.Mesh(box(0.5, 0.35, 0.5), mat(0xa16207));
+    crate.position.set(mx + 2.2, my + 0.175, mz + 0.8);
+    crate.castShadow = true;
+    this.scene.add(crate);
+    this.bowls.push(crate);
+
+    m3.g.position.set(mx + 2.2, my + 0.35, mz + 0.8);
+    m3.g.rotation.y = -Math.PI / 2;
+    this.scene.add(m3.g);
+    this.cats.push({ m: m3, type: 'mascot', x: mx + 2.2, y: my + 0.35, z: mz + 0.8, t: 0, meowT: 0 });
+
+    // Kedi Maması ve Su Kapları (Kırmızı mama, Mavi su)
+    const bowlGeo = new THREE.CylinderGeometry(0.14, 0.11, 0.07, 12);
+    const b1 = new THREE.Mesh(bowlGeo, mat(0xef4444));
+    b1.position.set(mx - 1.2, my + 0.035, mz + 1.0);
+    const kibble = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 10), mat(0x78350f));
+    kibble.position.set(mx - 1.2, my + 0.065, mz + 1.0);
+    this.scene.add(b1, kibble);
+    this.bowls.push(b1, kibble);
+
+    const b2 = new THREE.Mesh(bowlGeo, mat(0x3b82f6));
+    b2.position.set(mx - 0.85, my + 0.035, mz + 1.0);
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 10), mat(0x38bdf8));
+    water.position.set(mx - 0.85, my + 0.065, mz + 1.0);
+    this.scene.add(b2, water);
+    this.bowls.push(b2, water);
+  }
+
+  update(dt, playerPos) {
+    for (const cat of this.cats) {
+      cat.t += dt;
+      if (cat.type === 'sleeping') {
+        cat.m.body.scale.y = 0.7 + Math.sin(cat.t * 2.2) * 0.04;
+        cat.m.tail.rotation.y = 0.5 + Math.sin(cat.t * 1.8) * 0.2;
+      } else if (cat.type === 'walking') {
+        const patrolDist = 4.2;
+        const offset = Math.sin(cat.t * 0.5) * patrolDist;
+        cat.x = cat.startX + offset;
+        cat.heading = Math.cos(cat.t * 0.5) > 0 ? Math.PI / 2 : -Math.PI / 2;
+        cat.m.g.position.set(cat.x, cat.y, cat.z);
+        cat.m.g.rotation.y = cat.heading;
+        const ph = cat.t * 6;
+        cat.m.legs[0].rotation.x = Math.sin(ph) * 0.45;
+        cat.m.legs[3].rotation.x = Math.sin(ph) * 0.45;
+        cat.m.legs[1].rotation.x = -Math.sin(ph) * 0.45;
+        cat.m.legs[2].rotation.x = -Math.sin(ph) * 0.45;
+        cat.m.tail.rotation.z = Math.sin(cat.t * 4) * 0.35;
+      } else if (cat.type === 'mascot') {
+        cat.m.legs[0].rotation.x = -0.6 + Math.sin(cat.t * 4) * 0.35;
+        cat.m.head.rotation.y = Math.sin(cat.t * 1.5) * 0.3;
+        cat.m.tail.rotation.x = 0.6 + Math.sin(cat.t * 3) * 0.2;
+        cat.meowT += dt;
+        if (cat.meowT > 8) {
+          cat.meowT = 0;
+          if (playerPos && Math.hypot(cat.x - playerPos.x, cat.z - playerPos.z) < 18) {
+            sound.playMeow();
+          }
+        }
+      }
+    }
+  }
+}

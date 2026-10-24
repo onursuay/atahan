@@ -3,14 +3,14 @@ import { PALETTE } from './teardown.js';
 import { beamMat } from './carmodels.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GECE / GÜNDÜZ DÖNGÜSÜ: 10 dakika gündüz, 10 dakika gece, art arda. Geçişler (alacakaranlık ve şafak) ~60 sn sürer.
+// GECE / GÜNDÜZ DÖNGÜSÜ: 35 dakika gündüz, 35 dakika gece (toplam 70 dakika). Geçişler ~90 sn sürer.
 //  • Gökyüzü, sis, ortam ışığı, güneş/ay ışığı ve rengi, güneş/ay/yıldızlar, bulutlar ve deniz rengi döngüyle değişir.
 //  • Lambalar (sokak, bina içi, villa) akşam önce yanar, gece olunca iyice parlar (iki aşamalı yükselir).
 //  • Sokak lambalarının altında yola ışık havuzları oluşur; oyuncuya en yakın lambalar gerçek ışık verir.
 //  • Arabaların farları gece ışık huzmesi bırakır; sürdüğün arabanın önünü gerçek ışık aydınlatır.
 // ─────────────────────────────────────────────────────────────────────────────
-const PERIOD = 1200;           // 10 dk gündüz + 10 dk gece (sn)
-const DUSK_AT = 600, DUSK = 60;   // akşam geçişi 570..630 (ortası 600), şafak geçişi 1170..1230 (ortası 1200 = 0)
+const PERIOD = 4200;           // 35 dk gündüz + 35 dk gece (4200 sn)
+const DUSK_AT = 2100, DUSK = 90;   // akşam geçişi (ortası 2100), şafak geçişi (ortası 4200 = 0)
 const smooth = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 const AZ = Math.atan2(45, 60);  // güneşin sabit yön açısı (eski konumla aynı)
 
