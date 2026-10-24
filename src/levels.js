@@ -186,20 +186,17 @@ export class LevelManager {
     // ==========================================
     // 1. ZEMİN, SAHİL, ÇÖL, YOLLAR (kaplama yüzeyi) — 25X DEVASA DÜNYA
     // ==========================================
-    // Doğu Ada & Zengin Bölgesi: 25 kat genişletilmiş lüks plato ve tepe arazisi
-    w.fillBox(240, 0, -680, 680, 0, 680, PALETTE.GRASS);
-    w.fillBox(250, 0, -650, 650, 0, 650, PALETTE.CONCRETE);
+    // Doğu Ada & Zengin Bölgesi: Zengin abimizin villası için tepe çimi
+    w.fillBox(240, 0, -165, 427, 0, 165, PALETTE.GRASS);
+    w.fillBox(428, 0, -260, 680, 0, 260, PALETTE.GRASS); // MUST BE GRASS for heightFn to build the mountain!
     this._setHills();
 
-    // Batı Ada: 25 KAT BÜYÜTÜLMÜŞ METROPOL MERKEZİ (Büyük Şehir Alanı)
-    w.fillBox(-240, 0, -680, 20, 0, 680, PALETTE.CONCRETE);
-    w.fillBox(-252, 0, -680, -240, 0, 680, PALETTE.SAND);        // batı sahil kumsalı
-    w.fillBox(-246, 0, -678, -240, 0, 678, PALETTE.WOOD);        // sahil ahşap gezinti yolu
-    w.fillBox(-260, 0, -18, -246, 0, -14, PALETTE.WOOD);         // iskeleler
-    w.fillBox(-260, 0, 14, -246, 0, 18, PALETTE.WOOD);
-
-    // ── DEVASA UÇSUZ BUCAKSIZ ÇÖL (Şehrin batısında kesintisiz uzanan çöl) ──
-    w.fillBox(-1400, 0, -680, -240, 0, 680, PALETTE.SAND);
+    // Batı Ada: ŞEHİR (sahil + kumsal + gezinti yolu + genişletilmiş metropol)
+    w.fillBox(-230, 0, -340, 20, 0, 340, PALETTE.CONCRETE);
+    w.fillBox(-245, 0, -340, -230, 0, 340, PALETTE.SAND);        // batı sahil kumsalı
+    w.fillBox(-238, 0, -338, -230, 0, 338, PALETTE.WOOD);        // sahil ahşap gezinti yolu
+    w.fillBox(-252, 0, -18, -238, 0, -14, PALETTE.WOOD);         // iskeleler
+    w.fillBox(-252, 0, 14, -238, 0, 18, PALETTE.WOOD);
 
     w.fillBox(258, 0, -165, 290, 0, 165, PALETTE.CONCRETE);     // doğu ada: şehir blokları (köprüden sonra)
     w.fillBox(321, 0, -165, 370, 0, 165, PALETTE.CONCRETE);
@@ -251,7 +248,6 @@ export class LevelManager {
     this.buildTower(-120, 1, -100, -96, 14, -74, { ...CC, side: 'z2' });
     this.buildTower(-120, 1, 104, -96, 18, 126, { ...CC, side: 'z1' });
     this.buildTower(-120, 1, -126, -96, 16, -104, { ...BR, side: 'z2' });
-    this.buildTower(-150, 1, 8, -134, 20, 40, { ...CC, side: 'x1' });
     this.buildTower(-150, 1, -40, -134, 10, -8, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, 74, -134, 12, 110, { ...CC, side: 'x2' });
     this.buildTower(-150, 1, -110, -134, 12, -74, { ...BR, side: 'x2' });
@@ -264,20 +260,9 @@ export class LevelManager {
     this.buildTower(-180, 1, 74, -164, 14, 110, { ...BR, side: 'x1' });
     this.buildTower(-180, 1, -110, -164, 14, -74, { ...CC, side: 'x1' });
 
-    // ── ŞEHİRDEKİ EVİMİZ, GARAJIMIZ & SEDAN ARABA (ESKİSİ GİBİ ŞEHİRDE!) ──
+    // ── ŞEHİRDEKİ EVİMİZ, GARAJIMIZ & SEDAN ARABA (Müstakil & Şirket binasından arındırılmış!) ──
     this.buildHome(-150, 1, 8, -134, 13, 40);                       // Oyuncunun iki katlı evi: üst kat TV odasında başlar, alt katta mutfak
     this.buildGarage(-150, 1, 46, -134, 8, 62);                     // Yanındaki garaj ve içinde normal mavi sedan araba
-
-    // Çöl boyunca dağılmış yeşil ve mor kaktüsler
-    this.buildDesertCacti();
-
-    // ── 25 KAT BÜYÜK DUBAİ MEGA ŞEHRİ (Upuzun gökdelenler, neonlar, kuleler) ──
-    this.buildDubaiMegaCity();
-
-    // ── 25 KAT BÜYÜK ZENGİN ŞEHRİ LÜKS VİLLALARI & SARAYLARI ──
-    this.buildVilla2(420, 1, -430, 470, 16, -360);                  // Kuzey Cam Sahil Malikanesi (Sonsuzluk havuzlu)
-    this.buildVilla3(420, 1, 360, 470, 15, 430);                    // Güney Göl Kıyısı Malikânesi
-    this.buildVilla4(520, 1, -210, 570, 18, -140);                  // Doğu Dağları Zirve Sarayı (Altın kubbeli dağ köşkü)
 
     // Uzatılan kuzey/güney mahalleleri (yeni caddeler z=±134 boyunca)
     [[1, 142, 164, 'z1'], [-1, -164, -142, 'z2']].forEach(([sg, za, zb, door]) => {
@@ -438,17 +423,30 @@ export class LevelManager {
     let seed = 20241014;
     const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
     const CC = { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD }, BR = { wall: PALETTE.BRICK, floor: PALETTE.WOOD };
-    const cols = [[-161, -137], [-119, -97], [-79, -57], [-41, -33], [-21, -15]];
-    const lots = [[168, 191], [209, 231], [235, 257]];                 // z bantları (kuzey için işaret çevrilir)
+    const cols = [[-202, -178], [-161, -137], [-119, -97], [-79, -57], [-41, -33], [-21, -15]];
+    const lots = [[168, 191], [209, 231], [235, 257], [273, 298]];                 // z bantları (kuzey & güney ön/arka şehir genişlemesi)
     const existing = [[142, 164, [0, 1, 3, 4]]];                       // z 142..164'te A, B, D, E sütunları zaten dolu; yalnız C boş
     const near = (x1, x2, z1, z2) => ROUNDABOUTS.some(g => { const dx = Math.max(x1 - g.cx, 0, g.cx - x2), dz = Math.max(Math.min(z1, z2) - g.cz, 0, g.cz - Math.max(z1, z2)); return Math.hypot(dx, dz) < g.rOuter + 8; });
     const place = (ci, za, zb, sign) => {
       const [x1, x2] = cols[ci];
       const zlo = sign > 0 ? za : -zb, zhi = sign > 0 ? zb : -za;
       if (near(x1, x2, zlo, zhi) || isSpecialLot(x1, x2, zlo, zhi)) return;
-      const h = 12 + Math.floor(rnd() * 20);
-      const style = rnd() < 0.5 ? CC : BR;
-      this.buildTower(x1, 1, zlo, x2, h, zhi, { ...style, side: sign > 0 ? 'z1' : 'z2' });
+      const bType = (ci + Math.floor(rnd() * 6)) % 6;
+      if (bType === 0) {
+        this.buildOutdoorTeknoMarket(x1, 1, zlo, x2, 12, zhi);
+      } else if (bType === 1) {
+        this.buildMarket(x1, 1, zlo, x2, 10, zhi);
+      } else if (bType === 2) {
+        this.buildCityApartment(x1, 1, zlo, x2, 22, zhi);
+      } else if (bType === 3) {
+        this.buildOutdoorFashionStore(x1, 1, zlo, x2, 12, zhi);
+      } else if (bType === 4) {
+        this.buildCityBank(x1, 1, zlo, x2, 18, zhi);
+      } else {
+        const h = 14 + Math.floor(rnd() * 18);
+        const style = rnd() < 0.5 ? CC : BR;
+        this.buildTower(x1, 1, zlo, x2, h, zhi, { ...style, side: sign > 0 ? 'z1' : 'z2' });
+      }
     };
     for (const sign of [1, -1]) {
       place(2, 142, 164, sign);                                        // C sütunu, mevcut sıranın boşluğu
@@ -853,16 +851,6 @@ export class LevelManager {
     this.world.terrain.rampArea = (xm, zm) => { if (xm >= 295) return xm < 455 && zm > -95 && zm < 12; const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 258 && x < 286) || (x >= 325 && x < 360)); };   // x≥295 m: yalnız villa yolu asfaltı vardır
     this.world.terrain.heightFn = (xm, zm, mat) => {
       const x = xm / U, z = zm / U;
-
-      // Çölde minik minik tepecikler (karakter bacağına kadar ulaşacak 0.5 m küçük tepeler, engebeli çöl arazisi)
-      if (mat && mat.id === PALETTE.SAND.id && xm <= -165 && xm >= -1450 && Math.abs(zm) <= 650) {
-        if (Math.abs(zm) < 7.5) return 0; // Yolun üstü dümdüz kalsın
-        if (xm >= -780 && xm <= -725 && zm <= 0 && zm >= -35) return 0; // Ev ve Garaj altı düz olsun
-        // Yumuşak, dalgalı çöl engebeleri (karakterin diz/bacak hizası = 0.5 m)
-        const wave = Math.sin(xm * 0.08) * Math.cos(zm * 0.08) + 0.5 * Math.sin(xm * 0.14 + zm * 0.11);
-        return wave > 0.3 ? 0.5 : 0;
-      }
-
       if (!mat || !mat.isGrass) return 0;
       let h = 0;
       for (const [cx, cz, sg, A] of hills) h += A * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * sg * sg));
@@ -1526,9 +1514,8 @@ export class LevelManager {
     vw.propSpawns.push({ kind: 'spoon', x: dtX - 0.02, y: dtY, z: dtZ + 0.4, yaw: 1.57 });
     vw.propSpawns.push({ kind: 'cola', x: dtX - 0.35, y: dtY + 0.05, z: dtZ + 0.7 });
 
-    // Üst kat televizyon odası sehpa üstü: kumanda ve kupa bardak
+    // Üst kat televizyon odası sehpa üstü: kupa bardak (kumanda jenerikte oyuncunun elindedir)
     const ctX = 0.5 * (wv + 9.5), ctZ = 0.5 * (zr0 + zr1) / 2, ctY = 6.05;
-    vw.propSpawns.push({ kind: 'remote', x: ctX, y: ctY, z: ctZ, yaw: Math.PI / 2 });
     vw.propSpawns.push({ kind: 'mug', x: ctX + 0.25, y: ctY + 0.05, z: ctZ + 0.2 });
 
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.12, tvH + 0.14, tvW + 0.14), new THREE.MeshLambertMaterial({ color: 0x0b0d12 }));

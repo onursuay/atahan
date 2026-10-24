@@ -14,12 +14,12 @@ export class MapSystem {
     this.playerYaw = 0;
     this.pulse = 0;
 
-    // Dünya sınırları (5 kat genişletilmiş harita alanı): metre cinsinden
+    // Dünya sınırları: metropol şehir, asma köprü ve zengin adası
     this.worldBounds = {
-      minX: -2600,
-      maxX: 3600,
-      minZ: -3400,
-      maxZ: 3400
+      minX: -260,
+      maxX: 540,
+      minZ: -360,
+      maxZ: 360
     };
 
     this._createDOM();
@@ -50,7 +50,7 @@ export class MapSystem {
     largeModal.innerHTML = `
       <div class="largemap-window">
         <div class="largemap-top">
-          <div class="largemap-title">🗺️ BÜYÜK DÜNYA HARİTASI (10X HARİTA)</div>
+          <div class="largemap-title">🗺️ BÜYÜK DÜNYA HARİTASI</div>
           <button class="largemap-close" id="largemap-close-btn" title="Kapat (ESC / M)">✖ KAPAT</button>
         </div>
         <div class="largemap-canvas-container">
@@ -59,9 +59,9 @@ export class MapSystem {
         <div class="largemap-footer">
           <div class="largemap-location" id="largemap-loc-text">📍 Konum: Şehir Merkezi | X: 0, Z: 0</div>
           <div class="largemap-legend">
-            <span><i class="leg-dot" style="background:#22c55e"></i> Merkez Park (New York)</span>
+            <span><i class="leg-dot" style="background:#22c55e"></i> Merkez Park</span>
             <span><i class="leg-dot" style="background:#38bdf8"></i> Silindir Kuleler</span>
-            <span><i class="leg-dot" style="background:#eab308"></i> Zengin Villası</span>
+            <span><i class="leg-dot" style="background:#eab308"></i> Zengin Villası (Tepede)</span>
             <span><i class="leg-dot" style="background:#f43f5e"></i> Büyük AVM</span>
             <span><i class="leg-dot" style="background:#64748b"></i> Asma Köprü</span>
             <span><i class="leg-dot" style="background:#ef4444"></i> Sen (Oyuncu)</span>
@@ -310,19 +310,13 @@ export class MapSystem {
 
   _getLocationName(x, z) {
     if (Math.abs(x - (-110)) < 24 && Math.abs(z - 20) < 24) return '🏠 Bizim Evimiz & Garajımız';
-    if (x < -165 && Math.abs(z) < 8) return '🛣️ Çöl Ana Otoyolu';
-    if (x < -165 && (Math.abs(z - (-345)) < 12 || Math.abs(z - 345) < 12)) return '🛣️ Çöl Çevre Yolu';
-    if (x < -165) return '🏜️ Uçsuz Bucaksız Büyük Çöl';
-    if (x >= -165 && x <= 20 && Math.abs(z) <= 500) return '🏙️ Dubai Mega Şehri';
+    if (x >= -230 && x <= -10 && Math.abs(z) <= 340) return '🏙️ Metropol Şehir Merkezi';
     if (x >= 250 && x <= 450 && z >= 20 && z <= 260) return '🌳 Merkez Park (New York Tarzı)';
-    if (x >= 300 && x <= 440 && z >= -148 && z <= -48) return '🏰 Villa 1: Hilltop Mansion';
-    if (x >= 300 && x <= 440 && z >= -340 && z <= -260) return '🏰 Villa 2: Glass Cliff Palace';
-    if (x >= 300 && x <= 440 && z >= 260 && z <= 340) return '🏰 Villa 3: Lakefront Estate';
-    if (x >= 380 && x <= 450 && z >= -170 && z <= -90) return '🏰 Villa 4: Mountain Palace';
+    if (x >= 300 && x <= 450 && z >= -148 && z <= -48) return '🏰 Zengin Abimizin Tepedeki Villası';
     if (x >= 242 && x <= 270 && z >= -95 && z <= -38) return '🏬 Büyük AVM (Alışveriş Merkezi)';
     if (x >= 246 && x <= 270 && z >= 38 && z <= 88) return '🏥 Merkez Şehir Hastanesi';
     if (x >= -10 && x <= 194 && Math.abs(z) < 18) return '🌉 Boğaz Asma Köprüsü';
-    if (x >= 194 && x <= 500) return '🏰 Zengin Şehri (25X Lüks Ada)';
+    if (x >= 194 && x <= 500) return '🏰 Doğu Adası (Lüks & Sağlık Bölgesi)';
     return '🌊 Okyanus / Sahil Şeridi';
   }
 
@@ -362,7 +356,7 @@ export class MapSystem {
       ctx.clearRect(0, 0, w, h);
 
       // Bütün dünyayı kapsayan genel görünüm (zoom = 1.0)
-      this._renderWorldMap(ctx, w, h, 1.0, { x: -80, z: 0 }, false);
+      this._renderWorldMap(ctx, w, h, 1.0, { x: 100, z: 0 }, false);
 
       // Konum metnini güncelle
       const locName = this._getLocationName(this.playerX, this.playerZ);
@@ -392,27 +386,37 @@ export class MapSystem {
     ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
     ctx.fillRect(0, 0, width, height);
 
-    // 2. DEVASA UÇSUZ BUCAKSIZ ÇÖL (Şehrin arkasında)
-    rect(-1450, -640, -165, 640, '#eab308'); // altın sarısı devasa çöl kumu
-    // Çöl engebeleri / dalgalı kum hatları
-    ctx.strokeStyle = '#ca8a04'; ctx.lineWidth = Math.max(1, 1.5 * zoom);
-    for (let dy = -600; dy <= 600; dy += 45) {
-      if (Math.abs(dy) < 18) continue;
-      const [d0x, d0z] = pt(-1400, dy), [d1x, d1z] = pt(-175, dy + 20);
-      ctx.beginPath(); ctx.moveTo(d0x, d0z); ctx.quadraticCurveTo((d0x + d1x) / 2, d0z + 10, d1x, d1z); ctx.stroke();
+    // 2. Batı Şehir Adası (Genişletilmiş Metropol Merkezi)
+    rect(-230, -340, 20, 340, '#475569'); // şehir tabanı
+    rect(-245, -340, -230, 340, '#fde047'); // sahil kumsalı
+    rect(-238, -338, -230, 338, '#92400e'); // ahşap sahil yolu
+
+    // Batı caddeleri & yolları
+    const roadColor = '#1e293b';
+    ctx.fillStyle = roadColor;
+    // Kuzey-güney sokaklar ve bulvarlar (x = -210, -170, -130, -90, -50, -10)
+    for (const sx of [-210, -170, -130, -90, -50, -10]) {
+      const [rx, rz0] = pt(sx - 3.5, -320);
+      const [, rz1] = pt(sx + 3.5, 320);
+      ctx.fillRect(rx, Math.min(rz0, rz1), Math.abs(pt(sx + 3.5, 0)[0] - rx), Math.abs(rz1 - rz0));
+    }
+    // Doğu-batı caddeler (z = -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320)
+    for (const cz of [-320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320]) {
+      const [rx0, rz] = pt(-210, cz - 3.5);
+      const [rx1,] = pt(-10, cz + 3.5);
+      ctx.fillRect(Math.min(rx0, rx1), rz, Math.abs(rx1 - rx0), Math.abs(pt(0, cz + 3.5)[1] - rz));
     }
 
-    // ── KESİNTİSİZ ÇÖL ÇEVRE OTOYOLU (Dairesel Kapalı Yol Ağı: Hiçbir Yol Sonlu Değil!) ──
-    rect(-900, -4, -155, 4, '#1e293b');         // Çöl ana yolu (orta)
-    rect(-900, -349, -155, -341, '#1e293b');    // Kuzey çöl çevre yolu
-    rect(-900, 341, -155, 349, '#1e293b');      // Güney çöl çevre yolu
-    rect(-904, -349, -896, 349, '#1e293b');     // Batı çöl dönüş bağlantı yolu
-    // Yol sarı kesik orta çizgisi
-    ctx.strokeStyle = '#facc15'; ctx.lineWidth = Math.max(1, 1.2 * zoom);
-    const [ry0x, ry0z] = pt(-895, 0), [ry1x, ry1z] = pt(-155, 0);
-    ctx.beginPath(); ctx.moveTo(ry0x, ry0z); ctx.lineTo(ry1x, ry1z); ctx.stroke();
+    // İki Göbek (Kavşak Adaları z = ±134)
+    for (const gz of [-134, 134]) {
+      const [gx, gy] = pt(-90, gz);
+      ctx.fillStyle = '#1e293b';
+      ctx.beginPath(); ctx.arc(gx, gy, Math.max(4, 16 * zoom), 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#16a34a'; // orta ada çimi
+      ctx.beginPath(); ctx.arc(gx, gy, Math.max(2, 9 * zoom), 0, Math.PI * 2); ctx.fill();
+    }
 
-    // ── ŞEHİRDEKİ EVİMİZ & GARAJ (ESKİSİ GİBİ ŞEHİRDE!) ──
+    // ── ŞEHİRDEKİ EVİMİZ & GARAJ ──
     // Evimiz (x: -112.5m .. -100.5m, z: 6m .. 30m)
     rect(-112.5, 6, -100.5, 30, '#f8fafc'); // ev tabanı
     rect(-111, 7.5, -102, 28.5, '#b91c1c'); // ev çatısı
@@ -423,46 +427,6 @@ export class MapSystem {
     const [cx, cz] = pt(-106.5, 40.5);
     ctx.fillStyle = '#2563eb';
     ctx.fillRect(cx - 3, cz - 4, 6, 8);
-
-    // ── ÇÖLDEKİ KAKTÜSLER (Yeşil ve Mor noktalar) ──
-    for (let cidx = 0; cidx < 60; cidx++) {
-      const cwx = -1350 + (cidx * 37) % 1150;
-      const cwz = -580 + (cidx * 73) % 1160;
-      if (Math.abs(cwz) < 20) continue;
-      const [kax, kaz] = pt(cwx, cwz);
-      ctx.fillStyle = cidx % 4 === 0 ? '#a855f7' : '#16a34a'; // %25 mor, %75 yeşil
-      ctx.beginPath(); ctx.arc(kax, kaz, Math.max(1.5, 2.5 * zoom), 0, Math.PI * 2); ctx.fill();
-    }
-
-    // 3. 10 KAT BÜYÜTÜLMÜŞ DUBAİ MEGA ŞEHRİ
-    rect(-165, -490, 75, 490, '#475569'); // devasa şehir tabanı
-    rect(-175, -490, -165, 490, '#fde047'); // sahil kumsalı
-    rect(-168, -488, -166, 488, '#92400e'); // ahşap sahil yolu
-    rect(-168, -238, -166, 238, '#92400e'); // ahşap sahil yolu
-
-    // Batı caddeleri & yolları
-    const roadColor = '#1e293b';
-    ctx.fillStyle = roadColor;
-    // Kuzey-güney sokaklar
-    for (const sx of [-128, -95, -65, -35, -20]) {
-      const [rx, rz0] = pt(sx - 3, -215);
-      const [, rz1] = pt(sx + 3, 215);
-      ctx.fillRect(rx, Math.min(rz0, rz1), Math.abs(pt(sx + 3, 0)[0] - rx), Math.abs(rz1 - rz0));
-    }
-    // Doğu-batı caddeler
-    for (const cz of [-200, -150, -100, -50, 0, 50, 100, 150, 200]) {
-      const [rx0, rz] = pt(-145, cz - 3.5);
-      const [rx1,] = pt(-9, cz + 3.5);
-      ctx.fillRect(Math.min(rx0, rx1), rz, Math.abs(rx1 - rx0), Math.abs(pt(0, cz + 3.5)[1] - rz));
-    }
-    // İki Göbek (Kavşak Adaları)
-    for (const gz of [-150, 150]) {
-      const [gx, gy] = pt(-65, gz);
-      ctx.fillStyle = '#1e293b';
-      ctx.beginPath(); ctx.arc(gx, gy, Math.max(4, 16 * zoom), 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#16a34a'; // orta ada çimi
-      ctx.beginPath(); ctx.arc(gx, gy, Math.max(2, 9 * zoom), 0, Math.PI * 2); ctx.fill();
-    }
 
     // 4. Asma Köprü (İki adayı bağlayan 3x uzun ikonik hat: -9 m .. 193.5 m)
     const [b0x, b0z] = pt(-9, 0);
@@ -633,18 +597,17 @@ export class MapSystem {
       };
 
       drawLabel('🏠 BİZİM EVİMİZ & GARAJ', -110, 20, '#38bdf8');
-      drawLabel('🏜️ BÜYÜK ÇÖL', -550, -150, '#facc15');
-      drawLabel('🌵 KAKTÜSLER', -350, -100, '#4ade80');
-      drawLabel('🛣️ ÇÖL ÇEVRE YOLU', -650, 0, '#38bdf8');
-      drawLabel('🏙️ DUBAİ MEGA ŞEHRİ', -45, 0, '#38bdf8');
-      drawLabel('🌳 MERKEZ PARK', 320, 100, '#4ade80');
-      drawLabel('🏰 4 LÜKS VİLLA & SARAYLAR', 380, -100, '#fde047');
-      drawLabel('🏬 AVM', 256, -66, '#fb7185');
+      drawLabel('🏙️ ŞEHİR MERKEZİ', -65, 0, '#38bdf8');
+      drawLabel('🍔 RESTORANLAR & KEBAPÇI', -110, -180, '#f97316');
+      drawLabel('💻 TEKNO MARKET', -30, 30, '#38bdf8');
+      drawLabel('🌳 MERKEZ PARK', 419, 100, '#4ade80');
+      drawLabel('🏰 ZENGİN ADAMIN VİLLASI', 400, -100, '#fde047');
+      drawLabel('🏬 BÜYÜK AVM', 256, -66, '#fb7185');
       drawLabel('🏢 SİLİNDİR KULELER', -81, 165, '#38bdf8');
       drawLabel('🏢 ŞİRKETLER', -81, -165, '#fb923c');
       drawLabel('🌉 ASMA KÖPRÜ', 92, 0, '#94a3b8');
       if (!isMini) {
-        drawLabel('🏖️ BATI SAHİLİ', -150, 0, '#fef08a');
+        drawLabel('🏖️ BATI SAHİLİ', -180, 0, '#fef08a');
         drawLabel('🏥 HASTANE', 258, 63, '#38bdf8');
       }
     }

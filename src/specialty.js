@@ -128,7 +128,7 @@ function bank(f, theme) {
 const FOOD = {
   burger: { name: 'BURGER BEY', wall: P.RED, trim: P.YELLOW, sign: [0xdc2626, 0xfacc15], arches: true, chair: [0xdc2626, 0xfacc15], menu: P.YELLOW },
   pizza: { name: 'PİZZA PAŞA', wall: P.WHITE, trim: P.RED, sign: [0x15803d, 0xffffff], arches: false, chair: [0xdc2626, 0x15803d], menu: P.RED },
-  tavuk: { name: 'KIZARMIŞ TAVUK', wall: P.YELLOW, trim: P.RED, sign: [0xfacc15, 0xdc2626], arches: false, chair: [0xdc2626, 0xf3f4f6], menu: P.RED },
+  tavuk: { name: 'DÖNERCİ USTAM', wall: P.ORANGE, trim: P.WHITE, sign: [0xea580c, 0xffffff], arches: false, chair: [0x7c2d12, 0xfacc15], menu: P.ORANGE },
   kebap: { name: 'KEBAPÇI ADEM', wall: P.BRICK, trim: P.GOLD, sign: [0x7c2d12, 0xfef3c7], arches: false, chair: [0x111827, 0x7c2d12], menu: P.GOLD },
   kahve: { name: 'KAHVE EVİ', wall: P.DGREEN, trim: P.WHITE, sign: [0x14532d, 0xfef3c7], arches: false, chair: [0x3f2a1d, 0xf3f4f6], menu: P.WHITE }
 };
@@ -152,16 +152,55 @@ function restaurant(f, theme) {
   const cd = d1 - 7;
   f.b(u0 + 2, u1 - 2, cd, cd, 1, 2, T.trim); f.b(u0 + 2, u1 - 2, cd, cd, 3, 3, P.WHITE);
   for (let u = u0 + 5; u <= u1 - 5; u += 6) { f.b(u, u, cd, cd, 4, 4, P.IRON); f.b(u, u, cd, cd, 5, 5, P.LAMP_GREEN); }
-  f.b(u0 + 1, u1 - 1, d1 - 1, d1 - 1, 3, 7, P.BLACK); for (let u = u0 + 3; u < u1 - 2; u += 3) { f.b(u, u + 1, d1 - 1, d1 - 1, 5, 5, T.menu); f.b(u, u, d1 - 1, d1 - 1, 4, 4, P.WHITE); f.b(u + 1, u + 1, d1 - 1, d1 - 1, 6, 6, P.LAMP_ORANGE); }   // menü panosu
+  f.b(u0 + 1, u1 - 1, d1 - 1, d1 - 1, 3, 7, P.BLACK); for (let u = u0 + 3; u < u1 - 2; u += 3) { f.b(u, u + 1, d1 - 1, d1 - 1, 5, 5, T.menu); f.b(u, u, d1 - 1, d1 - 1, 4, 4, P.WHITE); f.b(u, u, d1 - 1, d1 - 1, 4, 4, P.WHITE); f.b(u + 1, u + 1, d1 - 1, d1 - 1, 6, 6, P.LAMP_ORANGE); }   // menü panosu
   f.b(u0 + 2, u1 - 2, d1 - 3, d1 - 2, 1, 2, P.IRON); f.b(u0 + 3, u0 + 6, d1 - 3, d1 - 3, 3, 3, P.LAMP_ORANGE); f.b(u1 - 7, u1 - 3, d1 - 3, d1 - 3, 3, 3, P.WHITE);   // mutfak ekipmanı: ızgara + tezgâh
   f.b(u0 + 2, u0 + 3, d1 - 5, d1 - 4, 1, 4, P.WHITE); f.b(u0 + 2, u0 + 3, d1 - 5, d1 - 5, 3, 3, P.LAMP_BLUE);                                 // buzdolabı
-  for (let u = u0 + 5; u <= u1 - 5; u += 6) f.prop('tray', u, cd + 0.5, 4, { yaw: 0.3 });
-  // Yemek alanı: 6 masa, 4'er sandalye (tutulabilir), çöp kutusu, oyun köşesi
+  
+  // Tezgâh üstü yiyecekler: hamburgercide tepsi, dönercide döner dürüm & ayran, kebapçıda kebap & ayran
+  if (theme === 'burger') {
+    for (let u = u0 + 5; u <= u1 - 5; u += 6) f.prop('tray', u, cd + 0.5, 4, { yaw: 0.3 });
+  } else if (theme === 'tavuk' || theme === 'doner') {
+    for (let u = u0 + 5; u <= u1 - 5; u += 6) { f.prop('doner_wrap', u - 0.4, cd + 0.5, 4, { yaw: 0.3 }); f.prop('ayran', u + 0.4, cd + 0.5, 4); }
+  } else if (theme === 'kebap') {
+    for (let u = u0 + 5; u <= u1 - 5; u += 6) { f.prop('kebap_plate', u - 0.4, cd + 0.5, 4, { yaw: 0.3 }); f.prop('ayran', u + 0.4, cd + 0.5, 4); }
+  } else if (theme === 'pizza') {
+    for (let u = u0 + 5; u <= u1 - 5; u += 6) f.prop('pizzabox', u, cd + 0.5, 4, { yaw: 0.3 });
+  } else {
+    for (let u = u0 + 5; u <= u1 - 5; u += 6) { f.prop('coffee', u, cd + 0.5, 4); f.prop('donut', u + 0.4, cd + 0.5, 4); }
+  }
+
+  // Yemek alanı: 6 masa, 4'er sandalye (tutulabilir), menü & rezerv kartları
   const tables = [[u0 + 5, d0 + 4], [mid, d0 + 4], [u1 - 5, d0 + 4], [u0 + 5, d0 + 11], [mid, d0 + 11], [u1 - 5, d0 + 11]];
   tables.forEach(([u, d], i) => {
     f.b(u, u, d, d, 1, 2, P.IRON); f.b(u - 1, u + 1, d - 1, d + 1, 3, 3, i % 2 ? T.trim : P.WHITE);
     [[-2, 0], [2, 0], [0, -2], [0, 2]].forEach(([du, dd], k) => f.prop('chair', u + du * 0.62, d + dd * 0.62, 1, { yaw: f.dirYaw(-du, -dd), color: T.chair[(i + k) % 2] }));
-    f.prop('tray', u, d, 4, { yaw: i });
+    
+    // Yiyecekler: temaya göre ayrıldı!
+    if (theme === 'burger') {
+      f.prop('tray', u, d, 4, { yaw: i });
+      f.prop('burger', u + 0.3, d + 0.2, 4);
+    } else if (theme === 'tavuk' || theme === 'doner') {
+      f.prop('doner_plate', u - 0.2, d, 4, { yaw: i });
+      f.prop('doner_wrap', u + 0.3, d, 4, { yaw: i + 1 });
+      f.prop('ayran', u, d + 0.35, 4);
+    } else if (theme === 'kebap') {
+      f.prop('kebap_plate', u - 0.2, d, 4, { yaw: i });
+      f.prop('lahmacun', u + 0.3, d, 4, { yaw: i + 0.5 });
+      f.prop('ayran', u, d + 0.35, 4);
+    } else if (theme === 'pizza') {
+      f.prop('pizzaslice', u, d, 4, { yaw: i });
+      f.prop('pizzabox', u + 0.25, d + 0.25, 4);
+    } else {
+      f.prop('coffee', u, d, 4);
+      f.prop('donut', u + 0.3, d, 4);
+    }
+
+    // Masalarda Menü ve Rezerv kartları:
+    if (i % 2 === 0) {
+      f.prop('table_menu', u + 0.45, d - 0.45, 4, { yaw: f.yawOut() });
+    } else {
+      f.prop('table_reserved', u + 0.45, d - 0.45, 4, { yaw: f.yawOut() });
+    }
   });
   f.b(u1 - 2, u1 - 1, d0 + 1, d0 + 2, 1, 3, P.BLACK); f.b(u1 - 2, u1 - 1, d0 + 1, d0 + 1, 3, 3, P.GRASS);                                       // çöp kutusu
   for (let u = u0 + 2; u <= u0 + 6; u++) for (let d = d1 - 11; d <= d1 - 9; d++) f.b(u, u, d, d, 1, 1, [P.RED, P.YELLOW, P.BLUE, P.DGREEN][(u + d) % 4]);   // top havuzu (oyun köşesi)

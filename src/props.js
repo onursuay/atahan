@@ -50,6 +50,43 @@ const KINDS = {
     [0.08, 0.2, 0.1, -0.2, -0.08, 0, 0xffffff], [0.08, 0.2, 0.1, 0.2, -0.08, 0, 0xffffff], [0.1, 0.1, 0.03, 0, 0.14, 0.13, 0x2a2a30]]) },
   book: { half: [0.17, 0.08, 0.12], tint: true, mass: 0.4, geo: () => parts([[0.34, 0.07, 0.24, 0, -0.045, 0, 0xffffff], [0.32, 0.07, 0.22, 0, 0.025, 0, 0xe5e7eb], [0.34, 0.06, 0.24, 0, 0.09, 0, 0xffffff]]) },
   // ── Dükkân ürünleri (AVM): yiyecek, içecek, ayakkabı, elektronik, hediye, poşet ──
+  doner_plate: { half: [0.18, 0.05, 0.14], tint: false, mass: 0.35, geo: () => parts([
+    [0.36, 0.02, 0.28, 0, -0.04, 0, 0xf8fafc],                                        // porselen tabak
+    [0.26, 0.035, 0.14, -0.02, -0.015, -0.03, 0x6d3816],                              // ince yaprak döner etleri
+    [0.24, 0.025, 0.12, -0.02, 0.005, -0.03, 0x854d0e],
+    [0.09, 0.035, 0.16, 0.1, -0.02, 0.02, 0xfacc15],                                   // kızarmış patates dilimleri
+    [0.06, 0.03, 0.06, -0.1, -0.02, 0.08, 0xef4444],                                   // domates dilimi
+    [0.04, 0.025, 0.1, -0.02, -0.02, 0.08, 0x16a34a]                                   // közlenmiş biber
+  ]) },
+  doner_wrap: { half: [0.08, 0.08, 0.18], tint: false, mass: 0.25, geo: () => parts([
+    [0.12, 0.12, 0.34, 0, 0, 0, 0xfde047],                                             // lavaş sarılı döner dürüm
+    [0.125, 0.125, 0.16, 0, 0, -0.09, 0xe2e8f0],                                      // alüminyum sarma folyosu
+    [0.08, 0.06, 0.03, 0, 0.01, 0.17, 0x78350f],                                      // et ucu
+    [0.06, 0.04, 0.03, 0.01, -0.01, 0.17, 0x16a34a]                                   // maydanoz
+  ]) },
+  kebap_plate: { half: [0.2, 0.05, 0.14], tint: false, mass: 0.4, geo: () => parts([
+    [0.4, 0.02, 0.28, 0, -0.04, 0, 0xf8fafc],                                         // servis tabağı
+    [0.34, 0.035, 0.07, 0, -0.02, -0.04, 0x7c2d12],                                   // Adana şiş kebap
+    [0.32, 0.03, 0.06, 0, 0.005, -0.04, 0x991b1b],
+    [0.07, 0.04, 0.07, 0.12, -0.02, 0.05, 0xdc2626],                                  // közlenmiş domates
+    [0.04, 0.03, 0.14, 0.03, -0.02, 0.05, 0x15803d],                                  // közlenmiş acı biber
+    [0.14, 0.025, 0.14, -0.1, -0.02, 0.05, 0xfef08a]                                  // tırnak pide / lavaş
+  ]) },
+  ayran: { half: [0.07, 0.11, 0.07], tint: false, mass: 0.25, geo: () => parts([
+    [0.12, 0.18, 0.12, 0, 0, 0, 0xf8fafc],                                             // yayık ayran bardağı
+    [0.13, 0.02, 0.13, 0, 0.09, 0, 0x16a34a],                                         // yeşil folyo kapak
+    [0.03, 0.01, 0.03, 0.02, 0.10, 0, 0x0284c7]                                       // pipet deliği
+  ]) },
+  table_menu: { half: [0.06, 0.1, 0.06], tint: false, mass: 0.15, geo: () => parts([
+    [0.04, 0.18, 0.12, 0, 0, 0, 0xf8fafc],                                             // dik üçgen menü kartı
+    [0.045, 0.04, 0.12, 0, 0.07, 0, 0xdc2626],                                        // kırmızı MENÜ başlığı
+    [0.06, 0.02, 0.14, 0, -0.08, 0, 0x1e293b]                                         // alt stand
+  ]) },
+  table_reserved: { half: [0.06, 0.05, 0.09], tint: false, mass: 0.2, geo: () => parts([
+    [0.08, 0.06, 0.16, 0, 0, 0, 0xfacc15],                                             // pirinç rezerv prizması
+    [0.084, 0.035, 0.13, 0, 0.005, 0, 0x0f172a],                                      // siyah REZERV levhası
+    [0.086, 0.015, 0.11, 0, 0.005, 0, 0xffffff]                                       // beyaz REZERV yazısı
+  ]) },
   donut: { half: [0.13, 0.05, 0.13], tint: true, mass: 0.15, geo: () => parts([       // kremalı donat: hamur halkası + krema halkası + şeker serpintisi
     [0.26, 0.06, 0.09, 0, -0.02, -0.085, 0xf3d9a8], [0.26, 0.06, 0.09, 0, -0.02, 0.085, 0xf3d9a8], [0.09, 0.06, 0.08, -0.085, -0.02, 0, 0xf3d9a8], [0.09, 0.06, 0.08, 0.085, -0.02, 0, 0xf3d9a8],
     [0.26, 0.03, 0.08, 0, 0.025, -0.09, 0xffffff], [0.26, 0.03, 0.08, 0, 0.025, 0.09, 0xffffff], [0.08, 0.03, 0.1, -0.09, 0.025, 0, 0xffffff], [0.08, 0.03, 0.1, 0.09, 0.025, 0, 0xffffff],
