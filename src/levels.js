@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PALETTE } from './teardown.js';
+import { PALETTE, VOXEL_SIZE } from './teardown.js';
 import { Kit, P } from './kit.js';
 import { ROADS, ROUNDABOUT, ROUNDABOUTS, paintSegments, onRoadFast, roadRects } from './cityplan.js';
 import { buildVilla, paintVillaRoad, villaHeight, villaRoadProfile } from './villa.js';
