@@ -1074,7 +1074,7 @@ function setupEventListeners() {
   window.addEventListener('contextmenu', (e) => e.preventDefault());   // sağ tık menüsü açılmasın: sağ tık = el
 
   canvasContainer.addEventListener('mousedown', (e) => {
-    if (introActive) return;   // jenerik: kontroller kapalı
+    if (introActive) { endIntro(); return; }
     if (e.target.closest && e.target.closest('.weapon-selector')) return; // silah menüsüne tıklama ateş etmez
     if (e.button === 0) {
       fireWeapon();
@@ -1188,4 +1188,9 @@ function buildLevelSelectButtons() {
   });
 }
 
-window.addEventListener('DOMContentLoaded', init);
+// Başlat: DOM hazırsa hemen çalıştır, değilse bekle
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
