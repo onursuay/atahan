@@ -47,7 +47,7 @@ const INTRO_TURN = 0;                         // doğrudan TV hizasında yere ba
 const INTRO_PITCH0 = 1.18;                    // başlangıçta yere doğru bakış (rad)
 const INTRO_BASE_YAW = -Math.PI / 2;          // TV yönü (doğu, +x)
 const INTRO_SEAT_EYE = 0.85;                  // oturan karakterin göz yüksekliği (ayak seviyesinden, m)
-const INTRO_T = { fadeStart: 0.8, fadeEnd: 5.2, lookStart: 1.4, lookEnd: 7.2, remoteDown: 7.4, end: 8.2 };   // saniye
+const INTRO_T = { fadeStart: 0.05, fadeEnd: 1.0, lookStart: 0.15, lookEnd: 1.8, remoteDown: 1.9, end: 2.2 };   // saniye
 let introActive = false, introPlayed = false, introT = 0, introWaiting = false;
 let eyeOffset = 1.8;                          // kamera göz yüksekliği (ayaktan); oturunca düşer
 let seated = false;                           // koltukta oturuyor (ilk hareketle kalkar)
@@ -450,37 +450,19 @@ function startIntro() {
   seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
   for (const k in inputState) inputState[k] = false;
   if (!introFadeEl) {
-    introFadeEl = document.createElement('div');
-    introFadeEl.style.cssText = 'position:fixed;inset:0;background:#000;z-index:200;pointer-events:none;opacity:1';
-    document.body.appendChild(introFadeEl);
-    const st = document.createElement('style');
-    st.textContent = 'body.intro #hud, body.intro #crosshair, body.intro #vitals, body.intro #daynight, body.intro #weapon-now, body.intro #weapon-hint, body.intro #mag-hud, body.intro #detonate-btn, body.intro #octopus-hud, body.intro #octopus-vignette { display:none !important; }'
-      + '#main-menu{position:fixed;inset:0;z-index:210;background:radial-gradient(ellipse at center,#1b2440 0%,#05070d 75%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#fff;text-align:center}'
-      + '#main-menu h1{font-size:44px;letter-spacing:4px;margin:0 0 26px;text-shadow:4px 4px #000,0 0 24px #5b8cff}'
-      + '#main-menu button{font-family:inherit;font-size:20px;letter-spacing:2px;width:280px;padding:14px 0;color:#fff;background:#1f2a48;border:3px solid #5b8cff;cursor:pointer}'
-      + '#main-menu button:hover{background:#34457a}'
-      + '#main-menu .panel{display:none;flex-direction:column;align-items:center;gap:16px;font-size:15px}'
-      + '#main-menu input[type=range]{width:260px}';
-    document.head.appendChild(st);
-    const menu = document.createElement('div');
-    menu.id = 'main-menu';
-    menu.innerHTML = '<h1>ŞEHİR YIKIMI</h1>'
-      + '<div class="panel" id="mm-home" style="display:flex;gap:14px"><button id="mm-play">OYNA</button><button id="mm-settings">AYARLAR</button></div>'
-      + '<div class="panel" id="mm-set"><div>AYARLAR</div>'
-      + '<button id="mm-sound">SES: AÇIK</button>'
-      + '<label>FARE HASSASİYETİ<br><input id="mm-sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label>'
-      + '<button id="mm-back">GERİ</button></div>';
-    document.body.appendChild(menu);
+    introFadeEl = document.getElementById('intro-fade') || document.createElement('div');
+    const menu = document.getElementById('main-menu') || document.createElement('div');
     const $ = (id) => menu.querySelector('#' + id);
-    $('mm-settings').onclick = () => { $('mm-home').style.display = 'none'; $('mm-set').style.display = 'flex'; };
-    $('mm-back').onclick = () => { $('mm-set').style.display = 'none'; $('mm-home').style.display = 'flex'; };
-    $('mm-sound').onclick = () => { sound.init(); const m = sound.toggleMute(); $('mm-sound').innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
-    $('mm-sens').oninput = (e) => { mouseSens = parseFloat(e.target.value); };
-    $('mm-play').onclick = () => {      // OYNA: menü kapanır, jenerik başlar
+    const sBtn = $('mm-settings'), bBtn = $('mm-back'), sndBtn = $('mm-sound'), sensInp = $('mm-sens'), pBtn = $('mm-play');
+    if (sBtn) sBtn.onclick = () => { $('mm-home').style.display = 'none'; $('mm-set').style.display = 'flex'; };
+    if (bBtn) bBtn.onclick = () => { $('mm-set').style.display = 'none'; $('mm-home').style.display = 'flex'; };
+    if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
+    if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
+    if (pBtn) pBtn.onclick = () => {      // OYNA: menü kapanır, jenerik başlar
       menu.style.display = 'none';
       introWaiting = false; introT = 0;
       sound.init();
-      // Oyuna başlandığı an kesinlikle 2. kattaki televizyon odasında koltuğun üstünde başlasın
+      // Oyuna başlandığı an çöldeki evimizin 2. katındaki televizyon odasında koltukta başlasın
       const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
       character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
       seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
@@ -491,8 +473,8 @@ function startIntro() {
   }
   // Oyun ana menüyle başlar: OYNA'ya basılana kadar ekran siyah, jenerik bekler
   introWaiting = true;
-  introMenuEl.style.display = 'flex';
-  introFadeEl.style.display = 'block'; introFadeEl.style.opacity = '1';
+  if (introMenuEl) introMenuEl.style.display = 'flex';
+  if (introFadeEl) { introFadeEl.style.display = 'block'; introFadeEl.style.opacity = '1'; }
   document.body.classList.add('intro');
   if (!remoteModel) remoteModel = buildRemote();
   remoteModel.visible = true;

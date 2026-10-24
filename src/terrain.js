@@ -328,17 +328,17 @@ export class Terrain {
       }
     }
 
-    // Eğim sınırı: komşu hücreler arası fark en çok 0.25 m (yalnız yüksekliği olan bölgede çalışır: dünya büyük, düz yerler atlanır)
+    // Eğim sınırı: komşu hücreler arası fark en çok 0.25 m (yalnız dağlık/yüksek bölgede çalışır: hq > 1)
     if (this.heightFn) {
       const hq = this.hq, L = this.land;
       let rMin = rows, rMax = -1, cMin = cols, cMax = -1;
-      for (let i = 0; i < cols * rows; i++) if (hq[i] > 0) { const c = i % cols, r = (i - c) / cols; if (r < rMin) rMin = r; if (r > rMax) rMax = r; if (c < cMin) cMin = c; if (c > cMax) cMax = c; }
+      for (let i = 0; i < cols * rows; i++) if (hq[i] > 1) { const c = i % cols, r = (i - c) / cols; if (r < rMin) rMin = r; if (r > rMax) rMax = r; if (c < cMin) cMin = c; if (c > cMax) cMax = c; }
       if (rMax >= 0) {
         rMin = Math.max(0, rMin - 2); rMax = Math.min(rows - 1, rMax + 2); cMin = Math.max(0, cMin - 2); cMax = Math.min(cols - 1, cMax + 2);
         const M = this.matIdx; // eğim sınırı yalnız aynı malzemeli komşular arasında (rampa/üst geçit yolu kenardaki zeminden ayrışabilir)
         const isRoadMat = this.matList.map(m => m.name.startsWith('Asfalt'));
         const lim = (i, j) => { if (L[i] === 1 && L[j] === 1 && M[i] === M[j] && !isRoadMat[M[i]] && hq[i] > hq[j] + 1) hq[i] = hq[j] + 1; };
-        for (let pass = 0; pass < 24; pass++) {
+        for (let pass = 0; pass < 8; pass++) {
           for (let r = rMin; r <= rMax; r++) for (let c = cMin; c <= cMax; c++) {
             const i = r * cols + c;
             if (c > 0) lim(i, i - 1);

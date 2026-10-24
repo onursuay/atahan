@@ -629,6 +629,79 @@
     </div>
   </div>
 
+  <!-- Anında Açılan Ana Menü (Hemen Yüklenir) -->
+  <style>
+    body.intro #hud, body.intro #crosshair, body.intro #vitals, body.intro #daynight, body.intro #weapon-now, body.intro #weapon-hint, body.intro #mag-hud, body.intro #detonate-btn, body.intro #octopus-hud, body.intro #octopus-vignette, body.intro #minimap-container { display: none !important; }
+    #main-menu {
+      position: fixed;
+      inset: 0;
+      z-index: 210;
+      background: radial-gradient(ellipse at center, #1b2440 0%, #05070d 75%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      color: #fff;
+      text-align: center;
+    }
+    #main-menu h1 {
+      font-size: 44px;
+      letter-spacing: 4px;
+      margin: 0 0 26px;
+      text-shadow: 4px 4px #000, 0 0 24px #5b8cff;
+    }
+    #main-menu button {
+      font-family: inherit;
+      font-size: 20px;
+      letter-spacing: 2px;
+      width: 280px;
+      padding: 14px 0;
+      color: #fff;
+      background: #1f2a48;
+      border: 3px solid #5b8cff;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    #main-menu button:hover {
+      background: #34457a;
+      transform: scale(1.02);
+    }
+    #main-menu .panel {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      font-size: 15px;
+    }
+    #main-menu input[type=range] {
+      width: 260px;
+    }
+    #intro-fade {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 200;
+      pointer-events: none;
+      opacity: 1;
+    }
+  </style>
+
+  <div id="intro-fade"></div>
+  <div id="main-menu">
+    <h1>ŞEHİR YIKIMI</h1>
+    <div class="panel" id="mm-home" style="display:flex;gap:14px">
+      <button id="mm-play">OYNA</button>
+      <button id="mm-settings">AYARLAR</button>
+    </div>
+    <div class="panel" id="mm-set">
+      <div>AYARLAR</div>
+      <button id="mm-sound">SES: AÇIK</button>
+      <label>FARE HASSASİYETİ<br><input id="mm-sens" type="range" min="0.3" max="2.5" step="0.1" value="1"></label>
+      <button id="mm-back">GERİ</button>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
