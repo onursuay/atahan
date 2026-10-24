@@ -429,8 +429,8 @@ export class LevelManager {
       [-161, -137], [-119, -97], [-79, -57], [-41, -33], [-21, -15]
     ];
     const lots = [
-      [142, 164], [168, 191], [209, 231], [235, 257], [273, 298],
-      [330, 370], [390, 440], [460, 540], [560, 640], [660, 740]
+      [142, 164], [176, 198], [210, 232], [244, 266],
+      [324, 348], [384, 408], [474, 498], [574, 598], [674, 698]
     ];
     const existing = [[142, 164, [4, 5, 7, 8]]];
     const near = (x1, x2, z1, z2) => ROUNDABOUTS.some(g => { const dx = Math.max(x1 - g.cx, 0, g.cx - x2), dz = Math.max(Math.min(z1, z2) - g.cz, 0, g.cz - Math.max(z1, z2)); return Math.hypot(dx, dz) < g.rOuter + 8; });
@@ -438,24 +438,26 @@ export class LevelManager {
       const [x1, x2] = cols[ci];
       const zlo = sign > 0 ? za : -zb, zhi = sign > 0 ? zb : -za;
       if (near(x1, x2, zlo, zhi) || isSpecialLot(x1, x2, zlo, zhi)) return;
+      // Şehir içi açık alanlar, otoparklar ve meydanlar için nefes payı (%18 boşluk)
+      if (rnd() < 0.18) return;
       const bType = (ci * 3 + Math.floor(rnd() * 8)) % 8;
       if (bType === 0) {
         this.buildOutdoorTeknoMarket(x1, 1, zlo, x2, 12, zhi);
       } else if (bType === 1) {
         this.buildMarket(x1, 1, zlo, x2, 10, zhi);
       } else if (bType === 2) {
-        this.buildCityApartment(x1, 1, zlo, x2, 24, zhi);
+        this.buildCityApartment(x1, 1, zlo, x2, 22, zhi);
       } else if (bType === 3) {
         this.buildOutdoorFashionStore(x1, 1, zlo, x2, 12, zhi);
       } else if (bType === 4) {
-        this.buildCityBank(x1, 1, zlo, x2, 18, zhi);
+        this.buildCityBank(x1, 1, zlo, x2, 16, zhi);
       } else if (bType === 5) {
-        const h = 26 + Math.floor(rnd() * 24);
+        const h = 24 + Math.floor(rnd() * 18);
         this.buildTower(x1, 1, zlo, x2, h, zhi, { ...CC, side: sign > 0 ? 'z1' : 'z2', sign: true });
       } else if (bType === 6) {
         this.buildCityWarehouse(x1, 1, zlo, x2, 12, zhi);
       } else {
-        const h = 14 + Math.floor(rnd() * 18);
+        const h = 14 + Math.floor(rnd() * 16);
         const style = rnd() < 0.5 ? CC : BR;
         this.buildTower(x1, 1, zlo, x2, h, zhi, { ...style, side: sign > 0 ? 'z1' : 'z2' });
       }

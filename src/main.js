@@ -108,7 +108,7 @@ function init() {
   // 3. Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.autoClear = false; // silah modeli ikinci geçişte çizilir
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -121,8 +121,8 @@ function init() {
   sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
   sunLight.position.set(60, 95, 45);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.width = 4096; // Yüksek çözünürlüklü keskin gölgeler
-  sunLight.shadow.mapSize.height = 4096;
+  sunLight.shadow.mapSize.width = 2048; // Optimize edilmiş keskin gölgeler
+  sunLight.shadow.mapSize.height = 2048;
   sunLight.shadow.camera.near = 10;
   sunLight.shadow.camera.far = 260;
 

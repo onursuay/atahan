@@ -299,8 +299,12 @@ export class MapSystem {
     this.playerYaw = cameraYaw;
     this.pulse = (this.pulse + dt * 4) % (Math.PI * 2);
 
-    // Her karede küçük harita çizilir
-    this._drawMini();
+    // Küçük haritayı saniyede 20 kez güncellemek akıcı radar için yeterlidir (FPS'i korur)
+    this.miniTimer = (this.miniTimer || 0) + dt;
+    if (this.miniTimer >= 0.05) {
+      this.miniTimer = 0;
+      this._drawMini();
+    }
 
     // Büyük harita açıksa o da güncellenir
     if (this.isOpen) {
