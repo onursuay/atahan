@@ -396,15 +396,15 @@ export function buildVilla(world) {
 
   // Zengin abinin villasına yerleştirilen tablolar
   // 1. Konsol üstü ana salon duvarı (Mondrian & Soyut Renkler)
-  addPainting(oX(62), 6.5, oZ(40), 2.8, 1.9, 0, 'mondrian', true);
-  addPainting(oX(74), 6.5, oZ(40), 2.6, 1.8, 0, 'abstract', true);
+  addPainting(Xc(62), Yb(9) + 2.5, Zc(40), 2.8, 1.9, 0, 'mondrian', true);
+  addPainting(Xc(74), Yb(9) + 2.5, Zc(40), 2.6, 1.8, 0, 'abstract', true);
   // 2. Yatak odası duvarı (Romantik Gün Batımı & Yıldızlı Gece)
-  addPainting(oX(33) + 0.35, 6.2, oZ(44), 2.2, 1.6, Math.PI / 2, 'sunset', true);
-  addPainting(oX(44), 6.4, oZ(51) - 0.25, 2.4, 1.7, 0, 'starry', false);
+  addPainting(Xc(33) + 0.35, Yb(9) + 2.2, Zc(44), 2.2, 1.6, Math.PI / 2, 'sunset', true);
+  addPainting(Xc(44), Yb(9) + 2.4, Zc(51) - 0.25, 2.4, 1.7, 0, 'starry', false);
   // 3. Giriş ve koridor duvarları (Canlı Renkler & Fütüristik Sanat)
-  addPainting(oX(40), 2.2, oZ(71), 2.6, 1.8, Math.PI, 'abstract', true);
-  addPainting(oX(68), 2.2, oZ(71), 2.4, 1.7, Math.PI, 'rainbow', true);
-  addPainting(oX(48), 2.2, oZ(40), 2.8, 1.9, 0, 'sunset', false);
+  addPainting(Xc(40), Yb(1) + 2.2, Zc(71), 2.6, 1.8, Math.PI, 'abstract', true);
+  addPainting(Xc(68), Yb(1) + 2.2, Zc(71), 2.4, 1.7, Math.PI, 'rainbow', true);
+  addPainting(Xc(48), Yb(1) + 2.2, Zc(40), 2.8, 1.9, 0, 'sunset', false);
 
   const screen = (x, y, z, w, h, rotY, kind) => {
     const tex = hudTexture(kind);

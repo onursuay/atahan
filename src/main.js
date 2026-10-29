@@ -97,6 +97,18 @@ function setLoadingProgress(pct, title, sub) {
   if (subTxt && sub) subTxt.innerText = sub;
 }
 
+export function finishLoadingUI() {
+  try {
+    setLoadingProgress(100, 'ŞEHİR HAZIR!', 'Başlamak için OYNA butonuna tıkla.');
+    const loadEl = document.getElementById('mm-loading');
+    if (loadEl) loadEl.style.display = 'none';
+    const homeEl = document.getElementById('mm-home');
+    if (homeEl) homeEl.style.display = 'flex';
+  } catch (e) {
+    console.warn('finishLoadingUI error:', e);
+  }
+}
+
 function init() {
   setLoadingProgress(20, 'GRAFİK VE FİZİK MOTORU BAŞLATILIYOR...', 'Üç boyutlu dünya oluşturuluyor...');
   // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 5X Genişletilmiş Harita Görüşü)
@@ -218,11 +230,20 @@ function init() {
 
   // İlk Bölümü Yükle
   setLoadingProgress(55, 'DEVASA METROPOL HARİTASI İNŞA EDİLİYOR...', 'Bulvarlar, caddeler ve kumsal hazırlanıyor...');
-  loadLevel(0);
+  try {
+    loadLevel(0);
+  } catch (err) {
+    console.error('loadLevel(0) hatası:', err);
+  }
 
-  setupEventListeners();
-  buildLevelSelectButtons();
-  mapSystem = new MapSystem();
+  try { setupEventListeners(); } catch (e) { console.warn(e); }
+  try { buildLevelSelectButtons(); } catch (e) { console.warn(e); }
+  try { mapSystem = new MapSystem(); } catch (e) { console.warn(e); }
+
+  finishLoadingUI();
+  // Garanti yükleme emniyet kilitleri (Watchdog)
+  setTimeout(finishLoadingUI, 1200);
+  setTimeout(finishLoadingUI, 3000);
 
   // Oyun Döngüsü
   let lastTime = performance.now();
@@ -493,15 +514,23 @@ function startIntro() {
     if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
     if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
     if (pBtn) pBtn.onclick = () => {      // OYNA: menü kapanır, jenerik başlar
-      menu.style.display = 'none';
-      introWaiting = false; introT = 0;
-      sound.init();
-      // Oyuna başlandığı an şehirdeki evimizin 2. katındaki televizyon odasında koltukta başlasın
-      const cfg = levelManager.levelConfigs[levelManager.currentLevelIndex];
-      character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
-      seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
-      cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
-      if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
+      try {
+        menu.style.display = 'none';
+        introWaiting = false; introT = 0;
+        try { sound.init(); } catch (e) {}
+        // Oyuna başlandığı an şehirdeki evimizin 2. katındaki televizyon odasında koltukta başlasın
+        const cfg = (levelManager && levelManager.levelConfigs) ? levelManager.levelConfigs[levelManager.currentLevelIndex || 0] : null;
+        if (cfg && cfg.spawn) character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+        seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
+        cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
+        if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
+      } catch (err) {
+        console.warn('Oyna basildiginda kurtarma calisti:', err);
+        menu.style.display = 'none';
+        document.body.classList.remove('intro');
+        if (introFadeEl) introFadeEl.style.display = 'none';
+        introActive = false;
+      }
     };
     introMenuEl = menu;
   }
@@ -515,12 +544,7 @@ function startIntro() {
   handWeapons.root.visible = false;
   cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
 
-  // Yükleme tamamlandı: Yükleme göstergesini kaldır, OYNA butonunu aktif et
-  setLoadingProgress(100, 'ŞEHİR HAZIR!', 'Başlamak için OYNA butonuna tıkla.');
-  const loadEl = document.getElementById('mm-loading');
-  if (loadEl) loadEl.style.display = 'none';
-  const homeEl = document.getElementById('mm-home');
-  if (homeEl) homeEl.style.display = 'flex';
+  finishLoadingUI();
 }
 
 function updateIntro(dt) {
@@ -646,40 +670,63 @@ function updateCamera(dt) {
 
 function loadLevel(index) {
   isLevelCompleted = false;
-  levelModal.classList.remove('active');
-  levelsModal.classList.remove('active');
+  try {
+    levelModal.classList.remove('active');
+    levelsModal.classList.remove('active');
+  } catch (e) {}
 
   setLoadingProgress(80, 'BİNALAR VE YAŞAM ALANLARI KURULUYOR...', 'Okul, hastane, gökdelenler ve yapay zeka ekleniyor...');
-  const cfg = levelManager.loadLevel(index);
-  weaponSystem.clear();
-  bombs.clear();
-  planes.clear();
-  particleSystem.clear();
-  handWeapons.resetAmmo();
-  character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); // 2. kat televizyon odası koltuğu
-  npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
-  props.clear();
-  for (const s of voxelWorld.propSpawns) props.add(s.kind, s.x, s.y, s.z, s);   // tutulabilir eşyalar (sağ tıkla tutulur)
-  npcs.reset();
-  voxelWorld.traffic = new TrafficLights(voxelWorld);   // trafik ışıkları (kavşaklarda döngü); arabalar buna uyar
-  cars.build();
-  if (metro) metro.initWorld();
-  // Gece-gündüz: 10 dk gündüz, 10 dk gece; her seviye yüklemesinde gündüzün başından başlar
-  if (dayNight) dayNight.dispose();
-  dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });
-  npcs.day = () => DayNight.dayAmount(dayNight.t);   // villa sahibi geceleri uyur
-  window.__gece = (sn) => dayNight.setTime(sn);   // hata ayıklama: __gece(630) = gecenin başı
+  
+  let cfg = null;
+  try {
+    cfg = levelManager.loadLevel(index);
+  } catch (err) {
+    console.error('Bölüm yüklenirken hata oluştu:', err);
+  }
+  if (!cfg) cfg = { spawn: { x: 0, y: 15, z: 0 }, title: 'BÜYÜK ŞEHİR', desc: 'Şehri keşfet!', targetPercent: 70 };
+
+  try { weaponSystem.clear(); } catch(e){}
+  try { bombs.clear(); } catch(e){}
+  try { planes.clear(); } catch(e){}
+  try { particleSystem.clear(); } catch(e){}
+  try { handWeapons.resetAmmo(); } catch(e){}
+  try { character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); } catch(e){}
+  try { npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z); } catch(e){}
+  try {
+    props.clear();
+    for (const s of (voxelWorld.propSpawns || [])) props.add(s.kind, s.x, s.y, s.z, s);
+  } catch(e){ console.warn('Prop spawn warn:', e); }
+  try { npcs.reset(); } catch(e){ console.warn('NPC reset warn:', e); }
+  try { voxelWorld.traffic = new TrafficLights(voxelWorld); } catch(e){}
+  try { cars.build(); } catch(e){ console.warn('Car build warn:', e); }
+  try { if (metro) metro.initWorld(); } catch(e){}
+  try {
+    if (dayNight && typeof dayNight.dispose === 'function') dayNight.dispose();
+    dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });
+    npcs.day = () => DayNight.dayAmount(dayNight.t);
+    window.__gece = (sn) => dayNight.setTime(sn);
+  } catch(e){ console.warn('DayNight warn:', e); }
+
   cameraYaw = -Math.PI / 2; // Evdeki koltuktan doğuya, televizyona doğru baksın
   seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
-  if (!introPlayed) startIntro();   // açılış jeneriği yalnız oyun ilk açıldığında
-  else cameraPitch = 0.0;
 
-  levelTitleEl.innerText = cfg.title;
-  levelDescEl.innerText = cfg.desc;
-  targetPercentEl.innerText = `${cfg.targetPercent}%`;
-  targetMarkerEl.style.left = `${cfg.targetPercent}%`;
-  updateDestructionUI(0);
-  updateWeaponUI();
+  try {
+    if (!introPlayed) startIntro();   // açılış jeneriği yalnız oyun ilk açıldığında
+    else cameraPitch = 0.0;
+  } catch (e) {
+    console.warn('Intro warn:', e);
+  } finally {
+    finishLoadingUI();
+  }
+
+  try {
+    levelTitleEl.innerText = cfg.title;
+    levelDescEl.innerText = cfg.desc;
+    targetPercentEl.innerText = `${cfg.targetPercent}%`;
+    targetMarkerEl.style.left = `${cfg.targetPercent}%`;
+    updateDestructionUI(0);
+    updateWeaponUI();
+  } catch (e) {}
 }
 
 function updateDestructionUI(percent) {
@@ -1195,8 +1242,18 @@ function buildLevelSelectButtons() {
 }
 
 // Başlat: DOM hazırsa hemen çalıştır, değilse bekle
+function safeInit() {
+  try {
+    init();
+  } catch (err) {
+    console.error('Kritik başlatma hatası yakalandı:', err);
+  } finally {
+    finishLoadingUI();
+  }
+}
+
 if (document.readyState === 'loading') {
-  window.addEventListener('DOMContentLoaded', init);
+  window.addEventListener('DOMContentLoaded', safeInit);
 } else {
-  init();
+  safeInit();
 }

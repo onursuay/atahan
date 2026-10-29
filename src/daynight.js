@@ -109,8 +109,23 @@ export class DayNight {
   }
 
   dispose() {
-    [this.moonMesh, this.stars, this.pools, this.carSpot, this.carSpot.target, this.flareGroup, ...this.lampLights].forEach(o => this.scene.remove(o));
-    beamMat.opacity = 0;
+    try {
+      const items = [
+        this.moonMesh,
+        this.stars,
+        this.pools,
+        this.carSpot,
+        this.carSpot && this.carSpot.target,
+        this.flareGroup,
+        ...(this.lampLights || [])
+      ].filter(Boolean);
+      for (const o of items) {
+        if (this.scene) this.scene.remove(o);
+      }
+      if (beamMat) beamMat.opacity = 0;
+    } catch (e) {
+      console.warn('DayNight dispose error:', e);
+    }
   }
 
   setTime(sec) { this.t = sec; this.apply(true, this._lastCam); }
@@ -135,18 +150,36 @@ export class DayNight {
     // Gökyüzü / sis / ortam
     const dusk = Math.max(0, 1 - Math.abs(2 * d - 1)) * 0.75;
     const sky = this.tmp.copy(this.nightCol).lerp(this.dayCol, d).lerp(this.duskCol, dusk);
-    this.scene.background.copy(sky); this.scene.fog.color.copy(sky); this.scene.fog.near = 400; this.scene.fog.far = 3200 - 800 * night;
-    this.ambient.intensity = 0.3 + 0.25 * d; this.ambient.color.copy(this.ambNight).lerp(this.ambDay, d);
+    if (this.scene) {
+      if (this.scene.background && this.scene.background.copy) this.scene.background.copy(sky);
+      if (this.scene.fog) {
+        if (this.scene.fog.color && this.scene.fog.color.copy) this.scene.fog.color.copy(sky);
+        this.scene.fog.near = 400;
+        this.scene.fog.far = 3200 - 800 * night;
+      }
+    }
+    if (this.ambient) {
+      this.ambient.intensity = 0.3 + 0.25 * d;
+      if (this.ambient.color && this.ambient.color.copy) this.ambient.color.copy(this.ambNight).lerp(this.ambDay, d);
+    }
     // Güneş / ay ışığı: tek yönlü ışık; ufka inerken turuncu, gece mavi
     const sunUp = d >= 0.5, k = sunUp ? smooth((d - 0.5) / 0.5) : smooth((0.5 - d) / 0.5);
     const el = THREE.MathUtils.degToRad(sunUp ? 7 + 51 * k : 7 + 48 * k), az = sunUp ? AZ : AZ + Math.PI;
     this.dir.set(Math.cos(az) * Math.cos(el), Math.sin(el), Math.sin(az) * Math.cos(el));
-    this.sun.intensity = sunUp ? 1.4 * smooth((d - 0.45) / 0.55) : 0.65 * (1 - smooth(d / 0.45));
-    this.sun.color.copy(sunUp ? this.sunOrange.clone().lerp(this.sunWhite, smooth((d - 0.5) / 0.4)) : this.moonCol);
+    if (this.sun) {
+      this.sun.intensity = sunUp ? 1.4 * smooth((d - 0.45) / 0.55) : 0.65 * (1 - smooth(d / 0.45));
+      if (this.sun.color && this.sun.color.copy) {
+        this.sun.color.copy(sunUp ? this.sunOrange.clone().lerp(this.sunWhite, smooth((d - 0.5) / 0.4)) : this.moonCol);
+      }
+    }
     // Su, bulutlar
-    this.water.color.copy(this.waterNight).lerp(this.waterDay, d);
-    this.clouds.forEach(c => c.mesh.material.color.setScalar(0.18 + 0.82 * d));
-    this.starMat.opacity = Math.pow(night, 2);
+    if (this.water && this.water.color && this.water.color.copy) {
+      this.water.color.copy(this.waterNight).lerp(this.waterDay, d);
+    }
+    if (this.clouds && Array.isArray(this.clouds)) {
+      this.clouds.forEach(c => { if (c && c.mesh && c.mesh.material && c.mesh.material.color) c.mesh.material.color.setScalar(0.18 + 0.82 * d); });
+    }
+    if (this.starMat) this.starMat.opacity = Math.pow(night, 2);
     // Lambalar: akşam yanar (1. aşama), gece iyice parlar (2. aşama)
     const on = smooth(night / 0.5), full = smooth((night - 0.5) / 0.5);
     this.lampFactor = Math.min(1, on * 0.55 + full * 0.45);
@@ -168,9 +201,9 @@ export class DayNight {
         this.sunHaloMat.opacity = 0.75 * morningFactor;
 
         // Lens flare halkaları (Güneş ile kamera arasında sıralanır)
-        const d1 = sunPos.clone().lerp(camPos, 0.35);
-        const d2 = sunPos.clone().lerp(camPos, 0.58);
-        const d3 = sunPos.clone().lerp(camPos, 0.78);
+        const d1 = new THREE.Vector3().copy(sunPos).lerp(camPos, 0.35);
+        const d2 = new THREE.Vector3().copy(sunPos).lerp(camPos, 0.58);
+        const d3 = new THREE.Vector3().copy(sunPos).lerp(camPos, 0.78);
         this.lensDisc1.position.copy(d1); this.lensDisc1.lookAt(camPos);
         this.lensDisc2.position.copy(d2); this.lensDisc2.lookAt(camPos);
         this.lensDisc3.position.copy(d3); this.lensDisc3.lookAt(camPos);

@@ -722,6 +722,47 @@
     </div>
   </div>
 
+  <script>
+    // Fail-safe Watchdog ve Hata Koruma Kalkanı:
+    // Herhangi bir modül yüklenemese veya beklenmedik bir hata çıksa dahi oyuncu asla yükleme ekranında takılı kalmaz!
+    function rescueLoading() {
+      var loadEl = document.getElementById('mm-loading');
+      var homeEl = document.getElementById('mm-home');
+      if (loadEl && loadEl.style.display !== 'none') {
+        loadEl.style.display = 'none';
+        if (homeEl) homeEl.style.display = 'flex';
+      }
+      var bar = document.getElementById('mm-loading-bar');
+      if (bar) bar.style.width = '100%';
+    }
+
+    // OYNA butonuna yedek tık dinleyicisi (modül geç kalsa veya hata verse dahi oyuna girişi sağlar)
+    document.addEventListener('DOMContentLoaded', function() {
+      var pBtn = document.getElementById('mm-play');
+      if (pBtn) {
+        pBtn.addEventListener('click', function() {
+          var menu = document.getElementById('main-menu');
+          if (menu) menu.style.display = 'none';
+          document.body.classList.remove('intro');
+          var fade = document.getElementById('intro-fade');
+          if (fade) fade.style.display = 'none';
+        });
+      }
+    });
+
+    // 1. Kritik Hata Yakalayıcı (Hata anında yükleme ekranını derhal kaldırıp OYNA'yı açar)
+    window.addEventListener('error', function(e) {
+      console.warn('Oyun başlatma uyarısı yakalandı (kurtarma devrede):', e && e.message ? e.message : e);
+      rescueLoading();
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      console.warn('Promise reddi yakalandı (kurtarma devrede):', e && e.reason ? e.reason : e);
+      rescueLoading();
+    });
+
+    // 2. Maksimum 3.5 saniye Zaman Aşımı Bekçisi (Watchdog)
+    setTimeout(rescueLoading, 3500);
+  </script>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
