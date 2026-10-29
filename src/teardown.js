@@ -260,7 +260,8 @@ export class VoxelWorld {
       const cz = Number(parts[2]);
       const mesh = new THREE.InstancedMesh(this.cubeGeo, this.materials[typeId], list.length);
       const distFromCenter = Math.hypot(cx * CHUNK_SIZE, cz * CHUNK_SIZE);
-      mesh.castShadow = distFromCenter < 250;
+      const isGround = typeId === PALETTE.ASPHALT.id || typeId === PALETTE.GRASS.id || typeId === PALETTE.SAND.id;
+      mesh.castShadow = !isGround && distFromCenter < 250;
       mesh.receiveShadow = true;
       mesh.frustumCulled = true;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

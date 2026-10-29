@@ -59,7 +59,7 @@ export class DogManager {
       d.m.g.visible = near; if (d.leash) d.leash.visible = near;
       if (!near) { if (!d.free && d.owner) { d.x = d.owner.x + 0.9; d.z = d.owner.z + 0.9; d.y = d.owner.y; } continue; }   // uzaktaki tasmalı köpek sahibini izler (çizilmez)
       d.t += dt;
-      if (!d.free && (!d.owner || !aliveNpcs.has(d.owner))) {         // sahibi gitti: tasma düşer, serbest kalır
+      if (!d.free && (!d.owner || d.owner.dead || (aliveNpcs && aliveNpcs.has && !aliveNpcs.has(d.owner)))) {         // sahibi gitti: tasma düşer, serbest kalır
         if (d.leash) { this.scene.remove(d.leash); d.leash = null; }
         d.free = true; d.owner = null; d.bounds = null; d.tt = 3; d.idle = 0;
       }

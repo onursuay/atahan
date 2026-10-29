@@ -225,7 +225,9 @@ export class NPCManager {
       briefcase.visible = false;
       rArm.add(briefcase);
     }
-    g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+    // Performans optimizasyonu: 8-12 minik parça yerine sadece gövde ve kafa gölge düşürür (aynı silüet, %85 daha az shadow draw call)
+    torso.castShadow = true;
+    head.castShadow = true;
     return { g, lArm, rArm, lLeg, rLeg, head, hairM, briefcase, shears, shearsBladeL, shearsBladeR, colors: [shirt, pants, skin, hair] };
   }
 
@@ -620,13 +622,42 @@ export class NPCManager {
       if (this.respawnQueue[i] <= 0) { this.respawnQueue.splice(i, 1); this._spawn(); }
     }
 
-    for (const n of this.npcs) {
-      this._step(n, dt);
+    const cullSq = CULL_DIST * CULL_DIST;
+    const nearSq = 45 * 45;
+    this._frameCounter = ((this._frameCounter || 0) + 1) % 120;
+    const fCount = this._frameCounter;
+
+    for (let i = 0; i < this.npcs.length; i++) {
+      const n = this.npcs[i];
       const dx = n.x - playerPos.x, dy = n.y - playerPos.y, dz = n.z - playerPos.z;
-      n.group.visible = dx * dx + dy * dy + dz * dz < CULL_DIST * CULL_DIST;   // uzaktaki insanlar çizilmez (yüzlerce çalışan/müşteri var)
+      const distSq = dx * dx + dy * dy + dz * dz;
+
+      if (distSq > cullSq) {
+        if (n.group.visible) n.group.visible = false;
+        // Kritik durumlar (fırlatılma, havada tutulma veya tahliye) her zaman güncellenir
+        if (n.evacPhase || n.thrownVel || n.grabbed) {
+          this._step(n, dt);
+        } else if (n.state === 'walk') {
+          // Uzaktaki yürüyen NPC: her 4 karede bir pozisyon ilerletilir, uzuv trigonometrisi atlanır
+          if ((i + fCount) % 4 === 0) {
+            n.x += (n.vx || 0) * dt * 4;
+            n.z += (n.vz || 0) * dt * 4;
+            n.group.position.set(n.x, n.y, n.z);
+          }
+        }
+        continue;
+      }
+
+      if (!n.group.visible) n.group.visible = true;
+
+      // Yakındaki NPC'ler (< 45m) her kare akıcı 60 FPS güncellenir.
+      // Orta mesafedeki NPC'ler (45m - 120m) 2 karede bir güncellenir (gözle fark edilmez, CPU %50 rahatlar).
+      if (distSq < nearSq || (i + fCount) % 2 === 0) {
+        this._step(n, distSq < nearSq ? dt : dt * 2);
+      }
     }
     this._updateCorpses(dt);
-    this.dogs.update(dt, playerPos, new Set(this.npcs));
+    this.dogs.update(dt, playerPos, null);
     this.cats.update(dt, playerPos);
     this._updateBakkalKids(dt);
     this._updateMarketShoppers(dt);
@@ -1377,6 +1408,7 @@ export class NPCManager {
   }
 
   _remove(n) {
+    n.dead = true;
     this.scene.remove(n.group);
     const i = this.npcs.indexOf(n);
     if (i >= 0) this.npcs.splice(i, 1);

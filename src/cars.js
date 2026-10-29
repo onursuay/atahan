@@ -427,15 +427,24 @@ export class CarManager {
 
   // Aracın önündeki dar koridorda (≈13 m) insan var mı?
   _personAhead(car) {
+    const cp = car.pos;
     const test = (x, y, z) => {
-      const dx = x - car.pos.x, dz = z - car.pos.z;
+      const dx = x - cp.x, dz = z - cp.z;
+      if (Math.abs(dx) > 16 || Math.abs(dz) > 16) return false;
       const ahead = dx * car.fwd.x + dz * car.fwd.z, side = Math.abs(-dx * car.fwd.z + dz * car.fwd.x);
-      return ahead > 0.5 && ahead < 8 + car.speed * 0.9 && side < car.T.wid / 2 + 1.1 && Math.abs(y - car.pos.y) < 2.5;
+      return ahead > 0.5 && ahead < 8 + car.speed * 0.9 && side < car.T.wid / 2 + 1.1 && Math.abs(y - cp.y) < 2.5;
     };
     if (!this.driven && test(this.player.x, this.player.y, this.player.z)) return true;
     if (this.driven && car !== this.driven && test(this.driven.pos.x, this.driven.pos.y, this.driven.pos.z)) return true;
     const npcs = this.vw.npcs && this.vw.npcs.npcs;
-    if (npcs) for (const n of npcs) if (test(n.x, n.y, n.z)) return true;
+    if (npcs) {
+      for (let i = 0; i < npcs.length; i++) {
+        const n = npcs[i];
+        if (n.sit && !n.evacPhase) continue; // Masasında/koltuğunda oturan çalışanlar yolda olamaz
+        if (Math.abs(n.x - cp.x) > 15 || Math.abs(n.z - cp.z) > 15) continue; // 15m dışındakiler anında elenir
+        if (test(n.x, n.y, n.z)) return true;
+      }
+    }
     return false;
   }
 

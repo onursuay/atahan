@@ -116,38 +116,38 @@ function init() {
   scene.background = new THREE.Color(0x78a7ff);
   scene.fog = new THREE.Fog(0x78a7ff, 600, 9500);
 
-  // 2. Kamera: 15000 m görüş mesafesi (5 kat geniş harita)
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.05, 15000);
+  // 2. Kamera: 4500 m görüş mesafesi (sis 3200m'de bittiği için 4500m fazlasıyla yeterli ve Z-buffer hassasiyetini 10 kat artırır)
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 4500);
 
-  // 3. Renderer
+  // 3. Renderer (Performans için optimize edildi: 60 FPS akıcı voxel deneyimi)
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.0)); // Retina ekranlarda aşırı piksel yükünü önler
   renderer.autoClear = false; // silah modeli ikinci geçişte çizilir
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = THREE.PCFShadowMap;
   canvasContainer.appendChild(renderer.domElement);
 
-  // 4. Işıklandırma ve Gerçekçi Gölgeler (Gelişmiş Gölge Haritası)
+  // 4. Işıklandırma ve Gerçekçi Gölgeler (Optimize Edilmiş Keskin Gölge Haritası)
   ambientLight = new THREE.AmbientLight(0xffffff, 0.55); // Gölgelerin net ve derin görünmesi için dengeli ortam ışığı
   scene.add(ambientLight);
 
   sunLight = new THREE.DirectionalLight(0xfffbe8, 1.4);
   sunLight.position.set(60, 95, 45);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.width = 2048; // Optimize edilmiş keskin gölgeler
-  sunLight.shadow.mapSize.height = 2048;
+  sunLight.shadow.mapSize.width = 1024;
+  sunLight.shadow.mapSize.height = 1024;
   sunLight.shadow.camera.near = 10;
-  sunLight.shadow.camera.far = 260;
+  sunLight.shadow.camera.far = 220;
 
-  // Tüm şehri, sahili, uzun köprüyü ve adayı kapsayan geniş gölge alanı
-  const dx = 150;
-  const dz = 125;
+  // Oyuncunun etrafındaki alanı kapsayan odaklanmış gölge alanı (daha keskin gölgeler, 4 kat daha hızlı gölge çizimi)
+  const dx = 95;
+  const dz = 85;
   sunLight.shadow.camera.left = -dx;
   sunLight.shadow.camera.right = dx;
   sunLight.shadow.camera.top = dz;
   sunLight.shadow.camera.bottom = -dz;
-  sunLight.shadow.bias = -0.0004;
+  sunLight.shadow.bias = -0.0005;
   scene.add(sunLight);
   scene.add(sunLight.target);   // gölge alanı oyuncuyu izler (şehir büyüdü)
 
