@@ -65,6 +65,7 @@ export class NPCManager {
     this.bakkalKids = [];
     this.marketShoppers = [];
     this.carOwners = [];
+    this.beachNPCs = [];
   }
 
   reset() {
@@ -83,6 +84,7 @@ export class NPCManager {
     this.bakkalKids = [];
     this.marketShoppers = [];
     this.carOwners = [];
+    this.beachNPCs = [];
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (const m of this.voxelWorld.marketCats || []) this.cats.addMarketCats(m.x, m.y, m.z); // market kedileri
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
@@ -95,6 +97,7 @@ export class NPCManager {
     for (const bk of this.voxelWorld.bakkalKids || []) this._spawnBakkalKid(bk);
     for (const ms of this.voxelWorld.marketShoppers || []) this._spawnMarketShopper(ms);
     for (const co of this.voxelWorld.carOwners || []) this._spawnCarOwner(co);
+    this._spawnBeachLife();                                                  // SAHİL YAŞAMI: Güneşlenenler, yüzenler, sörfçüler, İzmir bombacısı, simitçi, pamuk şekerci!
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
@@ -438,6 +441,11 @@ export class NPCManager {
 
     this.ropeAngle = (this.ropeAngle + dt * 6) % (Math.PI * 2);
 
+    // Futbol sahası gerçek metre sınırları: fx0*0.75 .. fx1*0.75 (210 .. 229.5 m, z: 117 .. 154.5 m)
+    const fMinX = 211.5, fMaxX = 228.0, fMinZ = 118.5, fMaxZ = 153.0;
+    // Bahçe oyun alanı metre sınırları: bx0*0.75 .. bx1*0.75 (234 .. 264 m, z: 117 .. 142 m)
+    const yMinX = 235.0, yMaxX = 262.5, yMinZ = 118.5, yMaxZ = 141.5;
+
     // Futbol topu fizik simülasyonu
     if (this.soccerBall) {
       const b = this.soccerBall;
@@ -445,11 +453,11 @@ export class NPCManager {
       b.position.z += b.vz * dt;
       b.vx *= Math.pow(0.88, dt * 60);
       b.vz *= Math.pow(0.88, dt * 60);
-      // Saha sınırları (futbol sahası x: 268..294, z: 156..206)
-      if (b.position.x < 268) { b.position.x = 268; b.vx = -b.vx * 0.75; }
-      if (b.position.x > 294) { b.position.x = 294; b.vx = -b.vx * 0.75; }
-      if (b.position.z < 156) { b.position.z = 156; b.vz = -b.vz * 0.75; }
-      if (b.position.z > 206) { b.position.z = 206; b.vz = -b.vz * 0.75; }
+      // Saha sınırları (futbol sahası x: 211.5..228.0, z: 118.5..153.0 metre)
+      if (b.position.x < fMinX) { b.position.x = fMinX; b.vx = Math.abs(b.vx) * 0.75; }
+      if (b.position.x > fMaxX) { b.position.x = fMaxX; b.vx = -Math.abs(b.vx) * 0.75; }
+      if (b.position.z < fMinZ) { b.position.z = fMinZ; b.vz = Math.abs(b.vz) * 0.75; }
+      if (b.position.z > fMaxZ) { b.position.z = fMaxZ; b.vz = -Math.abs(b.vz) * 0.75; }
       b.rotation.x += b.vz * dt * 2.5;
       b.rotation.z -= b.vx * dt * 2.5;
     }
@@ -470,7 +478,7 @@ export class NPCManager {
         continue;
       }
 
-      // Teneffüs saati: bahçede canlı oyunlar!
+      // Teneffüs saati: bahçede ve sınıfta takılmadan canlı oyunlar!
       c.sit = false; c.drop = 0;
       if (c.childActivity === 'soccer' && this.soccerBall) {
         const b = this.soccerBall;
@@ -489,10 +497,12 @@ export class NPCManager {
           c.rArm.rotation.x = Math.sin(c.cycle) * 0.6;
         } else {
           c.rLeg.rotation.x = -1.35; // Şut animasyonu
-          const kickDir = c.z < 181 ? 1 : -1;
-          b.vx = (Math.random() - 0.5) * 6;
+          const kickDir = c.z < 135 ? 1 : -1;
+          b.vx = (Math.random() - 0.5) * 7;
           b.vz = kickDir * (6 + Math.random() * 6);
         }
+        c.x = Math.max(fMinX, Math.min(fMaxX, c.x));
+        c.z = Math.max(fMinZ, Math.min(fMaxZ, c.z));
         c.group.position.set(c.x, c.y, c.z);
       } else if (c.childActivity === 'tag') {
         c.tagCooldown = Math.max(0, (c.tagCooldown || 0) - dt);
@@ -506,7 +516,7 @@ export class NPCManager {
           if (best) {
             c.heading = Math.atan2(best.x - c.x, best.z - c.z);
             c.group.rotation.y = c.heading;
-            const spd = 3.3;
+            const spd = 3.2;
             c.x += Math.sin(c.heading) * spd * dt;
             c.z += Math.cos(c.heading) * spd * dt;
             c.cycle += dt * 11;
@@ -524,7 +534,7 @@ export class NPCManager {
             const dx = c.x - it.x, dz = c.z - it.z;
             c.heading = Math.atan2(dx, dz);
             c.group.rotation.y = c.heading;
-            const spd = 2.9;
+            const spd = 2.8;
             c.x += Math.sin(c.heading) * spd * dt;
             c.z += Math.cos(c.heading) * spd * dt;
             c.cycle += dt * 10;
@@ -534,8 +544,25 @@ export class NPCManager {
             c.rArm.rotation.x = Math.sin(c.cycle) * 0.6;
           }
         }
-        c.x = Math.max(298, Math.min(322, c.x));
-        c.z = Math.max(156, Math.min(202, c.z));
+        c.x = Math.max(yMinX, Math.min(yMaxX, c.x));
+        c.z = Math.max(yMinZ, Math.min(yMaxZ, c.z));
+        c.group.position.set(c.x, c.y, c.z);
+      } else if (c.childActivity === 'study') {
+        // Teneffüste sınıftaki çocuklar ayağa kalkıp koridorda gezinir
+        c.turnTimer = (c.turnTimer || 2) - dt;
+        if (c.turnTimer <= 0) {
+          c.turnTimer = 2 + Math.random() * 3;
+          c.heading = Math.random() * Math.PI * 2;
+        }
+        const spd = 1.2;
+        c.x += Math.sin(c.heading) * spd * dt;
+        c.z += Math.cos(c.heading) * spd * dt;
+        c.x = Math.max(c.deskPos.x - 4, Math.min(c.deskPos.x + 4, c.x));
+        c.z = Math.max(c.deskPos.z - 4, Math.min(c.deskPos.z + 4, c.z));
+        c.cycle += dt * 6;
+        c.lLeg.rotation.x = Math.sin(c.cycle) * 0.45;
+        c.rLeg.rotation.x = -Math.sin(c.cycle) * 0.45;
+        c.group.rotation.y = c.heading;
         c.group.position.set(c.x, c.y, c.z);
       } else if (c.childActivity === 'rope_jump') {
         const jumpH = Math.max(0, Math.sin(this.ropeAngle)) * 0.52;
@@ -556,6 +583,7 @@ export class NPCManager {
   update(dt, playerPos) {
     this.playerPos.copy(playerPos);
     this._updateSchool(dt);
+    this._updateBeach(dt);
 
     // Gece olduğunda şirket binalarındaki çalışanlar ellerinde kahverengi şirket çantasıyla sakin bir şekilde binayı boşaltır;
     // gündüz olduğunda (bina yıkılmadıysa) masalarına geri dönerler.
@@ -1375,5 +1403,232 @@ export class NPCManager {
     else if (n.resident) this.residentQueue.push({ t: 60, spec: n.resident });
     else this.respawnQueue.push(RESPAWN_SECONDS);
     if (this.onScore) this.onScore(n.value || 100, n.resident && n.resident.kind === 'rich' ? '+1000 ZENGİN ADAM VURULDU!' : n.boss ? '+500 PATRON VURULDU!' : n.guard ? '+300 GÜVENLİK VURULDU!' : '+100 NPC VURULDU!');
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // SAHİL YAŞAMI: Güneşlenenler, yüzenler, sörfçüler, İzmir bombacısı, simitçi, pamuk şekerci!
+  // ─────────────────────────────────────────────────────────────────────────────
+  _spawnBeachLife() {
+    const U = 0.75;
+    const walkX = -775 * U; // sahil ahşap gezinti yolu metre koordinatı (-581.25 m)
+
+    // 1. BALIKESİR / EGE USULÜ İZMİR BOMBASI SATAN ADAM (Siyah pala bıyıklı, beyaz önlüklü, nostaljik tatlı arabalı)
+    const bombaMan = this._makeBody(false, 'bomba_vendor');
+    bombaMan.g.scale.setScalar(SCALE);
+    // Siyah pala bıyık
+    const mustache = new THREE.Mesh(boxGeo(0.22, 0.05, 0.06), mat(0x09090b));
+    mustache.position.set(0, 1.42, 0.22);
+    bombaMan.head.add(mustache);
+    // Beyaz fırıncı kasketi ve beyaz satıcı önlüğü
+    const bCap = new THREE.Mesh(boxGeo(0.38, 0.14, 0.38), mat(0xf8fafc));
+    bCap.position.y = 1.63; bombaMan.head.add(bCap);
+    const bApron = new THREE.Mesh(boxGeo(0.36, 0.48, 0.03), mat(0xf8fafc));
+    bApron.position.set(0, 0.92, 0.13); bombaMan.g.add(bApron);
+
+    // Nostaljik Tekerlekli Camlı İzmir Bombası Arabası
+    const cart = new THREE.Group();
+    // Kırmızı/ahşap araba kasası ve kolları
+    const cartBody = new THREE.Mesh(boxGeo(0.9, 0.45, 0.65), mat(0xdc2626));
+    cartBody.position.set(0, 0.5, 0); cart.add(cartBody);
+    const handles = new THREE.Mesh(boxGeo(0.05, 0.05, 0.4), mat(0x78350f));
+    handles.position.set(0, 0.6, -0.45); cart.add(handles);
+    // İki büyük tekerlek
+    const wheelGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.06, 16);
+    const wheelMat = mat(0x18181b);
+    const wL = new THREE.Mesh(wheelGeo, wheelMat); wL.rotation.z = Math.PI / 2; wL.position.set(-0.5, 0.26, 0);
+    const wR = wL.clone(); wR.position.x = 0.5; cart.add(wL, wR);
+    // Şeffaf cam vitrin
+    const glassVitrin = new THREE.Mesh(boxGeo(0.82, 0.35, 0.58), new THREE.MeshBasicMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.5 }));
+    glassVitrin.position.set(0, 0.85, 0); cart.add(glassVitrin);
+    // Vitrin içinde gümüş tepsi
+    const tray = new THREE.Mesh(boxGeo(0.76, 0.03, 0.52), mat(0xe2e8f0));
+    tray.position.set(0, 0.7, 0); cart.add(tray);
+    // Tepside taze, sıcak, çikolatalı parlayan İzmir Bombaları!
+    const bombaGeo = new THREE.SphereGeometry(0.065, 8, 8);
+    const bombaMat = mat(0x603813); // fırından yeni çıkmış gevrek hamur ve çikolata
+    for (let r = -1; r <= 1; r++) for (let c = -2; c <= 2; c++) {
+      const b = new THREE.Mesh(bombaGeo, bombaMat);
+      b.position.set(c * 0.14, 0.75, r * 0.15);
+      cart.add(b);
+    }
+    // Nostaljik Tente
+    const canopy = new THREE.Mesh(boxGeo(0.94, 0.08, 0.72), mat(0xfef08a));
+    canopy.position.set(0, 1.25, 0); cart.add(canopy);
+    // Tente ayakları
+    [[-0.42, -0.3], [0.42, -0.3], [-0.42, 0.3], [0.42, 0.3]].forEach(([px, pz]) => {
+      const leg = new THREE.Mesh(boxGeo(0.03, 0.45, 0.03), mat(0xfacc15));
+      leg.position.set(px, 1.02, pz); cart.add(leg);
+    });
+    cart.position.set(0, 0, 0.8);
+    bombaMan.g.add(cart);
+    bombaMan.g.position.set(walkX, 0.5, -120);
+    this.scene.add(bombaMan.g);
+    const bombaRec = {
+      ...bombaMan, group: bombaMan.g, x: walkX, y: 0.5, z: -120, heading: 0,
+      turnTimer: 3, pause: 0, cycle: 0, grounded: true, isVendor: true, vendorType: 'izmir_bomba',
+      walkDir: 1, zMin: -550, zMax: 550, speed: 1.4, value: 150
+    };
+    this.npcs.push(bombaRec);
+    this.beachNPCs.push(bombaRec);
+
+    // 2. ÇITIR SİMİTÇİ (Başında susamlı çıtır simit tepsisiyle gezen satıcı)
+    const simitMan = this._makeBody(false, 'simit_vendor');
+    simitMan.g.scale.setScalar(SCALE);
+    const sCap = new THREE.Mesh(boxGeo(0.36, 0.14, 0.36), mat(0xdc2626)); // kırmızı kasket
+    sCap.position.y = 1.63; simitMan.head.add(sCap);
+    // Başın üstünde yuvarlak alüminyum simit tepsisi
+    const simitTray = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.04, 18), mat(0xe2e8f0));
+    simitTray.position.set(0, 1.82, 0); simitMan.head.add(simitTray);
+    // Tepsideki susamlı simitler (halka modelleri)
+    const simitGeo = new THREE.TorusGeometry(0.09, 0.03, 8, 12);
+    const simitMat = mat(0xc27803); // altın sarısı susamlı kızarmış simit rengi
+    for (let i = 0; i < 6; i++) {
+      const th = i * Math.PI / 3;
+      const sm = new THREE.Mesh(simitGeo, simitMat);
+      sm.rotation.x = Math.PI / 2;
+      sm.position.set(0.22 * Math.cos(th), 1.88, 0.22 * Math.sin(th));
+      simitMan.head.add(sm);
+    }
+    simitMan.g.position.set(walkX, 0.5, 60);
+    this.scene.add(simitMan.g);
+    const simitRec = {
+      ...simitMan, group: simitMan.g, x: walkX, y: 0.5, z: 60, heading: Math.PI,
+      turnTimer: 4, pause: 0, cycle: 0, grounded: true, isVendor: true, vendorType: 'simit',
+      walkDir: -1, zMin: -550, zMax: 550, speed: 1.6, value: 120
+    };
+    this.npcs.push(simitRec);
+    this.beachNPCs.push(simitRec);
+
+    // 3. RENKLİ PAMUK ŞEKERCİ (Elinde pembe ve mavi bulut gibi pamuk şeker çubukları)
+    const cottonMan = this._makeBody(false, 'cotton_vendor');
+    cottonMan.g.scale.setScalar(SCALE);
+    // Sağ elinde uzun beyaz çubuk ve puf pamuk şekerler
+    const pole = new THREE.Mesh(boxGeo(0.04, 1.8, 0.04), mat(0xffffff));
+    pole.position.set(0.18, 0.5, 0.25);
+    const pinkCloud1 = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), mat(0xf472b6));
+    pinkCloud1.position.set(0.18, 1.2, 0.25);
+    const blueCloud1 = new THREE.Mesh(new THREE.SphereGeometry(0.17, 8, 8), mat(0x38bdf8));
+    blueCloud1.position.set(0.28, 0.95, 0.3);
+    const pinkCloud2 = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), mat(0xfb7185));
+    pinkCloud2.position.set(0.08, 0.85, 0.2);
+    cottonMan.rArm.add(pole, pinkCloud1, blueCloud1, pinkCloud2);
+    cottonMan.g.position.set(walkX, 0.5, -280);
+    this.scene.add(cottonMan.g);
+    const cottonRec = {
+      ...cottonMan, group: cottonMan.g, x: walkX, y: 0.5, z: -280, heading: 0,
+      turnTimer: 3.5, pause: 0, cycle: 0, grounded: true, isVendor: true, vendorType: 'cotton_candy',
+      walkDir: 1, zMin: -550, zMax: 550, speed: 1.5, value: 120
+    };
+    this.npcs.push(cottonRec);
+    this.beachNPCs.push(cottonRec);
+
+    // 4. MAYO / BİKİNİ GİYMİŞ GÜNEŞLENENLER (Şezlonglarda ve havlularda yatanlar)
+    const beachColors = [0xec4899, 0x06b6d4, 0xf59e0b, 0x10b981, 0x8b5cf6, 0xef4444];
+    [-380, -220, -70, 110, 240, 390].forEach((bz, idx) => {
+      const sunbather = this._makeBody(false, 'sunbather');
+      sunbather.g.scale.setScalar(SCALE);
+      const bColor = beachColors[idx % beachColors.length];
+      sunbather.lLeg.children[0].material = mat(bColor); // mayo/bikini alt
+      sunbather.rLeg.children[0].material = mat(bColor);
+      // Şezlongda uzanma pozu (yatay duruş)
+      sunbather.g.rotation.x = -Math.PI / 2 + 0.2;
+      const bx = (-798 + (idx % 2) * 5) * U;
+      sunbather.g.position.set(bx, 0.7, bz * U);
+      this.scene.add(sunbather.g);
+      this.beachNPCs.push({ group: sunbather.g, activity: 'sunbathe' });
+    });
+
+    // 5. DENİZDE SÖRF YAPANLAR (Ayaklarının altında sörf tahtası ile dalgalarda süzülenler)
+    [-340, -90, 160, 420].forEach((sz, idx) => {
+      const surfer = this._makeBody(false, 'surfer');
+      surfer.g.scale.setScalar(SCALE);
+      // Renkli Sörf Tahtası (Surfboard)
+      const surfGeo = new THREE.BoxGeometry(0.55, 0.06, 2.2);
+      const surfMat = mat(idx % 2 === 0 ? 0x0284c7 : 0xe11d48);
+      const surfboard = new THREE.Mesh(surfGeo, surfMat);
+      surfboard.position.set(0, -0.65, 0);
+      surfer.g.add(surfboard);
+      // Denge duruşu
+      surfer.lArm.rotation.z = 0.6; surfer.rArm.rotation.z = -0.6;
+      surfer.lLeg.rotation.x = 0.3; surfer.rLeg.rotation.x = -0.3;
+      const sx = (-855 + (idx % 2) * 8) * U;
+      surfer.g.position.set(sx, 0.4, sz * U);
+      this.scene.add(surfer.g);
+      this.beachNPCs.push({
+        group: surfer.g, activity: 'surf', baseX: sx, baseZ: sz * U,
+        swayPhase: idx * 1.5, x: sx, y: 0.4, z: sz * U
+      });
+    });
+
+    // 6. DENİZDE YÜZEN İNSANLAR (Suda kulaç atan yüzücüler)
+    [-260, 40, 310].forEach((wz, idx) => {
+      const swimmer = this._makeBody(false, 'swimmer');
+      swimmer.g.scale.setScalar(SCALE * 0.9);
+      // Su seviyesinde (gövde yarı batık, kollar kulaç atar)
+      const wx = (-868 + idx * 4) * U;
+      swimmer.g.position.set(wx, 0.15, wz * U);
+      this.scene.add(swimmer.g);
+      this.beachNPCs.push({
+        group: swimmer.g, lArm: swimmer.lArm, rArm: swimmer.rArm, activity: 'swim',
+        baseX: wx, baseZ: wz * U, swimPhase: idx * 2.0, x: wx, y: 0.15, z: wz * U
+      });
+    });
+
+    // 7. KUMDAN KALE YAPAN ÇOCUKLAR (Kumsalda kova ve kürekle oturan minikler)
+    [-200, 80, 260].forEach((cz) => {
+      const sandKid = this._makeBody(false, 'child');
+      sandKid.g.scale.setScalar(SCALE * 0.58);
+      sandKid.lLeg.rotation.x = -Math.PI / 2; sandKid.rLeg.rotation.x = -Math.PI / 2;
+      sandKid.lArm.rotation.x = -0.8; sandKid.rArm.rotation.x = -1.1; // kum kazma hareketi
+      // Elinde küçük sarı kürek
+      const shovel = new THREE.Mesh(boxGeo(0.04, 0.3, 0.08), mat(0xfacc15));
+      shovel.position.set(0, -0.25, 0.1); sandKid.rArm.add(shovel);
+      const kx = (-813) * U;
+      sandKid.g.position.set(kx, 0.4, cz * U + 1.2);
+      this.scene.add(sandKid.g);
+      this.beachNPCs.push({ group: sandKid.g, rArm: sandKid.rArm, activity: 'sandcastle' });
+    });
+  }
+
+  // Sahil karakterlerinin canlı animasyon ve hareket güncellemesi
+  _updateBeach(dt) {
+    if (!this.beachNPCs || this.beachNPCs.length === 0) return;
+    for (const b of this.beachNPCs) {
+      if (b.isVendor) {
+        // Seyyar Satıcılar (İzmir bombacısı, simitçi, pamuk şekerci)
+        b.pause = Math.max(0, b.pause - dt);
+        if (b.pause <= 0) {
+          b.z += b.walkDir * b.speed * dt;
+          b.cycle += dt * 7;
+          b.lLeg.rotation.x = Math.sin(b.cycle) * 0.5;
+          b.rLeg.rotation.x = -Math.sin(b.cycle) * 0.5;
+          b.heading = b.walkDir > 0 ? 0 : Math.PI;
+          b.group.rotation.y = b.heading;
+          b.group.position.set(b.x, b.y, b.z);
+          // Belirli aralıklarla durup etrafa bakar
+          if (Math.random() < 0.003) {
+            b.pause = 3.5 + Math.random() * 4;
+            b.lLeg.rotation.x = 0; b.rLeg.rotation.x = 0;
+          }
+          // Yürüyüş sınırlarına ulaşınca geri döner
+          if (b.z > b.zMax) { b.z = b.zMax; b.walkDir = -1; }
+          if (b.z < b.zMin) { b.z = b.zMin; b.walkDir = 1; }
+        }
+      } else if (b.activity === 'surf') {
+        // Sörfçüler dalgalarla hafifçe sallanır ve süzülür
+        b.swayPhase += dt * 2.2;
+        b.group.position.y = 0.4 + Math.sin(b.swayPhase) * 0.12;
+        b.group.rotation.z = Math.sin(b.swayPhase * 0.8) * 0.08;
+      } else if (b.activity === 'swim') {
+        // Yüzen insanlar kulaç atar ve suda hafifçe batıp çıkar
+        b.swimPhase += dt * 3.5;
+        b.lArm.rotation.x = Math.sin(b.swimPhase) * 1.2;
+        b.rArm.rotation.x = -Math.sin(b.swimPhase) * 1.2;
+        b.group.position.y = 0.15 + Math.sin(b.swimPhase * 0.7) * 0.06;
+      } else if (b.activity === 'sandcastle' && b.rArm) {
+        // Kumdan kale yapan çocuk küreğiyle kumu kazar
+        b.rArm.rotation.x = -0.9 + Math.sin(Date.now() * 0.004) * 0.35;
+      }
+    }
   }
 }

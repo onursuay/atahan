@@ -41,6 +41,37 @@ export class DayNight {
     this.stars = new THREE.Points(g, this.starMat); this.stars.frustumCulled = false;
     this.scene.add(this.stars);
 
+    // ── SABAH GÜNEŞ IŞIĞI EKRAN YANSIMASI & LENS FLARE (Kullanıcının isteği: ekrana hafifçe vuran sabah parlaması) ──
+    const makeGlowTex = (col1, col2) => {
+      const cv = document.createElement('canvas'); cv.width = cv.height = 128;
+      const ctx = cv.getContext('2d');
+      if (ctx) {
+        const gr = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gr.addColorStop(0, col1); gr.addColorStop(0.4, col2); gr.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gr; ctx.fillRect(0, 0, 128, 128);
+      }
+      return new THREE.CanvasTexture(cv);
+    };
+    this.flareGroup = new THREE.Group();
+    // 1. Güneşin etrafındaki büyük yumuşak altın/sıcak hale (Sun Corona Halo)
+    this.sunHaloMat = new THREE.MeshBasicMaterial({
+      map: makeGlowTex('rgba(255,245,190,0.95)', 'rgba(255,160,50,0.35)'),
+      transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false
+    });
+    this.sunHalo = new THREE.Mesh(new THREE.PlaneGeometry(55, 55), this.sunHaloMat);
+    this.flareGroup.add(this.sunHalo);
+
+    // 2. Güneş doğrultusunda ekrana vuran lens halkaları (Lens Discs)
+    this.lensDiscMat1 = new THREE.MeshBasicMaterial({
+      map: makeGlowTex('rgba(255,200,100,0.7)', 'rgba(240,110,40,0.2)'),
+      transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, fog: false
+    });
+    this.lensDisc1 = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), this.lensDiscMat1);
+    this.lensDisc2 = new THREE.Mesh(new THREE.PlaneGeometry(8, 8), this.lensDiscMat1);
+    this.lensDisc3 = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), this.lensDiscMat1);
+    this.flareGroup.add(this.lensDisc1, this.lensDisc2, this.lensDisc3);
+    this.scene.add(this.flareGroup);
+
     // Işık havuzları: her sokak lambasının altında yere yayılan sıcak ışık (ucuz: tek InstancedMesh, gerçek ışık değil)
     const lamps = this.vw.lamps || [];
     const cv = document.createElement('canvas'); cv.width = cv.height = 64;
@@ -78,7 +109,7 @@ export class DayNight {
   }
 
   dispose() {
-    [this.moonMesh, this.stars, this.pools, this.carSpot, this.carSpot.target, ...this.lampLights].forEach(o => this.scene.remove(o));
+    [this.moonMesh, this.stars, this.pools, this.carSpot, this.carSpot.target, this.flareGroup, ...this.lampLights].forEach(o => this.scene.remove(o));
     beamMat.opacity = 0;
   }
 
@@ -126,6 +157,29 @@ export class DayNight {
       this.sunMesh.position.copy(camPos).addScaledVector(this.dir, 190); this.sunMesh.visible = sunUp && d > 0.35; this.sunMesh.lookAt(camPos);
       this.moonMesh.position.copy(camPos).addScaledVector(this.dir, 190); this.moonMesh.visible = !sunUp && d < 0.65; this.moonMesh.lookAt(camPos);
       this.stars.position.copy(camPos);
+
+      // Sabah güneş ışığı ekran parlaması ve lens flare (Kullanıcının isteği: ekrana çarpan sabah güneş yansıması)
+      if (this.flareGroup && sunUp && d > 0.38) {
+        // Güneş sabah saatlerinde yatayken altın renkli ışıma ve lens halkaları maksimum olur
+        const morningFactor = smooth(Math.max(0, 1 - Math.abs(d - 0.65) / 0.35));
+        const sunPos = this.sunMesh.position;
+        this.sunHalo.position.copy(sunPos);
+        this.sunHalo.lookAt(camPos);
+        this.sunHaloMat.opacity = 0.75 * morningFactor;
+
+        // Lens flare halkaları (Güneş ile kamera arasında sıralanır)
+        const d1 = sunPos.clone().lerp(camPos, 0.35);
+        const d2 = sunPos.clone().lerp(camPos, 0.58);
+        const d3 = sunPos.clone().lerp(camPos, 0.78);
+        this.lensDisc1.position.copy(d1); this.lensDisc1.lookAt(camPos);
+        this.lensDisc2.position.copy(d2); this.lensDisc2.lookAt(camPos);
+        this.lensDisc3.position.copy(d3); this.lensDisc3.lookAt(camPos);
+        this.lensDiscMat1.opacity = 0.52 * morningFactor;
+        this.flareGroup.visible = morningFactor > 0.01;
+      } else if (this.flareGroup) {
+        this.flareGroup.visible = false;
+      }
+
       // en yakın lambalar gerçek ışık verir (yarım saniyede bir yeniden dağıtılır)
       this.assignT -= dt;
       if (this.assignT <= 0 && this.lampFactor > 0.02) {

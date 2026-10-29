@@ -23,9 +23,14 @@ const add = (name, x0, z0, x1, z1, w, o = {}) => {
 };
 
 const RC = ROUNDABOUT.rMid;
-// ── BATI ADA (100X DEVASA GTA METROPOL ŞEHRİ) ──
-// Kuzey-Güney kesintisiz ana bulvarlar ve caddeler (x = -360 .. -27, z = -750 .. 750)
-add('bulvar-sahil-3', -360, -750, -360, 750, 11);                         // en batı sahil otoyolu
+// ── BATI ADA (ARKAYA GENİŞLETİLMİŞ KARE DEVASA METROPOL ŞEHRİ: x = -750 .. -27, z = -750 .. 750) ──
+// Kuzey-Güney kesintisiz ana bulvarlar ve caddeler
+add('bulvar-sahil-yeni', -750, -750, -750, 750, 11);                      // en yeni batı kıyı bulvarı
+add('bulvar-havalimani', -650, -134, -650, 750, 11);                       // havalimanı doğu bulvarı
+add('bulvar-bati-4', -530, -750, -530, 750, 11);                           // havalimanı terminaline bağlanan ana bulvar
+add('bulvar-bati-3', -450, -750, -450, 750, 11);
+add('bulvar-bati-2', -410, -750, -410, 750, 11);
+add('bulvar-sahil-3', -360, -750, -360, 750, 11);                         // eski batı sahil bulvarı
 add('bulvar-sahil-2', -310, -750, -310, 750, 11);
 add('bulvar-sahil-1', -260, -750, -260, 750, 11);
 add('bulvar-bati', -210, -750, -210, 750, 11);                            // batı bulvarı
@@ -37,24 +42,34 @@ add('s6-orta', -87, RN.cz + RC, -87, RS.cz - RC, 9, { paint: [[RN.cz + 22, RS.cz
 add('s6-guney', -87, RS.cz + RC, -87, 750, 9, { paint: [[RS.cz + 22, 750]] });                    // güney göbeğin güneyi
 add('s7', -47, -750, -47, 750, 9);
 add('s8', -27, -750, -27, 750, 9);                                        // doğu sahil yolu
-add('cadde-0', -360, 0, 366, 0, 11, { noMerge: true, paint: [[-360, -12], [258, 366]] });         // ana omurga cadde: batı ada + köprü + doğu ada
+add('cadde-0', -750, 0, 366, 0, 11, { noMerge: true, paint: [[-750, -12], [258, 366]] });         // ana omurga cadde: tüm batı ada + köprü + doğu ada
 
-// Doğu-Batı birbirine bağlı kesintisiz caddeler (hiçbir yol çıkmaz sokak değildir)
-[-750, -650, -550, -450, -380, -320, -266, -134, -66, 66, 134, 266, 320, 380, 450, 550, 650, 750].forEach(z => {
-  add(`cadde${z}`, -360, z, -27, z, 11);
+// Doğu-Batı birbirine bağlı caddeler (Havalimanı bölgesi x:-750..-530, z:-650..-150 arasını açık bırakır)
+// Havalimanı dışındaki güney ve kuzey caddeleri tam uzanır (-750..-27)
+[-750, 66, 134, 266, 320, 380, 450, 550, 650, 750].forEach(z => {
+  add(`cadde${z}`, -750, z, -27, z, 11);
 });
+// Havalimanı bölgesindeki caddeler: terminal önünden (-530'dan) -27'ye uzanır (pist ve apron bölünmez)
+[-650, -550, -450, -380, -320, -266, -134, -66].forEach(z => {
+  add(`cadde${z}`, -530, z, -27, z, 11);
+});
+// Havalimanı servis yolu (pist arkası sahil bağlantısı)
+add('havalimani-servis', -750, -134, -530, -134, 9);
 
 for (const g of ROUNDABOUTS) {
-  add(`cadde${g.cz}-bati`, -360, g.cz, g.cx - RC, g.cz, 11, { paint: [[-360, g.cx - 22]] });
+  add(`cadde${g.cz}-bati`, -750, g.cz, g.cx - RC, g.cz, 11, { paint: [[-750, g.cx - 22]] });
   add(`cadde${g.cz}-dogu`, g.cx + RC, g.cz, -27, g.cz, 11, { paint: [[g.cx + 22, -27]] });
 }
 add('site', -67, -134, -67, -66, 7, { off: 1.3 });                         // konut sitesi iç yolu: iki caddeyi birleştirir
 
 // ── DOĞU ADA (ZENGİN & SAĞLIK & OKUL BÖLGESİ OTOYOL VE CADDE AĞI) ──
-add('otoyol', 305, -350, 305, 350, 32, { lanes: 3, off: 1.75, cells: [290, 321] });
+// Okul kampüsü z: 146..258 arasında yer alır. Otoyol okulun içinden GEÇMEZ!
+// Otoyol kuzeyde z: -350..134 ve güneyde z: 270..350 olarak ikiye ayrılmıştır.
+add('otoyol-kuzey', 305, -350, 305, 134, 32, { lanes: 3, off: 1.75, cells: [290, 321] });
+add('otoyol-guney', 305, 270, 305, 350, 32, { lanes: 3, off: 1.75, cells: [290, 321] });
 add('ei-bati', 264, -350, 264, 350, 9);
 add('ei-dogu', 366, -350, 366, 350, 9);
-// Okul ve hastane kampüs alanlarını bölmeyecek şekilde düzenlenmiş kesintisiz cadde ağı
+// Okul kampüs alanını (z: 146..258) kesmeyecek şekilde düzenlenmiş kesintisiz cadde ağı
 [-350, -250, -180, -134, -44, 44, 134, 270, 350].forEach(z => add(`ei-cadde${z}`, 264, z, 366, z, 11));
 [-88, 88].forEach(z => add(`ei-cadde${z}`, 264, z, 305, z, 11, { paint: [[264, 289]] }));
 

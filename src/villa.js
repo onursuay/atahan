@@ -258,10 +258,24 @@ export function buildVilla(world) {
   put(5, 7, 34, 5, 7, 42, LAMP_PURPLE); put(5, 7, 66, 5, 7, 74, LAMP_PURPLE);                    // ekran duvarı kuşağı (ekranların yanında)
 
   // ── 5. İÇ MEKAN: ÜST KAT ──
-  // Yatak odası: yatak, başlık, komodinler, gardırop
-  put(33, 9, 51, 33, 12, 57, BLACK);                                                             // başlık
-  put(34, 9, 51, 41, 9, 57, WOOD); put(34, 10, 51, 41, 10, 57, WHITE); put(34, 11, 51, 35, 11, 57, WHITE); put(37, 11, 51, 41, 11, 57, BLACK);
-  for (const w of [49, 59]) { put(33, 9, w, 34, 10, w, WOOD); put(33, 11, w, 33, 11, w, LAMP); }
+  // Yatak odası: Teardown tarzı ultra lüks King-Size yatak, lüks deri/altın başlık, komodinler, gardırop
+  put(32, 9, 50, 33, 13, 58, BLACK);                                                             // lüks siyah deri başlık çerçevesi
+  put(33, 10, 51, 33, 12, 57, GOLD);                                                             // altın dikişli başlık paneli
+  put(34, 9, 51, 42, 9, 57, WOOD);                                                               // masif ahşap baza
+  put(34, 10, 51, 42, 10, 57, WHITE);                                                            // kalın konforlu yaylı şilte
+  // 4 adet kabarık açılı yastık
+  put(34, 11, 51, 36, 11, 53, WHITE); put(34, 11, 55, 36, 11, 57, WHITE);
+  put(35, 11, 52, 36, 12, 53, WHITE); put(35, 11, 55, 36, 12, 56, WHITE);
+  // Katlanmış lüks nevresim ve ayak ucu altın şalı
+  put(37, 11, 51, 42, 11, 57, BLACK);                                                            // saten koyu yorgan
+  put(36, 11, 51, 36, 11, 57, WHITE);                                                            // katlanmış beyaz çarşaf kenarı
+  put(41, 11, 51, 42, 11, 57, GOLD);                                                             // ayak ucu lüks altın yatak şalı
+  // Komodinler ve şık başucu abajurları
+  for (const w of [48, 60]) {
+    put(33, 9, w, 35, 10, w + 1, WOOD);
+    put(34, 11, w, 34, 11, w, GOLD);
+    put(34, 12, w, 34, 12, w, LAMP);
+  }
   put(33, 9, 37, 50, 14, 38, WOOD); for (let u = 36; u <= 50; u += 6) put(u, 9, 38, u, 14, 38, BLACK);
   // Banyo: cam bölme, küvet, lavabo
   put(40, 9, 61, 55, 14, 61, GLASS); put(40, 9, 62, 40, 14, 70, GLASS); put(55, 9, 62, 55, 14, 70, GLASS);
@@ -294,9 +308,104 @@ export function buildVilla(world) {
   sliding('u', 56, 63, 71, 9, 15);              // üst kattan balkona
   hinged('w', 62, 64, 28, 9, 15);               // üst kattan batı çatı terasına
 
-  // ── 7. STARK EKRANLARI + IŞIKLAR (voxel olmayan nesneler) ──
+  // ── 7. STARK EKRANLARI + IŞIKLAR + RENKLİ SANAT TABLOLARI (Zengin abinin koleksiyonu) ──
   const g = new THREE.Group();
   const bezel = new THREE.MeshLambertMaterial({ color: 0x0b0d12 });
+  const goldFrame = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.25 });
+  const darkFrame = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.4 });
+
+  // Renkli Sanat Tabloları Üreticisi (Kullanıcının isteği: zengin abimizin evinde renkli renkli tablolar)
+  function createPaintingTexture(theme) {
+    const cv = document.createElement('canvas'); cv.width = 512; cv.height = 384;
+    const ctx = cv.getContext('2d');
+    if (!ctx) return null;
+    if (theme === 'sunset') {
+      const grad = ctx.createLinearGradient(0, 0, 0, 384);
+      grad.addColorStop(0, '#f97316'); grad.addColorStop(0.35, '#ec4899'); grad.addColorStop(0.65, '#8b5cf6'); grad.addColorStop(1, '#0284c7');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 384);
+      // Güneş ve deniz dalgaları
+      ctx.fillStyle = '#fef08a'; ctx.beginPath(); ctx.arc(256, 170, 55, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      for (let i = 0; i < 8; i++) ctx.fillRect(160 - i * 15, 230 + i * 16, 190 + i * 30, 4);
+    } else if (theme === 'abstract') {
+      ctx.fillStyle = '#0f172a'; ctx.fillRect(0, 0, 512, 384);
+      const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+      for (let i = 0; i < 18; i++) {
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.beginPath();
+        const cx = 50 + (i * 28) % 412, cy = 40 + (i * 35) % 300, r = 25 + (i * 12) % 60;
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.globalAlpha = 0.75; ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(40, 60); ctx.lineTo(470, 320); ctx.moveTo(90, 330); ctx.lineTo(430, 70); ctx.stroke();
+    } else if (theme === 'mondrian') {
+      ctx.fillStyle = '#f8fafc'; ctx.fillRect(0, 0, 512, 384);
+      ctx.fillStyle = '#dc2626'; ctx.fillRect(0, 0, 220, 180);
+      ctx.fillStyle = '#2563eb'; ctx.fillRect(360, 240, 152, 144);
+      ctx.fillStyle = '#facc15'; ctx.fillRect(390, 0, 122, 110);
+      ctx.fillStyle = '#1e293b'; ctx.fillRect(0, 310, 140, 74);
+      ctx.strokeStyle = '#09090b'; ctx.lineWidth = 14;
+      ctx.strokeRect(0, 0, 512, 384);
+      ctx.beginPath();
+      ctx.moveTo(220, 0); ctx.lineTo(220, 384);
+      ctx.moveTo(0, 180); ctx.lineTo(512, 180);
+      ctx.moveTo(360, 180); ctx.lineTo(360, 384);
+      ctx.moveTo(390, 0); ctx.lineTo(390, 180);
+      ctx.stroke();
+    } else if (theme === 'starry') {
+      const grad = ctx.createLinearGradient(0, 0, 0, 384);
+      grad.addColorStop(0, '#0c1a30'); grad.addColorStop(0.5, '#1e3a8a'); grad.addColorStop(1, '#064e3b');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, 512, 384);
+      ctx.fillStyle = '#fde047';
+      for (let i = 0; i < 12; i++) {
+        const x = 50 + (i * 41) % 430, y = 40 + (i * 27) % 190;
+        ctx.beginPath(); ctx.arc(x, y, 14, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = 'rgba(253, 224, 71, 0.4)'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(x, y, 28, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = '#4c1d95'; ctx.fillRect(0, 0, 512, 384);
+      for (let i = 0; i < 9; i++) {
+        ctx.fillStyle = `hsl(${i * 40}, 85%, 60%)`;
+        ctx.fillRect(40 + i * 48, 60, 38, 260);
+      }
+    }
+    return new THREE.CanvasTexture(cv);
+  }
+
+  const addPainting = (x, y, z, w, h, rotY, theme = 'abstract', isGold = true) => {
+    const tex = createPaintingTexture(theme);
+    const pMat = new THREE.MeshBasicMaterial({ map: tex });
+    const canvas = new THREE.Mesh(new THREE.PlaneGeometry(w, h), pMat);
+    const frMat = isGold ? goldFrame : darkFrame;
+    const fr = new THREE.Mesh(new THREE.BoxGeometry(w + 0.16, h + 0.16, 0.08), frMat);
+    const grp = new THREE.Group();
+    grp.add(fr);
+    canvas.position.z = 0.045;
+    grp.add(canvas);
+    // Üstüne küçük şık altın aplik aydınlatma
+    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, w * 0.7, 8), goldFrame);
+    lamp.rotation.z = Math.PI / 2; lamp.position.set(0, h / 2 + 0.16, 0.14);
+    grp.add(lamp);
+    grp.position.set(x, y, z);
+    grp.rotation.y = rotY;
+    g.add(grp);
+  };
+
+  // Zengin abinin villasına yerleştirilen tablolar
+  // 1. Konsol üstü ana salon duvarı (Mondrian & Soyut Renkler)
+  addPainting(oX(62), 6.5, oZ(40), 2.8, 1.9, 0, 'mondrian', true);
+  addPainting(oX(74), 6.5, oZ(40), 2.6, 1.8, 0, 'abstract', true);
+  // 2. Yatak odası duvarı (Romantik Gün Batımı & Yıldızlı Gece)
+  addPainting(oX(33) + 0.35, 6.2, oZ(44), 2.2, 1.6, Math.PI / 2, 'sunset', true);
+  addPainting(oX(44), 6.4, oZ(51) - 0.25, 2.4, 1.7, 0, 'starry', false);
+  // 3. Giriş ve koridor duvarları (Canlı Renkler & Fütüristik Sanat)
+  addPainting(oX(40), 2.2, oZ(71), 2.6, 1.8, Math.PI, 'abstract', true);
+  addPainting(oX(68), 2.2, oZ(71), 2.4, 1.7, Math.PI, 'rainbow', true);
+  addPainting(oX(48), 2.2, oZ(40), 2.8, 1.9, 0, 'sunset', false);
+
   const screen = (x, y, z, w, h, rotY, kind) => {
     const tex = hudTexture(kind);
     const mat = tex ? new THREE.MeshBasicMaterial({ map: tex, toneMapped: false }) : new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
