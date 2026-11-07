@@ -47,8 +47,8 @@ const cameraHeight = 3.2;
 // ── AÇILIŞ JENERİĞİ ──
 // Siyah ekran → ekran yavaşça açılır; karakter kendi evinde koltukta otururken yere doğru bakar, ekran görünmeye başlayınca
 // yavaşça kafasını kaldırıp televizyona bakar. Jenerik boyunca kontroller kapalıdır; televizyona bakınca kontroller geri gelir.
-const INTRO_TURN = 0;                         // doğrudan TV hizasında yere bakar, kafasını yavaşça TV'ye kaldırır
-const INTRO_PITCH0 = 1.05;                    // başlangıçta yere doğru bakış (rad, aşağı bakış)
+const INTRO_TURN = 0;                         // doğrudan TV hizasında bakar
+const INTRO_PITCH0 = 0.0;                     // kullanıcı talebi: yere bakmasın, doğrudan televizyona baksın (göz hizası, pitch = 0)
 const INTRO_BASE_YAW = -Math.PI / 2;          // TV yönü (doğu, +x)
 const INTRO_SEAT_EYE = 0.85;                  // oturan karakterin göz yüksekliği (ayak seviyesinden, m)
 // 2 kat yavaş jenerik: Ekran önce siyah kalır, yavaş yavaş açılır ve yavaşça televizyona bakar
@@ -249,6 +249,10 @@ function init() {
   try {
     storyManager = new StoryManager(scene, voxelWorld, character, camera, weaponSystem, handWeapons);
     handWeapons.storyManager = storyManager;
+    weaponSystem.storyManager = storyManager;
+    if (npcs) npcs.storyManager = storyManager;
+    if (handWeapons && handWeapons.arsenal) handWeapons.arsenal.storyManager = storyManager;
+    if (character && character.hammer) character.hammer.visible = false;
   } catch (e) { console.warn('storyManager başlatılamadı:', e); }
 
   finishLoadingUI();

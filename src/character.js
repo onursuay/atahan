@@ -209,6 +209,7 @@ export class Character {
     hammerHead.position.set(0, 0.42, 0.42);
     hammerHead.castShadow = true;
     this.hammer.add(hammerHead);
+    this.hammer.visible = false; // Başlangıçta ve senaryo boyunca çekiç gizlidir
     this.leftArm.add(this.hammer);
     this.mesh.add(this.leftArm);
 

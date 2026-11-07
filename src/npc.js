@@ -702,6 +702,14 @@ export class NPCManager {
 
   // ── Güncelleme ──
   update(dt, playerPos) {
+    // Senaryo başladığı andan zafer anına kadar şehirde ve malikanede hiçbir sivil/çalışan/yaya olmasın!
+    if (this.storyManager && this.storyManager.currentPhase !== 0 && this.storyManager.currentPhase !== 9) {
+      for (let i = 0; i < this.npcs.length; i++) {
+        if (this.npcs[i].group) this.npcs[i].group.visible = false;
+      }
+      return;
+    }
+
     this.playerPos.copy(playerPos);
     this._updateSchool(dt);
     this._updateBeach(dt);

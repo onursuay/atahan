@@ -125,6 +125,11 @@ export class WeaponSystem {
     // TEARDOWN OYUK AÇMA VE MİKRO-VOXEL PARÇALAMA
     this.voxelWorld.explode(blastPos, w.radius, w.force);
 
+    // Hikaye isyancılarına patlama hasarı
+    if (this.storyManager) {
+      this.storyManager.checkSphereHit(blastPos, (w.radius || 3) * 1.8);
+    }
+
     this.removeProjectile(proj);
   }
 

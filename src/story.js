@@ -2,21 +2,15 @@ import * as THREE from 'three';
 import { sound } from './audio.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ATAHAN ŞEHİR HİKAYESİ & SİNEMATİK GÖREV YÖNETİCİSİ (STORY ENGINE V4)
+// ATAHAN ŞEHİR HİKAYESİ & SİNEMATİK GÖREV YÖNETİCİSİ (STORY ENGINE V5)
 // ─────────────────────────────────────────────────────────────────────────────
-// Yenilikler & Düzenlemeler:
-//  • 4. Kat Özel Yönetim Salonu: Beyaz lüks mermer duvarlar, altın paneller.
-//  • David Sterling: Siyah güneş gözlüğü, "Merhaba dostum..." repliğinde ellerini yukarı kaldırarak konuşur.
-//  • Resmi Devir Sözleşmesi: Masanın üstünde, çizgili metin, imza çizgisi ve yanında kırmızı [ X ] işareti!
-//  • Arthur Pendelton: İnce mavi çerçeveli saydam gözlük, gözleri ve gözbebekleri görünür, KAŞSIZ, MUTLU TEBESSÜM.
-//  • Oyuncu Evi Çıkışı: Caddeye (kuzey) bakan kapıdan çıkınca önünde bina olmadan doğrudan cadde ve limuzin görünür.
-//  • Limuzin Bekleyişi & Biniş: Limuzine yaklaşınca doğrudan binilmez; 2 saniye limuzine bakılır, ardından otomatik binilir.
-//  • Lüks Altın & Beyaz Limuzin: Ön kaput ucunda Togg / Rolls-Royce tarzı altın heykelli simge (Spirit of Ecstasy),
-//    altın kenar çıtaları, lüks radyatör ızgarası, karartmalı camlar.
-//  • Limuzin İçi VIP Kabin: Tavan, mor neon aydınlatma, karşı koltukta oturan ve kollarını göğsünde kavuşturmuş 2 kaslı koruma.
-//  • Sakin Gerçekçi Sürüş Hızı: Bugatti nitro hızı yok; sakin, akıcı lüks araba temposuyla köprüden ve rampadan geçer.
-//  • Kusursuz Park: Villanın önüne geldiğinde yoldan ayrılmaz, duvara girmeden avluda nizamî olarak durur.
-//  • İsyancı Kuşatması & Çatışma: 38 isyancı, 1.55x boy, vurulduklarında kan küpleri fırlar ve ses çıkar.
+// Düzenlemeler:
+//  • İsyancılar mermi / patlama / çekiç / kılıç ile anında ölür, kan küpleri saçar ve devrilir.
+//  • Limuzin İçi Koltukta Hatasız Oturuş: Oyuncu limuzinin altında kalmaz; kabin içi lüks deri koltukta
+//    göz hizasında oturur, karşısındaki 2 kaslı korumayı net görür.
+//  • Oyun Açılışı (TV Odası): Yere bakmaz; tam yatay göz hizasında (pitch=0) televizyona bakar; çekiç yoktur.
+//  • Şehirde Yaya / İnsan Yoktur: Senaryo boyunca ve malikanede şehirdeki tüm rastgele NPC'ler gizlenir.
+//  • İsyancıların Konumu: Kapıyı geçmezler; villanın dışındaki rampada / caddede yolu kesmiş 56 isyancı bulunur.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STORY_PHASES = {
@@ -24,11 +18,11 @@ export const STORY_PHASES = {
   CINEMATIC_BOARDROOM: 1,    // Sahne 1: 4. Katta David & Arthur sözleşme toplantısı
   CINEMATIC_DRONE_PROTEST: 2,// Sahne 2: Drone kamerası ile gökyüzünden kuş bakışı villadaki isyan
   PHONE_CALL: 3,             // Sahne 3: David'in araması & "Tamam geliyoruz" cevabımız
-  TV_NEWS_MORNING: 4,        // Sahne 4: Evden çıkış ve caddedeki limuzine yürüyüş
-  WAIT_LIMO: 5,              // Limuzine bakış (2 saniye) ve biniş
-  LIMO_RIDE: 6,              // Limuzin içi VIP kabin, mor ışık, 2 kaslı koruma, sakin köprü yolculuğu
+  TV_NEWS_MORNING: 4,        // Sahne 4: TV odasında açılış ve caddedeki bekleyen limuzine yürüyüş
+  WAIT_LIMO: 5,              // Limuzine hayranlıkla 2 saniye bakış ve biniş
+  LIMO_RIDE: 6,              // Limuzin içi VIP kabin, koltukta oturuş, 2 kaslı koruma, sakin köprü yolculuğu
   VILLA_ARRIVAL: 7,          // Villaya varış, David ve silah çantalı koruması, cephane teslimi
-  MISSION_COMBAT: 8,         // Görev: Villayı kuşatan isyancıları temizleme
+  MISSION_COMBAT: 8,         // Görev: Kapının önünü kapatan isyancıları temizleme
   MISSION_VICTORY: 9         // Zafer ve David'in tebriği
 };
 
@@ -166,8 +160,8 @@ export class StoryManager {
       { x: 321, y: 0.5, z: 2.1 },   // Villa yolu başlangıcı
       { x: 350, y: 3.5, z: -15 },   // Villa rampası
       { x: 375, y: 8.5, z: -35 },   // Villa virajı
-      { x: 388, y: 12.0, z: -55 },  // Villa ön avlusu
-      { x: 394, y: 12.0, z: -58 }   // Villa kapısı önü (duvara çarpmadan nizamî park)
+      { x: 388, y: 11.5, z: -45 },  // Kapı önü yaklaşma
+      { x: 395, y: 12.0, z: -53.5 } // Kapıdan geçip avluya nizamî park
     ];
     this.limoProgress = 0;
 
@@ -337,24 +331,17 @@ export class StoryManager {
     if (speaker === 'david') {
       return `
         <svg viewBox="0 0 100 100" width="105" height="105">
-          <!-- David Sterling: KARE KAFA, SİYAH GÜNEŞ GÖZLÜĞÜ -->
           <rect width="100" height="100" fill="#090d16"/>
-          <!-- Kare Kafa Ten -->
           <rect x="20" y="16" width="60" height="60" fill="#d4a373"/>
-          <!-- Kare Siyah Saç -->
           <rect x="18" y="12" width="64" height="22" fill="#1e293b"/>
           <rect x="18" y="24" width="8" height="20" fill="#1e293b"/>
           <rect x="74" y="24" width="8" height="20" fill="#1e293b"/>
-          <!-- SİYAH GÜNEŞ GÖZLÜĞÜ (Kullanıcı Talebi: Siyah olsun) -->
           <rect x="25" y="37" width="22" height="15" fill="#000000" stroke="#111111" stroke-width="2.5"/>
           <rect x="53" y="37" width="22" height="15" fill="#000000" stroke="#111111" stroke-width="2.5"/>
           <rect x="47" y="42" width="6" height="3" fill="#000000"/>
-          <!-- Kare Burun -->
           <rect x="46" y="54" width="8" height="8" fill="#bc8a5f"/>
-          <!-- Kare Sinsi Bıyık & Sakal -->
           <rect x="38" y="64" width="24" height="4" fill="#1e293b"/>
           <rect x="45" y="68" width="10" height="8" fill="#1e293b"/>
-          <!-- Omuzlar & Kırmızı Kravat -->
           <rect x="10" y="78" width="80" height="22" fill="#0f172a"/>
           <rect x="44" y="78" width="12" height="22" fill="#dc2626"/>
         </svg>
@@ -362,7 +349,6 @@ export class StoryManager {
     } else if (speaker === 'player') {
       return `
         <svg viewBox="0 0 100 100" width="105" height="105">
-          <!-- Oyuncu Karakter: KARE KAFA (Voxel stili) -->
           <rect width="100" height="100" fill="#090d16"/>
           <rect x="20" y="18" width="60" height="60" fill="#ffdbac"/>
           <rect x="18" y="12" width="64" height="20" fill="#4a2f13"/>
@@ -378,23 +364,18 @@ export class StoryManager {
     } else if (speaker === 'arthur') {
       return `
         <svg viewBox="0 0 100 100" width="105" height="105">
-          <!-- Arthur Pendelton: İNCE GÖZLÜK, GÖZLER GÖRÜNÜR, KAŞSIZ, MUTLU TEBESSÜM -->
           <rect width="100" height="100" fill="#090d16"/>
           <rect x="20" y="18" width="60" height="60" fill="#f1c27d"/>
           <rect x="18" y="14" width="64" height="18" fill="#94a3b8"/>
-          <!-- İnce Mavi Gözlük Çerçevesi (Saydam iç, gözler görünür) -->
           <rect x="26" y="38" width="20" height="17" fill="rgba(56,189,248,0.25)" stroke="#0284c7" stroke-width="2.5"/>
           <rect x="54" y="38" width="20" height="17" fill="rgba(56,189,248,0.25)" stroke="#0284c7" stroke-width="2.5"/>
           <rect x="46" y="44" width="8" height="2.5" fill="#0284c7"/>
-          <!-- Göz Bebekleri Görünür -->
           <circle cx="36" cy="46" r="4.5" fill="#0f172a"/>
           <circle cx="34.5" cy="44.5" r="1.5" fill="#ffffff"/>
           <circle cx="64" cy="46" r="4.5" fill="#0f172a"/>
           <circle cx="62.5" cy="44.5" r="1.5" fill="#ffffff"/>
-          <!-- KOCAMAN MUTLU TEBESSÜM / GÜLÜMSEME -->
           <path d="M35 60 Q50 78 65 60" fill="none" stroke="#be123c" stroke-width="4.5" stroke-linecap="round"/>
           <path d="M38 61 Q50 72 62 61 Z" fill="#ffffff"/>
-          <!-- Lacivert Ceket & Açık Mavi Kravat -->
           <rect x="12" y="80" width="76" height="20" fill="#1e3a8a"/>
           <rect x="44" y="80" width="12" height="20" fill="#38bdf8"/>
         </svg>
@@ -469,7 +450,12 @@ export class StoryManager {
     this.controlsLocked = true;
     this.setMission('', '', false);
 
-    // Sinematik boyunca sokaktaki rastgele yayaları gizle (sahneye girmesinler)
+    // Çekiç kesinlikle oyuncunun elinde görünmesin
+    if (this.character && this.character.hammer) {
+      this.character.hammer.visible = false;
+    }
+
+    // Şehirdeki ve malikanedeki tüm rastgele yayaları/çalışanları gizle
     if (this.voxelWorld && this.voxelWorld.npcs && this.voxelWorld.npcs.npcs) {
       this.voxelWorld.npcs.npcs.forEach(n => { if (n.group) n.group.visible = false; });
     }
@@ -479,24 +465,20 @@ export class StoryManager {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SAHNE 1: 4. KAT ÖZEL YÖNETİM SALONU - SÖZLEŞME VE ANLAŞMA
-  // (Beyaz duvarlar, resmi sözleşme kağıdı, [X] imza yeri, David el hareketi)
   // ═══════════════════════════════════════════════════════════════════════════
   startPhaseBoardroomMeeting() {
     this.currentPhase = STORY_PHASES.CINEMATIC_BOARDROOM;
     this.phaseTimer = 0;
     this.showSkipButton(true);
 
-    // 4. Kat Yüksekliği: y = 35.0 m (Şehir binalarının çok üstünde, panoramik açık ve aydınlık)
     const rx = 0, ry = 35.0, rz = 0;
     this._buildHighBoardroomScene(rx, ry, rz);
 
-    // Kamera: Masanın ve beyaz duvarların net görüldüğü sinematik odak noktası
     this.camera.position.set(rx, ry + 1.85, rz + 3.4);
     this.camera.lookAt(rx, ry + 1.45, rz);
 
     sound.playCinematicBoom();
 
-    // Uzatılmış sürükleyici diyalog (David el hareketiyle "Merhaba dostum..." ile başlar)
     this.startDialogQueue([
       {
         speaker: 'david', name: 'DAVID STERLING (MİLYARDER)', color: '#facc15',
@@ -527,7 +509,6 @@ export class StoryManager {
         text: 'Harika bir ortaklık! Halk sadece sızlanmayı bilir. Artık bu şehrin tek bir efendisi var: David Sterling!'
       }
     ], () => {
-      // Sahne 2: Drone Kuş Bakışı İsyan Sahnesi
       this.setFade(1, 400);
       setTimeout(() => {
         this.startPhaseDroneProtest();
@@ -544,22 +525,20 @@ export class StoryManager {
     const goldMat = MAT(0xfacc15, { metalness: 0.9, roughness: 0.15 });
     const leatherBlack = MAT(0x0f172a, { roughness: 0.4 });
 
-    // 1. Odanın Zemin Tabliyesi (Lüks Beyaz Mermer)
+    // Zemin ve Tavan
     const floor = new THREE.Mesh(BOX(22, 0.4, 16), whiteWallMat);
     floor.position.set(rx, ry, rz);
     this.cinematicGroup.add(floor);
 
-    // 2. Tavan (Beyaz Asma Tavan)
     const ceiling = new THREE.Mesh(BOX(22, 0.4, 16), whiteCeilMat);
     ceiling.position.set(rx, ry + 4.5, rz);
     this.cinematicGroup.add(ceiling);
 
-    // 3. Odanın Beyaz Arka Duvarı (Kullanıcı talebi: Odanın beyaz duvarları görünsün)
+    // Beyaz Duvarlar ve Paneller
     const backWall = new THREE.Mesh(BOX(21.8, 4.4, 0.3), whiteWallMat);
     backWall.position.set(rx, ry + 2.25, rz - 6.8);
     this.cinematicGroup.add(backWall);
 
-    // Arka duvarda lüks altın çıtalar ve ahşap paneller
     for (let i = -7; i <= 7; i += 3.5) {
       const panel = new THREE.Mesh(BOX(2.8, 3.4, 0.08), darkWoodMat);
       panel.position.set(rx + i, ry + 2.3, rz - 6.6);
@@ -570,7 +549,6 @@ export class StoryManager {
       this.cinematicGroup.add(panelTrim);
     }
 
-    // Sol ve Sağ Beyaz Yan Duvarlar
     const leftWall = new THREE.Mesh(BOX(0.3, 4.4, 15.8), whiteWallMat);
     leftWall.position.set(rx - 10.8, ry + 2.25, rz);
     this.cinematicGroup.add(leftWall);
@@ -579,33 +557,21 @@ export class StoryManager {
     rightWall.position.set(rx + 10.8, ry + 2.25, rz);
     this.cinematicGroup.add(rightWall);
 
-    // 4. Lüks Yönetim Masası (Ortada)
+    // Yönetim Masası ve Resmi Sözleşme
     const table = new THREE.Mesh(BOX(3.2, 0.88, 1.8), darkWoodMat);
     table.position.set(rx, ry + 0.44, rz);
     this.cinematicGroup.add(table);
 
-    const tableTrim = new THREE.Mesh(BOX(3.3, 0.05, 1.9), goldMat);
-    tableTrim.position.set(rx, ry + 0.88, rz);
-    this.cinematicGroup.add(tableTrim);
-
-    // RESMİ DEVİR SÖZLEŞMESİ KAĞIDI (Kullanıcı Talebi: Yazı çizgileri, imza çizgisi ve [ X ] işareti)
-    const contractGeo = new THREE.BoxGeometry(0.9, 0.015, 0.65);
-    const contractMat = new THREE.MeshStandardMaterial({
-      map: createContractTexture(),
-      roughness: 0.35,
-      metalness: 0.05
-    });
-    const contractMesh = new THREE.Mesh(contractGeo, contractMat);
+    const contractMesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.015, 0.65), new THREE.MeshStandardMaterial({
+      map: createContractTexture(), roughness: 0.35, metalness: 0.05
+    }));
     contractMesh.position.set(rx, ry + 0.90, rz + 0.15);
-    contractMesh.rotation.y = -0.05;
     this.cinematicGroup.add(contractMesh);
 
-    // Altın Para Çantası
     const briefcase = new THREE.Mesh(BOX(0.8, 0.24, 0.5), goldMat);
     briefcase.position.set(rx - 0.75, ry + 0.9 + 0.12, rz - 0.3);
     this.cinematicGroup.add(briefcase);
 
-    // İki Taraf İçin Lüks Deri Yönetici Koltukları
     const chairDavid = new THREE.Mesh(BOX(0.8, 1.2, 0.8), leatherBlack);
     chairDavid.position.set(rx - 2.4, ry + 0.6, rz);
     this.cinematicGroup.add(chairDavid);
@@ -614,14 +580,13 @@ export class StoryManager {
     chairArthur.position.set(rx + 2.4, ry + 0.6, rz);
     this.cinematicGroup.add(chairArthur);
 
-    // 5. Milyarder David Sterling (Masanın solunda, SİYAH GÜNEŞ GÖZLÜKLÜ, masadan ferah mesafede)
+    // David Sterling (Masadan ferah mesafede)
     const david = this._buildDavidModel();
     david.position.set(rx - 2.2, ry, rz);
     david.rotation.y = Math.PI / 2;
     this.cinematicGroup.add(david);
     this.davidActor = david;
 
-    // David'in 2 Kırmızı Kravatlı KASLI KORUMASI (Kolları göğüste kavuşmuş)
     const dg1 = this._buildMuscleGuardModel();
     dg1.position.set(rx - 3.4, ry, rz - 1.1);
     dg1.rotation.y = Math.PI * 0.4;
@@ -632,14 +597,13 @@ export class StoryManager {
     dg2.rotation.y = Math.PI * 0.6;
     this.cinematicGroup.add(dg2);
 
-    // 6. Arthur Pendelton (Masanın sağında, GÖZLÜKLÜ, KAŞSIZ, MUTLU TEBESSÜM EDEN)
+    // Arthur Pendelton (Saydam gözlük, mutlu)
     const arthur = this._buildArthurHappyModel();
     arthur.position.set(rx + 2.2, ry, rz);
     arthur.rotation.y = -Math.PI / 2;
     this.cinematicGroup.add(arthur);
     this.arthurActor = arthur;
 
-    // Arthur'un 2 Kendi Güvenliği (Lacivert Üniforma, Açık Mavi Kravat, Gümüş Rozet)
     const ag1 = this._buildArthurGuardModel();
     ag1.position.set(rx + 3.4, ry, rz - 1.1);
     ag1.rotation.y = -Math.PI * 0.4;
@@ -650,7 +614,6 @@ export class StoryManager {
     ag2.rotation.y = -Math.PI * 0.6;
     this.cinematicGroup.add(ag2);
 
-    // Tavandan yumuşak lüks spot aydınlatma
     const light = new THREE.PointLight(0xfffbeb, 3.0, 16);
     light.position.set(rx, ry + 4.0, rz);
     this.cinematicGroup.add(light);
@@ -664,11 +627,10 @@ export class StoryManager {
     this.phaseTimer = 0;
     this.cinematicGroup.clear();
 
-    const vx = 394, vy = 12.0, vz = -58;
+    const vx = 395, vy = 12.0, vz = -40;
     this._buildProtestScene(vx, vy, vz);
 
-    // DRONE KAMERASI: Gökyüzünde kuş bakışı başlar
-    this.camera.position.set(vx + 34, vy + 28, vz + 34);
+    this.camera.position.set(vx + 32, vy + 26, vz + 34);
     this.camera.lookAt(vx, vy + 2.0, vz);
 
     this.setFade(0, 600);
@@ -677,20 +639,18 @@ export class StoryManager {
     this.startDialogQueue([
       {
         speaker: 'news', name: 'CANLI DRONE HABER YAYINI', color: '#f43f5e',
-        text: 'SON DAKİKA: David Sterling’in şehirdeki tüm bankaları gizlice devraldığı haberi duyuldu! Öfkeli halk Sterling Malikanesi’ni kuşattı!'
+        text: 'SON DAKİKA: David Sterling’in şehirdeki tüm bankaları gizlice devraldığı haberi duyuldu! Öfkeli halk Sterling Malikanesi’ne giden yolu kesti!'
       },
       {
         speaker: 'news', name: 'CANLI YAYIN MUHABİRİ', color: '#f43f5e',
-        text: 'Drone kameralarımız villanın kapısındaki dev kalabalığı görüntülüyor. Halk paralarını geri istiyor, güvenlik barikatı zorlanıyor!'
+        text: 'Drone kameralarımız villanın dış kapısı önündeki dev kalabalığı görüntülüyor. Yolu barikatlarla kapatmış durumdalar!'
       }
     ], () => {
-      // Sahne 3: Telefon görüşmesi
       this.startPhasePhoneCall();
     });
   }
 
   _buildProtestScene(vx, vy, vz) {
-    // Canlı Yayın Haber Aracı (TV News Van)
     const van = new THREE.Group();
     const vanBody = new THREE.Mesh(BOX(5.2, 2.4, 2.2), MAT(0x1e293b));
     vanBody.position.y = 1.2;
@@ -705,42 +665,31 @@ export class StoryManager {
     tvBanner.position.set(0, 1.4, 1.13);
     van.add(tvBanner);
 
-    van.position.set(vx + 8.5, vy, vz + 10.5);
+    van.position.set(vx + 9.5, vy, vz + 14.0);
     van.rotation.y = -Math.PI / 4;
     this.cinematicGroup.add(van);
     this.newsVan = van;
 
-    // Pankartlı İsyancılar (Kalabalık halk kitlesi)
+    // Kapının dışındaki yolda toplanan isyancılar
     this.protesters = [];
     const slogans = ['DEFOL STERLING!', 'PARALARIMIZI VER!', 'BANKALARI BIRAK!', 'HIRSIZ STERLING!', 'HAKKIMIZI YEDİRMEYİZ!', 'YALANCI PATRON!'];
-    for (let i = 0; i < 36; i++) {
-      const row = Math.floor(i / 12);
-      const col = i % 12;
-      const ang = (col / 11) * Math.PI * 0.9 - 0.3;
-      const r = 4.8 + row * 2.6 + (Math.random() - 0.5) * 1.2;
-      const px = vx + Math.cos(ang) * r;
-      const pz = vz + 2.5 + Math.sin(ang) * r;
+    for (let i = 0; i < 40; i++) {
+      const col = i % 10;
+      const row = Math.floor(i / 10);
+      const px = 384 + col * 2.2 + (Math.random() - 0.5) * 0.8;
+      const pz = -44.0 + row * 4.5 + (Math.random() - 0.5) * 1.0;
       const p = this._buildProtesterModel(slogans[i % slogans.length]);
       p.position.set(px, vy, pz);
-      p.rotation.y = Math.PI + (Math.random() - 0.5) * 0.6;
+      p.rotation.y = 0; // Kapıya (kuzeye) doğru bakar
       p.userData.baseY = vy;
       p.userData.animOffset = Math.random() * 12;
       this.cinematicGroup.add(p);
       this.protesters.push(p);
     }
-
-    // Villayı koruyan David'in 3 Kaslı Koruması
-    for (let i = -1; i <= 1; i++) {
-      const g = this._buildMuscleGuardModel();
-      g.position.set(vx + i * 2.8, vy, vz - 1.5);
-      g.rotation.y = 0;
-      this.cinematicGroup.add(g);
-      this.muscleGuards.push(g);
-    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SAHNE 3: TELEFON GÖRÜŞMESİ (David Arar, Biz "Tamam Geliyoruz" Deriz)
+  // SAHNE 3: TELEFON GÖRÜŞMESİ
   // ═══════════════════════════════════════════════════════════════════════════
   startPhasePhoneCall() {
     this.currentPhase = STORY_PHASES.PHONE_CALL;
@@ -748,22 +697,23 @@ export class StoryManager {
 
     sound.playPhoneRing();
 
-    const vx = 394, vy = 12.0, vz = -58;
+    const vx = 395, vy = 12.0, vz = -55;
     const davidWithPhone = this._buildDavidWithPhoneModel();
-    davidWithPhone.position.set(vx, vy, vz - 4.5);
+    davidWithPhone.position.set(vx, vy, vz);
+    davidWithPhone.rotation.y = 0; // Güneye (kapıya) doğru bakar
     this.cinematicGroup.add(davidWithPhone);
 
-    this.camera.position.set(vx - 2.8, vy + 2.2, vz - 3.2);
-    this.camera.lookAt(vx, vy + 1.8, vz - 4.5);
+    this.camera.position.set(vx - 2.4, vy + 2.2, vz + 3.0);
+    this.camera.lookAt(vx, vy + 1.8, vz);
 
     this.startDialogQueue([
       {
         speaker: 'david', name: 'DAVID STERLING (TELEFON)', color: '#facc15',
-        text: 'Alo! Beni duyabiliyor musun? Bankaları devraldık ama bu aptal halk kapıma dayandı, villamı kuşattılar!'
+        text: 'Alo! Beni duyabiliyor musun? Bankaları devraldık ama bu aptal halk kapıma dayandı, yolumu kestiler!'
       },
       {
         speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-        text: 'Hemen Doğu Ada’daki villama gel. Bu isyancıları temizle; sana dağlar kadar servet ve özel askeri cephaneliğimi vereceğim!'
+        text: 'Hemen Doğu Ada’daki villama gel. Bu isyancıları temizle; sana dağlar kadar servet ve özel cephaneliğimi vereceğim!'
       },
       {
         speaker: 'player', name: 'SEN (OYUNCU)', color: '#38bdf8',
@@ -782,20 +732,25 @@ export class StoryManager {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SAHNE 4: EVDEN ÇIKIŞ VE KONTROLLERİN AÇILMASI
-  // (Ön kapı doğrudan caddeye bakar, caddede altın limuzin beklemektedir)
+  // SAHNE 4: EVDEN ÇIKIŞ VE TV ODASINDA AÇILIŞ
+  // (Yere bakmaz, televizyona bakar; çekiç yoktur; şehirde hiç insan yoktur)
   // ═══════════════════════════════════════════════════════════════════════════
   startPhaseTvNewsMorning() {
     this.currentPhase = STORY_PHASES.TV_NEWS_MORNING;
     this.phaseTimer = 0;
     this.cinematicGroup.clear();
 
-    // Yayaları tekrar görünür yap
-    if (this.voxelWorld && this.voxelWorld.npcs && this.voxelWorld.npcs.npcs) {
-      this.voxelWorld.npcs.npcs.forEach(n => { if (n.group) n.group.visible = true; });
+    // Çekiç kesinlikle gizlenir
+    if (this.character && this.character.hammer) {
+      this.character.hammer.visible = false;
     }
 
-    // Limuzini caddede hazır olarak konumlandır
+    // Şehirdeki ve dünyadaki tüm rastgele insanları gizli tut (kesinlikle görünmesinler)
+    if (this.voxelWorld && this.voxelWorld.npcs && this.voxelWorld.npcs.npcs) {
+      this.voxelWorld.npcs.npcs.forEach(n => { if (n.group) n.group.visible = false; });
+    }
+
+    // Limuzini caddede beklemede başlat
     this._spawnLimoWaitingOnStreet();
 
     const spawnPos = { x: -110.25, y: 7.05, z: 19.75 };
@@ -805,8 +760,9 @@ export class StoryManager {
       this.character.mesh.position.set(spawnPos.x, spawnPos.y - 0.525, spawnPos.z);
     }
 
+    // Tam yatay göz hizasında (pitch = 0), doğrudan doğudaki televizyona bakar (+x)
     this.camera.position.set(spawnPos.x, spawnPos.y + 0.6, spawnPos.z);
-    this.camera.lookAt(spawnPos.x + 3.0, spawnPos.y + 0.6, spawnPos.z);
+    this.camera.lookAt(spawnPos.x + 5.0, spawnPos.y + 0.6, spawnPos.z);
 
     this.setFade(0, 800);
     this.showSkipButton(false);
@@ -842,7 +798,7 @@ export class StoryManager {
       // Kamera limuzine 2 saniye hayranlıkla bakar
       this.camera.lookAt(-105.0, 1.2, 2.1);
 
-      this.setMission('LİMUZİNE BİNİLİYOR...', 'David Sterling’in altın kaplama Rolls-Royce tarzı limuzini sizi bekliyor.');
+      this.setMission('LİMUZİNE BİNİLİYOR...', 'David Sterling’in altın kaplama limuzini sizi bekliyor.');
       sound.playUiBeep();
     }
   }
@@ -858,7 +814,7 @@ export class StoryManager {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // SAHNE 5 & 6: LİMUZİN İÇİ VIP SEYAHAT
-  // (Sakin gerçekçi sürüş, VIP mor kabin, 2 kaslı koruma karşımızda oturur)
+  // (Oyuncu limuzinin altında DEĞİL, kabin koltuğunda oturur; karşıda 2 kaslı koruma)
   // ═══════════════════════════════════════════════════════════════════════════
   startLimoRide() {
     this.currentPhase = STORY_PHASES.LIMO_RIDE;
@@ -873,7 +829,7 @@ export class StoryManager {
       this.startDialogQueue([
         {
           speaker: 'guard', name: 'BAŞ KORUMA (LİMUZİN İÇİ)', color: '#dc2626',
-          text: 'Arkamıza yaslanalım. Patronumuz David Sterling seninle resmi bir anlaşma yaptı.'
+          text: 'Arkamıza yaslanalım dostum. Patronumuz David Sterling seninle resmi bir anlaşma yaptı.'
         },
         {
           speaker: 'guard', name: 'BAŞ KORUMA', color: '#dc2626',
@@ -881,7 +837,7 @@ export class StoryManager {
         },
         {
           speaker: 'guard', name: 'BAŞ KORUMA', color: '#dc2626',
-          text: 'Malikanenin kapısına dayanan o isyancı sürüsünü tek tek temizleyeceksin.'
+          text: 'Malikanenin dış kapısına barikat kurmuş o isyancı sürüsünü tek tek temizleyeceksin.'
         },
         {
           speaker: 'guard', name: 'BAŞ KORUMA', color: '#dc2626',
@@ -889,59 +845,61 @@ export class StoryManager {
         },
         {
           speaker: 'guard', name: 'BAŞ KORUMA', color: '#dc2626',
-          text: 'Köprüyü geçtik, Doğu Ada rampasına tırmanıyoruz. Silahlarını kuşan, birazdan malikaneye varıyoruz!'
+          text: 'Köprüyü geçtik, Doğu Ada rampasına tırmanıyoruz. Silahlarını kuşan, kapıdan içeri giriyoruz!'
         }
       ]);
     }, 1200);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SAHNE 7: VİLLAYA VARIŞ & SİLAH ÇANTASI TESLİMİ
-  // (David ortada, sağında ve solunda korumaları)
+  // SAHNE 7: VİLLAYA VARIŞ & CEPHANE TESLİMİ
+  // (David kapının içinde güvendedir, isyancılar kapının dışındaki yoldadır)
   // ═══════════════════════════════════════════════════════════════════════════
   startPhaseVillaArrival() {
     this.currentPhase = STORY_PHASES.VILLA_ARRIVAL;
     this.phaseTimer = 0;
     this.cinematicGroup.clear();
 
-    const vx = 394, vy = 12.0, vz = -58;
+    const vx = 395.0, vy = 12.0, vz = -55.0;
 
+    // Oyuncu villanın kapı içindeki avluda durur
     if (this.character && this.character.body) {
-      this.character.body.position.set(vx - 2.0, vy + 1.0, vz - 4.0);
-      this.character.mesh.position.set(vx - 2.0, vy, vz - 4.0);
+      this.character.body.position.set(vx - 2.5, vy + 1.0, vz);
+      this.character.mesh.position.set(vx - 2.5, vy, vz);
+      this.character.body.velocity.set(0, 0, 0);
     }
 
-    // David Sterling (Ortada, SİYAH GÜNEŞ GÖZLÜKLÜ)
+    // David Sterling (Kapının içinde, SİYAH GÜNEŞ GÖZLÜKLÜ)
     const david = this._buildDavidModel();
-    david.position.set(vx + 1.5, vy, vz - 3.8);
-    david.rotation.y = -Math.PI / 2;
+    david.position.set(vx + 1.2, vy, vz - 1.5);
+    david.rotation.y = 0; // Dışarıdaki kapıya bakar
     this.cinematicGroup.add(david);
     this.davidActor = david;
 
     // David'in Sağında Koruması (Çantayı tutan)
     const guardR = this._buildMuscleGuardModel(true);
-    guardR.position.set(vx + 1.5, vy, vz - 2.4);
-    guardR.rotation.y = -Math.PI / 2;
+    guardR.position.set(vx + 2.6, vy, vz - 1.5);
+    guardR.rotation.y = 0;
     this.cinematicGroup.add(guardR);
 
     // David'in Solunda Koruması (Kolları bağlı)
     const guardL = this._buildMuscleGuardModel(false);
-    guardL.position.set(vx + 1.5, vy, vz - 5.2);
-    guardL.rotation.y = -Math.PI / 2;
+    guardL.position.set(vx - 0.2, vy, vz - 1.5);
+    guardL.rotation.y = 0;
     this.cinematicGroup.add(guardL);
 
-    // İsyancıları villanın ön avlusuna konuşlandır
-    this._spawnMissionProtesters(vx, vy, vz);
+    // İSYANCILAR: Kapıyı kesinlikle geçmezler, dışarıdaki yolda barikat kurmuşlardır!
+    this._spawnMissionProtesters();
 
-    this.camera.position.set(vx - 5.0, vy + 2.2, vz - 3.8);
-    this.camera.lookAt(vx + 1.5, vy + 1.8, vz - 3.8);
+    this.camera.position.set(vx - 3.5, vy + 2.2, vz + 2.5);
+    this.camera.lookAt(vx + 1.2, vy + 1.8, vz - 1.5);
 
     sound.playCinematicBoom();
 
     this.startDialogQueue([
       {
         speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-        text: 'Vaktinde geldin dostum. Olayı biliyorsun; kapımdaki bu isyancı ayak takımı servetimi ve canımı tehdit ediyor.'
+        text: 'Vaktinde geldin dostum. Olayı biliyorsun; kapımın dışındaki yola barikat kurmuş bu isyancı ayak takımı servetimi ve canımı tehdit ediyor.'
       },
       {
         speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
@@ -949,7 +907,7 @@ export class StoryManager {
       },
       {
         speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-        text: 'Git ve kapımdaki bütün bu isyancıları temizle! İşini bitirdiğinde gel, ödülünü fazlasıyla alacaksın!'
+        text: 'Dışarı çık ve kapımın önündeki bütün bu isyancıları temizle! İşini bitirdiğinde gel, ödülünü fazlasıyla alacaksın!'
       }
     ], () => {
       this.startCombatPhase();
@@ -957,7 +915,7 @@ export class StoryManager {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // SAHNE 8: ÇATIŞMA GÖREVİ (İsyancıları Temizleme)
+  // SAHNE 8: ÇATIŞMA GÖREVİ (Kapının Dışındaki İsyancıları Temizleme)
   // ═══════════════════════════════════════════════════════════════════════════
   startCombatPhase() {
     this.currentPhase = STORY_PHASES.MISSION_COMBAT;
@@ -971,23 +929,39 @@ export class StoryManager {
     this.updateCombatMissionHUD();
   }
 
-  _spawnMissionProtesters(vx, vy, vz) {
+  // 56 Adet İsyancı: Kapıyı GEÇMEZLER (z >= -46.0), dışarıdaki yolda ve rampada toplanmışlardır!
+  _spawnMissionProtesters() {
     this.protesters = [];
-    const slogans = ['DEFOL STERLING!', 'PARAMIZI VER!', 'KATİL STERLING!', 'HESAP VERECEKSİN!', 'HAKKIMIZI YEDİRMEYİZ!', 'YALANCI PATRON!'];
-    // 38 isyancı, villanın ön avlusunda toplanmış
-    for (let i = 0; i < 38; i++) {
-      const row = Math.floor(i / 13);
-      const col = i % 13;
-      const ang = (col / 12) * Math.PI * 0.95 - 0.35;
-      const r = 5.2 + row * 2.8 + (Math.random() - 0.5) * 1.4;
-      const px = vx + Math.cos(ang) * r;
-      const pz = vz + 2.4 + Math.sin(ang) * r;
+    const slogans = [
+      'DEFOL STERLING!', 'PARAMIZI VER!', 'KATİL STERLING!',
+      'HESAP VERECEKSİN!', 'HAKKIMIZI YEDİRMEYİZ!', 'YALANCI PATRON!',
+      'BANKALAR BİZİMDİR!', 'PARAMI ÇALAMAZSIN!'
+    ];
+
+    // 4 sıra halinde 56 isyancı (kapı çizgisi z = -49.5; isyancılar z = -46.0 .. -26.0 arasındadır)
+    const totalCount = 56;
+    for (let i = 0; i < totalCount; i++) {
+      const col = i % 14;
+      const row = Math.floor(i / 14);
+
+      // Yol genişliği x = 384 .. 406
+      const px = 384.5 + col * 1.6 + (Math.random() - 0.5) * 0.4;
+      // Dış yol derinliği z = -45.5 .. -26.0 (KAPIYI ASLA GEÇMEZLER!)
+      const pz = -45.5 + row * 6.2 + (Math.random() - 0.5) * 0.8;
+
+      // Zemin kotuna tam oturt
+      const gy = (this.voxelWorld && this.voxelWorld.terrain) ? this.voxelWorld.terrain.topYAt(px, pz) : 12.0;
+      const finalY = Math.max(0.5, gy);
+
       const p = this._buildProtesterModel(slogans[i % slogans.length]);
-      p.position.set(px, vy, pz);
+      p.position.set(px, finalY, pz);
+      p.rotation.y = Math.PI + (Math.random() - 0.5) * 0.3; // Villaya ve kapıya doğru dönük
       p.userData.isTarget = true;
       p.userData.hp = 100;
-      p.userData.baseY = vy;
+      p.userData.dead = false;
+      p.userData.baseY = finalY;
       p.userData.animOffset = Math.random() * 12;
+
       this.cinematicGroup.add(p);
       this.protesters.push(p);
     }
@@ -996,82 +970,99 @@ export class StoryManager {
   updateCombatMissionHUD() {
     const remaining = this.protesters.filter(p => !p.userData.dead).length;
     if (remaining > 0) {
-      this.setMission('VİLLAYI KUŞATAN İSYANCILARI ETKİSİZ HALE GETİR', `Kalan İsyancı Sayısı: ${remaining}`);
+      this.setMission('KAPININ ÖNÜNDEKİ İSYANCILARI ETKİSİZ HALE GETİR', `Kalan İsyancı Sayısı: ${remaining}`);
     } else {
       this.startVictoryPhase();
     }
   }
 
+  // İsyancı Vurulma Mantığı (Tek atışta ölüm, kan küpleri, yere devrilme)
   onHitProtester(protesterMesh, hitPoint) {
     if (!protesterMesh || !protesterMesh.userData || protesterMesh.userData.dead) return;
-    protesterMesh.userData.hp = (protesterMesh.userData.hp || 100) - 50;
+    protesterMesh.userData.dead = true;
+    protesterMesh.userData.hp = 0;
 
-    // Vurulduğunda ses
+    // Vurulma ve kemik kırılma sesleri
     sound.playNpcHit();
+    sound.playBlockHit();
 
-    // Vurulduğunda etrafa fırlayan kırmızı kan küpleri (Voxel Blood Effect)
+    // Görsel kübik kan fışkırması (Voxel Blood Effect)
     if (this.voxelWorld && this.voxelWorld.spawnLooseVoxel) {
       const bloodCols = [0x991b1b, 0xdc2626, 0xef4444, 0x7f1d1d];
-      const pos = hitPoint || protesterMesh.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-      for (let i = 0; i < 12; i++) {
+      const pos = hitPoint || protesterMesh.position.clone().add(new THREE.Vector3(0, 1.3, 0));
+      for (let i = 0; i < 18; i++) {
         this.voxelWorld.spawnLooseVoxel(
-          pos.x + (Math.random() - 0.5) * 0.4,
-          pos.y + (Math.random() - 0.5) * 0.4,
-          pos.z + (Math.random() - 0.5) * 0.4,
+          pos.x + (Math.random() - 0.5) * 0.5,
+          pos.y + (Math.random() - 0.5) * 0.5,
+          pos.z + (Math.random() - 0.5) * 0.5,
           { color: bloodCols[i % bloodCols.length] },
           pos,
-          0.6,
-          2,
-          75,
+          0.8,
+          2.5,
+          80,
           null,
-          1.2
+          1.4
         );
       }
     }
 
-    if (protesterMesh.userData.hp <= 0) {
-      protesterMesh.userData.dead = true;
-      // Yere devrilme ve pankartı düşürme
-      protesterMesh.rotation.x = Math.PI / 2;
-      protesterMesh.position.y -= 0.6;
-      const placard = protesterMesh.userData.placard;
-      if (placard) {
-        placard.rotation.z = Math.PI / 2;
-        placard.position.y -= 0.8;
-      }
-      this.updateCombatMissionHUD();
+    // Yere devrilme ve pankartı düşürme
+    protesterMesh.rotation.x = Math.PI / 2;
+    protesterMesh.position.y = (protesterMesh.userData.baseY || 12.0) + 0.18;
+    const placard = protesterMesh.userData.placard;
+    if (placard) {
+      placard.rotation.z = Math.PI / 2;
+      placard.position.y -= 0.6;
     }
+
+    this.updateCombatMissionHUD();
   }
 
-  checkBulletHit(origin, dir, maxDist = 90) {
-    if (this.currentPhase !== STORY_PHASES.MISSION_COMBAT) return null;
+  // Mermi Çarpışma Tespiti (Işın ve silindirik kapsül çarpışması)
+  checkBulletHit(origin, dir, maxDist = 120) {
+    if (this.currentPhase !== STORY_PHASES.MISSION_COMBAT && this.currentPhase !== STORY_PHASES.VILLA_ARRIVAL) return null;
     let closest = null, closestDist = maxDist;
+    const rayDir = dir.clone().normalize();
+
     for (const p of this.protesters) {
       if (p.userData.dead) continue;
-      const targetPos = p.position.clone().add(new THREE.Vector3(0, 1.3, 0));
-      const toP = targetPos.sub(origin);
-      const proj = toP.dot(dir);
-      if (proj < 0 || proj > closestDist) continue;
-      const perp = toP.sub(dir.clone().multiplyScalar(proj)).length();
-      if (perp < 1.1) {
+      const cy = (p.userData.baseY !== undefined ? p.userData.baseY : p.position.y) + 1.4;
+      const px = p.position.x, pz = p.position.z;
+
+      const toX = px - origin.x, toY = cy - origin.y, toZ = pz - origin.z;
+      const proj = toX * rayDir.x + toY * rayDir.y + toZ * rayDir.z;
+      if (proj <= 0.2 || proj >= closestDist) continue;
+
+      const closeX = origin.x + rayDir.x * proj;
+      const closeY = origin.y + rayDir.y * proj;
+      const closeZ = origin.z + rayDir.z * proj;
+
+      const dy = Math.abs(closeY - cy);
+      const dh = Math.hypot(closeX - px, closeZ - pz);
+
+      // Cömert vuruş alanı (gövde + pankart)
+      if (dh < 1.4 && dy < 2.0) {
         closestDist = proj;
         closest = p;
       }
     }
+
     if (closest) {
-      const hitPt = origin.clone().add(dir.clone().multiplyScalar(closestDist));
+      const hitPt = origin.clone().addScaledVector(rayDir, closestDist);
       this.onHitProtester(closest, hitPt);
       return { point: hitPt, protester: closest };
     }
     return null;
   }
 
-  checkSphereHit(pos, radius = 3.0) {
-    if (this.currentPhase !== STORY_PHASES.MISSION_COMBAT) return;
+  // Alan Hasarı (Patlama, çekiç, kılıç, nuke, bomba)
+  checkSphereHit(pos, radius = 3.5) {
     for (const p of this.protesters) {
       if (p.userData.dead) continue;
-      if (p.position.distanceTo(pos) < radius) {
-        this.onHitProtester(p, pos);
+      const cy = (p.userData.baseY !== undefined ? p.userData.baseY : p.position.y) + 1.3;
+      const d = Math.hypot(p.position.x - pos.x, cy - pos.y, p.position.z - pos.z);
+      if (d <= radius + 1.4) {
+        this.onHitProtester(p, p.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
       }
     }
   }
@@ -1134,18 +1125,15 @@ export class StoryManager {
       this.camera.position.set(rx, ry + 1.85, rz + camZ);
       this.camera.lookAt(rx, ry + 1.45, rz);
 
-      // David Sterling "Merhaba dostum..." derken ellerini havaya kaldırır (gövdeden kopmadan)
       if (this.davidActor && this.davidActor.userData) {
         const { lArm, rArm } = this.davidActor.userData;
         if (lArm && rArm) {
           if (this.dialogIndex === 0) {
-            // Replik 0: Eller havada tebessüm/selamlama hareketi
             lArm.rotation.x = THREE.MathUtils.lerp(lArm.rotation.x, -1.25, dt * 4.0);
             lArm.rotation.z = THREE.MathUtils.lerp(lArm.rotation.z, -0.35, dt * 4.0);
             rArm.rotation.x = THREE.MathUtils.lerp(rArm.rotation.x, -1.25, dt * 4.0);
             rArm.rotation.z = THREE.MathUtils.lerp(rArm.rotation.z, 0.35, dt * 4.0);
           } else {
-            // Sonraki replikler: Masaya doğru doğal duruş
             lArm.rotation.x = THREE.MathUtils.lerp(lArm.rotation.x, -0.4, dt * 2.5);
             lArm.rotation.z = THREE.MathUtils.lerp(lArm.rotation.z, 0, dt * 2.5);
             rArm.rotation.x = THREE.MathUtils.lerp(rArm.rotation.x, -0.4, dt * 2.5);
@@ -1158,7 +1146,7 @@ export class StoryManager {
     // Sahne 2: Drone Kuş Bakışı Kamera Hareketi
     if (this.currentPhase === STORY_PHASES.CINEMATIC_DRONE_PROTEST) {
       this.droneAngle += dt * 0.22;
-      const vx = 394, vy = 12.0, vz = -58;
+      const vx = 395, vy = 12.0, vz = -40;
       const camR = 26 + Math.sin(this.droneAngle * 0.8) * 6;
       const camH = vy + 22 - Math.min(10, this.phaseTimer * 1.5);
       this.camera.position.set(
@@ -1186,7 +1174,7 @@ export class StoryManager {
       }
     }
 
-    // Limuzin yolculuğu: Sakin, akıcı lüks araba hızı
+    // Limuzin yolculuğu: Sakin, akıcı lüks araba hızı & kabin koltuğunda kusursuz oturuş
     if (this.currentPhase === STORY_PHASES.LIMO_RIDE) {
       this._updateLimoRide(dt);
     }
@@ -1204,21 +1192,12 @@ export class StoryManager {
         }
       }
     }
-
-    // Kaçış engeli (Çatışma alanı dışına çıkışı sınırlar)
-    if (this.currentPhase === STORY_PHASES.MISSION_COMBAT && this.character) {
-      if (this.character.mesh.position.x < 370) {
-        this.character.mesh.position.x = 370.5;
-        if (this.character.body) this.character.body.position.x = 370.5;
-      }
-    }
   }
 
-  // Sakin, akıcı, gerçekçi limuzin sürüşü (Bugatti hızı yok!)
+  // Sakin, akıcı, gerçekçi limuzin sürüşü & VIP kabinde kusursuz oturuş
   _updateLimoRide(dt) {
     if (!this.limo) return;
 
-    // Yumuşak kalkış ve sakin hızlanma eğrisi (~42-45 saniyelik keyifli lüks yolculuk)
     const cruiseRate = Math.min(0.023, 0.007 + this.phaseTimer * 0.002);
     this.limoProgress += dt * cruiseRate;
 
@@ -1236,23 +1215,38 @@ export class StoryManager {
 
       this.limo.position.set(curX, curY, curZ);
       const dx = pB.x - pA.x, dz = pB.z - pA.z;
-      this.limo.rotation.y = Math.atan2(dx, dz) - Math.PI / 2;
+      const rotY = Math.atan2(dx, dz) - Math.PI / 2;
+      this.limo.rotation.y = rotY;
 
-      if (this.character && this.character.mesh) {
-        this.character.mesh.position.set(curX, curY + 1.2, curZ);
-        if (this.character.body) this.character.body.position.set(curX, curY + 1.2, curZ);
+      // OYUNCUNUN KABİN KOLTUĞUNDAKİ KONUMU (Limuzinin altında DEĞİL, koltuk üstünde oturur!)
+      // Yerel ofset: arka deri koltuk (x = -1.6, y = 2.15, z = 0)
+      const seatOffset = new THREE.Vector3(-1.6, 2.15, 0);
+      seatOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+      const camPos = this.limo.position.clone().add(seatOffset);
+
+      // Karakter fiziği aşağı düşmesin, koltukta sabit kalsın
+      if (this.character) {
+        this.character.mesh.position.copy(camPos);
+        if (this.character.body) {
+          this.character.body.position.copy(camPos);
+          this.character.body.velocity.set(0, 0, 0);
+        }
       }
 
-      // Limuzin içi VIP kabin kamerası: Fare ile içeride 360 derece bakılabilir
+      // İçeride 360 derece bakış
       const yaw = (window._storyCamYaw !== undefined ? window._storyCamYaw : 0);
       const pitch = (window._storyCamPitch !== undefined ? window._storyCamPitch : 0);
-      const lookX = -Math.sin(yaw) * Math.cos(pitch);
-      const lookY = -Math.sin(pitch);
-      const lookZ = -Math.cos(yaw) * Math.cos(pitch);
 
-      // Kamera limuzinin arka koltuğunda, doğrudan karşıdaki 2 kaslı korumayı görecek şekilde hizalanır
-      this.camera.position.set(curX - 1.2, curY + 1.25, curZ);
-      this.camera.lookAt(this.camera.position.x + lookX + 1.2, this.camera.position.y + lookY, this.camera.position.z + lookZ);
+      // Limuzinin önüne (+x) ve karşıdaki 2 kaslı korumaya bakan yön
+      const lookLocal = new THREE.Vector3(
+        Math.cos(pitch) * Math.cos(yaw),
+        -Math.sin(pitch),
+        Math.cos(pitch) * Math.sin(yaw)
+      );
+      lookLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
+
+      this.camera.position.copy(camPos);
+      this.camera.lookAt(camPos.clone().add(lookLocal));
     } else {
       this.startPhaseVillaArrival();
     }
@@ -1262,7 +1256,6 @@ export class StoryManager {
   // 3D MODELLER (Siyah Gözlüklü David, Mutlu Arthur, Farklı Korumalar, Limuzin)
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // 1. Milyarder David Sterling (Kare Kafa, SİYAH GÜNEŞ GÖZLÜKLÜ, Oynar Kollar)
   _buildDavidModel() {
     const g = new THREE.Group();
     const legMat = MAT(0x0f172a);
@@ -1275,14 +1268,12 @@ export class StoryManager {
     const tie = new THREE.Mesh(BOX(0.12, 0.65, 0.44), MAT(0xdc2626));
     tie.position.set(0, 1.32, 0.02); g.add(tie);
 
-    // KARE KAFA
     const head = new THREE.Mesh(BOX(0.48, 0.48, 0.48), MAT(0xd4a373));
     head.position.set(0, 1.98, 0); g.add(head);
 
     const hair = new THREE.Mesh(BOX(0.5, 0.18, 0.5), MAT(0x1e293b));
     hair.position.set(0, 2.18, 0); g.add(hair);
 
-    // SİYAH GÜNEŞ GÖZLÜĞÜ (Kullanıcı Talebi: Gözlüğü siyah olsun)
     const shadesMat = MAT(0x050505, { roughness: 0.1, metalness: 0.9 });
     const shadesL = new THREE.Mesh(BOX(0.17, 0.13, 0.5), shadesMat);
     shadesL.position.set(-0.12, 1.98, 0.03); g.add(shadesL);
@@ -1291,9 +1282,7 @@ export class StoryManager {
     const shadesBridge = new THREE.Mesh(BOX(0.1, 0.04, 0.5), shadesMat);
     shadesBridge.position.set(0, 2.0, 0.03); g.add(shadesBridge);
 
-    // Animasyonlu Omuz ve Kollar (Gövdeden kopmadan omuzdan döner)
     const armMat = MAT(0x1e1b4b);
-
     const lArmGroup = new THREE.Group();
     lArmGroup.position.set(-0.46, 1.65, 0);
     const lArmMesh = new THREE.Mesh(BOX(0.22, 0.8, 0.22), armMat);
@@ -1322,7 +1311,6 @@ export class StoryManager {
     return g;
   }
 
-  // 2. Arthur Pendelton (KARE KAFA, İNCE GÖZLÜKLÜ, KAŞSIZ, MUTLU TEBESSÜM EDEN)
   _buildArthurHappyModel() {
     const g = new THREE.Group();
     const matSuit = MAT(0x1e3a8a);
@@ -1335,14 +1323,12 @@ export class StoryManager {
     const tie = new THREE.Mesh(BOX(0.12, 0.6, 0.4), MAT(0x38bdf8));
     tie.position.set(0, 1.3, 0.02); g.add(tie);
 
-    // KARE KAFA (Kaşsız, mutlu gözlüklü)
     const head = new THREE.Mesh(BOX(0.46, 0.46, 0.46), MAT(0xf1c27d));
     head.position.set(0, 1.93, 0); g.add(head);
 
     const hair = new THREE.Mesh(BOX(0.48, 0.15, 0.48), MAT(0x94a3b8));
     hair.position.set(0, 2.12, 0); g.add(hair);
 
-    // İNCE MAVİ ÇERÇEVELİ SAYDAM GÖZLÜK (Kullanıcı Talebi: Gözleri görünsün, tatlı biri olsun)
     const frameMat = MAT(0x0284c7, { metalness: 0.8 });
     const glassLensMat = MAT(0x38bdf8, { transparent: true, opacity: 0.28, roughness: 0.1 });
 
@@ -1356,16 +1342,13 @@ export class StoryManager {
     const lensR = new THREE.Mesh(BOX(0.14, 0.11, 0.49), glassLensMat);
     lensR.position.set(0.11, 1.95, 0.025); g.add(lensR);
 
-    // Gözlüğün Arkasından Görünür Gözbebekleri (KAŞSIZ!)
     const pupilMat = MAT(0x0f172a);
     const pL = new THREE.Mesh(BOX(0.06, 0.06, 0.48), pupilMat); pL.position.set(-0.11, 1.95, 0.01); g.add(pL);
     const pR = new THREE.Mesh(BOX(0.06, 0.06, 0.48), pupilMat); pR.position.set(0.11, 1.95, 0.01); g.add(pR);
 
-    // Mutlu Gülümseyen Ağız (Geniş tatlı tebessüm)
     const smile = new THREE.Mesh(BOX(0.2, 0.06, 0.48), MAT(0xbe123c));
     smile.position.set(0, 1.82, 0.03); g.add(smile);
 
-    // Kollar
     const lArm = new THREE.Mesh(BOX(0.2, 0.75, 0.2), matSuit);
     lArm.position.set(-0.42, 1.25, 0.1); lArm.rotation.x = -0.5; g.add(lArm);
     const rArm = new THREE.Mesh(BOX(0.2, 0.75, 0.2), matSuit);
@@ -1374,7 +1357,6 @@ export class StoryManager {
     return g;
   }
 
-  // 3. Arthur'un Güvenlikleri (Lacivert Üniforma, Açık Mavi Kravat, Gümüş Rozet)
   _buildArthurGuardModel() {
     const g = new THREE.Group();
     const navyMat = MAT(0x1e3a8a);
@@ -1390,7 +1372,6 @@ export class StoryManager {
     const tie = new THREE.Mesh(BOX(0.12, 0.65, 0.44), lightBlueTie);
     tie.position.set(0, 1.45, 0.02); g.add(tie);
 
-    // Gümüş Rozet
     const badge = new THREE.Mesh(BOX(0.14, 0.14, 0.46), MAT(0xe2e8f0, { metalness: 0.95, roughness: 0.1 }));
     badge.position.set(-0.22, 1.65, 0.02); g.add(badge);
 
@@ -1405,7 +1386,6 @@ export class StoryManager {
     return g;
   }
 
-  // 4. David Sterling'in Kırmızı Kravatlı KASLI KORUMASI (Geniş omuz, kollar göğüste kavuşmuş)
   _buildMuscleGuardModel(hasBriefcase = false) {
     const g = new THREE.Group();
     const blackSuit = MAT(0x020617);
@@ -1415,7 +1395,6 @@ export class StoryManager {
     const lLeg = new THREE.Mesh(BOX(0.36, 1.05, 0.36), blackSuit); lLeg.position.set(-0.25, 0.52, 0); g.add(lLeg);
     const rLeg = new THREE.Mesh(BOX(0.36, 1.05, 0.36), blackSuit); rLeg.position.set(0.25, 0.52, 0); g.add(rLeg);
 
-    // Geniş kaslı gövde
     const torso = new THREE.Mesh(BOX(0.95, 1.05, 0.52), blackSuit);
     torso.position.set(0, 1.55, 0); g.add(torso);
 
@@ -1439,7 +1418,6 @@ export class StoryManager {
       briefcase.position.set(0.72, 0.9, 0.1);
       g.add(briefcase);
     } else {
-      // KOLLAR GÖĞÜSTE KAVUŞMUŞ ("Küsmüş eleman gibi", iki kol göğüste birleşik)
       const crossedArmLeft = new THREE.Mesh(BOX(0.85, 0.26, 0.32), blackSuit);
       crossedArmLeft.position.set(0.08, 1.58, 0.34);
       crossedArmLeft.rotation.z = 0.08;
@@ -1454,7 +1432,6 @@ export class StoryManager {
     return g;
   }
 
-  // 5. İsyancı Halk Modeli (1.55x boy, gerçekçi voxel insan oranları)
   _buildProtesterModel(sloganText = 'DEFOL!') {
     const g = new THREE.Group();
     const colors = [0xdc2626, 0x2563eb, 0x16a34a, 0xf59e0b, 0x9333ea, 0x0891b2, 0xe11d48, 0x475569];
@@ -1481,7 +1458,6 @@ export class StoryManager {
     rArm.rotation.x = -Math.PI * 0.4;
     g.add(rArm);
 
-    // Pankart
     const placardGroup = new THREE.Group();
     const pole = new THREE.Mesh(BOX(0.08, 2.2, 0.08), MAT(0x78350f));
     pole.position.set(0, 1.1, 0);
@@ -1499,122 +1475,124 @@ export class StoryManager {
     g.add(placardGroup);
     g.userData.placard = placardGroup;
 
-    // Normal insan boyutu oranı (1.55x)
     g.scale.setScalar(1.55);
-
     return g;
   }
 
   // 6. Lüks Altın & Beyaz Limuzin Modeli
-  // (Ön kaputta altın heykelli simge, altın kenar çıtaları, mor neon kabin içi, karşıda 2 kaslı koruma)
+  // (Kabin tabanı y=1.05, koltuk y=1.45, tavan y=2.65, oyuncu göz yüksekliği y=2.15)
   _buildLuxuryLimoModel() {
     const g = new THREE.Group();
     const whiteMat = MAT(0xf8fafc, { roughness: 0.15, metalness: 0.2 });
     const goldMat = MAT(0xf59e0b, { roughness: 0.1, metalness: 0.9, emissive: 0xb45309 });
-    const glassDark = MAT(0x0a0f1d, { transparent: true, opacity: 0.94, roughness: 0.1 });
+    const glassDark = MAT(0x0a0f1d, { transparent: true, opacity: 0.92, roughness: 0.1 });
     const tireMat = MAT(0x111827, { roughness: 0.8 });
-    const blackLeather = MAT(0x020617, { roughness: 0.35 });
+    const blackLeather = MAT(0x0f172a, { roughness: 0.4 });
 
-    // Ana Limuzin Gövdesi
-    const body = new THREE.Mesh(BOX(10.8, 1.25, 2.45), whiteMat);
+    // Ana Gövde
+    const body = new THREE.Mesh(BOX(11.2, 1.25, 2.5), whiteMat);
     body.position.y = 0.85;
     g.add(body);
 
-    // Altın Kenar Çıtaları (Lüks parlak kenarlar)
-    const goldTrimL = new THREE.Mesh(BOX(10.6, 0.1, 0.08), goldMat);
-    goldTrimL.position.set(0, 0.7, 1.24);
+    // Altın Yan Çıtalar
+    const goldTrimL = new THREE.Mesh(BOX(11.0, 0.1, 0.08), goldMat);
+    goldTrimL.position.set(0, 0.7, 1.26);
     g.add(goldTrimL);
 
-    const goldTrimR = new THREE.Mesh(BOX(10.6, 0.1, 0.08), goldMat);
-    goldTrimR.position.set(0, 0.7, -1.24);
+    const goldTrimR = new THREE.Mesh(BOX(11.0, 0.1, 0.08), goldMat);
+    goldTrimR.position.set(0, 0.7, -1.26);
     g.add(goldTrimR);
 
-    const goldRoofTrimL = new THREE.Mesh(BOX(7.2, 0.08, 0.08), goldMat);
-    goldRoofTrimL.position.set(-0.4, 2.32, 1.10);
-    g.add(goldRoofTrimL);
-
-    const goldRoofTrimR = new THREE.Mesh(BOX(7.2, 0.08, 0.08), goldMat);
-    goldRoofTrimR.position.set(-0.4, 2.32, -1.10);
-    g.add(goldRoofTrimR);
-
-    // Ön Kaput ve Altın Radyatör Izgarası (Rolls-Royce Stili)
+    // Ön Kaput Izgarası ve Altın Heykelcik
     const grille = new THREE.Mesh(BOX(0.12, 0.85, 1.4), goldMat);
-    grille.position.set(5.35, 0.85, 0);
+    grille.position.set(5.55, 0.85, 0);
     g.add(grille);
 
-    // ÖN KAPUT HEYKELCİĞİ (Togg / Rolls-Royce Spirit of Ecstasy tarzı altın kanatlı mini heykel)
     const ornamentBase = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.08, 12), goldMat);
-    ornamentBase.position.set(5.25, 1.52, 0);
+    ornamentBase.position.set(5.45, 1.52, 0);
     g.add(ornamentBase);
 
     const ornamentBody = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.22, 10), goldMat);
-    ornamentBody.position.set(5.23, 1.65, 0);
+    ornamentBody.position.set(5.43, 1.65, 0);
     ornamentBody.rotation.z = -0.3;
     g.add(ornamentBody);
 
     const ornamentWingL = new THREE.Mesh(BOX(0.08, 0.14, 0.02), goldMat);
-    ornamentWingL.position.set(5.2, 1.70, 0.08);
+    ornamentWingL.position.set(5.4, 1.70, 0.08);
     ornamentWingL.rotation.y = 0.5;
     g.add(ornamentWingL);
 
     const ornamentWingR = new THREE.Mesh(BOX(0.08, 0.14, 0.02), goldMat);
-    ornamentWingR.position.set(5.2, 1.70, -0.08);
+    ornamentWingR.position.set(5.4, 1.70, -0.08);
     ornamentWingR.rotation.y = -0.5;
     g.add(ornamentWingR);
 
-    // Üst VIP Yolcu Kabini
-    const cabin = new THREE.Mesh(BOX(7.2, 0.98, 2.2), whiteMat);
-    cabin.position.set(-0.4, 1.85, 0);
-    g.add(cabin);
+    // VIP Kabin Yapısı
+    const cabinFloor = new THREE.Mesh(BOX(7.6, 0.15, 2.3), whiteMat);
+    cabinFloor.position.set(-0.4, 1.05, 0);
+    g.add(cabinFloor);
 
-    // Karartmalı Lüks Camlar
-    const glassL = new THREE.Mesh(BOX(6.8, 0.68, 0.06), glassDark);
-    glassL.position.set(-0.4, 1.85, 1.11);
+    const cabinRoof = new THREE.Mesh(BOX(7.6, 0.15, 2.3), whiteMat);
+    cabinRoof.position.set(-0.4, 2.65, 0);
+    g.add(cabinRoof);
+
+    // Karartmalı Yan Camlar
+    const glassL = new THREE.Mesh(BOX(7.2, 0.95, 0.06), glassDark);
+    glassL.position.set(-0.4, 1.95, 1.15);
     g.add(glassL);
 
-    const glassR = new THREE.Mesh(BOX(6.8, 0.68, 0.06), glassDark);
-    glassR.position.set(-0.4, 1.85, -1.11);
+    const glassR = new THREE.Mesh(BOX(7.2, 0.95, 0.06), glassDark);
+    glassR.position.set(-0.4, 1.95, -1.15);
     g.add(glassR);
 
-    // Kabin İçi Mor / Lila LED Tavan Aydınlatması
-    const neonLED = new THREE.PointLight(0xa855f7, 3.2, 5.0);
-    neonLED.position.set(-0.5, 1.85, 0);
+    // Mor / Lila Tavan LED Aydınlatması
+    const neonLED = new THREE.PointLight(0xa855f7, 3.2, 6.0);
+    neonLED.position.set(-0.4, 2.45, 0);
     g.add(neonLED);
 
-    // Kabin İçi Karşı Deri Koltuk (Korumaların oturduğu koltuk)
-    const seatOpposite = new THREE.Mesh(BOX(0.8, 0.45, 1.9), blackLeather);
-    seatOpposite.position.set(0.9, 0.68, 0);
-    g.add(seatOpposite);
-
-    // Kabin İçi Oyuncu Deri Koltuğu
-    const seatPlayer = new THREE.Mesh(BOX(0.8, 0.45, 1.9), blackLeather);
-    seatPlayer.position.set(-1.8, 0.68, 0);
+    // Lüks Deri Koltuklar
+    // 1) Oyuncunun oturduğu arka koltuk (x = -1.6, y = 1.35)
+    const seatPlayer = new THREE.Mesh(BOX(1.1, 0.45, 2.0), blackLeather);
+    seatPlayer.position.set(-1.6, 1.35, 0);
     g.add(seatPlayer);
 
-    // KABİN İÇİNDE BİZE BAKAN 2 KASLI KORUMA (Kolları göğüste kavuşmuş, tam karşımızda oturur)
-    const guardInLimo1 = this._buildMuscleGuardModel();
-    guardInLimo1.scale.setScalar(0.72);
-    guardInLimo1.position.set(0.9, 0.55, 0.45);
-    guardInLimo1.rotation.y = -Math.PI / 2;
-    g.add(guardInLimo1);
+    const seatPlayerBack = new THREE.Mesh(BOX(0.2, 0.9, 2.0), blackLeather);
+    seatPlayerBack.position.set(-2.15, 1.8, 0);
+    g.add(seatPlayerBack);
 
-    const guardInLimo2 = this._buildMuscleGuardModel();
-    guardInLimo2.scale.setScalar(0.72);
-    guardInLimo2.position.set(0.9, 0.55, -0.45);
-    guardInLimo2.rotation.y = -Math.PI / 2;
-    g.add(guardInLimo2);
+    // 2) Korumaların oturduğu ön karşı koltuk (x = 1.2, y = 1.35)
+    const seatGuards = new THREE.Mesh(BOX(1.1, 0.45, 2.0), blackLeather);
+    seatGuards.position.set(1.2, 1.35, 0);
+    g.add(seatGuards);
 
-    // 6 Adet Altın Jantlı Lüks Tekerlek
+    const seatGuardsBack = new THREE.Mesh(BOX(0.2, 0.9, 2.0), blackLeather);
+    seatGuardsBack.position.set(1.75, 1.8, 0);
+    g.add(seatGuardsBack);
+
+    // KABİN İÇİNDE OYUNCUYA BAKAN 2 KASLI KORUMA (x=1.2'de oturup -x'e, bize doğru bakarlar)
+    const guard1 = this._buildMuscleGuardModel();
+    guard1.scale.setScalar(0.75);
+    guard1.position.set(1.2, 1.25, 0.52);
+    guard1.rotation.y = -Math.PI / 2; // Bize dönük
+    g.add(guard1);
+
+    const guard2 = this._buildMuscleGuardModel();
+    guard2.scale.setScalar(0.75);
+    guard2.position.set(1.2, 1.25, -0.52);
+    guard2.rotation.y = -Math.PI / 2; // Bize dönük
+    g.add(guard2);
+
+    // 6 Adet Altın Jantlı Tekerlek
     const wheelPositions = [
-      [-4.0, 0.42, 1.25], [-4.0, 0.42, -1.25],
-      [0.0, 0.42, 1.25], [0.0, 0.42, -1.25],
-      [3.8, 0.42, 1.25], [3.8, 0.42, -1.25]
+      [-4.0, 0.45, 1.28], [-4.0, 0.45, -1.28],
+      [0.0, 0.45, 1.28], [0.0, 0.45, -1.28],
+      [3.8, 0.45, 1.28], [3.8, 0.45, -1.28]
     ];
     for (const [wx, wy, wz] of wheelPositions) {
-      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.35, 18), tireMat);
+      const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.36, 18), tireMat);
       tire.rotation.x = Math.PI / 2;
       tire.position.set(wx, wy, wz);
-      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.36, 12), goldMat);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.38, 12), goldMat);
       hub.rotation.x = Math.PI / 2;
       hub.position.set(wx, wy, wz);
       g.add(tire);
