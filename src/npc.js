@@ -129,19 +129,28 @@ export class NPCManager {
   // o: { shirt (hex), hat: 'cap' | 'chef', hatColor, bag (hex: elde alışveriş poşeti) }
   _makeBody(rich = false, style = null, o = {}) {
     const g = new THREE.Group();
+    const isSwimMale = style === 'swimmer_male';
+    const isSwimFemale = style === 'swimmer_female';
+    const isOvertanned = style === 'overtanned';
+    const isSunbather = style === 'sunbather';
+    const isBeach = isSwimMale || isSwimFemale || isOvertanned || isSunbather;
+
     // Zengin adam / patron: siyah takım, beyaz gömlek, gümüş saç, koyu gözlük, altın saat
     // Çalışan tarzları: office (beyaz/açık mavi gömlek, koyu pantolon), bank (mavi yelek), chef (beyaz önlük + aşçı şapkası)
     const OFFICE = [0xffffff, 0xbfdbfe, 0xe5e7eb, 0xfde68a], DARK = [0x1f2937, 0x374151, 0x111827];
-    const shirt = rich ? 0x0b0d12 : o.shirt != null ? o.shirt : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x1e3a8a : style === 'doctor' ? 0xf8fafc : style === 'nurse' ? 0x38bdf8 : style === 'child' ? pick([0xfacc15, 0xef4444, 0x3b82f6, 0xec4899, 0x10b981]) : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS);
-    const pants = rich ? 0x0b0d12 : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x0f172a : style === 'doctor' ? 0x0f766e : style === 'nurse' ? 0x0284c7 : style === 'child' ? pick([0x1e3a8a, 0x1e293b, 0x334155]) : style ? pick(DARK) : pick(PANTS);
-    const skin = rich ? 0xf1c27d : pick(SKINS), hair = rich ? 0xd4d4d8 : pick(HAIRS);
+    const SWIM_COLORS = [0xec4899, 0x06b6d4, 0xf59e0b, 0x10b981, 0x8b5cf6, 0xef4444, 0x3b82f6];
+
+    let skin = isOvertanned ? 0x6e2612 : rich ? 0xf1c27d : pick(SKINS);
+    let hair = isOvertanned ? 0xd97706 : rich ? 0xd4d4d8 : pick(HAIRS);
+    let shirt = isBeach ? skin : (rich ? 0x0b0d12 : o.shirt != null ? o.shirt : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x1e3a8a : style === 'doctor' ? 0xf8fafc : style === 'nurse' ? 0x38bdf8 : style === 'child' ? pick([0xfacc15, 0xef4444, 0x3b82f6, 0xec4899, 0x10b981]) : style === 'office' ? pick(OFFICE) : style === 'bank' ? 0x1d4ed8 : style === 'chef' ? 0xffffff : pick(SHIRTS));
+    let pants = isOvertanned ? 0x84cc16 : isBeach ? (o.swimwear || pick(SWIM_COLORS)) : (rich ? 0x0b0d12 : style === 'maid' ? 0x1f2937 : style === 'guard' ? 0x0f172a : style === 'doctor' ? 0x0f766e : style === 'nurse' ? 0x0284c7 : style === 'child' ? pick([0x1e3a8a, 0x1e293b, 0x334155]) : style ? pick(DARK) : pick(PANTS));
 
     const head = new THREE.Mesh(GEO.head, mat(skin)); head.position.y = 1.38;
     const hairM = new THREE.Mesh(GEO.hair, mat(hair)); hairM.position.y = 1.58;
     const torso = new THREE.Mesh(GEO.torso, mat(shirt)); torso.position.y = 0.95;
     const mkArm = (x) => {
       const p = new THREE.Group(); p.position.set(x, 1.2, 0);
-      const m = new THREE.Mesh(GEO.arm, mat(shirt)); m.position.y = -0.22; p.add(m); return p;
+      const m = new THREE.Mesh(GEO.arm, mat(isBeach ? skin : shirt)); m.position.y = -0.22; p.add(m); return p;
     };
     const mkLeg = (x) => {
       const p = new THREE.Group(); p.position.set(x, 0.62, 0);
@@ -149,6 +158,24 @@ export class NPCManager {
     };
     const lArm = mkArm(-0.27), rArm = mkArm(0.27), lLeg = mkLeg(-0.1), rLeg = mkLeg(0.1);
     g.add(head, hairM, torso, lArm, rArm, lLeg, rLeg);
+
+    // Kızlar için sütyen / bikini üstü
+    if (isSwimFemale || (isSunbather && o.female)) {
+      const bra = new THREE.Mesh(boxGeo(0.44, 0.22, 0.24), mat(pants));
+      bra.position.set(0, 1.05, 0.01);
+      g.add(bra);
+    }
+
+    // Aşırı bronzlaşmış adam: parlak beyaz güneş gözlüğü ve kapkara bronz ten
+    if (isOvertanned) {
+      const shades = new THREE.Mesh(boxGeo(0.32, 0.08, 0.04), mat(0xffffff));
+      shades.position.set(0, 1.4, 0.175);
+      g.add(shades);
+    } else if (isSunbather) {
+      const shades = new THREE.Mesh(boxGeo(0.3, 0.07, 0.02), mat(0x050505));
+      shades.position.set(0, 1.4, 0.175);
+      g.add(shades);
+    }
     if (rich) {
       const shirtFront = new THREE.Mesh(boxGeo(0.14, 0.4, 0.02), mat(0xffffff)); shirtFront.position.set(0, 0.98, 0.115);
       const tie = new THREE.Mesh(boxGeo(0.05, 0.3, 0.02), mat(0xb91c1c)); tie.position.set(0, 0.95, 0.126);
@@ -1556,20 +1583,41 @@ export class NPCManager {
     this.npcs.push(cottonRec);
     this.beachNPCs.push(cottonRec);
 
-    // 4. MAYO / BİKİNİ GİYMİŞ GÜNEŞLENENLER (Şezlonglarda ve havlularda yatanlar)
-    const beachColors = [0xec4899, 0x06b6d4, 0xf59e0b, 0x10b981, 0x8b5cf6, 0xef4444];
-    [-380, -220, -70, 110, 240, 390].forEach((bz, idx) => {
-      const sunbather = this._makeBody(false, 'sunbather');
-      sunbather.g.scale.setScalar(SCALE);
+    // 4. ŞEZLONGLARDA GÜNEŞLENENLER (Şemsiyelerin altındaki koltuklarda uzananlar & Aşırı bronzlaşmış adam)
+    // Kullanıcının isteği: "Bazıları da sahile ama sahildeki şemsiyenin altındaki o koltuklarda uzanaraktan güneşlensinler.
+    // Hatta bir insan olsun, böyle çok fazla bronzlaşsın."
+    const umbrellaZList = [];
+    for (let z = -650; z <= 650; z += 35) {
+      if (Math.abs(z) < 80) continue; // voleybol sahası ve iskele civarı
+      umbrellaZList.push(z);
+    }
+    const beachColors = [0xec4899, 0x06b6d4, 0xf59e0b, 0x10b981, 0x8b5cf6, 0xef4444, 0x3b82f6];
+
+    umbrellaZList.forEach((bz, idx) => {
+      // Belirli bir şemsiyenin altında (z=140) aşırı bronzlaşmış, güneşte kapkara yanmış adam uzanır!
+      const isOvertanned = (bz === 140);
+      const isFemale = (idx % 2 === 1) && !isOvertanned;
+      const style = isOvertanned ? 'overtanned' : 'sunbather';
       const bColor = beachColors[idx % beachColors.length];
-      sunbather.lLeg.children[0].material = mat(bColor); // mayo/bikini alt
-      sunbather.rLeg.children[0].material = mat(bColor);
-      // Şezlongda uzanma pozu (yatay duruş)
-      sunbather.g.rotation.x = -Math.PI / 2 + 0.2;
-      const bx = (-798 + (idx % 2) * 5) * U;
-      sunbather.g.position.set(bx, 0.7, bz * U);
+
+      const sunbather = this._makeBody(false, style, { female: isFemale, swimwear: bColor });
+      sunbather.g.scale.setScalar(SCALE * 0.95);
+
+      // Şezlongda uzanma pozu (yatay, şezlongun üstünde rahatça güneşlenir)
+      sunbather.g.rotation.x = -Math.PI / 2 + 0.12;
+      sunbather.lArm.rotation.z = 0.22;
+      sunbather.rArm.rotation.z = -0.22;
+
+      const wave = 28 * Math.sin(bz * 0.014) + 16 * Math.cos(bz * 0.032) + 8 * Math.sin(bz * 0.065);
+      const ux = Math.round(-796 + wave * 0.4);
+      // Şemsiyenin sol veya sağındaki şezlong
+      const side = (idx % 2 === 0) ? -2 : 2;
+      const bx = (ux + side) * U;
+      const bzM = bz * U;
+
+      sunbather.g.position.set(bx, 0.72, bzM);
       this.scene.add(sunbather.g);
-      this.beachNPCs.push({ group: sunbather.g, activity: 'sunbathe' });
+      this.beachNPCs.push({ group: sunbather.g, activity: 'sunbathe', isOvertanned });
     });
 
     // 5. DENİZDE SÖRF YAPANLAR (Ayaklarının altında sörf tahtası ile dalgalarda süzülenler)
@@ -1594,17 +1642,35 @@ export class NPCManager {
       });
     });
 
-    // 6. DENİZDE YÜZEN İNSANLAR (Suda kulaç atan yüzücüler)
-    [-260, 40, 310].forEach((wz, idx) => {
-      const swimmer = this._makeBody(false, 'swimmer');
-      swimmer.g.scale.setScalar(SCALE * 0.9);
-      // Su seviyesinde (gövde yarı batık, kollar kulaç atar)
-      const wx = (-868 + idx * 4) * U;
-      swimmer.g.position.set(wx, 0.15, wz * U);
+    // 6. DENİZDE YÜZEN İNSANLAR (Mayolu erkekler ve bikinili/sütyenli kızlar - denizin içinde denizanası tarzı yüzerler)
+    // Kullanıcının isteği: "Bazı insanlar sadece mayosu, kızlar da böyle sütyen olsun, onlar orada yüzsün.
+    // Denizin içinde olsunlar ama. Yavaşça denizanası gibi kollarını öne arkaya doğru yavaşça şey yapsınlar, yüzsünler onlar."
+    const swimZList = [-420, -350, -280, -180, -110, -30, 50, 130, 210, 290, 370, 440];
+    swimZList.forEach((wz, idx) => {
+      const isFemale = idx % 2 === 1;
+      const style = isFemale ? 'swimmer_female' : 'swimmer_male';
+      const bColor = beachColors[(idx + 2) % beachColors.length];
+      const swimmer = this._makeBody(false, style, { swimwear: bColor });
+      swimmer.g.scale.setScalar(SCALE * 0.92);
+
+      const wave = 28 * Math.sin(wz * 0.014) + 16 * Math.cos(wz * 0.032) + 8 * Math.sin(wz * 0.065);
+      const b0 = Math.round(-845 + wave);
+      // Denizin içine doğru (kıyıdan 25 ila 65 metre açıkta, suyun içinde)
+      const dist = 32 + (idx % 3) * 16;
+      const wx = (b0 - dist) * U;
+      const wzM = wz * U;
+
+      // Su yüzeyi -0.15m seviyesinde, gövdesi suyun içinde batık
+      swimmer.g.position.set(wx, -0.28, wzM);
+      // Yüzme açısı (su yüzeyinde hafifçe öne eğik)
+      swimmer.g.rotation.x = 0.35;
+      swimmer.g.rotation.y = (idx % 2 === 0 ? Math.PI / 2 : -Math.PI / 2) + (idx * 0.3);
       this.scene.add(swimmer.g);
+
       this.beachNPCs.push({
-        group: swimmer.g, lArm: swimmer.lArm, rArm: swimmer.rArm, activity: 'swim',
-        baseX: wx, baseZ: wz * U, swimPhase: idx * 2.0, x: wx, y: 0.15, z: wz * U
+        group: swimmer.g, lArm: swimmer.lArm, rArm: swimmer.rArm, lLeg: swimmer.lLeg, rLeg: swimmer.rLeg,
+        activity: 'swim', baseX: wx, baseZ: wzM, swimPhase: idx * 1.6, isFemale,
+        x: wx, y: -0.28, z: wzM
       });
     });
 
@@ -1654,11 +1720,23 @@ export class NPCManager {
         b.group.position.y = 0.4 + Math.sin(b.swayPhase) * 0.12;
         b.group.rotation.z = Math.sin(b.swayPhase * 0.8) * 0.08;
       } else if (b.activity === 'swim') {
-        // Yüzen insanlar kulaç atar ve suda hafifçe batıp çıkar
-        b.swimPhase += dt * 3.5;
-        b.lArm.rotation.x = Math.sin(b.swimPhase) * 1.2;
-        b.rArm.rotation.x = -Math.sin(b.swimPhase) * 1.2;
-        b.group.position.y = 0.15 + Math.sin(b.swimPhase * 0.7) * 0.06;
+        // Yüzen insanlar: denizanası tarzı kollarını öne arkaya doğru yavaşça açıp kapatırlar
+        b.swimPhase += dt * 1.8;
+        const cycle = Math.sin(b.swimPhase);
+        const spread = Math.cos(b.swimPhase);
+        // Kollar öne uzanır (x rotation) ve yana/arkaya denizanası gibi açılır (z rotation)
+        b.lArm.rotation.x = -0.7 + cycle * 0.65;
+        b.rArm.rotation.x = -0.7 + cycle * 0.65;
+        b.lArm.rotation.z = 0.22 + Math.max(0, spread) * 0.85;
+        b.rArm.rotation.z = -0.22 - Math.max(0, spread) * 0.85;
+        // Bacaklar yavaşça çırpar
+        if (b.lLeg && b.rLeg) {
+          b.lLeg.rotation.x = Math.sin(b.swimPhase * 1.4) * 0.28;
+          b.rLeg.rotation.x = -Math.sin(b.swimPhase * 1.4) * 0.28;
+        }
+        // Su yüzeyinde yavaşça yukarı-aşağı salınım (bobbing)
+        b.group.position.y = -0.28 + Math.sin(b.swimPhase * 1.2) * 0.04;
+        b.group.rotation.x = 0.32 + Math.sin(b.swimPhase) * 0.06;
       } else if (b.activity === 'sandcastle' && b.rArm) {
         // Kumdan kale yapan çocuk küreğiyle kumu kazar
         b.rArm.rotation.x = -0.9 + Math.sin(Date.now() * 0.004) * 0.35;

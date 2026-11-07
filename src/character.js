@@ -36,7 +36,7 @@ const JET_MAX_UP = 9;        // en yüksek yükselme hızı (m/s)
 const JET_SECONDS = 7;       // dolu yakıtla havada kalma süresi
 const JET_DRAG = 0.11;       // itki bırakılınca hava direnci (hızın karesiyle): düşüş ~15 m/s'de dengelenir
 const STEP_UP_MAX = 0.5;     // otomatik çıkılabilen en yüksek basamak (m)
-const WATER_SPEED_MUL = 0.55;
+const WATER_SPEED_MUL = 0.70; // Suda rahat ve akıcı yüzme hızı
 const WATER_HOP_SPEED = 11;  // kıyıya çıkarken zıplama hızı
 
 export class Character {
@@ -599,23 +599,26 @@ export class Character {
     for (let i = 0; i < n; i++) {
       this.blockedHoriz = false;
 
-      // Su durumu: Yalnızca denizin içinde, ayak yere basmıyorken veya su derinleştiğinde yüzülür.
-      // Sığ kıyılarda ve deniz tabanında rahatça yürünebilir.
-      const isLand = this.voxelWorld && this.voxelWorld.terrain && this.voxelWorld.terrain.isLand(pos.x, pos.z);
+      // Su durumu: Kıyıdan denize girildiğinde veya zemin su seviyesinin altındaysa yüzülür.
+      // Sığ kıyılarda rahatça yürünür, derinleştiğinde veya yüzmek istendiğinde yüzme moduna geçilir.
+      const terY = this.voxelWorld && this.voxelWorld.terrain ? this.voxelWorld.terrain.heightAt(pos.x, pos.z) : -Infinity;
       const depth = WATER_LEVEL - feet;
       const wasInWater = this.inWater;
-      this.inWater = !isLand && (!this.isGrounded || depth > 1.45) && depth > WATER_ENTER_DEPTH &&
-        Math.abs(pos.x) < WATER_BOUND && Math.abs(pos.z) < WATER_BOUND;
+      const inWaterZone = (pos.x < -815 && pos.x > SEA_WALL_WEST && Math.abs(pos.z) < SEA_WALL_Z_BOUND) || (terY < WATER_LEVEL - 0.2);
+      this.inWater = inWaterZone && depth > 0.65;
 
-      if (this.inWater && !wasInWater && this.vel.y < -3) {
+      if (this.inWater && !wasInWater && this.vel.y < -2.5) {
         this._splash(1.0);
       }
       if (this.waterHopTimer > 0) this.waterHopTimer -= h;
 
-      // Dikey hız
+      // Dikey hız (Suda yüzme ve yavaşça yukarı-aşağı salınım / bobbing)
       if (this.inWater && this.waterHopTimer <= 0) {
-        const target = inputState.jump ? FLOAT_DEPTH_UP : FLOAT_DEPTH;
-        this.vel.y += ((depth - target) * 18 - this.vel.y * 4) * h;
+        this.swimBobTime = (this.swimBobTime || 0) + h;
+        // Kullanıcının isteği: "Çok küçük bir şekilde yavaşça yukarı aşağı yukarı aşağı doğru yüzelim."
+        const bob = Math.sin(this.swimBobTime * 2.2) * 0.055;
+        const target = inputState.jump ? FLOAT_DEPTH_UP : (FLOAT_DEPTH + bob);
+        this.vel.y += ((depth - target) * 16 - this.vel.y * 3.6) * h;
       } else {
         this.vel.y = Math.max(-MAX_FALL, this.vel.y - GRAVITY * h);
       }

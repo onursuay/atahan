@@ -1305,15 +1305,24 @@ export class LevelManager {
         const b0 = -845 + wave;
         if (x < b0) {
           const distM = (b0 - x) * U;
+          // 1. Çok sığ kıyı girişi (0..12m): hafif eğim (-0.10m -> -0.45m)
           if (distM <= 12) {
-            return -0.10 - (distM / 12) * 0.30;
+            return -0.10 - (distM / 12) * 0.35;
           }
-          if (distM <= 38) {
-            const t = (distM - 12) / 26;
-            return -0.40 - t * 1.20;
+          // 2. Kıyıdan açılma geçiş eğimi (12..40m): (-0.45m -> -1.80m)
+          if (distM <= 40) {
+            const t = (distM - 12) / 28;
+            return -0.45 - t * 1.35;
           }
+          // 3. İleri gittikçe yavaş yavaş derinleşen deniz tabanı (40..140m): (-1.80m -> -4.20m)
+          if (distM <= 140) {
+            const t = (distM - 40) / 100;
+            const mounds = 0.22 * Math.sin(xm * 0.12) * Math.cos(zm * 0.09);
+            return -1.80 - t * 2.40 + mounds;
+          }
+          // 4. Derin okyanus tabanı (140m+): -4.20m seviyesinde organik kum dalgaları
           const mounds = 0.28 * Math.sin(xm * 0.12) * Math.cos(zm * 0.09) + 0.16 * Math.sin(zm * 0.24);
-          return -1.60 + mounds;
+          return -4.20 + mounds;
         }
         return 0;
       }
@@ -3098,53 +3107,53 @@ export class LevelManager {
     }
 
     // ── GİZLİ BATIK GEMİ (SUNKEN SHIPWRECK) ──
-    // Kullanıcının isteği: "Sanki bir gemi batmış gibi küçük bir gemi ekle. Denizin altına böyle gemi batmış gibi
-    // çok paslı, kahverengi hafif tel rengi tonlarında koyu kahverengi tonlarında biraz yosunlanmış bir gemi ekle böyle batmış.
-    // Geminin sadece üçte biri olsun, üçte biri olsun ama küçük bir gemi olsun tamam mı?"
-    this.buildSunkenShipwreck(-915, -2, 175);
+    // Kullanıcının isteği: "Oyundaki batık gemiyi suyun altına yap. Su ileri gittikçe yavaş yavaş biraz daha
+    // aşağı inmeye başlasın, birazcık daha derinleşmeye başlasın. Oralarda bir yerde batık gemi olsun ve batık gemi
+    // dışarıda görünmesin. Gerçekçi yap lütfen."
+    this.buildSunkenShipwreck(-965, 160);
   }
 
-  // GİZLİ SU ALTI BATIK GEMİSİ (Üçte biri kalmış küçük batık)
-  buildSunkenShipwreck(sx, sy, sz) {
+  // GİZLİ SU ALTI BATIK GEMİSİ (Tamamen su altında, dışarıdan görünmez!)
+  buildSunkenShipwreck(sx, sz) {
     const w = this.b;
-    w.beginBuilding();
+    const fx0 = 3 * sx, fz0 = 3 * sz;
+    const vy0 = -14; // Deniz tabanı (-3.50m) seviyesi, su yüzeyi ise -0.15m'dedir.
+    // Geminin en yüksek direk ucu vy0 + 9 = -5 (-1.25m) olup su yüzeyinin 1.10 metre ALTINDA kalır, asla dışarı taşmaz!
 
     // 1. Kırık Gövde Tabanı ve Omurgası
-    w.fillBox(sx - 12, sy, sz - 4, sx + 4, sy + 1, sz + 4, PALETTE.WOOD);
-    w.fillBox(sx - 14, sy, sz - 2, sx - 12, sy + 2, sz + 2, PALETTE.TERRACOTTA); // sivrilen pruva
-    w.fillBox(sx - 15, sy + 1, sz - 1, sx - 14, sy + 3, sz + 1, PALETTE.WOOD);     // kırık pruva dikmesi
+    w.raw(fx0 - 24, vy0, fz0 - 8, fx0 + 12, vy0 + 2, fz0 + 8, PALETTE.WOOD);
+    w.raw(fx0 - 30, vy0, fz0 - 4, fx0 - 24, vy0 + 3, fz0 + 4, PALETTE.TERRACOTTA); // sivrilen pruva
+    w.raw(fx0 - 33, vy0 + 1, fz0 - 2, fx0 - 30, vy0 + 5, fz0 + 2, PALETTE.WOOD);     // kırık pruva dikmesi
 
     // 2. Kırık Kaburga Dikmeleri (1/3 Parçalanmış Gövde)
-    for (let ox = -10; ox <= 2; ox += 3) {
-      const hL = 2 + Math.abs(ox % 3);
-      w.fillBox(sx + ox, sy + 1, sz - 4, sx + ox + 1, sy + hL, sz - 4, PALETTE.WOOD);
-      w.fillBox(sx + ox, sy + hL, sz - 4, sx + ox + 1, sy + hL, sz - 3, PALETTE.IRON); // paslı demir takviye
-
-      const hR = 1 + (ox % 2);
-      w.fillBox(sx + ox, sy + 1, sz + 4, sx + ox + 1, sy + hR, sz + 4, PALETTE.WOOD);
-      w.fillBox(sx + ox, sy + hR + 1, sz + 4, sx + ox + 1, sy + hR + 1, sz + 4, PALETTE.DGREEN); // yosun
+    for (let ox = -20; ox <= 8; ox += 6) {
+      w.raw(fx0 + ox, vy0 + 2, fz0 - 8, fx0 + ox + 2, vy0 + 6, fz0 - 7, PALETTE.WOOD);
+      w.raw(fx0 + ox, vy0 + 6, fz0 - 8, fx0 + ox + 2, vy0 + 7, fz0 - 7, PALETTE.DGREEN); // yosun
+      w.raw(fx0 + ox, vy0 + 2, fz0 + 7, fx0 + ox + 2, vy0 + 5, fz0 + 8, PALETTE.WOOD);
+      w.raw(fx0 + ox, vy0 + 5, fz0 + 7, fx0 + ox + 2, vy0 + 6, fz0 + 8, PALETTE.DGREEN);
     }
 
     // 3. Batık Güverte Döşemesi ve Yosun Tabakası
-    w.fillBox(sx - 9, sy + 1, sz - 3, sx + 1, sy + 1, sz + 3, PALETTE.WOOD);
-    w.fillBox(sx - 8, sy + 2, sz - 2, sx - 6, sy + 2, sz - 1, PALETTE.DGREEN);
-    w.fillBox(sx - 4, sy + 2, sz + 1, sx - 2, sy + 2, sz + 2, PALETTE.DGREEN);
-    w.fillBox(sx - 1, sy + 2, sz - 2, sx + 1, sy + 2, sz, PALETTE.DGREEN);
+    w.raw(fx0 - 18, vy0 + 2, fz0 - 6, fx0 + 4, vy0 + 3, fz0 + 6, PALETTE.WOOD);
+    w.raw(fx0 - 14, vy0 + 3, fz0 - 4, fx0 - 8, vy0 + 4, fz0 - 2, PALETTE.DGREEN);
+    w.raw(fx0 - 6, vy0 + 3, fz0 + 1, fx0 - 2, vy0 + 4, fz0 + 4, PALETTE.DGREEN);
+    w.raw(fx0, vy0 + 3, fz0 - 3, fx0 + 3, vy0 + 4, fz0 - 1, PALETTE.DGREEN);
 
-    // 4. Kırık ve Yan Yatmış Direk
-    w.fillBox(sx - 5, sy + 2, sz - 1, sx - 4, sy + 6, sz, PALETTE.WOOD);
-    w.fillBox(sx - 6, sy + 6, sz - 1, sx - 5, sy + 8, sz, PALETTE.TERRACOTTA);
-    w.fillBox(sx - 6, sy + 8, sz, sx - 6, sy + 9, sz, PALETTE.IRON);
-    w.fillBox(sx - 7, sy + 7, sz, sx - 7, sy + 8, sz, PALETTE.LAMP_ORANGE); // eski pirinç fener
+    // 4. Kırık ve Yan Yatmış Direk (Suyun 1 metre altında kalır, dışarıdan kesinlikle görünmez)
+    w.raw(fx0 - 8, vy0 + 3, fz0 - 2, fx0 - 6, vy0 + 7, fz0, PALETTE.WOOD);
+    w.raw(fx0 - 10, vy0 + 7, fz0 - 2, fx0 - 8, vy0 + 9, fz0, PALETTE.TERRACOTTA);
+    w.raw(fx0 - 10, vy0 + 9, fz0 - 1, fx0 - 9, vy0 + 10, fz0, PALETTE.IRON);
+    w.raw(fx0 - 11, vy0 + 8, fz0 - 1, fx0 - 10, vy0 + 9, fz0, PALETTE.LAMP_ORANGE); // eski pirinç fener
 
     // 5. Geminin Yanında Kumdaki Paslı Çapa
-    w.fillBox(sx - 16, sy, sz + 4, sx - 16, sy + 2, sz + 4, PALETTE.IRON);
-    w.fillBox(sx - 17, sy + 1, sz + 4, sx - 15, sy + 1, sz + 4, PALETTE.IRON);
-    w.fillBox(sx - 17, sy, sz + 3, sx - 15, sy, sz + 5, PALETTE.IRON);
+    w.raw(fx0 - 34, vy0, fz0 + 8, fx0 - 34, vy0 + 4, fz0 + 8, PALETTE.IRON);
+    w.raw(fx0 - 36, vy0 + 2, fz0 + 8, fx0 - 32, vy0 + 2, fz0 + 8, PALETTE.IRON);
+    w.raw(fx0 - 36, vy0, fz0 + 6, fx0 - 32, vy0, fz0 + 10, PALETTE.IRON);
 
     // 6. Kırık Ambar İçinde Gizli Altın Sandığı
-    w.fillBox(sx - 3, sy + 2, sz - 1, sx - 1, sy + 3, sz + 1, PALETTE.GOLD);
-    w.fillBox(sx - 4, sy + 2, sz - 2, sx - 4, sy + 3, sz - 1, PALETTE.WOOD);
+    w.raw(fx0 - 6, vy0 + 3, fz0 - 2, fx0 - 2, vy0 + 5, fz0 + 2, PALETTE.GOLD);
+    w.raw(fx0 - 7, vy0 + 3, fz0 - 3, fx0 - 1, vy0 + 5, fz0 - 2, PALETTE.WOOD);
+    w.raw(fx0 - 7, vy0 + 3, fz0 + 2, fx0 - 1, vy0 + 5, fz0 + 3, PALETTE.WOOD);
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
