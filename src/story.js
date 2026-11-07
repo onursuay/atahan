@@ -115,6 +115,7 @@ export class StoryManager {
     this.camera = camera;
     this.weaponSystem = weaponSystem;
     this.handWeapons = handWeapons;
+    window._storyManager = this;
 
     this.currentPhase = STORY_PHASES.NONE;
     this.phaseTimer = 0;
@@ -1047,7 +1048,7 @@ export class StoryManager {
     this.updateCombatMissionHUD();
   }
 
-  // 56 Adet İsyancı: Kapıyı GEÇMEZLER (z >= -46.0), dışarıdaki yolda ve rampada toplanmışlardır!
+  // 36 Adet İsyancı: Kapının hemen önünde sık ve öfkeli kalabalık olarak toplanırlar (z = -46.5 .. -37.0)
   _spawnMissionProtesters() {
     this.protesters = [];
     const slogans = [
@@ -1056,18 +1057,16 @@ export class StoryManager {
       'BANKALAR BİZİMDİR!', 'PARAMI ÇALAMAZSIN!'
     ];
 
-    // 4 sıra halinde 56 isyancı (kapı çizgisi z = -49.5; isyancılar z = -46.0 .. -26.0 arasındadır)
-    const totalCount = 56;
+    const totalCount = 36;
     for (let i = 0; i < totalCount; i++) {
-      const col = i % 14;
-      const row = Math.floor(i / 14);
+      const col = i % 9;
+      const row = Math.floor(i / 9);
 
-      // Yol genişliği x = 384 .. 406
-      const px = 384.5 + col * 1.6 + (Math.random() - 0.5) * 0.4;
-      // Dış yol derinliği z = -45.5 .. -26.0 (KAPIYI ASLA GEÇMEZLER!)
-      const pz = -45.5 + row * 6.2 + (Math.random() - 0.5) * 0.8;
+      // Yol genişliği x = 387 .. 403 (Tam kapı önü)
+      const px = 387.0 + col * 1.8 + (Math.random() - 0.5) * 0.4;
+      // Dış yol derinliği z = -46.5 .. -37.0 (hepsi kapıdan net görünür, rampada kaybolmazlar)
+      const pz = -46.5 + row * 2.8 + (Math.random() - 0.5) * 0.5;
 
-      // Zemin kotuna tam oturt
       const gy = (this.voxelWorld && this.voxelWorld.terrain) ? this.voxelWorld.terrain.topYAt(px, pz) : 12.0;
       const finalY = Math.max(0.5, gy);
 
@@ -1086,11 +1085,16 @@ export class StoryManager {
   }
 
   updateCombatMissionHUD() {
+    if (this.currentPhase !== STORY_PHASES.MISSION_COMBAT) return;
     const remaining = this.protesters.filter(p => !p.userData.dead).length;
     if (remaining > 0) {
       this.setMission('KAPININ ÖNÜNDEKİ İSYANCILARI ETKİSİZ HALE GETİR', `Kalan İsyancı Sayısı: ${remaining}`);
     } else {
-      this.startBetrayalConfrontation();
+      // Bütün adamlar öldüğünde ve tabela kaldırma tamamen bittiğinde sahne başlar
+      this.setMission('BÜTÜN İSYANCILAR TEMİZLENDİ!', 'David Sterling ile konuşmak için kapıya dönülüyor...');
+      setTimeout(() => {
+        this.startBetrayalConfrontation();
+      }, 1200);
     }
   }
 
@@ -1126,14 +1130,16 @@ export class StoryManager {
       }
     }
 
-    // İsyancı gövdesi patlayarak parçalanır ve anında sahneden silinir
+    // İsyancı gövdesi ve tabelası anında gizlenir ve sahneden tamamen kaldırılır
+    protesterMesh.visible = false;
+    if (protesterMesh.userData.placard) protesterMesh.userData.placard.visible = false;
+    if (protesterMesh.parent) protesterMesh.parent.remove(protesterMesh);
     this.cinematicGroup.remove(protesterMesh);
-    if (protesterMesh.geometry) protesterMesh.geometry.dispose();
 
     this.updateCombatMissionHUD();
   }
 
-  // Mermi Çarpışma Tespiti (Işın ve silindirik kapsül çarpışması)
+  // Mermi Çarpışma Tespiti (Genişletilmiş gövde + tabela vuruş kapsülü)
   checkBulletHit(origin, dir, maxDist = 120) {
     if (this.currentPhase !== STORY_PHASES.MISSION_COMBAT && this.currentPhase !== STORY_PHASES.VILLA_ARRIVAL) return null;
     let closest = null, closestDist = maxDist;
@@ -1155,8 +1161,8 @@ export class StoryManager {
       const dy = Math.abs(closeY - cy);
       const dh = Math.hypot(closeX - px, closeZ - pz);
 
-      // Cömert vuruş alanı (gövde + pankart)
-      if (dh < 1.4 && dy < 2.0) {
+      // Cömert vuruş alanı (gövde + tabela + kollar)
+      if (dh < 2.4 && dy < 3.2) {
         closestDist = proj;
         closest = p;
       }
@@ -1176,7 +1182,7 @@ export class StoryManager {
       if (p.userData.dead) continue;
       const cy = (p.userData.baseY !== undefined ? p.userData.baseY : p.position.y) + 1.3;
       const d = Math.hypot(p.position.x - pos.x, cy - pos.y, p.position.z - pos.z);
-      if (d <= radius + 1.4) {
+      if (d <= radius + 2.4) {
         this.onHitProtester(p, p.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
       }
     }

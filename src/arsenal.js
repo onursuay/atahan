@@ -721,6 +721,7 @@ export class Arsenal {
     if (hw.cars) hw.cars.bladeHit(hitP, 1.6);
     if (hw.npcs && tr.type === 'npc') hw.npcs.killNpc(tr.obj, hitP);
     if (vw.doors) vw.doors.hitSphere(hitP, 1.6, 6);
+    if (window._storyManager) { window._storyManager.checkBulletHit(m, dir, dist); window._storyManager.checkSphereHit(hitP, 2.4); }
     this._shake(0.04);
     if (Math.random() < 0.2) sound.playLaserShot && sound.playLaserShot();
   }
@@ -755,6 +756,7 @@ export class Arsenal {
       if (hw.particleSystem.createExplosion) hw.particleSystem.createExplosion(hit, 12, 0xfacc15);
       if (hw.cars) hw.cars.hitSphere(hit, 12);
       if (hw.npcs) for (const npc of [...hw.npcs.npcs]) if (hit.distanceTo(new THREE.Vector3(npc.x, npc.y, npc.z)) < 16) hw.npcs.killNpc(npc, hit);
+      if (window._storyManager) window._storyManager.checkSphereHit(hit, 16);
       if (vw.doors) vw.doors.hitSphere(hit, 12, 50);
       sound.playTNTExplosion && sound.playTNTExplosion();
       this._shake(1.2);
@@ -793,6 +795,7 @@ export class Arsenal {
       if (hw.particleSystem.createExplosion) hw.particleSystem.createExplosion(hit, 5, 0x38bdf8);
       if (hw.cars) hw.cars.hitSphere(hit, 6);
       if (hw.npcs) for (const npc of [...hw.npcs.npcs]) if (hit.distanceTo(new THREE.Vector3(npc.x, npc.y, npc.z)) < 7) hw.npcs.killNpc(npc, hit);
+      if (window._storyManager) window._storyManager.checkSphereHit(hit, 9);
       sound.playBlockHit && sound.playBlockHit();
       this._shake(0.35);
       this._score(removed, 'CRYO BUZLANMA!');

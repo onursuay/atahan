@@ -122,6 +122,7 @@ export class BombManager {
     this.particleSystem.createExplosion(p, BLAST_RADIUS * 2, 0xff7a1a);
     sound.playExplosion(1.6);
     this.voxelWorld.explode(p, BLAST_RADIUS, BLAST_FORCE);
+    if (window._storyManager) window._storyManager.checkSphereHit(p, BLAST_RADIUS * 2.2);
     if (this.onShake) this.onShake(0.6);
     if (b.type === 'remote') this.onRemoteChange && this.onRemoteChange(this.remoteCount);
   }
