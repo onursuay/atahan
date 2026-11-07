@@ -26,7 +26,7 @@ const GRAVITY = 25;
 const MAX_FALL = 40;
 const WATER_LEVEL = -0.15;   // main.js içindeki deniz yüzeyi (waterMesh.position.y) ile aynı olmalı
 const WATER_BOUND = 4500;    // 5x genişletilmiş harita sınırları
-const WATER_ENTER_DEPTH = 0.25;   // ayak tabanı yüzeyin en az bu kadar altındaysa yüzme moduna geçilir
+const WATER_ENTER_DEPTH = 1.25;  // sığ sularda ayak yere basarken yürünür, göğüs hizasını geçip taban desteği kesilince yüzülür
 const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)
 const FLOAT_DEPTH_UP = 0.45; // Space basılıyken daha yüksekte yüzer
 const JET_ACC = 46;          // jetpack itki ivmesi (yerçekimi 25'i aşar)
@@ -587,12 +587,12 @@ export class Character {
     for (let i = 0; i < n; i++) {
       this.blockedHoriz = false;
 
-      // Su durumu: Yalnızca denizin içinde (karada değilken) ve ayak tabanı suyun altındaysa yüzülür.
-      // Karada (şehirde, yolda, binalarda) kesinlikle yüzme tetiklenmez.
+      // Su durumu: Yalnızca denizin içinde, ayak yere basmıyorken veya su derinleştiğinde yüzülür.
+      // Sığ kıyılarda ve deniz tabanında rahatça yürünebilir.
       const isLand = this.voxelWorld && this.voxelWorld.terrain && this.voxelWorld.terrain.isLand(pos.x, pos.z);
       const depth = WATER_LEVEL - feet;
       const wasInWater = this.inWater;
-      this.inWater = !isLand && depth > WATER_ENTER_DEPTH &&
+      this.inWater = !isLand && (!this.isGrounded || depth > 1.45) && depth > WATER_ENTER_DEPTH &&
         Math.abs(pos.x) < WATER_BOUND && Math.abs(pos.z) < WATER_BOUND;
 
       if (this.inWater && !wasInWater && this.vel.y < -3) {

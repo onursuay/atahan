@@ -19,13 +19,14 @@ import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 import { MapSystem } from './map.js';
 import { MetroSystem } from './metro.js';
+import { SeaLife } from './sealife.js';
 
 let scene, camera, renderer;
 let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
-let props, mapSystem, metro;
+let props, mapSystem, metro, seaLife;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -241,6 +242,7 @@ function init() {
   try { setupEventListeners(); } catch (e) { console.warn(e); }
   try { buildLevelSelectButtons(); } catch (e) { console.warn(e); }
   try { mapSystem = new MapSystem(); } catch (e) { console.warn(e); }
+  try { seaLife = new SeaLife(scene, voxelWorld); } catch (e) { console.warn(e); }
 
   finishLoadingUI();
   // Garanti yükleme emniyet kilitleri (Watchdog)
@@ -270,8 +272,8 @@ function init() {
 function createWorldArena() {
   // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
-  // Deniz / Okyanus Suyu Düzlemi (5 Kat Genişletilmiş Harita Okyanusu: 50000 m)
-  waterGeo = new THREE.PlaneGeometry(50000, 50000, 40, 40);
+  // Deniz / Okyanus Suyu Düzlemi (Kıyı denizi ölçeğinde daraltılmış, 60 FPS garantili)
+  waterGeo = new THREE.PlaneGeometry(2800, 2800, 24, 24);
   waterMat = new THREE.MeshLambertMaterial({
     color: 0x0369a1,
     transparent: true,
@@ -279,7 +281,7 @@ function createWorldArena() {
   });
   const waterMesh = new THREE.Mesh(waterGeo, waterMat);
   waterMesh.rotation.x = -Math.PI / 2;
-  waterMesh.position.y = -0.15;
+  waterMesh.position.set(-450, -0.15, 0);
   waterMesh.receiveShadow = false; // Dev okyanus yüzeyinde ağır gölge fragment hesaplamasını kapat (GPU tasarrufu)
   scene.add(waterMesh);
 
@@ -455,6 +457,7 @@ function updateGame(dt) {
   bombs.update(dt);
   planes.update(dt);
   cars.update(dt, character.mesh.position);
+  if (seaLife) seaLife.update(dt, character ? character.mesh.position : null);
   if (metro && !introWaiting) metro.update(dt, character);
   // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik
   doorActors.length = 0;

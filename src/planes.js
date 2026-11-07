@@ -103,17 +103,17 @@ export class PlaneManager {
     return this.segmentHit(origin, origin.clone().addScaledVector(dir, maxDist), 2.0);
   }
 
-  bulletHit(p) {
-    p.hp -= 1;
+  bulletHit(p, dmg = 25) {
+    p.hp -= dmg;
     if (p.hp <= 0 && p.state === 'fly') this._startCrash(p);
   }
 
   _startCrash(p) {
     p.state = 'crash';
-    p.vy = 0;
-    sound.playExplosion(1.2);
-    this.particleSystem.createExplosion(p.pos.clone(), 7, 0xff7a1a);
-    if (this.onScore) this.onScore(500, '+500 UÇAK DÜŞTÜ!');
+    p.vy = 8;
+    sound.playExplosion(1.5);
+    this.particleSystem.createExplosion(p.pos.clone(), 10, 0xff7a1a);
+    if (this.onScore) this.onScore(500, '+500 UÇAK VURULDU, DÜŞÜYOR!');
   }
 
   update(dt) {
@@ -130,18 +130,19 @@ export class PlaneManager {
         p.pos.addScaledVector(p.dir, SPEED * dt);
         if (p.pos.length() > SPAWN_RANGE + 80 && p.age > 5) { this.scene.remove(p.g); this.planes.splice(i, 1); continue; }
       } else {
-        // Kontrolsüz düşüş: burun aşağı, dönerek, dumanlı
-        p.vy = Math.min(60, p.vy + 22 * dt);
-        p.pos.addScaledVector(p.dir, SPEED * 0.85 * dt);
+        // Kontrolsüz düşüş: burun aşağı dik ("ok gibi"), dönerek, alev ve yoğun duman saçarak
+        p.vy = Math.min(85, p.vy + 38 * dt);
+        p.pos.addScaledVector(p.dir, SPEED * 0.9 * dt);
         p.pos.y -= p.vy * dt;
-        p.roll += dt * 2.4;
-        p.g.rotation.z = Math.min(1.0, p.vy / 45);
+        p.roll += dt * 4.8;
+        p.g.rotation.z = Math.min(1.35, p.vy / 26); // ok gibi yere dik çakılma
         p.g.rotation.x = p.roll;
         p.smoke -= dt;
         if (p.smoke <= 0) {
-          p.smoke = 0.04;
+          p.smoke = 0.025;
           this.particleSystem.createThrusterTrail(p.pos.clone().addScaledVector(p.dir, -9));
           this.particleSystem.createThrusterTrail(p.pos.clone());
+          if (this.particleSystem.createSpark) this.particleSystem.createSpark(p.pos.clone());
         }
         if (this._impact(p)) { this.planes.splice(i, 1); continue; }
       }
@@ -173,22 +174,19 @@ export class PlaneManager {
   _explodeAt(p, q) {
     const vw = this.vw;
     this.scene.remove(p.g);
-    this.particleSystem.createExplosion(q, 26, 0xff6a00);
-    sound.playExplosion(2.6);
-    // Geniş yıkım: gövde boyunca üç patlama (burun, orta, kuyruk) ve büyük çukur
-    const pts = [0, -6, -12].map(o => q.clone().addScaledVector(p.dir, o));
-    vw.explode(pts[0], 11, 800);
-    pts.slice(1).forEach((pt, i) => setTimeout(() => {
-      this.particleSystem.createExplosion(pt, 14, 0xffa032);
-      vw.explode(pt, 8, 600);
-    }, 140 * (i + 1)));
-    // Uçak parçaları saçılır
-    const colors = [0xf3f4f6, 0x1d4ed8, 0x9ca3af, 0x1f2937];
-    for (let i = 0; i < 40 && vw.dynamicDebris.length < vw.maxDynamicDebris; i++) {
-      vw.spawnLooseVoxel(q.x + (Math.random() - 0.5) * 8, q.y + 0.6 + Math.random() * 2, q.z + (Math.random() - 0.5) * 8,
-        { color: colors[i % 4] }, q, 1, 8, 140);
-    }
+    this.particleSystem.createExplosion(q, 32, 0xff5500);
+    sound.playExplosion(3.0);
     if (this.onShake) this.onShake(1.0);
+
+    // Geniş ve yıkıcı hasar: gövde boyunca devasa patlamalar ve büyük krater
+    const pts = [0, -5, -10].map(o => q.clone().addScaledVector(p.dir, o));
+    vw.explode(pts[0], 15, 1200);
+    pts.slice(1).forEach((pt, i) => setTimeout(() => {
+      this.particleSystem.createExplosion(pt, 18, 0xffaa00);
+      vw.explode(pt, 10, 850);
+    }, 120 * (i + 1)));
+
+    // Kullanıcının isteği: Yere çarptığında patlayarak bütün kalıntıları yok etsin (geride performans düşüren çöp/kalıntı kalmasın)
   }
 
   clear() {

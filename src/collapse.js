@@ -18,7 +18,7 @@ const MAX_CHUNKS = 8;
 const GRAVITY = 19.6;
 const TIP_G = 9.2;             // Teardown tarzı doğal devrilme ivmesi
 const WATER_Y = -0.15;         // deniz yüzeyi (main.js waterMesh.position.y ile aynı)
-const SINK_SPEED = 0.7;        // suda batma hızı (m/sn)
+const SINK_SPEED = 4.5;        // suya düşen binalar hızla batar (ağır nesne)
 const STAB_CAP = 75000;        // devrilme kontrolünde gezilecek en çok küp
 const TIP_RELEASE = 0.95;      // menteşe parçası bu açıya (rad) gelince kopar
 const key = (x, y, z) => `${x},${y},${z}`;
@@ -969,14 +969,15 @@ export class CollapseSystem {
   }
 
   _stepSink(c, dt) {
-    c.vy += (SINK_SPEED - c.vy) * Math.min(1, dt * 4);
+    c.vy += (SINK_SPEED - c.vy) * Math.min(1, dt * 6);
     c.oy1 -= c.vy * dt;
     c.sinkT += dt;
     this._pose(c);
     const e = c.ext, p = new THREE.Vector3();
     let top = -Infinity;
     for (const x of [e.minX, e.maxX]) for (const y of [e.minY, e.maxY]) for (const z of [e.minZ, e.maxZ]) top = Math.max(top, this._place(c, x, y + S, z, p).y);
-    if (top < WATER_Y - 1.5 || c.com.y + c.oy0 + c.oy1 < WATER_Y - 2.2 || c.sinkT > 14) { this._dispose(c); return true; }
+    // Suya tamamen batınca veya gözden kaybolunca direkt yok olur (kalıntı kalmaz)
+    if (top < WATER_Y - 0.4 || c.com.y + c.oy0 + c.oy1 < WATER_Y - 1.2 || c.sinkT > 2.5) { this._dispose(c); return true; }
     return false;
   }
 

@@ -947,15 +947,16 @@ export class VoxelWorld {
         b.velocity.z *= 0.85;
       }
 
-      // Su fiziği: suya düşen parça sıçratır, yavaşlar ve yüzeyde bobinler (batmaz)
+      // Su fiziği: suya düşen ağır parçalar hızla batar, su altında yok olur (kalıntı kalmaz)
       if (b.position.y < -0.15 && this.terrain.heightAt(b.position.x, b.position.z) === -Infinity) {
         if (!d.inWater) {
           d.inWater = true;
-          if (this.particleSystem.createSplash) this.particleSystem.createSplash(new THREE.Vector3(b.position.x, -0.15, b.position.z), 0.5);
+          if (this.particleSystem.createSplash) this.particleSystem.createSplash(new THREE.Vector3(b.position.x, -0.15, b.position.z), 0.6);
         }
-        b.velocity.scale(Math.pow(0.04, dt), b.velocity);
-        b.velocity.y += (-0.15 - b.position.y + 0.1) * 60 * dt;
-        b.angularVelocity.scale(Math.pow(0.1, dt), b.angularVelocity);
+        b.velocity.y = -5.0; // hızla dibe batar
+        b.velocity.x *= 0.6;
+        b.velocity.z *= 0.6;
+        d.life = Math.min(d.life, 0.45); // suyun altına girince anında yok olsun
       }
 
       // Pozisyon ve rotasyonu Cannon fiziğiyle eşitle
