@@ -127,7 +127,7 @@ export class VoxelWorld {
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
     this.dynamicDebris = [];
-    this.maxDynamicDebris = 500; // Performansı korumak için sınır
+    this.maxDynamicDebris = 180; // Patlamalarda 60 FPS akıcılığı korumak için optimize sınır
 
     this.cubeGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
     this.cubeShape = new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 4, VOXEL_SIZE / 4, VOXEL_SIZE / 4));

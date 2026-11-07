@@ -387,7 +387,7 @@ function updateGame(dt) {
     return;
   }
 
-  physicsWorld.step(1 / 60, dt, 3);
+  physicsWorld.step(1 / 60, Math.min(dt, 0.04), 2);
   // Güneş ve gölge alanı oyuncuyu izler (8 m'lik adımlarla: gölgeler titremesin)
   if (sunLight) {
     const sx = Math.round(camera.position.x / 8) * 8, sz = Math.round(camera.position.z / 8) * 8;

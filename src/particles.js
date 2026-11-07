@@ -1,25 +1,44 @@
 import * as THREE from 'three';
 
+// Paylaşılan Geometriler: Her karede yüzlerce yeni BoxGeometry oluşturulup GC takılmasına yol açmasını engeller (0 Lag)
+const geoSpark = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+const geoFountain = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+const geoDust = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+const geoSplash = new THREE.BoxGeometry(0.16, 0.16, 0.16);
+const geoTrail = new THREE.BoxGeometry(0.22, 0.22, 0.22);
+const geoExplosionFire = new THREE.BoxGeometry(0.35, 0.35, 0.35);
+const geoExplosionSmoke = new THREE.BoxGeometry(0.6, 0.6, 0.6);
+const geoExplosionBlast = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+
+const matDust = new THREE.MeshBasicMaterial({ color: 0x866043 });
+const matSpark1 = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+const matSpark2 = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const matFountain1 = new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.85 });
+const matFountain2 = new THREE.MeshBasicMaterial({ color: 0x7dd3fc, transparent: true, opacity: 0.85 });
+const matSplash1 = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+const matSplash2 = new THREE.MeshBasicMaterial({ color: 0x7dd3fc });
+
 // Minecraft Tarzı Tamamen Kübik / Voxel Parçacık Sistemi
 export class ParticleSystem {
   constructor(scene) {
     this.scene = scene;
     this.particles = [];
+    this.maxParticles = 220; // FPS'in her zaman 60 kalması için emniyet sınırı
   }
 
   // Kübik Patlama (Minecraft explosion style)
   createExplosion(position, radius = 5, color = 0xff6600) {
-    const sparkCount = 30;
-    const smokeCount = 18;
+    if (this.particles.length > this.maxParticles) return;
+    const sparkCount = 20;
+    const smokeCount = 12;
 
     // 1. Ateş Küpleri (Parlak Sarı/Turuncu/Kırmızı Minecraft Pikselleri)
-    const cubeGeo = new THREE.BoxGeometry(0.35, 0.35, 0.35);
     const fireColors = [0xffea00, 0xff7700, 0xef4444, 0xffffff];
 
     for (let i = 0; i < sparkCount; i++) {
       const c = fireColors[Math.floor(Math.random() * fireColors.length)];
       const mat = new THREE.MeshBasicMaterial({ color: c });
-      const mesh = new THREE.Mesh(cubeGeo, mat);
+      const mesh = new THREE.Mesh(geoExplosionFire, mat);
       mesh.position.copy(position);
 
       const angle = Math.random() * Math.PI * 2;
@@ -45,7 +64,6 @@ export class ParticleSystem {
     }
 
     // 2. Duman Küpleri (Minecraft gri duman pikselleri)
-    const smokeGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
     const smokeColors = [0x555555, 0x777777, 0x333333, 0x999999];
 
     for (let i = 0; i < smokeCount; i++) {
@@ -56,7 +74,7 @@ export class ParticleSystem {
         opacity: 0.85
       });
 
-      const mesh = new THREE.Mesh(smokeGeo, smokeMat);
+      const mesh = new THREE.Mesh(geoExplosionSmoke, smokeMat);
       mesh.position.set(
         position.x + (Math.random() - 0.5) * 1.5,
         position.y + (Math.random() - 0.5) * 1.5,
@@ -84,13 +102,12 @@ export class ParticleSystem {
     }
 
     // 3. Merkezde Ani Genişleyen Büyük Voxel Patlama Küpü
-    const blastGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
     const blastMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
       opacity: 0.95
     });
-    const blastCube = new THREE.Mesh(blastGeo, blastMat);
+    const blastCube = new THREE.Mesh(geoExplosionBlast, blastMat);
     blastCube.position.copy(position);
     this.scene.add(blastCube);
 
@@ -107,10 +124,8 @@ export class ParticleSystem {
 
   // Karakter yürürken ayaklarından çıkan minik toprak küpleri
   createDust(position) {
-    if (Math.random() > 0.4) return;
-    const dustGeo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
-    const dustMat = new THREE.MeshBasicMaterial({ color: 0x866043 });
-    const mesh = new THREE.Mesh(dustGeo, dustMat);
+    if (this.particles.length > this.maxParticles || Math.random() > 0.4) return;
+    const mesh = new THREE.Mesh(geoDust, matDust);
     mesh.position.set(
       position.x + (Math.random() - 0.5) * 0.4,
       (position.y || 0) + 0.1,
@@ -130,11 +145,12 @@ export class ParticleSystem {
 
   // Çeşmeden akan su: yukarı fışkırıp kavis çizerek havuza düşer
   createFountainJet(pos) {
-    for (let i = 0; i < 3; i++) {
+    if (this.particles.length > this.maxParticles) return;
+    for (let i = 0; i < 2; i++) {
       const a = Math.random() * Math.PI * 2, sp = 0.6 + Math.random() * 1.3;
       const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.1, 0.1, 0.1),
-        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xbfe6ff : 0x7dd3fc, transparent: true, opacity: 0.85 })
+        geoFountain,
+        Math.random() > 0.5 ? matFountain1 : matFountain2
       );
       mesh.position.copy(pos);
       this.scene.add(mesh);
@@ -148,10 +164,11 @@ export class ParticleSystem {
 
   // Mermi çarpma kıvılcımı
   createSpark(position) {
+    if (this.particles.length > this.maxParticles) return;
     for (let i = 0; i < 3; i++) {
       const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(0.06, 0.06, 0.06),
-        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xffe08a : 0xffffff })
+        geoSpark,
+        Math.random() > 0.5 ? matSpark1 : matSpark2
       );
       mesh.position.copy(position);
       this.scene.add(mesh);
@@ -168,12 +185,12 @@ export class ParticleSystem {
 
   // Suya giriş / yüzme sırasında sıçrayan mavi-beyaz su küpleri
   createSplash(position, strength = 1) {
-    const count = Math.ceil(7 * strength);
+    if (this.particles.length > this.maxParticles) return;
+    const count = Math.min(6, Math.ceil(5 * strength));
     for (let i = 0; i < count; i++) {
-      const size = 0.12 + Math.random() * 0.12;
       const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(size, size, size),
-        new THREE.MeshBasicMaterial({ color: Math.random() > 0.5 ? 0xe0f2fe : 0x7dd3fc })
+        geoSplash,
+        Math.random() > 0.5 ? matSplash1 : matSplash2
       );
       mesh.position.set(
         position.x + (Math.random() - 0.5) * 0.9,
@@ -194,13 +211,13 @@ export class ParticleSystem {
 
   // Mermi arkası kübik duman/itici izi
   createThrusterTrail(position) {
-    const trailGeo = new THREE.BoxGeometry(0.22, 0.22, 0.22);
+    if (this.particles.length > this.maxParticles) return;
     const trailMat = new THREE.MeshBasicMaterial({
       color: Math.random() > 0.5 ? 0xff4400 : 0xffdd00,
       transparent: true,
       opacity: 0.85
     });
-    const mesh = new THREE.Mesh(trailGeo, trailMat);
+    const mesh = new THREE.Mesh(geoTrail, trailMat);
     mesh.position.copy(position);
 
     this.scene.add(mesh);
@@ -222,8 +239,10 @@ export class ParticleSystem {
 
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        p.mesh.material.dispose();
+        // Paylaşılan geometri dispose edilmez, yalnızca özel malzeme varsa temizlenir
+        if (p.mesh.material && !p.mesh.material.userData?.shared) {
+          p.mesh.material.dispose();
+        }
         this.particles.splice(i, 1);
         continue;
       }
@@ -260,8 +279,9 @@ export class ParticleSystem {
   clear() {
     this.particles.forEach(p => {
       this.scene.remove(p.mesh);
-      p.mesh.geometry.dispose();
-      p.mesh.material.dispose();
+      if (p.mesh.material && !p.mesh.material.userData?.shared) {
+        p.mesh.material.dispose();
+      }
     });
     this.particles = [];
   }
