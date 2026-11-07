@@ -27,33 +27,34 @@ const add = (name, x0, z0, x1, z1, w, o = {}) => {
 
 const RC = ROUNDABOUT.rMid;
 // ── BATI ADA (ARKAYA GENİŞLETİLMİŞ KARE DEVASA METROPOL ŞEHRİ: x = -750 .. -27, z = -750 .. 750) ──
-// Kuzey-Güney kesintisiz ana bulvarlar ve caddeler (Optimize edilmiş z: -420 .. 420 şehir sınırları)
-add('bulvar-sahil-yeni', -750, -420, -750, 420, 11);                      // en yeni batı kıyı bulvarı
-add('bulvar-havalimani', -650, -134, -650, 420, 11);                       // havalimanı doğu bulvarı
-add('bulvar-bati-4', -530, -420, -530, 420, 11);                           // havalimanı terminaline bağlanan ana bulvar
-add('bulvar-bati-3', -450, -420, -450, 420, 11);
-add('bulvar-bati-2', -410, -420, -410, 420, 11);
-add('bulvar-sahil-3', -360, -420, -360, 420, 11);                         // eski batı sahil bulvarı
-add('bulvar-sahil-2', -310, -420, -310, 420, 11);
-add('bulvar-sahil-1', -260, -420, -260, 420, 11);
-add('bulvar-bati', -210, -420, -210, 420, 11);                            // batı bulvarı
-add('bulvar', -170, -420, -170, 420, 11);                                 // kıyı bulvarı
-add('s5', -127, -420, -127, 420, 9);
+// Kuzey-Güney kesintisiz ana bulvarlar ve caddeler (Optimize edilmiş z: -480 .. 480 şehir sınırları)
+// Havalimanı pisti ve servis yolu (x: -750 .. -530) z: -680'e kadar uzanır (asla suda kalmaz)
+add('bulvar-sahil-yeni', -750, -680, -750, 480, 11);                      // en yeni batı kıyı bulvarı
+add('bulvar-havalimani', -650, -134, -650, 480, 11);                       // havalimanı doğu bulvarı
+add('bulvar-bati-4', -530, -680, -530, 480, 11);                           // havalimanı terminaline bağlanan ana bulvar
+add('bulvar-bati-3', -450, -480, -450, 480, 11);
+add('bulvar-bati-2', -410, -480, -410, 480, 11);
+add('bulvar-sahil-3', -360, -480, -360, 480, 11);                         // eski batı sahil bulvarı
+add('bulvar-sahil-2', -310, -480, -310, 480, 11);
+add('bulvar-sahil-1', -260, -480, -260, 480, 11);
+add('bulvar-bati', -210, -480, -210, 480, 11);                            // batı bulvarı
+add('bulvar', -170, -480, -170, 480, 11);                                 // kıyı bulvarı
+add('s5', -127, -480, -127, 480, 9);
 const RN = ROUNDABOUTS[0], RS = ROUNDABOUTS[1];
-add('s6-kuzey', -87, -420, -87, RN.cz - RC, 9, { paint: [[-420, RN.cz - 22]] });                  // kuzey göbeğin kuzeyi
+add('s6-kuzey', -87, -480, -87, RN.cz - RC, 9, { paint: [[-480, RN.cz - 22]] });                  // kuzey göbeğin kuzeyi
 add('s6-orta', -87, RN.cz + RC, -87, RS.cz - RC, 9, { paint: [[RN.cz + 22, RS.cz - 22]] });       // iki göbek arası
-add('s6-guney', -87, RS.cz + RC, -87, 420, 9, { paint: [[RS.cz + 22, 420]] });                    // güney göbeğin güneyi
-add('s7', -47, -420, -47, 420, 9);
-add('s8', -27, -420, -27, 420, 9);                                        // doğu sahil yolu
+add('s6-guney', -87, RS.cz + RC, -87, 480, 9, { paint: [[RS.cz + 22, 480]] });                    // güney göbeğin güneyi
+add('s7', -47, -480, -47, 480, 9);
+add('s8', -27, -480, -27, 480, 9);                                        // doğu sahil yolu
 add('cadde-0', -750, 0, 366, 0, 11, { noMerge: true, paint: [[-750, -12], [258, 366]] });         // ana omurga cadde: tüm batı ada + köprü + doğu ada
 
 // Doğu-Batı birbirine bağlı caddeler (Havalimanı bölgesi x:-750..-530, z:-650..-150 arasını açık bırakır)
 // Havalimanı dışındaki güney ve kuzey caddeleri tam uzanır (-750..-27)
-[66, 134, 266, 320, 380, 420].forEach(z => {
+[66, 134, 266, 320, 380, 420, 480].forEach(z => {
   add(`cadde${z}`, -750, z, -27, z, 11);
 });
 // Havalimanı bölgesindeki caddeler: terminal önünden (-530'dan) -27'ye uzanır (pist ve apron bölünmez)
-[-420, -380, -320, -266, -134, -66].forEach(z => {
+[-480, -420, -380, -320, -266, -134, -66].forEach(z => {
   add(`cadde${z}`, -530, z, -27, z, 11);
 });
 // Havalimanı servis yolu (pist arkası sahil bağlantısı)

@@ -196,13 +196,15 @@ export class LevelManager {
     w.fillBox(428, 0, -300, 720, 0, 300, PALETTE.GRASS); // MUST BE GRASS for heightFn to build the mountain!
     this._setHills();
 
-    // Batı Ada: KOCAMAN ARKAYA GENİŞLETİLMİŞ KARE METROPOL ŞEHRİ (x: -770..20, z: -450..450, optimize edilmiş sınırlar)
-    w.fillBox(-770, 0, -450, 20, 0, 450, PALETTE.CONCRETE);
+    // Batı Ada ve Havalimanı Zemin Betonu:
+    // Havalimanı bölgesi (x: -770 .. -530) pistin ve servis yollarının sonuna (z: -680) kadar uzanır; asla suda havada kalmaz!
+    w.fillBox(-770, 0, -680, -530, 0, 480, PALETTE.CONCRETE);
+    w.fillBox(-530, 0, -480, 20, 0, 480, PALETTE.CONCRETE);
     this.buildOrganicBeach();                                    // Organik dalgalı, cetvelle çizilmemiş devasa sahil kumsalı ve iskeleler
 
-    w.fillBox(258, 0, -380, 290, 0, 380, PALETTE.CONCRETE);     // doğu ada: şehir blokları (köprüden sonra)
-    w.fillBox(321, 0, -380, 370, 0, 380, PALETTE.CONCRETE);
-    w.fillBox(370, 0, -70, 428, 0, 70, PALETTE.CONCRETE);       // zengin bölge meydanı (yayalar; araç yolu yok)
+    w.fillBox(240, 0, -380, 290, 0, 380, PALETTE.CONCRETE);     // doğu ada: batı sahil ve şehir blokları (köprüden sonra)
+    w.fillBox(321, 0, -380, 370, 0, 380, PALETTE.CONCRETE);     // doğu ada: orta kuleler ve merkez bloklar
+    w.fillBox(370, 0, -380, 428, 0, 380, PALETTE.CONCRETE);     // doğu ada: doğu lüks villa ve rezidans alanları
 
     // Dış çevre arazileri aşağıda bağımsız 3D çevre modelleri olarak eklenir (terrain dokusunu kilitlemez)
 
@@ -316,6 +318,29 @@ export class LevelManager {
     this.buildOverpass();
     this.buildTower(374, 1, -104, 394, 14, -78, { ...CC, side: 'x1' });
     this.buildTower(398, 1, -108, 416, 18, -80, { ...BR, side: 'x1' });
+
+    // ── DOĞU ADA GENİŞLETİLMİŞ LÜKS YAŞAM BİNALARI (Kullanıcı İsteği: "Karşı şehri biraz büyüt, fazla bina olsun") ──
+    // 1. Tepe Bölgesi Lüks Müstakil Villalar (Özel yüzme havuzlu, şezlonglu, teraslı)
+    this.buildLuxuryVilla(374, 1, -240, 414, 13, -196, PALETTE.WHITE, 'Villa Akdeniz');
+    this.buildLuxuryVilla(374, 1, -320, 414, 13, -276, PALETTE.BEIGE, 'Villa Bella Vista');
+    this.buildLuxuryVilla(374, 1, 280, 414, 13, 324, PALETTE.CREAM, 'Villa Panorama');
+    this.buildLuxuryVilla(374, 1, 332, 414, 13, 376, PALETTE.TERRACOTTA, 'Villa Zümrüt');
+
+    // 2. Kuzey Doğu Ada Şehir Blokları (Rezidanslar, Finans Bankası, Poliklinik & Eczane, Grand Hotel)
+    this.buildTower(324, 1, -330, 358, 34, -265, { wall: PALETTE.WHITE, floor: PALETTE.WOOD, side: 'z1', sign: true, interior: 'hotel' }); // Grand Palace Otel & Penthouse
+    this.buildCityBank(324, 1, -245, 356, 24, -195);                                      // Doğu Ada Özel Yatırım Bankası
+    this.buildCityApartment(270, 1, -330, 288, 22, -270, PALETTE.BEIGE, 'z1');            // Marina Rezidans Kulesi
+    this.buildTower(270, 1, -245, 288, 14, -195, { wall: PALETTE.WHITE, floor: PALETTE.WOOD, side: 'z1', sign: true, interior: 'hospital' }); // Ada Sağlık Merkezi & Eczane
+
+    // 3. Güney Doğu Ada Şehir Blokları (Teknoloji Merkezi, Kütüphane, Tenis Kulübü, Butik Kafe)
+    this.buildTower(324, 1, 275, 358, 26, 318, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'z2' }); // Doğu Ada İnovasyon & Ar-Ge Kulesi
+    this.buildTower(324, 1, 328, 358, 18, 368, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'z2' });    // Üniversite Araştırma Kütüphanesi
+    this.buildTower(270, 1, 325, 288, 14, 365, { wall: PALETTE.TERRACOTTA, floor: PALETTE.WOOD, side: 'z1' }); // Ada Tenis & Spor Kulübü
+    this.buildOutdoorFashionStore(270, 1, 275, 288, 12, 315);                              // Sahil Kafe & Butik Mağaza
+
+    // 4. Köprü Girişi & Sahil Yolu Binaları
+    this.buildTower(244, 1, 8, 260, 10, 38, { wall: PALETTE.WHITE, floor: PALETTE.WOOD, side: 'x2' });        // Ada Yat Kulübü & Marina Ofisi
+    this.buildOutdoorTeknoMarket(270, 1, 8, 288, 12, 38);                                 // Ada Gurme & Elektronik Çarşısı
 
     // ── CADDE KENARLARINDA PARK EDİLMİŞ ARABALAR VE SAHİPLERİ ──
     const vw = this.world;
@@ -580,8 +605,8 @@ export class LevelManager {
 
     // Dikey bulvar ve caddeler (Batı ada ve arka bölgeler: x: -750 .. -27)
     const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -47, -27];
-    // Yatay ana caddeler: Şehrin 5'te 2'si optimize edilerek aşırı uzak boş binalar kaldırıldı (z: -420 .. 420)
-    const Z_ROADS = [-420, -380, -320, -266, -134, -66, 0, 66, 134, 266, 320, 380, 420];
+    // Yatay ana caddeler: Normal şehri dengeli ve akıcı 60 FPS olarak genişlet (z: -480 .. 480)
+    const Z_ROADS = [-480, -420, -380, -320, -266, -134, -66, 0, 66, 134, 266, 320, 380, 420, 480];
 
     // Dört yolun çevrelediği tüm kare şehir bloklarını dolaş:
     // Karenin ortası KESİNLİKLE BOŞ (avlu) bırakılır; binalar 4 yola bakan kenarlara dizilir.
@@ -2650,6 +2675,58 @@ export class LevelManager {
   // ÖZEL BİNALAR (İÇ MEKÂNLARIYLA):
   // -------------------------------------------------------------
 
+  // LÜKS MÜSTAKİL ADA VİLLASI (Özel yüzme havuzu, ahşap güneşlenme deck'i, şezlonglar, teras ve bahçe duvarı)
+  buildLuxuryVilla(x1, y1, z1, x2, y2, z2, palette = PALETTE.WHITE, villaName = 'Lüks Villa') {
+    const w = this.b;
+    w.beginBuilding();
+
+    const cx = Math.round((x1 + x2) / 2);
+    const cz = Math.round((z1 + z2) / 2);
+
+    // 1. Zemin bahçe avlusu
+    w.fillBox(x1, y1, z1, x2, y1, z2, PALETTE.GRASS);
+
+    // 2. Ana Villa Binası (Arka yarıda 2 katlı modern yapı)
+    const vx0 = x1 + 3, vx1 = x2 - 3;
+    const vz0 = z1 + 3, vz1 = cz + 1;
+    w.fillHollowBox(vx0, y1 + 1, vz0, vx1, y1 + 10, vz1, palette, PALETTE.WOOD);
+    this.addFloors(vx0, y1 + 1, vz0, vx1, y1 + 10, vz1, PALETTE.WOOD);
+    this.addStairs(vx0, y1 + 1, vz0, vx1, y1 + 10, vz1);
+
+    // Ön panoramik boydan boya camlar
+    w.fillBox(vx0 + 2, y1 + 2, vz1, vx1 - 2, y1 + 5, vz1, PALETTE.GLASS);
+    w.fillBox(vx0 + 2, y1 + 6, vz1, vx1 - 2, y1 + 9, vz1, PALETTE.GLASS);
+
+    // Giriş kapısı
+    w.clearBox(cx - 2, y1 + 1, vz1, cx + 2, y1 + 4, vz1);
+    this.world.doors.addDoubleHinged(cx - 2, y1 + 1, vz1, cx + 2, y1 + 4, vz1, 'z');
+
+    // 2. Kat Teras & Cam Korkuluk
+    w.fillBox(vx0, y1 + 10, vz0, vx1, y1 + 10, vz1 + 2, PALETTE.CONCRETE);
+    w.fillBox(vx0, y1 + 11, vz1 + 2, vx1, y1 + 11, vz1 + 2, PALETTE.GLASS);
+
+    // 3. Özel Turkuaz Yüzme Havuzu (Ön bahçede)
+    const px0 = vx0 + 2, px1 = vx1 - 2;
+    const pz0 = cz + 5, pz1 = z2 - 4;
+    if (pz1 - pz0 >= 5 && px1 - px0 >= 6) {
+      w.fillBox(px0 - 1, y1, pz0 - 1, px1 + 1, y1, pz1 + 1, PALETTE.CONCRETE);
+      w.fillBox(px0, y1, pz0, px1, y1, pz1, PALETTE.GLASS); // turkuaz su
+      w.fillBox(px0 - 2, y1, pz0, px0 - 1, y1, pz1, PALETTE.WOOD);  // ahşap deck
+      // Şezlonglar
+      w.fillBox(px0 - 2, y1 + 1, pz0 + 1, px0 - 2, y1 + 1, pz0 + 3, PALETTE.WHITE);
+      w.fillBox(px0 - 2, y1 + 1, pz1 - 3, px0 - 2, y1 + 1, pz1 - 1, PALETTE.WHITE);
+    }
+
+    // 4. Bahçe taş duvarı ve giriş açıklığı
+    w.fillBox(x1, y1 + 1, z1, x2, y1 + 2, z1, PALETTE.STONE);
+    w.fillBox(x1, y1 + 1, z2, cx - 4, y1 + 2, z2, PALETTE.STONE);
+    w.fillBox(cx + 4, y1 + 1, z2, x2, y1 + 2, z2, PALETTE.STONE);
+    w.fillBox(x1, y1 + 1, z1, x1, y1 + 2, z2, PALETTE.STONE);
+    w.fillBox(x2, y1 + 1, z1, x2, y1 + 2, z2, PALETTE.STONE);
+
+    this.lamp(cx + 4, z2, 0, 0, false, false);
+  }
+
   // BİNA 1: ŞEHİR APARTMANI (gerçekçi mimari ten/bej/taş rengi, balkonlu, merdivenli)
   buildCityApartment(x1, y1, z1, x2, y2, z2, wallMat = null, side = 'z1') {
     const w = this.b;
@@ -2975,8 +3052,8 @@ export class LevelManager {
     // Doğal sahil kıvrım formülü: Cetvelle çizilmiş düz çizgiyi yok eden sinüzoidal harmonikler
     const coastWave = (z) => 28 * Math.sin(z * 0.014) + 16 * Math.cos(z * 0.032) + 8 * Math.sin(z * 0.065);
 
-    // Her 4 birimlik Z diliminde dalgalı organik kumsal ve ahşap yürüyüş yolu (z: -450 .. 450)
-    for (let z = -450; z <= 450; z += 4) {
+    // Her 4 birimlik Z diliminde dalgalı organik kumsal ve ahşap yürüyüş yolu (z: -680 .. 480, havalimanı boyunca tam uzanır)
+    for (let z = -680; z <= 480; z += 4) {
       const wave = coastWave(z);
       const beachX0 = Math.round(-845 + wave);
       const beachX1 = -770;
@@ -3019,9 +3096,9 @@ export class LevelManager {
     w.fillBox(vx0 - 7, 3, vz0, vx0 + 7, 4, vz0, PALETTE.WHITE);                 // voleybol filesi
     w.fillBox(vx0 - 8, 0, vz0 - 12, vx0 + 8, 0, vz0 + 12, PALETTE.GOLD);        // voleybol saha çizgisi
 
-    // Renkli Plaj Şemsiyeleri ve Şezlong Grupları
+    // Renkli Plaj Şemsiyeleri ve Şezlong Grupları (z: -420 .. 420)
     const umbrellaColors = [PALETTE.BRICK, PALETTE.BLUE, PALETTE.GOLD, PALETTE.LAMP_ORANGE, PALETTE.WHITE];
-    for (let z = -650; z <= 650; z += 35) {
+    for (let z = -420; z <= 420; z += 35) {
       if (Math.abs(z) < 80) continue; // voleybol ve iskele alanını açık bırak
       const ux = Math.round(-796 + coastWave(z) * 0.4);
       const col = umbrellaColors[Math.abs(Math.round(z / 35)) % umbrellaColors.length];
@@ -3048,8 +3125,8 @@ export class LevelManager {
       w.fillBox(cx + 4, 1, cz, cx + 4, 1, cz, PALETTE.BRICK);
     });
 
-    // ── SIĞ DENİZ GİRİŞİ, YUMUŞAK İNİŞ VE DÜZ DENİZ YOLU TABANI (z: -450 .. 450)
-    for (let z = -450; z <= 450; z += 6) {
+    // ── SIĞ DENİZ GİRİŞİ, YUMUŞAK İNİŞ VE DÜZ DENİZ YOLU TABANI (z: -680 .. 480) ──
+    for (let z = -680; z <= 480; z += 6) {
       const wave = coastWave(z);
       const b0 = Math.round(-845 + wave);
 
@@ -3060,9 +3137,9 @@ export class LevelManager {
       w.fillBox(b0 - 450, 0, z, b0 - 24, 0, z + 5, PALETTE.SAND);
     }
 
-    // ── SU ALTINDAKİ KIRILABİLİR DENİZ TAŞLARI VE ÇAKILLAR (z: -420 .. 420) ──
+    // ── SU ALTINDAKİ KIRILABİLİR DENİZ TAŞLARI VE ÇAKILLAR (z: -650 .. 450) ──
     const rockMaterials = [PALETTE.STONE, PALETTE.CONCRETE, PALETTE.BEIGE];
-    for (let z = -420; z <= 420; z += 14) {
+    for (let z = -650; z <= 450; z += 14) {
       const wave = coastWave(z);
       const b0 = Math.round(-845 + wave);
 
