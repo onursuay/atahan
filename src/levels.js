@@ -369,7 +369,7 @@ export class LevelManager {
     // 5. SOKAK DONATIMI: lambalar, çöp kutuları, ağaçlar
     // ==========================================
     // Donatı (lamba, çöp kutusu, ağaç) yolun üstüne konmaz: lamp/trashBin/tree yol dikdörtgenlerini kendileri denetler
-    for (const zc of [-750, -650, -550, -450, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 450, 550, 650, 750]) {
+    for (const zc of [-450, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 450]) {
       for (let x = -340; x <= -30; x += 22) {
         this.lamp(x, zc + 6.5, 0, -1); this.trashBin(x + 4, zc + 7);
         this.lamp(x + 11, zc - 6.5, 0, 1); this.trashBin(x + 15, zc - 7);
@@ -663,6 +663,56 @@ export class LevelManager {
         // KESİNLİKLE BİNA OLMAYAN AÇIK İÇ AVLU ALANIDIR ("Karenin ortasında bina olmamalı, hepsi öyle")
       }
     }
+
+    // ==========================================
+    // DOĞU ADASI ŞEHİR GENİŞLEMESİ (Lüks Bloklar & Rezidanslar)
+    // ==========================================
+    const EAST_X = [242, 274, 320, 366, 412];
+    const EAST_Z = [-360, -270, -190, -134, -44, 44, 134, 190, 270, 360];
+
+    const inEastParkOrVilla = (minX, maxX, minZ, maxZ) => {
+      // Merkez Park koruması (x: 330..505, z: 12..188)
+      if (maxX > 330 && minX < 505 && maxZ > 12 && minZ < 188) return true;
+      // Zengin Villası ve dağ virajı koruması (x: 355..460, z: -155..-25)
+      if (maxX > 355 && minX < 460 && maxZ > -155 && minZ < -25) return true;
+      // Otoyol şeridi koruması (x: 298..312)
+      if (maxX > 298 && minX < 312) return true;
+      return false;
+    };
+
+    for (let i = 0; i < EAST_X.length - 1; i++) {
+      const rx0 = EAST_X[i], rx1 = EAST_X[i + 1];
+      const bx0 = rx0 + 6, bx1 = rx1 - 6;
+      const bWidth = bx1 - bx0;
+      if (bWidth < 12) continue;
+
+      for (let j = 0; j < EAST_Z.length - 1; j++) {
+        const rz0 = EAST_Z[j], rz1 = EAST_Z[j + 1];
+        const bz0 = rz0 + 6, bz1 = rz1 - 6;
+        const bDepth = bz1 - bz0;
+        if (bDepth < 12) continue;
+
+        if (inEastParkOrVilla(bx0, bx1, bz0, bz1)) continue;
+
+        const edgeW = Math.min(16, Math.floor(bWidth * 0.35));
+        const edgeD = Math.min(16, Math.floor(bDepth * 0.35));
+
+        placeBuilding(bx0, bx0 + edgeW, bz0 + 2, bz1 - 2, 'x1');
+        placeBuilding(bx1 - edgeW, bx1, bz0 + 2, bz1 - 2, 'x2');
+        if (bWidth >= 24 && edgeD >= 8) {
+          placeBuilding(bx0 + edgeW + 2, bx1 - edgeW - 2, bz0, bz0 + edgeD, 'z1');
+          placeBuilding(bx0 + edgeW + 2, bx1 - edgeW - 2, bz1 - edgeD, bz1, 'z2');
+        }
+      }
+    }
+  }
+
+  // Sadece kara üzerindeki koordinatları doğrula (okyanusta ağaç veya lamba oluşmasın)
+  _isOnLand(x, z) {
+    if (x >= -760 && x <= -530 && z >= -675 && z <= -170) return true; // Havalimanı
+    if (x >= -410 && x <= 20 && z >= -470 && z <= 470) return true;    // Batı şehir adası
+    if (x >= 240 && x <= 455 && z >= -370 && z <= 370) return true;    // Doğu adası
+    return false;
   }
 
   // ── Sokak donatımı ──
@@ -673,6 +723,7 @@ export class LevelManager {
   }
 
   lamp(x, z, dx = 0, dz = 0, both = false, onRoadOk = false) {
+    if (!this._isOnLand(x, z)) return; // Okyanusa lamba konmaz
     if (this.b.blocked(x, z, 0) || (!onRoadOk && onRoadFast(x, z, 0)) || this._nearDoor(x, z)) return;   // lamba bina içine ya da yolun üstüne konmaz
     this.lampSub(Math.round(K * x), Math.round(K * z), GROUND_ROW_SUB, dx, dz, both);
   }
@@ -701,6 +752,7 @@ export class LevelManager {
   }
 
   trashBin(x, z) {
+    if (!this._isOnLand(x, z)) return; // Okyanusa çöp kutusu konmaz
     if (this.b.blocked(x, z, 0) || onRoadFast(x, z, 0) || this._nearDoor(x, z)) return;   // çöp kutusu yolun üstüne konmaz
     const w = this.b, sx = Math.round(K * x), sz = Math.round(K * z);
     w.raw(sx, GROUND_ROW_SUB, sz, sx + 1, GROUND_ROW_SUB + 3, sz + 1, PALETTE.IRON);
@@ -708,6 +760,7 @@ export class LevelManager {
   }
 
   tree(x, z, h) {
+    if (!this._isOnLand(x, z)) return; // Okyanus üstüne ağaç dikilmez
     if (this.b.blocked(x, z, 1) || onRoadFast(x, z, 2) || this._nearDoor(x, z, 3)) return;   // ağaç taçı yola taşmasın (2 birim pay)
     const w = this.b;
     w.fillBox(x, 1, z, x, h - 2, z, PALETTE.WOOD);

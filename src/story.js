@@ -534,20 +534,40 @@ export class StoryManager {
     ceiling.position.set(rx, ry + 4.5, rz);
     this.cinematicGroup.add(ceiling);
 
-    // Beyaz Duvarlar ve Paneller
-    const backWall = new THREE.Mesh(BOX(21.8, 4.4, 0.3), whiteWallMat);
-    backWall.position.set(rx, ry + 2.25, rz - 6.8);
-    this.cinematicGroup.add(backWall);
+    // Panoramik Cam Duvar (Pencerenin dışı net şekilde görünsün, arkada gökdelenler olsun)
+    const glassMat = MAT(0xa5f3fc, { transparent: true, opacity: 0.28, roughness: 0.05, metalness: 0.1 });
+    const frameDark = MAT(0x1e293b, { roughness: 0.2, metalness: 0.8 });
 
-    for (let i = -7; i <= 7; i += 3.5) {
-      const panel = new THREE.Mesh(BOX(2.8, 3.4, 0.08), darkWoodMat);
-      panel.position.set(rx + i, ry + 2.3, rz - 6.6);
-      this.cinematicGroup.add(panel);
+    // Alt ve üst pencere pervazları
+    const sill = new THREE.Mesh(BOX(22, 0.4, 0.35), whiteWallMat);
+    sill.position.set(rx, ry + 0.2, rz - 6.8);
+    this.cinematicGroup.add(sill);
 
-      const panelTrim = new THREE.Mesh(BOX(2.9, 3.5, 0.05), goldMat);
-      panelTrim.position.set(rx + i, ry + 2.3, rz - 6.62);
-      this.cinematicGroup.add(panelTrim);
+    const header = new THREE.Mesh(BOX(22, 0.4, 0.35), whiteWallMat);
+    header.position.set(rx, ry + 4.3, rz - 6.8);
+    this.cinematicGroup.add(header);
+
+    // Ana panoramik cam yüzeyi
+    const glassPanels = new THREE.Mesh(BOX(21.6, 3.7, 0.06), glassMat);
+    glassPanels.position.set(rx, ry + 2.25, rz - 6.8);
+    this.cinematicGroup.add(glassPanels);
+
+    // Dikey ve yatay şık alüminyum pencere kayıtları (mullions)
+    for (let x = -10; x <= 10; x += 2.5) {
+      const vFrame = new THREE.Mesh(BOX(0.12, 3.7, 0.15), frameDark);
+      vFrame.position.set(rx + x, ry + 2.25, rz - 6.78);
+      this.cinematicGroup.add(vFrame);
+
+      const goldPinstripe = new THREE.Mesh(BOX(0.04, 3.7, 0.16), goldMat);
+      goldPinstripe.position.set(rx + x, ry + 2.25, rz - 6.77);
+      this.cinematicGroup.add(goldPinstripe);
     }
+    const hFrame = new THREE.Mesh(BOX(21.6, 0.12, 0.14), frameDark);
+    hFrame.position.set(rx, ry + 2.2, rz - 6.78);
+    this.cinematicGroup.add(hFrame);
+
+    // DIŞARIDA GÖRÜNEN METROPOL VE GÖKDELENLER (Pencereden dışarı bakınca görünen şehir silüeti)
+    this._buildSkylineOutsideWindow(rx, ry, rz - 6.8);
 
     const leftWall = new THREE.Mesh(BOX(0.3, 4.4, 15.8), whiteWallMat);
     leftWall.position.set(rx - 10.8, ry + 2.25, rz);
@@ -617,6 +637,46 @@ export class StoryManager {
     const light = new THREE.PointLight(0xfffbeb, 3.0, 16);
     light.position.set(rx, ry + 4.0, rz);
     this.cinematicGroup.add(light);
+  }
+
+  // Pencereden dışarı bakıldığında görünen devasa metropol gökdelen silüeti
+  _buildSkylineOutsideWindow(rx, ry, rz) {
+    const towers = [
+      { x: -14, z: -14, w: 9, d: 9, h: 48, col: 0x1e293b, glass: 0x38bdf8 },
+      { x: -6,  z: -20, w: 8, d: 8, h: 54, col: 0x0f172a, glass: 0x60a5fa },
+      { x: 3,   z: -16, w: 10, d: 8, h: 46, col: 0x334155, glass: 0xfacc15 },
+      { x: 12,  z: -22, w: 9, d: 9, h: 52, col: 0x1e293b, glass: 0x38bdf8 },
+      { x: -22, z: -26, w: 11, d: 10, h: 42, col: 0x475569, glass: 0x93c5fd },
+      { x: 22,  z: -25, w: 10, d: 10, h: 44, col: 0x1e3a8a, glass: 0x38bdf8 },
+      { x: -10, z: -38, w: 14, d: 14, h: 62, col: 0x0f172a, glass: 0x38bdf8 },
+      { x: 8,   z: -42, w: 15, d: 12, h: 68, col: 0x1e293b, glass: 0x60a5fa },
+      { x: -28, z: -46, w: 12, d: 12, h: 50, col: 0x334155, glass: 0xfacc15 },
+      { x: 28,  z: -48, w: 14, d: 14, h: 56, col: 0x0f172a, glass: 0x38bdf8 }
+    ];
+
+    for (const t of towers) {
+      const bMat = MAT(t.col, { roughness: 0.35, metalness: 0.6 });
+      const towerMesh = new THREE.Mesh(BOX(t.w, t.h, t.d), bMat);
+      towerMesh.position.set(rx + t.x, ry - 6 + t.h / 2, rz + t.z);
+      this.cinematicGroup.add(towerMesh);
+
+      // Pencereler (Işıklı ofis cam şeritleri)
+      const winMat = MAT(t.glass, { emissive: t.glass, emissiveIntensity: 0.8, roughness: 0.1 });
+      for (let wy = ry - 2; wy < ry - 6 + t.h - 3; wy += 3.2) {
+        const winBand = new THREE.Mesh(BOX(t.w + 0.12, 1.4, t.d + 0.12), winMat);
+        winBand.position.set(rx + t.x, wy, rz + t.z);
+        this.cinematicGroup.add(winBand);
+      }
+
+      // Çatı anteni ve kırmızı ikaz lambası
+      const ant = new THREE.Mesh(BOX(0.3, 6, 0.3), MAT(0x94a3b8, { metalness: 0.9 }));
+      ant.position.set(rx + t.x, ry - 6 + t.h + 3, rz + t.z);
+      this.cinematicGroup.add(ant);
+
+      const beacon = new THREE.Mesh(BOX(0.5, 0.5, 0.5), MAT(0xef4444, { emissive: 0xef4444, emissiveIntensity: 2.0 }));
+      beacon.position.set(rx + t.x, ry - 6 + t.h + 6, rz + t.z);
+      this.cinematicGroup.add(beacon);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -821,6 +881,8 @@ export class StoryManager {
     this.phaseTimer = 0;
     this.limoProgress = 0;
     this.controlsLocked = true;
+    window._storyCamYaw = 0;
+    window._storyCamPitch = 0;
 
     sound.playLimoDoor();
     this.setMission('LİMUZİN İLE SEYAHAT', 'David Sterling’in korumalarıyla Doğu Ada’daki malikaneye gidiyorsunuz.');
@@ -1233,15 +1295,15 @@ export class StoryManager {
         }
       }
 
-      // İçeride 360 derece bakış
+      // İçeride 360 derece bakış (Sağa fare -> sağa bakış, sola fare -> sola bakış)
       const yaw = (window._storyCamYaw !== undefined ? window._storyCamYaw : 0);
       const pitch = (window._storyCamPitch !== undefined ? window._storyCamPitch : 0);
 
       // Limuzinin önüne (+x) ve karşıdaki 2 kaslı korumaya bakan yön
       const lookLocal = new THREE.Vector3(
         Math.cos(pitch) * Math.cos(yaw),
-        -Math.sin(pitch),
-        Math.cos(pitch) * Math.sin(yaw)
+        Math.sin(pitch),
+        -Math.cos(pitch) * Math.sin(yaw)
       );
       lookLocal.applyAxisAngle(new THREE.Vector3(0, 1, 0), rotY);
 
@@ -1432,6 +1494,92 @@ export class StoryManager {
     return g;
   }
 
+  // Limuzin içinde koltukta oturan kaslı koruma modeli
+  // (Kafası, siyah güneş gözlükleri, kırmızı kravatı ve göğsünde kavuşmuş kaslı kolları tam göz hizasında)
+  _buildSeatedMuscleGuardModel() {
+    const g = new THREE.Group();
+    const blackSuit = MAT(0x020617, { roughness: 0.3 });
+    const redTie = MAT(0xdc2626);
+    const skin = MAT(0xd4a373);
+    const shoeMat = MAT(0x09090b, { roughness: 0.2, metalness: 0.4 });
+
+    // 1. Ayakkabılar ve Alt Bacaklar (Zemine dik basar)
+    const lShoe = new THREE.Mesh(BOX(0.28, 0.10, 0.18), shoeMat);
+    lShoe.position.set(-0.30, 0.05, 0.18);
+    g.add(lShoe);
+    const rShoe = new THREE.Mesh(BOX(0.28, 0.10, 0.18), shoeMat);
+    rShoe.position.set(-0.30, 0.05, -0.18);
+    g.add(rShoe);
+
+    const lShin = new THREE.Mesh(BOX(0.20, 0.32, 0.20), blackSuit);
+    lShin.position.set(-0.30, 0.22, 0.18);
+    g.add(lShin);
+    const rShin = new THREE.Mesh(BOX(0.20, 0.32, 0.20), blackSuit);
+    rShin.position.set(-0.30, 0.22, -0.18);
+    g.add(rShin);
+
+    // 2. Uyluklar (Koltuk minderi üzerinde yatay uzanır)
+    const lThigh = new THREE.Mesh(BOX(0.34, 0.18, 0.22), blackSuit);
+    lThigh.position.set(-0.14, 0.38, 0.18);
+    g.add(lThigh);
+    const rThigh = new THREE.Mesh(BOX(0.34, 0.18, 0.22), blackSuit);
+    rThigh.position.set(-0.14, 0.38, -0.18);
+    g.add(rThigh);
+
+    const pelvis = new THREE.Mesh(BOX(0.28, 0.18, 0.60), blackSuit);
+    pelvis.position.set(0.04, 0.38, 0);
+    g.add(pelvis);
+
+    // 3. Kaslı Üst Gövde (Geniş omuzlu takım elbiseli ceket)
+    const torso = new THREE.Mesh(BOX(0.34, 0.52, 0.78), blackSuit);
+    torso.position.set(0.04, 0.70, 0);
+    g.add(torso);
+
+    // Kırmızı İpek Kravat
+    const tie = new THREE.Mesh(BOX(0.36, 0.38, 0.12), redTie);
+    tie.position.set(-0.01, 0.70, 0);
+    g.add(tie);
+
+    // Göğüste Birbirine Bağlanmış Kaslı Kollar
+    const crossedArm1 = new THREE.Mesh(BOX(0.22, 0.16, 0.68), blackSuit);
+    crossedArm1.position.set(-0.16, 0.74, 0.02);
+    crossedArm1.rotation.y = 0.04;
+    g.add(crossedArm1);
+
+    const crossedArm2 = new THREE.Mesh(BOX(0.22, 0.16, 0.68), blackSuit);
+    crossedArm2.position.set(-0.18, 0.64, -0.02);
+    crossedArm2.rotation.y = -0.04;
+    g.add(crossedArm2);
+
+    const lShoulder = new THREE.Mesh(BOX(0.28, 0.18, 0.20), blackSuit);
+    lShoulder.position.set(0.04, 0.90, 0.38);
+    g.add(lShoulder);
+    const rShoulder = new THREE.Mesh(BOX(0.28, 0.18, 0.20), blackSuit);
+    rShoulder.position.set(0.04, 0.90, -0.38);
+    g.add(rShoulder);
+
+    // 4. Boyun ve Kafa (Tam göz hizasında, kafası kesinlikle tavana girmez)
+    const neck = new THREE.Mesh(BOX(0.18, 0.10, 0.18), skin);
+    neck.position.set(0.04, 0.98, 0);
+    g.add(neck);
+
+    const head = new THREE.Mesh(BOX(0.34, 0.34, 0.34), skin);
+    head.position.set(0.04, 1.15, 0);
+    g.add(head);
+
+    // Siyah Güneş Gözlüğü (Önde bize dönük)
+    const shades = new THREE.Mesh(BOX(0.10, 0.10, 0.32), MAT(0x000000, { roughness: 0.1 }));
+    shades.position.set(-0.14, 1.17, 0);
+    g.add(shades);
+
+    // Siyah Taranmış Saç
+    const hair = new THREE.Mesh(BOX(0.36, 0.10, 0.36), MAT(0x0a0a0a, { roughness: 0.9 }));
+    hair.position.set(0.04, 1.30, 0);
+    g.add(hair);
+
+    return g;
+  }
+
   _buildProtesterModel(sloganText = 'DEFOL!') {
     const g = new THREE.Group();
     const colors = [0xdc2626, 0x2563eb, 0x16a34a, 0xf59e0b, 0x9333ea, 0x0891b2, 0xe11d48, 0x475569];
@@ -1545,10 +1693,29 @@ export class StoryManager {
     glassR.position.set(-0.4, 1.95, -1.15);
     g.add(glassR);
 
-    // Mor / Lila Tavan LED Aydınlatması
-    const neonLED = new THREE.PointLight(0xa855f7, 3.2, 6.0);
-    neonLED.position.set(-0.4, 2.45, 0);
-    g.add(neonLED);
+    // Şık Çizgi Şeklinde Mor LED Şerit Aydınlatma (Kabin tavanı kenarları boyunca uzanır)
+    const ledMat = MAT(0xa855f7, { emissive: 0xa855f7, emissiveIntensity: 2.5, roughness: 0.1 });
+    const ledStripL = new THREE.Mesh(BOX(7.2, 0.03, 0.05), ledMat);
+    ledStripL.position.set(-0.4, 2.62, 1.08);
+    g.add(ledStripL);
+
+    const ledStripR = new THREE.Mesh(BOX(7.2, 0.03, 0.05), ledMat);
+    ledStripR.position.set(-0.4, 2.62, -1.08);
+    g.add(ledStripR);
+
+    // Ön ve arka tavan enine LED şeritleri
+    const ledFront = new THREE.Mesh(BOX(0.05, 0.03, 2.16), ledMat);
+    ledFront.position.set(3.2, 2.62, 0);
+    g.add(ledFront);
+
+    const ledBack = new THREE.Mesh(BOX(0.05, 0.03, 2.16), ledMat);
+    ledBack.position.set(-4.0, 2.62, 0);
+    g.add(ledBack);
+
+    // Yumuşak, sıcak ve dengeli kabin ambiyans ışığı (bütün arabayı mor yapmaz, yüzleri aydınlatır)
+    const cabinLight = new THREE.PointLight(0xfff7ed, 0.95, 6.5);
+    cabinLight.position.set(-0.2, 2.45, 0);
+    g.add(cabinLight);
 
     // Lüks Deri Koltuklar
     // 1) Oyuncunun oturduğu arka koltuk (x = -1.6, y = 1.35)
@@ -1569,17 +1736,13 @@ export class StoryManager {
     seatGuardsBack.position.set(1.75, 1.8, 0);
     g.add(seatGuardsBack);
 
-    // KABİN İÇİNDE OYUNCUYA BAKAN 2 KASLI KORUMA (x=1.2'de oturup -x'e, bize doğru bakarlar)
-    const guard1 = this._buildMuscleGuardModel();
-    guard1.scale.setScalar(0.75);
-    guard1.position.set(1.2, 1.25, 0.52);
-    guard1.rotation.y = -Math.PI / 2; // Bize dönük
+    // KABİN İÇİNDE OYUNCUYA BAKAN 2 KASLI KORUMA (Kafaları, güneş gözlükleri ve kravatları tam göz hizasında)
+    const guard1 = this._buildSeatedMuscleGuardModel();
+    guard1.position.set(1.15, 1.05, 0.48);
     g.add(guard1);
 
-    const guard2 = this._buildMuscleGuardModel();
-    guard2.scale.setScalar(0.75);
-    guard2.position.set(1.2, 1.25, -0.52);
-    guard2.rotation.y = -Math.PI / 2; // Bize dönük
+    const guard2 = this._buildSeatedMuscleGuardModel();
+    guard2.position.set(1.15, 1.05, -0.48);
     g.add(guard2);
 
     // 6 Adet Altın Jantlı Tekerlek

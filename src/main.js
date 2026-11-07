@@ -1214,8 +1214,8 @@ function setupEventListeners() {
     if (introActive) return;   // jenerik: bakış animasyonla yönetilir, fare etkisiz
     if (storyManager && storyManager.currentPhase === STORY_PHASES.LIMO_RIDE) {
       const sensitivity = 0.0035 * mouseSens;
-      window._storyCamYaw = (window._storyCamYaw || 0) - e.movementX * sensitivity;
-      window._storyCamPitch = Math.max(-0.6, Math.min(0.6, (window._storyCamPitch || 0) + e.movementY * sensitivity));
+      window._storyCamYaw = (window._storyCamYaw || 0) + e.movementX * sensitivity;
+      window._storyCamPitch = Math.max(-0.6, Math.min(0.6, (window._storyCamPitch || 0) - e.movementY * sensitivity));
       return;
     }
     if (storyManager && storyManager.controlsLocked) return;
