@@ -37,7 +37,7 @@ function makeCubeTexture(def) {
 // Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
 const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // 0.5 m küpte 1; küçüldükçe daha çok küp gerekir
 const CHUNK_SIZE = 48; // metre: Minecraft tarzı dinamik bölge boyutu (performansı ve akıcı chunk yüklemeyi maksimize eder)
-const CHUNK_STREAM_DIST = 165; // metre: bu mesafeden uzaktaki bölgeler GPU çiziminden tamamen çıkarılır (0 kasma)
+const CHUNK_STREAM_DIST = 300; // metre: geniş ufuk görüş mesafesi (300m boyunca binalar, yollar ve çevre akıcı şekilde görünür)
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
@@ -270,10 +270,13 @@ export class VoxelWorld {
       const cz = Number(parts[2]);
       const mesh = new THREE.InstancedMesh(this.cubeGeo, this.materials[typeId], list.length);
       const isGround = typeId === PALETTE.ASPHALT.id || typeId === PALETTE.GRASS.id || typeId === PALETTE.SAND.id;
+      // Doğu tepesindeki Zengin Villası nirengi noktasıdır; uzaktan daima görünür
+      const isLandmark = (cx >= 7 && cx <= 10 && cz >= -4 && cz <= 0);
       mesh.userData = {
         cx, cz,
         center: new THREE.Vector3((cx + 0.5) * CHUNK_SIZE, 15, (cz + 0.5) * CHUNK_SIZE),
-        isGround
+        isGround,
+        isLandmark
       };
       mesh.castShadow = false; // update() içinde kameraya yakınlığa göre dinamik belirlenir (0 lag)
       mesh.receiveShadow = true;
@@ -910,18 +913,23 @@ export class VoxelWorld {
     this.collapse.update(dt);
     if (this.bridge) this.bridge.update(dt);
 
-    // Minecraft Tarzı Chunk LOD & Distance Streaming: Sis sınırının (165m) ötesindeki chunk'ları çizimden çıkar
+    // Minecraft Tarzı Chunk LOD & Distance Streaming: Sis sınırının (300m) ötesindeki chunk'ları çizimden çıkar
     // Oyuncu yaklaştıkça sisten yumuşakça yüklenir, uzaklaşınca geçici olarak silinir (0 kasma)
     this._cullTimer = (this._cullTimer || 0) + dt;
     if (this._cullTimer >= 0.06 && camPos && this.chunkMeshes.length > 0) {
       this._cullTimer = 0;
       const camX = camPos.x, camZ = camPos.z;
       const maxDistSq = CHUNK_STREAM_DIST * CHUNK_STREAM_DIST;
-      const shadowDistSq = 50 * 50;
+      const shadowDistSq = 75 * 75;
       for (let i = 0; i < this.chunkMeshes.length; i++) {
         const m = this.chunkMeshes[i];
         const u = m.userData;
         if (!u || !u.center) continue;
+        if (u.isLandmark) {
+          m.visible = true;
+          m.castShadow = false;
+          continue;
+        }
         const dx = u.center.x - camX;
         const dz = u.center.z - camZ;
         const d2 = dx * dx + dz * dz;
