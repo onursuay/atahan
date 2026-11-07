@@ -34,7 +34,17 @@ const HAIRS = [0x2b1b0e, 0x4a2f13, 0x111111, 0xb08d57, 0x7c2d12];
 const boxGeo = (w, h, d) => new THREE.BoxGeometry(w, h, d);
 const GEO = {
   head: boxGeo(0.34, 0.34, 0.34), hair: boxGeo(0.36, 0.12, 0.36),
-  torso: boxGeo(0.4, 0.55, 0.22), arm: boxGeo(0.14, 0.5, 0.14), leg: boxGeo(0.17, 0.55, 0.17)
+  torso: boxGeo(0.4, 0.55, 0.22), arm: boxGeo(0.14, 0.5, 0.14), leg: boxGeo(0.17, 0.55, 0.17),
+  // Yüz ve detay geometrileri (Göz, kaş, burun, ağız, kulak, ayakkabı, kemer)
+  eyeWhite: boxGeo(0.062, 0.052, 0.016),
+  eyePupil: boxGeo(0.036, 0.042, 0.02),
+  eyebrow: boxGeo(0.076, 0.024, 0.02),
+  nose: boxGeo(0.045, 0.055, 0.042),
+  mouth: boxGeo(0.075, 0.02, 0.014),
+  ear: boxGeo(0.02, 0.07, 0.05),
+  shoe: boxGeo(0.19, 0.1, 0.24),
+  belt: boxGeo(0.41, 0.05, 0.23),
+  buckle: boxGeo(0.07, 0.06, 0.02)
 };
 const matCache = new Map();
 const mat = (color) => {
@@ -66,6 +76,9 @@ export class NPCManager {
     this.marketShoppers = [];
     this.carOwners = [];
     this.beachNPCs = [];
+    this.strollers = [];
+    this.chatGroups = [];
+    this.playgroundKids = [];
   }
 
   reset() {
@@ -85,6 +98,25 @@ export class NPCManager {
     this.marketShoppers = [];
     this.carOwners = [];
     this.beachNPCs = [];
+    if (this.strollers) {
+      this.strollers.forEach(s => {
+        if (s.group) this.scene.remove(s.group);
+        if (s.strollerGroup) this.scene.remove(s.strollerGroup);
+      });
+    }
+    this.strollers = [];
+    if (this.chatGroups) {
+      this.chatGroups.forEach(g => {
+        if (g.members) g.members.forEach(m => this.scene.remove(m.group));
+      });
+    }
+    this.chatGroups = [];
+    if (this.playgroundKids) {
+      this.playgroundKids.forEach(k => {
+        if (k.group) this.scene.remove(k.group);
+      });
+    }
+    this.playgroundKids = [];
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (const m of this.voxelWorld.marketCats || []) this.cats.addMarketCats(m.x, m.y, m.z); // market kedileri
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
@@ -98,6 +130,9 @@ export class NPCManager {
     for (const ms of this.voxelWorld.marketShoppers || []) this._spawnMarketShopper(ms);
     for (const co of this.voxelWorld.carOwners || []) this._spawnCarOwner(co);
     this._spawnBeachLife();                                                  // SAHİL YAŞAMI: Güneşlenenler, yüzenler, sörfçüler, İzmir bombacısı, simitçi, pamuk şekerci!
+    this._spawnStrollers();                                                  // BEBEK ARABASI VE ANNE: Tekerlekli arabada oturan bebek ve gezdiren annesi
+    this._spawnChatGroups();                                                 // PARKTA SOHBET EDENLER: Bankta ikililer ve çemberde konuşan 4-5 kişilik gruplar
+    this._spawnPlaygroundKids();                                             // OYUN PARKI: Salıncakta sallanan ve kaydıraktan kayan çocuklar
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
@@ -158,6 +193,47 @@ export class NPCManager {
     };
     const lArm = mkArm(-0.27), rArm = mkArm(0.27), lLeg = mkLeg(-0.1), rLeg = mkLeg(0.1);
     g.add(head, hairM, torso, lArm, rArm, lLeg, rLeg);
+
+    // ── YÜZ VE DETAYLAR (Gözler, Kaşlar, Küçük Burun, Ağız, Kulaklar, Ayakkabı, Kemer) ──
+    const faceGroup = new THREE.Group();
+    faceGroup.position.set(0, 1.38, 0);
+
+    // Gözler (Beyaz sklera + koyu gözbebeği)
+    const eyeWL = new THREE.Mesh(GEO.eyeWhite, mat(0xffffff)); eyeWL.position.set(-0.082, 0.02, 0.174);
+    const eyeWR = new THREE.Mesh(GEO.eyeWhite, mat(0xffffff)); eyeWR.position.set(0.082, 0.02, 0.174);
+    const pupilM = mat(0x18181b);
+    const eyePL = new THREE.Mesh(GEO.eyePupil, pupilM); eyePL.position.set(-0.082, 0.018, 0.178);
+    const eyePR = new THREE.Mesh(GEO.eyePupil, pupilM); eyePR.position.set(0.082, 0.018, 0.178);
+
+    // Kaşlar (Saç rengiyle uyumlu)
+    const browM = mat(hair);
+    const browL = new THREE.Mesh(GEO.eyebrow, browM); browL.position.set(-0.082, 0.075, 0.175); browL.rotation.z = 0.05;
+    const browR = new THREE.Mesh(GEO.eyebrow, browM); browR.position.set(0.082, 0.075, 0.175); browR.rotation.z = -0.05;
+
+    // Küçük Sevimli Burun
+    const nose = new THREE.Mesh(GEO.nose, mat(skin)); nose.position.set(0, -0.014, 0.185);
+
+    // Doğal Gülümseme / Ağız Çizgisi
+    const mouth = new THREE.Mesh(GEO.mouth, mat(0x9a3412)); mouth.position.set(0, -0.082, 0.173);
+
+    // Kulaklar (Yan taraflar)
+    const earL = new THREE.Mesh(GEO.ear, mat(skin)); earL.position.set(-0.176, 0.01, 0);
+    const earR = new THREE.Mesh(GEO.ear, mat(skin)); earR.position.set(0.176, 0.01, 0);
+
+    faceGroup.add(eyeWL, eyeWR, eyePL, eyePR, browL, browR, nose, mouth, earL, earR);
+    g.add(faceGroup);
+
+    // Ayakkabılar ve Kemer (Sahildekiler hariç)
+    if (!isBeach) {
+      const shoeColor = pick([0x1e293b, 0x451a03, 0x0f172a, 0xf8fafc, 0x1e1b4b]);
+      const shoeL = new THREE.Mesh(GEO.shoe, mat(shoeColor)); shoeL.position.set(0, -0.52, 0.035);
+      const shoeR = new THREE.Mesh(GEO.shoe, mat(shoeColor)); shoeR.position.set(0, -0.52, 0.035);
+      lLeg.add(shoeL); rLeg.add(shoeR);
+
+      const belt = new THREE.Mesh(GEO.belt, mat(0x18181b)); belt.position.set(0, 0.65, 0);
+      const buckle = new THREE.Mesh(GEO.buckle, mat(0xfacc15)); buckle.position.set(0, 0.65, 0.115);
+      g.add(belt, buckle);
+    }
 
     // Kızlar için sütyen / bikini üstü
     if (isSwimFemale || (isSunbather && o.female)) {
@@ -615,6 +691,9 @@ export class NPCManager {
     this.playerPos.copy(playerPos);
     this._updateSchool(dt);
     this._updateBeach(dt);
+    this._updateStrollers(dt);
+    this._updateChatGroups(dt);
+    this._updatePlaygroundKids(dt);
 
     // Gece olduğunda şirket binalarındaki çalışanlar ellerinde kahverengi şirket çantasıyla sakin bir şekilde binayı boşaltır;
     // gündüz olduğunda (bina yıkılmadıysa) masalarına geri dönerler.
@@ -1740,6 +1819,377 @@ export class NPCManager {
       } else if (b.activity === 'sandcastle' && b.rArm) {
         // Kumdan kale yapan çocuk küreğiyle kumu kazar
         b.rArm.rotation.x = -0.9 + Math.sin(Date.now() * 0.004) * 0.35;
+      }
+    }
+  }
+
+  // ── BEBEK ARABASI (TEKERLEKLİ SANDALYE) VE ANNE ──
+  // Kullanıcı İsteği: "Tekerlekli sandalyede oturan bebekler olsun, annesi onları götürsün."
+  _createStroller(color = 0x0284c7) {
+    const sg = new THREE.Group();
+    const matFrame = mat(0x475569);
+    const matWheel = mat(0x18181b);
+    const matHub = mat(0xe2e8f0);
+    const matFabric = mat(color);
+    const matBlanket = mat(0xf8fafc);
+    const matBabySkin = mat(0xf1c27d);
+    const matBonnet = mat(0xf472b6); // Sevimli bebek bonesi
+    const matPacifier = mat(0xfacc15); // Bebek emziği
+
+    // 4 Tekerlek
+    const mkWheel = (x, y, z, r = 0.16) => {
+      const wG = new THREE.Group();
+      wG.position.set(x, y, z);
+      const tire = new THREE.Mesh(boxGeo(0.08, r * 2, r * 2), matWheel);
+      const hub = new THREE.Mesh(boxGeo(0.1, r * 0.9, r * 0.9), matHub);
+      wG.add(tire, hub);
+      return wG;
+    };
+    const wRL = mkWheel(-0.28, 0.16, -0.32, 0.16);
+    const wRR = mkWheel(0.28, 0.16, -0.32, 0.16);
+    const wFL = mkWheel(-0.24, 0.12, 0.34, 0.12);
+    const wFR = mkWheel(0.24, 0.12, 0.34, 0.12);
+    sg.add(wRL, wRR, wFL, wFR);
+
+    // Boru şasi ve itme tutacağı
+    const fBottom = new THREE.Mesh(boxGeo(0.48, 0.04, 0.65), matFrame); fBottom.position.set(0, 0.2, 0.02);
+    const strutL = new THREE.Mesh(boxGeo(0.04, 0.85, 0.04), matFrame); strutL.position.set(-0.24, 0.58, -0.15); strutL.rotation.x = -0.45;
+    const strutR = new THREE.Mesh(boxGeo(0.04, 0.85, 0.04), matFrame); strutR.position.set(0.24, 0.58, -0.15); strutR.rotation.x = -0.45;
+    const handleBar = new THREE.Mesh(boxGeo(0.54, 0.05, 0.05), mat(0x0f172a)); handleBar.position.set(0, 0.92, -0.52);
+    sg.add(fBottom, strutL, strutR, handleBar);
+
+    // Bebek sepeti ve gölgelik tente
+    const bassinet = new THREE.Mesh(boxGeo(0.46, 0.28, 0.68), matFabric); bassinet.position.set(0, 0.44, 0.04);
+    const canopy = new THREE.Mesh(boxGeo(0.48, 0.24, 0.34), matFabric); canopy.position.set(0, 0.68, -0.12);
+    sg.add(bassinet, canopy);
+
+    // İçeride oturan sevimli bebek
+    const babyGroup = new THREE.Group();
+    babyGroup.position.set(0, 0.52, -0.06);
+    const bHead = new THREE.Mesh(boxGeo(0.2, 0.2, 0.2), matBabySkin); bHead.position.set(0, 0.12, 0);
+    const bCap = new THREE.Mesh(boxGeo(0.22, 0.09, 0.22), matBonnet); bCap.position.set(0, 0.21, 0);
+    // Bebek gözleri ve küçük burnu
+    const bEyeL = new THREE.Mesh(boxGeo(0.035, 0.035, 0.01), mat(0x18181b)); bEyeL.position.set(-0.05, 0.14, 0.105);
+    const bEyeR = new THREE.Mesh(boxGeo(0.035, 0.035, 0.01), mat(0x18181b)); bEyeR.position.set(0.05, 0.14, 0.105);
+    const bNose = new THREE.Mesh(boxGeo(0.03, 0.03, 0.02), matBabySkin); bNose.position.set(0, 0.11, 0.11);
+    const bPacifier = new THREE.Mesh(boxGeo(0.06, 0.05, 0.04), matPacifier); bPacifier.position.set(0, 0.06, 0.12);
+    // Bebek battaniyesi
+    const bBlanket = new THREE.Mesh(boxGeo(0.4, 0.14, 0.38), matBlanket); bBlanket.position.set(0, 0.04, 0.18);
+    babyGroup.add(bHead, bCap, bEyeL, bEyeR, bNose, bPacifier, bBlanket);
+    sg.add(babyGroup);
+
+    return { sg, babyHead: bHead, wheels: [wRL, wRR, wFL, wFR] };
+  }
+
+  _spawnStrollers() {
+    this.strollers = [];
+    const strollerConfigs = [
+      // 1. Kordon Sahil Gezintisi Yapan Anne ve Bebeği
+      { x0: -460, x1: -220, z: 6.2, y: 0.5, speed: 1.6, color: 0xec4899, dir: 1 },
+      // 2. Merkez Park Ana Patikasında Gezen Anne
+      { x0: 360, x1: 480, z: 100, y: 0.5, speed: 1.5, color: 0x0284c7, dir: 1 },
+      // 3. Şehir Meydanı Bulvar Kaldırımında Gezen Anne
+      { x0: -110, x1: 30, z: 5.2, y: 0.5, speed: 1.6, color: 0x10b981, dir: 1 },
+      // 4. Merkez Park Gölet Kenarında Gezen Anne
+      { x0: 430, x1: 480, z: 135, y: 0.5, speed: 1.4, color: 0x8b5cf6, dir: 1 }
+    ];
+
+    strollerConfigs.forEach((cfg, idx) => {
+      // Anne NPC
+      const mom = this._makeBody(false, null, { shirt: pick([0xec4899, 0xa855f7, 0x06b6d4, 0xf43f5e, 0x10b981]) });
+      mom.g.scale.setScalar(SCALE * 0.95);
+      // Kolları öne uzatarak bebek arabasını iter
+      mom.lArm.rotation.x = -1.02; mom.rArm.rotation.x = -1.02;
+      mom.g.position.set(cfg.x0, cfg.y, cfg.z);
+      this.scene.add(mom.g);
+
+      // Bebek Arabası
+      const stroller = this._createStroller(cfg.color);
+      stroller.sg.scale.setScalar(1.15);
+      this.scene.add(stroller.sg);
+
+      this.strollers.push({
+        group: mom.g,
+        strollerGroup: stroller.sg,
+        babyHead: stroller.babyHead,
+        wheels: stroller.wheels,
+        lArm: mom.lArm,
+        rArm: mom.rArm,
+        lLeg: mom.lLeg,
+        rLeg: mom.rLeg,
+        x: cfg.x0,
+        y: cfg.y,
+        z: cfg.z,
+        x0: cfg.x0,
+        x1: cfg.x1,
+        speed: cfg.speed,
+        dir: cfg.dir,
+        cycle: idx * 1.5,
+        babyPhase: idx * 2.0
+      });
+    });
+  }
+
+  _updateStrollers(dt) {
+    if (!this.strollers || this.strollers.length === 0) return;
+    for (const s of this.strollers) {
+      s.x += s.dir * s.speed * dt;
+      s.cycle += dt * 6;
+      s.babyPhase += dt * 2.8;
+
+      // Anne yürüme adımları
+      s.lLeg.rotation.x = Math.sin(s.cycle) * 0.45;
+      s.rLeg.rotation.x = -Math.sin(s.cycle) * 0.45;
+
+      // Bebek kafası neşeyle hafifçe sallanır
+      s.babyHead.rotation.y = Math.sin(s.babyPhase * 0.8) * 0.28;
+      s.babyHead.position.y = 0.12 + Math.sin(s.babyPhase * 1.6) * 0.015;
+
+      // Bebek arabası tekerlekleri döner
+      const rot = (s.speed / 0.15) * dt * s.dir;
+      s.wheels.forEach(w => { w.rotation.x += rot; });
+
+      // Anne yönü ve pozisyonu
+      const heading = s.dir > 0 ? 0 : Math.PI;
+      s.group.rotation.y = heading;
+      s.group.position.set(s.x, s.y, s.z);
+
+      // Bebek arabası annenin önünde ilerler (1.05 metre ilerisi)
+      const fwd = s.dir > 0 ? 1 : -1;
+      s.strollerGroup.rotation.y = heading;
+      s.strollerGroup.position.set(s.x + fwd * 1.05, s.y, s.z);
+
+      // Sınırlara varınca geri dön
+      if (s.dir > 0 && s.x >= s.x1) {
+        s.x = s.x1;
+        s.dir = -1;
+      } else if (s.dir < 0 && s.x <= s.x0) {
+        s.x = s.x0;
+        s.dir = 1;
+      }
+    }
+  }
+
+  // ── PARKTA BULUŞUP KONUŞAN İNSANLAR (BANKTA İKİLİLER & ÇEMBERDE 4-5 KİŞİLİK GRUPLAR) ──
+  // Kullanıcı İsteği: "Bazı konuşan insanlar olsun, özellikle parkta sanki buluşmuşlar gibi iki insan bankta oturup konuşsun ya da dört insan ya da beş insan."
+  _spawnChatGroups() {
+    this.chatGroups = [];
+
+    // GRUP 1: Merkez Park Meydan Bankında Oturup Konuşan 2 Kişi
+    {
+      const benchX = 419, benchZ = 95;
+      const p1 = this._makeBody(false, null, { shirt: 0x2563eb });
+      p1.g.scale.setScalar(SCALE * 0.96);
+      p1.lLeg.rotation.x = -Math.PI / 2; p1.rLeg.rotation.x = -Math.PI / 2;
+      p1.g.position.set(benchX - 0.45, 0.5, benchZ);
+      p1.g.rotation.y = 0.35; // Birbirine doğru dönük
+
+      const p2 = this._makeBody(false, null, { shirt: 0xec4899 });
+      p2.g.scale.setScalar(SCALE * 0.94);
+      p2.lLeg.rotation.x = -Math.PI / 2; p2.rLeg.rotation.x = -Math.PI / 2;
+      p2.g.position.set(benchX + 0.45, 0.5, benchZ);
+      p2.g.rotation.y = -0.35;
+
+      this.scene.add(p1.g, p2.g);
+      this.chatGroups.push({
+        type: 'bench_pair',
+        members: [
+          { group: p1.g, head: p1.head, lArm: p1.lArm, rArm: p1.rArm },
+          { group: p2.g, head: p2.head, lArm: p2.lArm, rArm: p2.rArm }
+        ],
+        speakerIndex: 0,
+        turnTimer: 6.0
+      });
+    }
+
+    // GRUP 2: Merkez Park Gölet Kenarı Bankında Konuşan 2 Arkadaş
+    {
+      const benchX = 467, benchZ = 133;
+      const p1 = this._makeBody(false, null, { shirt: 0x16a34a });
+      p1.g.scale.setScalar(SCALE * 0.95);
+      p1.lLeg.rotation.x = -Math.PI / 2; p1.rLeg.rotation.x = -Math.PI / 2;
+      p1.g.position.set(benchX - 0.4, 0.5, benchZ);
+      p1.g.rotation.y = 0.32;
+
+      const p2 = this._makeBody(false, null, { shirt: 0xf59e0b });
+      p2.g.scale.setScalar(SCALE * 0.95);
+      p2.lLeg.rotation.x = -Math.PI / 2; p2.rLeg.rotation.x = -Math.PI / 2;
+      p2.g.position.set(benchX + 0.4, 0.5, benchZ);
+      p2.g.rotation.y = -0.32;
+
+      this.scene.add(p1.g, p2.g);
+      this.chatGroups.push({
+        type: 'bench_pair',
+        members: [
+          { group: p1.g, head: p1.head, lArm: p1.lArm, rArm: p1.rArm },
+          { group: p2.g, head: p2.head, lArm: p2.lArm, rArm: p2.rArm }
+        ],
+        speakerIndex: 1,
+        turnTimer: 5.5
+      });
+    }
+
+    // GRUP 3: Parkta Çember Oluşturup Sohbet Eden 4 Kişilik Arkadaş Grubu
+    {
+      const cx = 412, cz = 106, radius = 1.35;
+      const members = [];
+      const colors = [0xdc2626, 0x0284c7, 0x8b5cf6, 0x10b981];
+      for (let i = 0; i < 4; i++) {
+        const angle = (i / 4) * Math.PI * 2;
+        const px = cx + Math.cos(angle) * radius;
+        const pz = cz + Math.sin(angle) * radius;
+        const person = this._makeBody(false, null, { shirt: colors[i] });
+        person.g.scale.setScalar(SCALE * 0.95);
+        person.g.position.set(px, 0.5, pz);
+        // Çemberin merkezine dönük
+        person.g.rotation.y = Math.atan2(cx - px, cz - pz);
+        this.scene.add(person.g);
+        members.push({ group: person.g, head: person.head, lArm: person.lArm, rArm: person.rArm });
+      }
+      this.chatGroups.push({
+        type: 'circle_group',
+        members,
+        speakerIndex: 0,
+        turnTimer: 7.0
+      });
+    }
+
+    // GRUP 4: Çimlik Alanda Buluşup Sohbet Eden 5 Kişilik Genç Grubu
+    {
+      const cx = 445, cz = 135, radius = 1.55;
+      const members = [];
+      const colors = [0xf97316, 0x06b6d4, 0xec4899, 0xfacc15, 0x3b82f6];
+      for (let i = 0; i < 5; i++) {
+        const angle = (i / 5) * Math.PI * 2;
+        const px = cx + Math.cos(angle) * radius;
+        const pz = cz + Math.sin(angle) * radius;
+        const person = this._makeBody(false, null, { shirt: colors[i] });
+        person.g.scale.setScalar(SCALE * 0.95);
+        person.g.position.set(px, 0.5, pz);
+        person.g.rotation.y = Math.atan2(cx - px, cz - pz);
+        this.scene.add(person.g);
+        members.push({ group: person.g, head: person.head, lArm: person.lArm, rArm: person.rArm });
+      }
+      this.chatGroups.push({
+        type: 'circle_group',
+        members,
+        speakerIndex: 2,
+        turnTimer: 6.5
+      });
+    }
+  }
+
+  _updateChatGroups(dt) {
+    if (!this.chatGroups || this.chatGroups.length === 0) return;
+    const time = Date.now() * 0.003;
+    for (const g of this.chatGroups) {
+      g.turnTimer -= dt;
+      if (g.turnTimer <= 0) {
+        // Konuşma sırası bir başkasına geçer
+        g.turnTimer = 4.5 + Math.random() * 4.0;
+        let nextSpeaker = Math.floor(Math.random() * g.members.length);
+        if (nextSpeaker === g.speakerIndex) nextSpeaker = (nextSpeaker + 1) % g.members.length;
+        g.speakerIndex = nextSpeaker;
+      }
+
+      g.members.forEach((m, idx) => {
+        const isSpeaker = idx === g.speakerIndex;
+        if (isSpeaker) {
+          // Konuşan kişi: kafa sallar, jest ve mimiklerle ellerini hareket ettirir
+          m.head.rotation.y = Math.sin(time * 2.2) * 0.18;
+          m.head.rotation.x = Math.sin(time * 3.1) * 0.08;
+          m.rArm.rotation.x = -0.7 + Math.sin(time * 3.5) * 0.35;
+          m.rArm.rotation.z = 0.25 + Math.sin(time * 2.5) * 0.15;
+          m.lArm.rotation.x = -0.4 + Math.sin(time * 2.8) * 0.2;
+        } else {
+          // Dinleyen kişi: hafifçe kafa sallar (onaylar), eller sakin durur
+          m.head.rotation.y = Math.sin(time * 0.8 + idx) * 0.08;
+          m.head.rotation.x = Math.sin(time * 1.5 + idx) * 0.06;
+          m.rArm.rotation.x = -0.15;
+          m.rArm.rotation.z = 0.05;
+          m.lArm.rotation.x = -0.15;
+          m.lArm.rotation.z = -0.05;
+        }
+      });
+    }
+  }
+
+  // ── PARKTA OYNAYAN ÇOCUKLAR (SALINCAK, KAYDIRAK) ──
+  // Kullanıcı İsteği: "Hatta parkta falan oynayan da olsun."
+  _spawnPlaygroundKids() {
+    this.playgroundKids = [];
+
+    // 1. Salıncakta sallanan çocuklar
+    const swingPositions = [
+      { x: 462, y: 1.5, z: 48 },
+      { x: 468, y: 1.5, z: 48 }
+    ];
+    swingPositions.forEach((pos, idx) => {
+      const kid = this._makeBody(false, 'child', { shirt: pick([0xef4444, 0x3b82f6, 0xfacc15, 0x10b981]) });
+      kid.g.scale.setScalar(SCALE * 0.58);
+      // Salıncakta oturuş pozisyonu (bacaklar ileri, eller zincirde)
+      kid.lLeg.rotation.x = -Math.PI / 2.3; kid.rLeg.rotation.x = -Math.PI / 2.3;
+      kid.lArm.rotation.x = -1.1; kid.rArm.rotation.x = -1.1;
+      kid.g.position.set(pos.x, pos.y, pos.z);
+      this.scene.add(kid.g);
+      this.playgroundKids.push({
+        type: 'swing',
+        group: kid.g,
+        lLeg: kid.lLeg,
+        rLeg: kid.rLeg,
+        baseX: pos.x,
+        baseY: pos.y,
+        baseZ: pos.z,
+        phase: idx * 1.6
+      });
+    });
+
+    // 2. Kaydıraktan kayan çocuk
+    {
+      const kid = this._makeBody(false, 'child', { shirt: 0xf97316 });
+      kid.g.scale.setScalar(SCALE * 0.56);
+      kid.g.position.set(483, 1.8, 48);
+      this.scene.add(kid.g);
+      this.playgroundKids.push({
+        type: 'slide',
+        group: kid.g,
+        lLeg: kid.lLeg,
+        rLeg: kid.rLeg,
+        state: 'sliding',
+        t: 0
+      });
+    }
+  }
+
+  _updatePlaygroundKids(dt) {
+    if (!this.playgroundKids || this.playgroundKids.length === 0) return;
+    for (const k of this.playgroundKids) {
+      if (k.type === 'swing') {
+        // Salıncak sallanma fiziği
+        k.phase += dt * 2.4;
+        const angle = Math.sin(k.phase) * 0.48;
+        k.group.rotation.x = angle;
+        // İleri gidişte bacaklar öne fırlar
+        k.lLeg.rotation.x = -Math.PI / 2.2 + angle * 0.4;
+        k.rLeg.rotation.x = -Math.PI / 2.2 + angle * 0.4;
+        k.group.position.y = k.baseY + Math.abs(Math.sin(k.phase)) * 0.22;
+      } else if (k.type === 'slide') {
+        // Kaydırak döngüsü (tepeden aşağı kayar, sonra tekrar merdivene döner)
+        k.t = (k.t + dt * 0.45) % 1.0;
+        if (k.t < 0.6) {
+          // Aşağı kayma fazı
+          const progress = k.t / 0.6;
+          k.group.position.set(483, 3.2 - progress * 2.4, 46 + progress * 5.0);
+          k.group.rotation.x = -0.45;
+          k.lLeg.rotation.x = -Math.PI / 2.2; k.rLeg.rotation.x = -Math.PI / 2.2;
+        } else {
+          // Merdivenden yukarı çıkış fazı
+          const upProgress = (k.t - 0.6) / 0.4;
+          k.group.position.set(483, 0.8 + upProgress * 2.4, 46);
+          k.group.rotation.x = 0;
+          k.lLeg.rotation.x = Math.sin(Date.now() * 0.01) * 0.5;
+          k.rLeg.rotation.x = -Math.sin(Date.now() * 0.01) * 0.5;
+        }
       }
     }
   }

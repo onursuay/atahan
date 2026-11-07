@@ -953,6 +953,66 @@ class SoundEngine {
     this._burst(now, 0.32, 0.38, 'bandpass', 520, 2200, 1.8);
   }
 
+  // Şehir Otobüsü Havalı Fren Sesi (Pneumatic Air Brake Release Hiss)
+  playBusBrake() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    // Tazyikli hava boşalması tıslaması (psssshhhhh)
+    this._burst(now, 0.45, 0.42, 'highpass', 1800, 800, 1.2);
+    this._burst(now + 0.05, 0.35, 0.28, 'bandpass', 950, 450, 0.9);
+    // Fren balata ve valf tok sesi
+    this._thump(now, 0.12, 0.3, 110, 42, 'sine');
+  }
+
+  // Otobüs Durak ve Yolcu Uyarı Zili (Ding-Dong)
+  playBusChime() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [784.0, 659.25]; // G5, E5
+    notes.forEach((freq, idx) => {
+      const t = now + idx * 0.22;
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      g.gain.setValueAtTime(0.24, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+      osc.connect(g); g.connect(this.ctx.destination);
+      osc.start(t); osc.stop(t + 0.56);
+
+      const osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+      osc2.type = 'triangle';
+      osc2.frequency.setValueAtTime(freq * 2, t);
+      g2.gain.setValueAtTime(0.08, t);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+      osc2.connect(g2); g2.connect(this.ctx.destination);
+      osc2.start(t); osc2.stop(t + 0.36);
+    });
+  }
+
+  // Havalı Otobüs Kapı Açılma/Kapanma Sesi (Pneumatic Door Slide)
+  playBusDoor() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    this._burst(now, 0.25, 0.28, 'bandpass', 1200, 600, 0.8);
+    this._thump(now + 0.22, 0.08, 0.22, 90, 35, 'triangle');
+  }
+
+  // Otobüs Havalı Kornası (Dual-Tone Transit Horn)
+  playBusHorn() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const freqs = [311.13, 392.0]; // Eb4, G4
+    freqs.forEach(f => {
+      const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(f, now);
+      g.gain.setValueAtTime(0.18, now);
+      g.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+      osc.connect(g); g.connect(this.ctx.destination);
+      osc.start(now); osc.stop(now + 0.46);
+    });
+  }
+
   // Okul zili tınısı: neşeli melodi ("DİNG DONG DİNG DONG")
   playSchoolBell() {
     if (this.muted || !this.ctx) return;

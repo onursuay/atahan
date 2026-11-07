@@ -20,13 +20,14 @@ import { getGrassTopTexture } from './textures.js';
 import { MapSystem } from './map.js';
 import { MetroSystem } from './metro.js';
 import { SeaLife } from './sealife.js';
+import { BusManager } from './bus.js';
 
 let scene, camera, renderer;
 let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
-let props, mapSystem, metro, seaLife;
+let props, mapSystem, metro, seaLife, busManager;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -243,6 +244,7 @@ function init() {
   try { buildLevelSelectButtons(); } catch (e) { console.warn(e); }
   try { mapSystem = new MapSystem(); } catch (e) { console.warn(e); }
   try { seaLife = new SeaLife(scene, voxelWorld); } catch (e) { console.warn(e); }
+  try { busManager = new BusManager(scene, voxelWorld, character); } catch (e) { console.warn(e); }
 
   finishLoadingUI();
   // Garanti yükleme emniyet kilitleri (Watchdog)
@@ -413,6 +415,9 @@ function updateGame(dt) {
     character.body.position.set(cp.x, cp.y + 1, cp.z);
     const dc = cars.driven;
     sound.updateEngine(dc.speed / (dc.T.speed[1] * 1.4), inputState.forward, inputState.jump || inputState.backward && dc.speed > 0);
+  } else if (busManager && busManager.passengerState && busManager.passengerState.inBus) {
+    // Otobüste yolcu olarak seyahat (şoför Rıza Kaptan sürer, oyuncu manzarayı seyreder)
+    sound.stopEngine();
   } else {
     sound.stopEngine();
     if (introActive && introWaiting) {
@@ -459,6 +464,7 @@ function updateGame(dt) {
   cars.update(dt, character.mesh.position);
   if (seaLife) seaLife.update(dt, character ? character.mesh.position : null);
   if (metro && !introWaiting) metro.update(dt, character);
+  if (busManager && !introWaiting) busManager.update(dt, character, inputState);
   // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik
   doorActors.length = 0;
   doorActors.push({ x: character.mesh.position.x, y: character.mesh.position.y, z: character.mesh.position.z });
@@ -1071,8 +1077,13 @@ function setupEventListeners() {
       e.preventDefault();
     }
 
-    // E tuşu: Çekiç vuruşu (veya Ahtapot modunda topaç dönüşü)
+    // E tuşu: Otobüse binme/inme, araca binme/inme veya çekiç vuruşu
     if (key === 'e' || e.code === 'KeyE') {
+      if (busManager && busManager.passengerState && busManager.passengerState.inBus) {
+        busManager.exitBus();
+        return;
+      }
+      if (busManager && busManager.handleUseKey()) return;
       if (inCar) exitCar();
       else {
         const car = cars.nearestEnterable(character.mesh.position);

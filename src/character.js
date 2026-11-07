@@ -161,6 +161,20 @@ export class Character {
     this.mesh.add(this._leftEye);
     this.mesh.add(this._rightEye);
 
+    // ── 3D YÜZ VE DETAYLAR (Küçük Burun, Kaşlar, Kulaklar) ──
+    const pNose = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.14, 0.1), this._skinMat);
+    pNose.position.set(0, 1.76, 0.44);
+    const browMat = new THREE.MeshLambertMaterial({ color: 0x2b1b0e });
+    const pBrowL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.04), browMat);
+    pBrowL.position.set(-0.18, 1.96, 0.42); pBrowL.rotation.z = 0.04;
+    const pBrowR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.04), browMat);
+    pBrowR.position.set(0.18, 1.96, 0.42); pBrowR.rotation.z = -0.04;
+    const pEarL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.14), this._skinMat);
+    pEarL.position.set(-0.43, 1.8, 0);
+    const pEarR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.14), this._skinMat);
+    pEarR.position.set(0.43, 1.8, 0);
+    this.mesh.add(pNose, pBrowL, pBrowR, pEarL, pEarR);
+
     // ── GÖVDE ──
     this._bodyMat = new THREE.MeshLambertMaterial({ map: shirtTex });
     this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.4), this._bodyMat);
