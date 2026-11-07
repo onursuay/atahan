@@ -470,7 +470,14 @@ function updateGame(dt) {
   if (seaLife) seaLife.update(dt, character ? character.mesh.position : null);
   if (metro && !introWaiting) metro.update(dt, character);
   if (busManager && !introWaiting) busManager.update(dt, character, inputState);
-  if (storyManager) storyManager.update(dt, character.mesh.position);
+  if (storyManager) {
+    storyManager.update(dt, character.mesh.position);
+    const inCinematic = storyManager.currentPhase !== STORY_PHASES.NONE &&
+                        storyManager.currentPhase !== STORY_PHASES.MISSION_COMBAT &&
+                        storyManager.currentPhase !== STORY_PHASES.MISSION_VICTORY;
+    document.body.classList.toggle('story-cinematic', inCinematic);
+    if (inCinematic && remoteModel) remoteModel.visible = false;
+  }
   if (storyManager && storyManager.weaponsLocked) {
     if (handWeapons && handWeapons.root.visible) handWeapons.root.visible = false;
   } else if (!introActive) {
@@ -552,6 +559,8 @@ function startIntro() {
         if (introFadeEl) introFadeEl.style.display = 'none';
         introActive = false;
         if (storyManager) {
+          if (remoteModel) remoteModel.visible = false;
+          document.body.classList.add('story-cinematic');
           storyManager.startStory();
         } else {
           const cfg = (levelManager && levelManager.levelConfigs) ? levelManager.levelConfigs[levelManager.currentLevelIndex || 0] : null;
@@ -576,7 +585,7 @@ function startIntro() {
   if (introFadeEl) { introFadeEl.style.display = 'block'; introFadeEl.style.opacity = '1'; }
   document.body.classList.add('intro');
   if (!remoteModel) remoteModel = buildRemote();
-  remoteModel.visible = true;
+  remoteModel.visible = false;
   handWeapons.root.visible = false;
   cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
 

@@ -1910,7 +1910,13 @@ export class LevelManager {
     w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.WOOD);
     w.fillBox(x1 + 1, 0, z1 + 1, x2 - 1, 0, z2 - 1, PALETTE.WOOD);          // iç zemin: ahşap parke
     const cz = Math.round((z1 + z2) / 2);
-    w.clearBox(x1, y1, cz - 1, x1, y1 + 4, cz + 1);                          // giriş (batı yüzü): caddeye bakan gerçek kapı
+    const cx = Math.round((x1 + x2) / 2);
+    // Caddeye bakan ön çıkış kapısı (kuzey yüzü, z1): Doğrudan caddeye ve limuzine bakar, önünde hiçbir bina yoktur!
+    w.clearBox(cx - 1, y1, z1, cx + 1, y1 + 4, z1);
+    // Doğu yüzü (x2): Caddeye ve köprü yönüne açılan kapı
+    w.clearBox(x2, y1, cz - 1, x2, y1 + 4, cz + 1);
+    // Batı yüzü (x1): Arka bahçe çıkış kapısı
+    w.clearBox(x1, y1, cz - 1, x1, y1 + 4, cz + 1);
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
     this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);                    // 2. kat döşemesi (y = 5.0..5.5 m)
     this.addStairs(x1, y1, z1, x2, y2, z2);                                  // üst kata çıkan/inen ahşap merdiven
