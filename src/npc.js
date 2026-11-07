@@ -11,7 +11,7 @@ import { DogManager, CatManager } from './animals.js';
 // Mermiyle (kurşunla) vurulunca komple dağılmazlar: KAFAYA isabet kafayı parçalar (ten küpleri + kırmızı kan küpleri),
 // gövdeye isabet yaralar; ceset yere yığılır ve bir süre kalır. Bir süre sonra başka yerde yenisi doğar.
 // ─────────────────────────────────────────────────────────────────────────────
-const NPC_COUNT = 80;
+const NPC_COUNT = 125;
 const SCALE = 1.6;               // normal insandan bir buçuk kat büyük
 const HALF_W = 0.22 * SCALE;
 const HEIGHT = 2.5;              // çarpışma yüksekliği (model 2.5 m): 3.5 m'lik iç mekan tavanlarına ve 3.0 m'deki tavan lambalarına sığar
@@ -495,13 +495,27 @@ export class NPCManager {
     const t = this.voxelWorld.terrain;
     if (!t.bounds) return;
     const b = t.bounds;
+    const px = this.playerPos ? this.playerPos.x : 0, pz = this.playerPos ? this.playerPos.z : 0;
+    const hasPlayer = Math.abs(px) > 0.1 || Math.abs(pz) > 0.1;
+    const nearBias = hasPlayer && Math.random() < 0.70;
+
     for (let tries = 0; tries < 200; tries++) {
-      const x = b.minX + Math.random() * (b.maxX - b.minX);
-      const z = b.minZ + Math.random() * (b.maxZ - b.minZ);
+      let x, z;
+      if (nearBias) {
+        const ang = Math.random() * Math.PI * 2;
+        const rad = 14 + Math.random() * 70; // Oyuncunun 14m .. 84m etrafındaki kaldırımlara ve sokaklara öncelik ver
+        x = px + Math.cos(ang) * rad;
+        z = pz + Math.sin(ang) * rad;
+      } else {
+        x = b.minX + Math.random() * (b.maxX - b.minX);
+        z = b.minZ + Math.random() * (b.maxZ - b.minZ);
+      }
+      if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue;
       if (!t.topIntactAt(x, z)) continue;
       if (insideVillaWalls(x, z, 3)) continue;                        // villa duvarının içinde yalnız sahibi ve güvenlikleri bulunur
       const gy0 = t.topYAt(x, z);
-      if (this.playerPos.distanceTo(new THREE.Vector3(x, gy0, z)) < 12) continue;
+      if (gy0 < 0.2) continue;                                       // denizin içinde yaya doğmasın
+      if (this.playerPos.distanceTo(new THREE.Vector3(x, gy0, z)) < 10) continue;
       if (this._solid(x, gy0, z)) continue;
       // Çevresi açık mı (bina içinde ya da duvarın dibinde doğmasın)
       if (this._solid(x + 1.2, gy0, z) || this._solid(x - 1.2, gy0, z) ||
@@ -745,12 +759,22 @@ export class NPCManager {
         // Kritik durumlar (fırlatılma, havada tutulma veya tahliye) her zaman güncellenir
         if (n.evacPhase || n.thrownVel || n.grabbed) {
           this._step(n, dt);
-        } else if (n.state === 'walk') {
-          // Uzaktaki yürüyen NPC: her 4 karede bir pozisyon ilerletilir, uzuv trigonometrisi atlanır
-          if ((i + fCount) % 4 === 0) {
-            n.x += (n.vx || 0) * dt * 4;
-            n.z += (n.vz || 0) * dt * 4;
-            n.group.position.set(n.x, n.y, n.z);
+        } else {
+          // Sıradan başıboş gezen yaya oyuncudan çok uzaklaştıysa (>165m), oyuncu yakınına geri kazandır
+          if (!n.resident && !n.worker && !n.stroller && !n.chatGroup && !n.playgroundKid && distSq > 165 * 165 && Math.random() < 0.05) {
+            this.scene.remove(n.group);
+            this.npcs.splice(i, 1);
+            this.respawnQueue.push(0.3);
+            i--;
+            continue;
+          }
+          if (n.state === 'walk') {
+            // Uzaktaki yürüyen NPC: her 4 karede bir pozisyon ilerletilir, uzuv trigonometrisi atlanır
+            if ((i + fCount) % 4 === 0) {
+              n.x += (n.vx || 0) * dt * 4;
+              n.z += (n.vz || 0) * dt * 4;
+              n.group.position.set(n.x, n.y, n.z);
+            }
           }
         }
         continue;

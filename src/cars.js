@@ -10,7 +10,7 @@ const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yü
 // ya da sağa/sola yuvarlak bir yayla dönerler; yolun ucunda U dönüşü yaparlar. Dokuz tür (bkz. carmodels.js).
 // İçlerinde sürücü görünür. Hasar bölgeseldir (ön/arka/sol/sağ); ön bölge parçalanınca araç durup dumanlanır.
 // ─────────────────────────────────────────────────────────────────────────────
-const CAR_COUNT = 40;
+const CAR_COUNT = 65;
 const U = 0.75;                      // eski birim -> metre
 const TURN_R = 4.2;                  // dönüş yarıçapı (m)
 const COLORS = [0xdc2626, 0xf59e0b, 0xfacc15, 0x2563eb, 0x16a34a, 0xf3f4f6, 0x111827, 0x9333ea, 0xf97316, 0x06b6d4, 0xe11d48, 0x84cc16];
@@ -129,8 +129,20 @@ export class CarManager {
   }
 
   _spawn() {
+    const px = this.player ? this.player.x : 0, pz = this.player ? this.player.z : 0;
+    const hasPlayer = Math.abs(px) > 0.1 || Math.abs(pz) > 0.1;
+    let pool = this.edges;
+    if (hasPlayer && Math.random() < 0.75) {
+      const nearEdges = this.edges.filter(e => {
+        const mx = (e.from.x + e.to.x) * 0.5, mz = (e.from.z + e.to.z) * 0.5;
+        const d = Math.hypot(mx - px, mz - pz);
+        return d >= 18 && d <= 140;
+      });
+      if (nearEdges.length >= 4) pool = nearEdges;
+    }
+
     for (let tries = 0; tries < 60; tries++) {
-      const e = this.edges[Math.floor(Math.random() * this.edges.length)];
+      const e = pool[Math.floor(Math.random() * pool.length)];
       if (e.len < 14) continue;
       const lane = Math.floor(Math.random() * e.road.lanes), s = rnd(6, e.len - 6);
       if (this.cars.some(c => c.edge === e && c.lane === lane && Math.abs(c.s - s) < 10)) continue;
@@ -401,6 +413,13 @@ export class CarManager {
       const distFromPlayer = Math.hypot(car.pos.x - this.player.x, car.pos.z - this.player.z);
       if (distFromPlayer > 200) {
         if (car.g.visible) car.g.visible = false;
+        // Oyuncudan çok uzaklaşan sürüşteki araçları sessizce oyuncu çevresine yeniden doğur (akıcı GTA tipi trafik)
+        if (distFromPlayer > 210 && car.state === 'drive' && !car.permanent && Math.random() < 0.08) {
+          this.scene.remove(car.g);
+          this.cars.splice(i, 1);
+          this.respawn.push(0.2);
+          continue;
+        }
         // Uzaktaki araçları 2 karede bir güncelle (CPU tasarrufu)
         if ((i + Math.floor(this.blinkT * 30)) % 2 !== 0) continue;
       } else {
