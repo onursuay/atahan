@@ -116,10 +116,10 @@ function init() {
   // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 5X Genişletilmiş Harita Görüşü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
-  scene.fog = new THREE.Fog(0x78a7ff, 600, 9500);
+  scene.fog = new THREE.Fog(0x78a7ff, 320, 900);
 
-  // 2. Kamera: 4500 m görüş mesafesi (sis 3200m'de bittiği için 4500m fazlasıyla yeterli ve Z-buffer hassasiyetini 10 kat artırır)
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 4500);
+  // 2. Kamera: 950 m görüş mesafesi (optimize edilmiş derinlik ve yüksek FPS)
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 950);
 
   // 3. Renderer (Performans için optimize edildi: 60 FPS akıcı voxel deneyimi)
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });

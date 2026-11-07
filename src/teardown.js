@@ -909,14 +909,14 @@ export class VoxelWorld {
     this.collapse.update(dt);
     if (this.bridge) this.bridge.update(dt);
 
-    // Chunk LOD & Distance Culling: Sis sınırının (600m) ötesindeki chunk'ları render'dan çıkar
-    // ve yalnızca oyuncuya yakın (<120m) binalara gerçek zamanlı gölge ver (60 FPS garantisi)
+    // Chunk LOD & Distance Culling: Sis sınırının (320m) ötesindeki chunk'ları render'dan çıkar
+    // ve yalnızca oyuncuya yakın (<75m) binalara gerçek zamanlı gölge ver (60 FPS garantisi)
     this._cullTimer = (this._cullTimer || 0) + dt;
-    if (this._cullTimer >= 0.12 && camPos && this.chunkMeshes.length > 0) {
+    if (this._cullTimer >= 0.08 && camPos && this.chunkMeshes.length > 0) {
       this._cullTimer = 0;
       const camX = camPos.x, camZ = camPos.z;
-      const maxDistSq = 620 * 620;
-      const shadowDistSq = 120 * 120;
+      const maxDistSq = 320 * 320;
+      const shadowDistSq = 75 * 75;
       for (let i = 0; i < this.chunkMeshes.length; i++) {
         const m = this.chunkMeshes[i];
         const u = m.userData;

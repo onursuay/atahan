@@ -196,8 +196,8 @@ export class LevelManager {
     w.fillBox(428, 0, -300, 720, 0, 300, PALETTE.GRASS); // MUST BE GRASS for heightFn to build the mountain!
     this._setHills();
 
-    // Batı Ada: KOCAMAN ARKAYA GENİŞLETİLMİŞ KARE METROPOL ŞEHRİ (x: -770..20, z: -800..800)
-    w.fillBox(-770, 0, -800, 20, 0, 800, PALETTE.CONCRETE);
+    // Batı Ada: KOCAMAN ARKAYA GENİŞLETİLMİŞ KARE METROPOL ŞEHRİ (x: -770..20, z: -450..450, optimize edilmiş sınırlar)
+    w.fillBox(-770, 0, -450, 20, 0, 450, PALETTE.CONCRETE);
     this.buildOrganicBeach();                                    // Organik dalgalı, cetvelle çizilmemiş devasa sahil kumsalı ve iskeleler
 
     w.fillBox(258, 0, -380, 290, 0, 380, PALETTE.CONCRETE);     // doğu ada: şehir blokları (köprüden sonra)
@@ -580,8 +580,8 @@ export class LevelManager {
 
     // Dikey bulvar ve caddeler (Batı ada ve arka bölgeler: x: -750 .. -27)
     const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -47, -27];
-    // Yatay ana caddeler (z: -750 .. 750)
-    const Z_ROADS = [-750, -650, -550, -450, -380, -320, -266, -134, -66, 0, 66, 134, 266, 320, 380, 450, 550, 650, 750];
+    // Yatay ana caddeler: Şehrin 5'te 2'si optimize edilerek aşırı uzak boş binalar kaldırıldı (z: -420 .. 420)
+    const Z_ROADS = [-420, -380, -320, -266, -134, -66, 0, 66, 134, 266, 320, 380, 420];
 
     // Dört yolun çevrelediği tüm kare şehir bloklarını dolaş:
     // Karenin ortası KESİNLİKLE BOŞ (avlu) bırakılır; binalar 4 yola bakan kenarlara dizilir.
@@ -2975,8 +2975,8 @@ export class LevelManager {
     // Doğal sahil kıvrım formülü: Cetvelle çizilmiş düz çizgiyi yok eden sinüzoidal harmonikler
     const coastWave = (z) => 28 * Math.sin(z * 0.014) + 16 * Math.cos(z * 0.032) + 8 * Math.sin(z * 0.065);
 
-    // Her 4 birimlik Z diliminde dalgalı organik kumsal ve ahşap yürüyüş yolu
-    for (let z = -800; z <= 800; z += 4) {
+    // Her 4 birimlik Z diliminde dalgalı organik kumsal ve ahşap yürüyüş yolu (z: -450 .. 450)
+    for (let z = -450; z <= 450; z += 4) {
       const wave = coastWave(z);
       const beachX0 = Math.round(-845 + wave);
       const beachX1 = -770;
@@ -2987,7 +2987,7 @@ export class LevelManager {
     }
 
     // Denize uzanan 3 adet dev ahşap iskele ve T-platformları
-    [-450, 0, 480].forEach(pz => {
+    [-340, 0, 340].forEach(pz => {
       const pierWave = coastWave(pz);
       const pStart = Math.round(-845 + pierWave);
       w.fillBox(pStart - 40, 0, pz - 3, -770, 0, pz + 3, PALETTE.WOOD);
@@ -3048,10 +3048,8 @@ export class LevelManager {
       w.fillBox(cx + 4, 1, cz, cx + 4, 1, cz, PALETTE.BRICK);
     });
 
-    // ── SIĞ DENİZ GİRİŞİ, YUMUŞAK İNİŞ VE DÜZ DENİZ YOLU TABANI ──
-    // Kullanıcının isteği: "İlk girişte derin olmasın, çok sığ olsun. Yavaş yavaş hafifçe insin.
-    // Bir süre sonra inmeyi bıraksın ve düz bir yol olsun. O düz yollara da hafif tepeler ekle."
-    for (let z = -800; z <= 800; z += 6) {
+    // ── SIĞ DENİZ GİRİŞİ, YUMUŞAK İNİŞ VE DÜZ DENİZ YOLU TABANI (z: -450 .. 450)
+    for (let z = -450; z <= 450; z += 6) {
       const wave = coastWave(z);
       const b0 = Math.round(-845 + wave);
 
@@ -3062,12 +3060,9 @@ export class LevelManager {
       w.fillBox(b0 - 450, 0, z, b0 - 24, 0, z + 5, PALETTE.SAND);
     }
 
-    // ── SU ALTINDAKİ KIRILABİLİR DENİZ TAŞLARI VE ÇAKILLAR (UNDERWATER SEA PEBBLES & ROCKS) ──
-    // Kullanıcının isteği: "Deniz çakıl taşları falan onları eklemişsin ancak onlar neden sahilde?
-    // Onların denizin içinde olması lazımdı, benim amacım oydu. Denizi kaplasın yani."
-    // Denizin içindeki kum tabanında (su altında) denizi kaplayan kırılabilir çakıl ve deniz kayaları:
+    // ── SU ALTINDAKİ KIRILABİLİR DENİZ TAŞLARI VE ÇAKILLAR (z: -420 .. 420) ──
     const rockMaterials = [PALETTE.STONE, PALETTE.CONCRETE, PALETTE.BEIGE];
-    for (let z = -750; z <= 750; z += 14) {
+    for (let z = -420; z <= 420; z += 14) {
       const wave = coastWave(z);
       const b0 = Math.round(-845 + wave);
 
