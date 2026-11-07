@@ -885,6 +885,11 @@ export class StoryManager {
       this.startPhaseTvNewsMorning();
     } else if (this.currentPhase === STORY_PHASES.LIMO_RIDE || this.currentPhase === STORY_PHASES.WAIT_LIMO) {
       this.startPhaseVillaArrival();
+    } else if (this.currentPhase === STORY_PHASES.VILLA_ARRIVAL) {
+      this.startCombatPhase();
+    } else if (this.currentPhase === STORY_PHASES.MISSION_COMBAT) {
+      for (const p of this.protesters) { p.userData.dead = true; p.visible = false; }
+      this.startBetrayalConfrontation();
     } else if (this.currentPhase === STORY_PHASES.BETRAYAL_CONFRONTATION) {
       this.startDejectedWalkHome();
     } else if (this.currentPhase === STORY_PHASES.DEJECTED_WALK_HOME) {
@@ -1210,13 +1215,14 @@ export class StoryManager {
 
     const vx = 395.0, vy = 12.0, vz = -55.0;
 
-    // Oyuncu David'in karşısında durur
+    // Oyuncu villanın kapısından David'in yanına doğru yavaşça yürümeye başlar
+    this.playerApproachingDavid = true;
     if (this.character) {
       this.character.setFirstPerson(false);
-      this.character.mesh.position.set(vx, vy, vz + 5.0);
+      this.character.mesh.position.set(vx, vy, vz + 9.5);
       this.character.mesh.rotation.y = Math.PI; // David'e bakar
       if (this.character.body) {
-        this.character.body.position.set(vx, vy + 1.0, vz + 5.0);
+        this.character.body.position.set(vx, vy + 1.0, vz + 9.5);
         this.character.body.velocity.set(0, 0, 0);
       }
     }
@@ -1257,19 +1263,19 @@ export class StoryManager {
       this.startDialogQueue([
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-          text: 'Aferin sana! Tam beklediğim gibi acımasızca işi bitirdin. Kapımın önündeki o sefil isyancı ayak takımı tamamen temizlendi!'
+          text: 'Aferin! Sen başardın, yaptığın iş için teşekkür ederim. Kapımın önündeki o sefil isyancı ayak takımı tamamen temizlendi.'
         },
         {
           speaker: 'player', name: 'OYUNCU', color: '#38bdf8',
-          text: 'Tamam güzel, anlaşmamızı yerine getirdim. Şimdi şu para işini konuşalım... Söz verdiğin yüklü miktardaki ödemeyi ve silahları teslim alayım.'
+          text: 'Tamam güzel, ancak şu para işini konuşalım. Söz verdiğin yüklü miktardaki ödemeyi ve silahları ver bakalım.'
         },
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-          text: 'Ödeme mi?.. Hahaha! Evet, tabii ki... GÜVENLİKLER! ALIN ŞUNU VE TEMİZLEYİN!'
+          text: 'Üzgünüm dostum... Ama para falan yok! Sen gerçekten bu kadar saf mısın? GÜVENLİKLER! ALIN ŞUNU VE TEMİZLEYİN!'
         },
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-          text: 'Ah zavallı dostum... Sen gerçekten bu kadar saf ve aptal mısın? Koskoca bankaların, gökdelenlerin ve şehrin mutlak sahibi sana trilyonlarca lira ve özel silahlarını bırakır mı sandın?'
+          text: 'Ah sen ne kadar aptalsın! Koskoca bankaların, gökdelenlerin ve şehrin mutlak sahibi sana bir servet ve bu silahları bırakır mı sandın?'
         },
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
@@ -1628,6 +1634,31 @@ export class StoryManager {
     // Sahne 9: İhanet Yüzleşmesi & Korumaların Bizi Yakalaması
     if (this.currentPhase === STORY_PHASES.BETRAYAL_CONFRONTATION) {
       const vx = 395.0, vy = 12.0, vz = -55.0;
+
+      // Oyuncunun David'e doğru yavaşça yürüyüşü
+      if (this.playerApproachingDavid) {
+        if (this.character && this.character.mesh) {
+          const curZ = this.character.mesh.position.z;
+          if (curZ > vz + 4.8) {
+            this.character.mesh.position.z -= dt * 2.8;
+            this.character.mesh.position.x = THREE.MathUtils.lerp(this.character.mesh.position.x, vx, dt * 2.5);
+            if (this.character.body) this.character.body.position.copy(this.character.mesh.position);
+
+            const t = this.phaseTimer * 4.5;
+            if (this.character.leftLeg) this.character.leftLeg.rotation.x = -Math.sin(t) * 0.35;
+            if (this.character.rightLeg) this.character.rightLeg.rotation.x = Math.sin(t) * 0.35;
+            if (this.character.leftArm) this.character.leftArm.rotation.x = Math.sin(t) * 0.25;
+            if (this.character.rightArm) this.character.rightArm.rotation.x = -Math.sin(t) * 0.25;
+          } else {
+            this.playerApproachingDavid = false;
+            if (this.character.leftLeg) this.character.leftLeg.rotation.set(0, 0, 0);
+            if (this.character.rightLeg) this.character.rightLeg.rotation.set(0, 0, 0);
+            if (this.character.leftArm) this.character.leftArm.rotation.set(0, 0, 0);
+            if (this.character.rightArm) this.character.rightArm.rotation.set(0, 0, 0);
+          }
+        }
+      }
+
       this.camera.position.set(vx - 3.2, vy + 2.0, vz + 7.8);
       this.camera.lookAt(vx, vy + 1.5, vz + 1.5);
 
