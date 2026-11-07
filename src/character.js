@@ -587,10 +587,12 @@ export class Character {
     for (let i = 0; i < n; i++) {
       this.blockedHoriz = false;
 
-      // Su durumu: ayak tabanı yüzeyin yeterince altındaysa ve deniz sınırı içindeyse yüzülür
+      // Su durumu: Yalnızca denizin içinde (karada değilken) ve ayak tabanı suyun altındaysa yüzülür.
+      // Karada (şehirde, yolda, binalarda) kesinlikle yüzme tetiklenmez.
+      const isLand = this.voxelWorld && this.voxelWorld.terrain && this.voxelWorld.terrain.isLand(pos.x, pos.z);
       const depth = WATER_LEVEL - feet;
       const wasInWater = this.inWater;
-      this.inWater = depth > WATER_ENTER_DEPTH &&
+      this.inWater = !isLand && depth > WATER_ENTER_DEPTH &&
         Math.abs(pos.x) < WATER_BOUND && Math.abs(pos.z) < WATER_BOUND;
 
       if (this.inWater && !wasInWater && this.vel.y < -3) {

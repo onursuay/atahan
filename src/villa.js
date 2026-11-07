@@ -124,7 +124,7 @@ function hudTexture(kind) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 export function buildVilla(world) {
-  const { WHITE, WOOD, BLACK, GLASS, CONCRETE, GRASS, IRON, GOLD, BRICK, LAMP, LAMP_BLUE, LAMP_PINK, LAMP_GREEN, LAMP_PURPLE, LAMP_ORANGE } = PALETTE;
+  const { WHITE, WOOD, BLACK, GLASS, CONCRETE, GRASS, IRON, GOLD, BRICK, LAMP, LAMP_BLUE, LAMP_PINK, LAMP_GREEN, LAMP_PURPLE, LAMP_ORANGE, BLUE } = PALETTE;
   const OXV = 754, OZV = -278, YB = 25;           // yerel (0,0,0): x=377 m, z=-139 m, taban satırı y=12.5 m (plato yüzeyi)
   // Villa ilk tasarımın yatayda 1.25 katıdır: tasarım koordinatları (u, w) hücre sınırlarından büyütülür, satırlar (yükseklik) aynıdır.
   // Bir tasarım hücresi 1 ya da 2 voxel olur; komşu parçalar aynı sınır tablosunu kullandığı için dikiş/boşluk kalmaz.
@@ -267,7 +267,7 @@ export function buildVilla(world) {
   put(34, 11, 51, 36, 11, 53, WHITE); put(34, 11, 55, 36, 11, 57, WHITE);
   put(35, 11, 52, 36, 12, 53, WHITE); put(35, 11, 55, 36, 12, 56, WHITE);
   // Katlanmış lüks nevresim ve ayak ucu altın şalı
-  put(37, 11, 51, 42, 11, 57, BLACK);                                                            // saten koyu yorgan
+  put(37, 11, 51, 42, 11, 57, BLUE);                                                             // canlı kraliyet mavisi saten yorgan
   put(36, 11, 51, 36, 11, 57, WHITE);                                                            // katlanmış beyaz çarşaf kenarı
   put(41, 11, 51, 42, 11, 57, GOLD);                                                             // ayak ucu lüks altın yatak şalı
   // Komodinler ve şık başucu abajurları

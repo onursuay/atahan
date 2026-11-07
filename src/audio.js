@@ -459,43 +459,28 @@ class SoundEngine {
   }
 
   // ───────────────────────── Yüzme ─────────────────────────
-  // Suyun içinde sürekli şapırtı: hareket edildikçe yükselir, kulaç ritmiyle dalgalanır.
+  // Kullanıcı talebi: Arkada sürekli dönen dıryt dıryt sesleri ve motor uğultuları kökünden kapatıldı.
   updateSwim(moving) {
-    if (!this.ctx) return;
-    const ctx = this.ctx, now = ctx.currentTime;
-    if (!this.swim) this.swim = this._buildSwim();
-    const s = this.swim;
-    const on = this.muted ? 0 : 1;
-    s.gain.gain.setTargetAtTime((moving ? 0.30 : 0.09) * on, now, 0.12);
-    s.filter.frequency.setTargetAtTime(moving ? 900 : 500, now, 0.15);
-    s.lfo.frequency.setTargetAtTime(moving ? 2.2 : 0.8, now, 0.2);
+    if (this.swim) this.stopSwim();
   }
 
   _buildSwim() {
-    const ctx = this.ctx;
-    const s = {};
-    const src = ctx.createBufferSource(); src.buffer = this._noiseBuffer(); src.loop = true;
-    s.filter = ctx.createBiquadFilter(); s.filter.type = 'bandpass'; s.filter.frequency.value = 500; s.filter.Q.value = 0.8;
-    const wobble = ctx.createGain(); wobble.gain.value = 0.7;
-    s.lfo = ctx.createOscillator(); s.lfo.type = 'sine'; s.lfo.frequency.value = 0.8;
-    const depth = ctx.createGain(); depth.gain.value = 0.3;
-    s.lfo.connect(depth); depth.connect(wobble.gain);
-    s.gain = ctx.createGain(); s.gain.gain.value = 0;
-    src.connect(s.filter); s.filter.connect(wobble); wobble.connect(s.gain); s.gain.connect(ctx.destination);
-    const t = ctx.currentTime;
-    src.start(t); s.lfo.start(t);
-    s.sources = [src, s.lfo];
-    return s;
+    return null;
   }
 
   stopSwim() {
     const s = this.swim;
     if (!s) return;
     this.swim = null;
-    const now = this.ctx.currentTime;
-    s.gain.gain.cancelScheduledValues(now);
-    s.gain.gain.setTargetAtTime(0, now, 0.1);
-    setTimeout(() => { s.sources.forEach(n => { try { n.stop(); } catch (_) {} }); s.gain.disconnect(); }, 600);
+    try {
+      const now = this.ctx ? this.ctx.currentTime : 0;
+      if (s.gain && this.ctx) {
+        s.gain.gain.cancelScheduledValues(now);
+        s.gain.gain.setValueAtTime(0, now);
+      }
+      if (s.sources) s.sources.forEach(n => { try { n.stop(); } catch (_) {} });
+      if (s.gain) s.gain.disconnect();
+    } catch (_) {}
   }
 
   // Cyborg Lazer Sesi (Elektrik Humming)
@@ -682,41 +667,29 @@ class SoundEngine {
   }
 
   // ───────────────────────── Minigun motoru ─────────────────────────
-  // Namlular dönerken sürekli mekanik vızıltı (hız = perde). spin: 0..1. Çok küçükse kapanır.
+  // Kullanıcı talebi: Minigun motor vızıltısı ve arkadaki sürekli makine sesi tamamen kapatıldı.
   updateMinigun(spin) {
-    if (!this.ctx) return;
-    if (spin < 0.02) { this.stopMinigun(); return; }
-    const now = this.ctx.currentTime;
-    if (!this.minigunLoop) this.minigunLoop = this._buildMinigun();
-    const m = this.minigunLoop, on = this.muted ? 0 : 1;
-    m.whine.frequency.setTargetAtTime(55 + spin * 200, now, 0.05);
-    m.gear.frequency.setTargetAtTime(18 + spin * 120, now, 0.05);     // dişli takırtısı
-    m.filter.frequency.setTargetAtTime(300 + spin * 1500, now, 0.05);
-    m.gain.gain.setTargetAtTime(spin * 0.16 * on, now, 0.05);
+    if (this.minigunLoop) this.stopMinigun();
   }
 
   _buildMinigun() {
-    const ctx = this.ctx, m = {};
-    m.whine = ctx.createOscillator(); m.whine.type = 'sawtooth';
-    m.gear = ctx.createOscillator(); m.gear.type = 'square';
-    const gearGain = ctx.createGain(); gearGain.gain.value = 0.5;
-    m.filter = ctx.createBiquadFilter(); m.filter.type = 'lowpass'; m.filter.Q.value = 1.5;
-    m.gain = ctx.createGain(); m.gain.gain.value = 0;
-    m.whine.connect(m.filter); m.gear.connect(gearGain); gearGain.connect(m.filter);
-    m.filter.connect(m.gain); m.gain.connect(ctx.destination);
-    const t = ctx.currentTime;
-    m.whine.start(t); m.gear.start(t);
-    return m;
+    return null;
   }
 
   stopMinigun() {
     const m = this.minigunLoop;
     if (!m) return;
     this.minigunLoop = null;
-    const now = this.ctx.currentTime;
-    m.gain.gain.cancelScheduledValues(now);
-    m.gain.gain.setTargetAtTime(0, now, 0.06);
-    setTimeout(() => { try { m.whine.stop(); m.gear.stop(); } catch (_) {} m.gain.disconnect(); }, 500);
+    try {
+      const now = this.ctx ? this.ctx.currentTime : 0;
+      if (m.gain && this.ctx) {
+        m.gain.gain.cancelScheduledValues(now);
+        m.gain.gain.setValueAtTime(0, now);
+      }
+      if (m.whine) try { m.whine.stop(); } catch (_) {}
+      if (m.gear) try { m.gear.stop(); } catch (_) {}
+      if (m.gain) m.gain.disconnect();
+    } catch (_) {}
   }
 
   // Suya giriş / su sıçraması

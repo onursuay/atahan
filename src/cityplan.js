@@ -9,10 +9,13 @@
 // ─────────────────────────────────────────────────────────────────────────────
 export const U = 0.75;
 
-// Göbekler (yuvarlak kavşaklar) — eski birim. Dış yarıçap 22, orta şerit yarıçapı 17.5, ada yarıçapı 13. Kuzeyde ve güneyde birer tane.
+// Göbekler (yuvarlak kavşaklar) — eski birim. Rastgele ve düzenli ana kavşak göbekleri.
 export const ROUNDABOUTS = [
   { cx: -87, cz: -200, rOuter: 22, rMid: 17.5, rIsland: 13 },
-  { cx: -87, cz: 200, rOuter: 22, rMid: 17.5, rIsland: 13 }
+  { cx: -87, cz: 200, rOuter: 22, rMid: 17.5, rIsland: 13 },
+  { cx: -210, cz: 134, rOuter: 19, rMid: 15, rIsland: 11 },
+  { cx: -210, cz: -134, rOuter: 19, rMid: 15, rIsland: 11 },
+  { cx: -360, cz: 266, rOuter: 19, rMid: 15, rIsland: 11 }
 ];
 export const ROUNDABOUT = ROUNDABOUTS[0];
 

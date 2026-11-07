@@ -228,6 +228,12 @@ export class MetroSystem {
     this.trainGroup.position.copy(this.trainPos);
   }
 
+  _playChimeNearPlayer(character) {
+    if (!character || !character.mesh) return;
+    const dist = character.mesh.position.distanceTo(this.trainPos);
+    if (dist < 18) sound.playMetroChime();
+  }
+
   update(dt, character) {
     if (!this.trainGroup) return;
 
@@ -238,7 +244,7 @@ export class MetroSystem {
       this.setDoors(true, dt);
 
       if (this.stopTimer <= 0) {
-        sound.playMetroChime();
+        this._playChimeNearPlayer(character);
         this.setDoors(false, dt);
         if (this.doorProgress <= 0.05) {
           this.state = 'moving_to_st2';
@@ -261,7 +267,7 @@ export class MetroSystem {
       if (this.trainPos.x >= targetX) {
         this.trainPos.x = targetX;
         this.state = 'stopped_st2';
-        sound.playMetroChime();
+        this._playChimeNearPlayer(character);
       }
     } else if (this.state === 'stopped_st2') {
       this.trainSpeed = 0;
@@ -269,7 +275,7 @@ export class MetroSystem {
       this.setDoors(true, dt);
 
       if (this.stopTimer <= 0) {
-        sound.playMetroChime();
+        this._playChimeNearPlayer(character);
         this.setDoors(false, dt);
         if (this.doorProgress <= 0.05) {
           this.state = 'moving_to_st1';
@@ -291,7 +297,7 @@ export class MetroSystem {
       if (this.trainPos.x <= targetX) {
         this.trainPos.x = targetX;
         this.state = 'stopped_st1';
-        sound.playMetroChime();
+        this._playChimeNearPlayer(character);
       }
     }
 

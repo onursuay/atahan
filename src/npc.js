@@ -428,7 +428,9 @@ export class NPCManager {
     if (this.schoolBellTimer >= 180) {
       this.schoolBellTimer = 0;
       this.schoolRecess = !this.schoolRecess;
-      sound.playSchoolBell();
+      if (this.playerPos && Math.hypot(this.playerPos.x - 315 * 0.75, this.playerPos.z - 200 * 0.75) < 35) {
+        sound.playSchoolBell();
+      }
       const popup = document.createElement('div');
       popup.className = 'score-popup';
       popup.innerText = this.schoolRecess ? '🔔 OKUL ZİLİ ÇALDI! (TENEFFÜS BAŞLADI)' : '🔔 DERS ZİLİ ÇALDI! (SINIFLARA DÖNÜŞ)';

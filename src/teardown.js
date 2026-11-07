@@ -68,7 +68,15 @@ export const PALETTE = {
   YELLOW:   { id: 24, color: 0xfacc15, name: 'Sarı', canBreakWithHammer: true },
   CACTUS_GREEN:  { id: 25, color: 0x16a34a, name: 'Yeşil Kaktüs', canBreakWithHammer: true },
   CACTUS_PURPLE: { id: 26, color: 0xa855f7, name: 'Mor Kaktüs', canBreakWithHammer: true },
-  LAMP_RED:      { id: 27, color: 0xef4444, name: 'Kırmızı Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xef4444 }
+  LAMP_RED:      { id: 27, color: 0xef4444, name: 'Kırmızı Işık', canBreakWithHammer: true, isLamp: true, emissive: 0xef4444 },
+  // Gerçek dünya mimari ve bina cephesi renkleri (Ten rengi, bej, krem, doğal taş, terakota, antrasit)
+  BEIGE:         { id: 28, color: 0xd4b996, name: 'Ten Rengi / Bej Cephe', canBreakWithHammer: true },
+  CREAM:         { id: 29, color: 0xf5eedc, name: 'Krem / Fildişi Cephe', canBreakWithHammer: true },
+  STONE:         { id: 30, color: 0xbaa78c, name: 'Doğal Taş / Traverten', canBreakWithHammer: true },
+  TERRACOTTA:    { id: 31, color: 0x9f4a32, name: 'Terakota / Kiremit', canBreakWithHammer: true },
+  SLATE:         { id: 32, color: 0x475569, name: 'Antrasit Panel', canBreakWithHammer: true },
+  WARM_GRAY:     { id: 33, color: 0xa8a29e, name: 'Sıcak Mimari Gri', canBreakWithHammer: true },
+  PEACH:         { id: 34, color: 0xe8a588, name: 'Sıcak Somon / Pastel Ten', canBreakWithHammer: true }
 };
 PALETTE.STEEL = PALETTE.IRON; // Geriye dönük uyumluluk (Çelik = Demir)
 
@@ -90,7 +98,8 @@ export const MATERIAL_HARDNESS = {
   [PALETTE.BLACK.id]: 1.6,    // Siyah (villa): beton gibi
   [PALETTE.LAMP_BLUE.id]: 0.4, [PALETTE.LAMP_PINK.id]: 0.4, [PALETTE.LAMP_GREEN.id]: 0.4, [PALETTE.LAMP_PURPLE.id]: 0.4, [PALETTE.LAMP_ORANGE.id]: 0.4, [PALETTE.LAMP_RED.id]: 0.4,
   [PALETTE.BLUE.id]: 1.3, [PALETTE.NAVY.id]: 1.3, [PALETTE.ORANGE.id]: 1.3, [PALETTE.DGREEN.id]: 1.3, [PALETTE.RED.id]: 1.3, [PALETTE.YELLOW.id]: 1.2,
-  [25]: 0.3, [26]: 0.3
+  [25]: 0.3, [26]: 0.3,
+  [28]: 1.3, [29]: 1.2, [30]: 1.5, [31]: 1.3, [32]: 1.6, [33]: 1.4, [34]: 1.2
 };
 
 export class VoxelWorld {

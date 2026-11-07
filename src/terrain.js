@@ -117,9 +117,15 @@ export class Terrain {
   solidAt(x, feet, z, halfW) {
     if (!this.land) return false;
     // Yeraltı Metro İstasyonları ve Tünel Geçişi
-    if (z >= 14 && z <= 30 && x >= -120 && x <= 340) {
+    // Sokak zeminini (y >= -0.2) kesinlikle delmez; yalnız merdiven giriş boşluklarında ve yer altındayken (-4.5 .. -0.2 m) tünel boşluğu sağlar.
+    const inTunnelX = x >= -115 && x <= 330;
+    const inTunnelZ = z >= 17 && z <= 27;
+    const isStairs = (Math.abs(x - (-57)) < 3.0 && Math.abs(z - 18.5) < 5.5) ||
+                     (Math.abs(x - 272) < 3.0 && Math.abs(z - 18.5) < 5.5);
+
+    if (inTunnelX && inTunnelZ) {
       if (feet < -4.5) return true;  // istasyon peronu & ray tabanı
-      if (feet < 0.5) return false; // istasyon içi, merdivenler ve tünel boşluğu
+      if (feet < -0.2 || isStairs) return false; // yeraltı tünel boşluğu veya merdiven inişi
     }
     const b = this.bounds;
     const c0 = Math.floor((x - halfW - b.minX) / CELL);
