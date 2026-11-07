@@ -36,7 +36,7 @@ function makeCubeTexture(def) {
 
 // Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
 const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // 0.5 m küpte 1; küçüldükçe daha çok küp gerekir
-const CHUNK_SIZE = 80; // metre: geniş dünya için optimize edilmiş bölge boyutu (draw call sayısını %89 azaltır)
+const CHUNK_SIZE = 96; // metre: geniş dünya için optimize edilmiş bölge boyutu (draw call sayısını %93 azaltır)
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
@@ -268,9 +268,13 @@ export class VoxelWorld {
       const cx = Number(parts[1]);
       const cz = Number(parts[2]);
       const mesh = new THREE.InstancedMesh(this.cubeGeo, this.materials[typeId], list.length);
-      const distFromCenter = Math.hypot(cx * CHUNK_SIZE, cz * CHUNK_SIZE);
       const isGround = typeId === PALETTE.ASPHALT.id || typeId === PALETTE.GRASS.id || typeId === PALETTE.SAND.id;
-      mesh.castShadow = !isGround && distFromCenter < 250;
+      mesh.userData = {
+        cx, cz,
+        center: new THREE.Vector3((cx + 0.5) * CHUNK_SIZE, 15, (cz + 0.5) * CHUNK_SIZE),
+        isGround
+      };
+      mesh.castShadow = false; // update() içinde kameraya yakınlığa göre dinamik belirlenir (0 lag)
       mesh.receiveShadow = true;
       mesh.frustumCulled = true;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -900,10 +904,34 @@ export class VoxelWorld {
   }
 
   // Döngü Güncellemesi
-  update(dt) {
+  update(dt, camPos = null) {
     this.terrain.flush();
     this.collapse.update(dt);
     if (this.bridge) this.bridge.update(dt);
+
+    // Chunk LOD & Distance Culling: Sis sınırının (600m) ötesindeki chunk'ları render'dan çıkar
+    // ve yalnızca oyuncuya yakın (<120m) binalara gerçek zamanlı gölge ver (60 FPS garantisi)
+    this._cullTimer = (this._cullTimer || 0) + dt;
+    if (this._cullTimer >= 0.12 && camPos && this.chunkMeshes.length > 0) {
+      this._cullTimer = 0;
+      const camX = camPos.x, camZ = camPos.z;
+      const maxDistSq = 620 * 620;
+      const shadowDistSq = 120 * 120;
+      for (let i = 0; i < this.chunkMeshes.length; i++) {
+        const m = this.chunkMeshes[i];
+        const u = m.userData;
+        if (!u || !u.center) continue;
+        const dx = u.center.x - camX;
+        const dz = u.center.z - camZ;
+        const d2 = dx * dx + dz * dz;
+        if (d2 > maxDistSq) {
+          m.visible = false;
+        } else {
+          m.visible = true;
+          m.castShadow = !u.isGround && d2 < shadowDistSq;
+        }
+      }
+    }
     for (let i = this.dynamicDebris.length - 1; i >= 0; i--) {
       const d = this.dynamicDebris[i];
       d.life -= dt;

@@ -529,52 +529,114 @@ export class LevelManager {
       { wall: PALETTE.SLATE, floor: PALETTE.WOOD },
       { wall: PALETTE.PEACH, floor: PALETTE.WOOD }
     ];
-    const cols = [
-      // Arkaya genişletilen yeni batı mahalleleri
-      [-736, -714], [-686, -664], [-636, -614], [-516, -464], [-436, -416], [-396, -374],
-      // Mevcut şehir blokları
-      [-346, -324], [-296, -274], [-246, -224], [-198, -176],
-      [-161, -137], [-119, -97], [-79, -57], [-41, -33], [-21, -15]
-    ];
-    // Caddelerle (z = ±66, ±134, ±200, ±266, ±320, ±380, ±450, ±550, ±650, ±750) asla çakışmayan güvenli parsel aralıkları
-    const lots = [
-      [142, 164], [170, 188], [212, 234], [238, 254],
-      [278, 308], [332, 368], [392, 438], [462, 538], [562, 638], [662, 738]
-    ];
-    const near = (x1, x2, z1, z2) => ROUNDABOUTS.some(g => { const dx = Math.max(x1 - g.cx, 0, g.cx - x2), dz = Math.max(Math.min(z1, z2) - g.cz, 0, g.cz - Math.max(z1, z2)); return Math.hypot(dx, dz) < g.rOuter + 8; });
+
+    const near = (x1, x2, z1, z2) => ROUNDABOUTS.some(g => {
+      const dx = Math.max(x1 - g.cx, 0, g.cx - x2);
+      const dz = Math.max(Math.min(z1, z2) - g.cz, 0, g.cz - Math.max(z1, z2));
+      return Math.hypot(dx, dz) < g.rOuter + 8;
+    });
+
     // Havalimanı bölgesi (x: -740..-530, z: -680..-140) bina yapımından tamamen korunur
-    const inAirport = (x1, x2, z1, z2) => (Math.min(x1, x2) < -530 && Math.max(x1, x2) > -740 && Math.min(z1, z2) < -140 && Math.max(z1, z2) > -680);
-    const place = (ci, za, zb, sign) => {
-      const [x1, x2] = cols[ci];
-      const zlo = sign > 0 ? za : -zb, zhi = sign > 0 ? zb : -za;
-      if (near(x1, x2, zlo, zhi) || inAirport(x1, x2, zlo, zhi) || isSpecialLot(x1, x2, zlo, zhi)) return;
-      // Boş alanları binalarla doldur (yalnızca %3 pay)
-      if (rnd() < 0.03) return;
-      const bType = (ci * 3 + Math.floor(rnd() * 8)) % 8;
+    const inAirport = (x1, x2, z1, z2) => (
+      Math.min(x1, x2) < -530 && Math.max(x1, x2) > -740 &&
+      Math.min(z1, z2) < -140 && Math.max(z1, z2) > -680
+    );
+
+    const isOccupied = (x1, x2, z1, z2) => {
+      const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+      const minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);
+      return this.b.footprints.some(r => Math.max(minX, r.minX) <= Math.min(maxX, r.maxX) && Math.max(minZ, r.minZ) <= Math.min(maxZ, r.maxZ));
+    };
+
+    const placeBuilding = (x1, x2, z1, z2, doorSide) => {
+      const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+      const minZ = Math.min(z1, z2), maxZ = Math.max(z1, z2);
+      if (maxX - minX < 8 || maxZ - minZ < 8) return;
+      if (near(minX, maxX, minZ, maxZ) || inAirport(minX, maxX, minZ, maxZ) || isSpecialLot(minX, maxX, minZ, maxZ)) return;
+      if (isOccupied(minX, maxX, minZ, maxZ)) return;
+      if (onRoadFast((minX + maxX) / 2, (minZ + maxZ) / 2, 1.5)) return;
+
+      const bType = Math.floor(rnd() * 8);
       const st = ARCH_STYLES[Math.floor(rnd() * ARCH_STYLES.length)];
+
       if (bType === 0) {
-        this.buildOutdoorTeknoMarket(x1, 1, zlo, x2, 12, zhi);
+        this.buildOutdoorTeknoMarket(minX, 1, minZ, maxX, 12, maxZ);
       } else if (bType === 1) {
-        this.buildMarket(x1, 1, zlo, x2, 10, zhi);
-      } else if (bType === 2) {
-        this.buildCityApartment(x1, 1, zlo, x2, 22, zhi, st.wall);
-      } else if (bType === 3) {
-        this.buildOutdoorFashionStore(x1, 1, zlo, x2, 12, zhi);
+        this.buildMarket(minX, 1, minZ, maxX, 10, maxZ);
+      } else if (bType === 2 || bType === 3) {
+        const h = 18 + Math.floor(rnd() * 10);
+        this.buildCityApartment(minX, 1, minZ, maxX, h, maxZ, st.wall, doorSide);
       } else if (bType === 4) {
-        this.buildCityBank(x1, 1, zlo, x2, 16, zhi);
+        this.buildCityBank(minX, 1, minZ, maxX, 16, maxZ);
       } else if (bType === 5) {
-        const h = 24 + Math.floor(rnd() * 18);
-        this.buildTower(x1, 1, zlo, x2, h, zhi, { ...st, side: sign > 0 ? 'z1' : 'z2', sign: true });
+        this.buildOutdoorFashionStore(minX, 1, minZ, maxX, 12, maxZ);
       } else if (bType === 6) {
-        this.buildCityWarehouse(x1, 1, zlo, x2, 12, zhi);
+        this.buildCityWarehouse(minX, 1, minZ, maxX, 12, maxZ);
       } else {
-        const h = 14 + Math.floor(rnd() * 16);
-        this.buildTower(x1, 1, zlo, x2, h, zhi, { ...st, side: sign > 0 ? 'z1' : 'z2' });
+        const h = 16 + Math.floor(rnd() * 16);
+        this.buildTower(minX, 1, minZ, maxX, h, maxZ, { ...st, side: doorSide, sign: false });
       }
     };
-    for (const sign of [1, -1]) {
-      place(6, 142, 164, sign);
-      for (const [za, zb] of lots) for (let ci = 0; ci < cols.length; ci++) place(ci, za, zb, sign);
+
+    // Dikey bulvar ve caddeler (Batı ada ve arka bölgeler: x: -750 .. -27)
+    const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -47, -27];
+    // Yatay ana caddeler (z: -750 .. 750)
+    const Z_ROADS = [-750, -650, -550, -450, -380, -320, -266, -134, -66, 0, 66, 134, 266, 320, 380, 450, 550, 650, 750];
+
+    // Dört yolun çevrelediği tüm kare şehir bloklarını dolaş:
+    // Karenin ortası KESİNLİKLE BOŞ (avlu) bırakılır; binalar 4 yola bakan kenarlara dizilir.
+    for (let i = 0; i < X_ROADS.length - 1; i++) {
+      const rx0 = X_ROADS[i], rx1 = X_ROADS[i + 1];
+      const bx0 = rx0 + 8, bx1 = rx1 - 8;
+      const bWidth = bx1 - bx0;
+      if (bWidth < 14) continue;
+
+      for (let j = 0; j < Z_ROADS.length - 1; j++) {
+        const rz0 = Z_ROADS[j], rz1 = Z_ROADS[j + 1];
+        const bz0 = rz0 + 8, bz1 = rz1 - 8;
+        const bDepth = bz1 - bz0;
+        if (bDepth < 14) continue;
+
+        if (inAirport(bx0, bx1, bz0, bz1) || near(bx0, bx1, bz0, bz1)) continue;
+
+        // Binaların derinliği: bloğun %32'sini geçmez, karenin ortası (avlu) açık kalır
+        const edgeW = Math.min(18, Math.floor(bWidth * 0.32));
+        const edgeD = Math.min(18, Math.floor(bDepth * 0.32));
+
+        // 1. BATI KENAR (rx0 yoluna bakan binalar, kapı: x1)
+        const westX0 = bx0, westX1 = bx0 + edgeW;
+        if (bDepth <= 40) {
+          placeBuilding(westX0, westX1, bz0 + 2, bz1 - 2, 'x1');
+        } else {
+          const half = Math.floor((bDepth - 8) / 2);
+          placeBuilding(westX0, westX1, bz0 + 2, bz0 + half, 'x1');
+          placeBuilding(westX0, westX1, bz1 - half, bz1 - 2, 'x1');
+        }
+
+        // 2. DOĞU KENAR (rx1 yoluna bakan binalar, kapı: x2)
+        const eastX0 = bx1 - edgeW, eastX1 = bx1;
+        if (bDepth <= 40) {
+          placeBuilding(eastX0, eastX1, bz0 + 2, bz1 - 2, 'x2');
+        } else {
+          const half = Math.floor((bDepth - 8) / 2);
+          placeBuilding(eastX0, eastX1, bz0 + 2, bz0 + half, 'x2');
+          placeBuilding(eastX0, eastX1, bz1 - half, bz1 - 2, 'x2');
+        }
+
+        // 3. GÜNEY KENAR (rz0 caddesine bakan binalar, kapı: z1)
+        const midX0 = westX1 + 4, midX1 = eastX0 - 4;
+        if (midX1 - midX0 >= 14 && edgeD >= 9) {
+          placeBuilding(midX0, midX1, bz0, bz0 + edgeD, 'z1');
+        }
+
+        // 4. KUZEY KENAR (rz1 caddesine bakan binalar, kapı: z2)
+        if (midX1 - midX0 >= 14 && edgeD >= 9) {
+          placeBuilding(midX0, midX1, bz1 - edgeD, bz1, 'z2');
+        }
+
+        // KARENİN ORTASI (westX1 .. eastX0, bz0 + edgeD .. bz1 - edgeD):
+        // KESİNLİKLE BİNA OLMAYAN AÇIK İÇ AVLU ALANIDIR ("Karenin ortasında bina olmamalı, hepsi öyle")
+      }
     }
   }
 
@@ -2560,18 +2622,22 @@ export class LevelManager {
   // -------------------------------------------------------------
 
   // BİNA 1: ŞEHİR APARTMANI (gerçekçi mimari ten/bej/taş rengi, balkonlu, merdivenli)
-  buildCityApartment(x1, y1, z1, x2, y2, z2, wallMat = null) {
+  buildCityApartment(x1, y1, z1, x2, y2, z2, wallMat = null, side = 'z1') {
     const w = this.b;
     w.beginBuilding();
     const REALISTIC_WALLS = [PALETTE.BEIGE, PALETTE.CREAM, PALETTE.STONE, PALETTE.WARM_GRAY, PALETTE.TERRACOTTA, PALETTE.PEACH];
     const wall = wallMat || REALISTIC_WALLS[Math.abs(Math.round(x1 + z1)) % REALISTIC_WALLS.length];
     w.fillHollowBox(x1, y1, z1, x2, y2, z2, wall, PALETTE.WOOD);
 
-    // Giriş kapısı (kuzey/güney yüzünde, caddeye bakan z1 tarafı)
+    // Giriş kapısı (caddeye bakan yönde)
     const doorX = Math.round((x1 + x2) / 2);
-    w.clearBox(doorX - 1, y1, z1, doorX + 1, y1 + 4, z1);
+    const doorZ = Math.round((z1 + z2) / 2);
+    if (side === 'z1') w.clearBox(doorX - 1, y1, z1, doorX + 1, y1 + 4, z1);
+    else if (side === 'z2') w.clearBox(doorX - 1, y1, z2, doorX + 1, y1 + 4, z2);
+    else if (side === 'x1') w.clearBox(x1, y1, doorZ - 1, x1, y1 + 4, doorZ + 1);
+    else if (side === 'x2') w.clearBox(x2, y1, doorZ - 1, x2, y1 + 4, doorZ + 1);
 
-    this.addWindowBands(x1, y1, z1, x2, y2, z2, 'z1');
+    this.addWindowBands(x1, y1, z1, x2, y2, z2, side);
     this.addFloors(x1, y1, z1, x2, y2, z2, PALETTE.WOOD);
 
     // Zemin kat: resepsiyon bankosu ve güvenlik kasası (demir)
@@ -2582,8 +2648,9 @@ export class LevelManager {
     this.addStairs(x1, y1, z1, x2, y2, z2);
     this.furnish(x1, y1, z1, x2, y2, z2, 'apt');
 
-    // Dış cephede arka/ön bahçeye bakan şık balkonlar
-    this.addBalconies(x1, y1, z1, x2, y2, z2, 'z2');
+    // Dış cephede avluya bakan şık balkonlar
+    const bSide = side === 'z1' ? 'z2' : (side === 'z2' ? 'z1' : (side === 'x1' ? 'x2' : 'x1'));
+    this.addBalconies(x1, y1, z1, x2, y2, z2, bSide);
 
     // 2. kat odaları: masif ahşap bölme + canlı renkli yatak ve çalışma masası
     const midZ = Math.round((z1 + z2) / 2);

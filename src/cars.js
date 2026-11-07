@@ -396,6 +396,16 @@ export class CarManager {
     for (let i = this.cars.length - 1; i >= 0; i--) {
       const car = this.cars[i];
       if (car === this.driven) continue;
+
+      // Mesafe denetimi: 200m'den uzaktaki araçların render'ını ve gölgesini kapat
+      const distFromPlayer = Math.hypot(car.pos.x - this.player.x, car.pos.z - this.player.z);
+      if (distFromPlayer > 200) {
+        if (car.g.visible) car.g.visible = false;
+        // Uzaktaki araçları 2 karede bir güncelle (CPU tasarrufu)
+        if ((i + Math.floor(this.blinkT * 30)) % 2 !== 0) continue;
+      } else {
+        if (!car.g.visible) car.g.visible = true;
+      }
       if (car.state === 'drive') {
         this._drive(car, dt);
         // Kilitlenme çözücü: kavşakta birbirini bekleyen araçlar 15 sn'den uzun kıpırdamazsa kaldırılır ve yeniden doğar

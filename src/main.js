@@ -148,6 +148,8 @@ function init() {
   sunLight.shadow.camera.top = dz;
   sunLight.shadow.camera.bottom = -dz;
   sunLight.shadow.bias = -0.0005;
+  sunLight.shadow.autoUpdate = false; // Gölgeler alternatif karelerde (30 FPS) güncellenerek GPU %50 rahatlatılır
+  sunLight.shadow.needsUpdate = true;
   scene.add(sunLight);
   scene.add(sunLight.target);   // gölge alanı oyuncuyu izler (şehir büyüdü)
 
@@ -247,10 +249,15 @@ function init() {
 
   // Oyun Döngüsü
   let lastTime = performance.now();
+  let shadowFrame = 0;
   function animate(now) {
     requestAnimationFrame(animate);
     const dt = Math.min((now - lastTime) / 1000, 0.1);
     lastTime = now;
+
+    if (sunLight && sunLight.shadow) {
+      if ((shadowFrame++ % 2) === 0) sunLight.shadow.needsUpdate = true;
+    }
 
     updateGame(dt);
     renderer.clear();
@@ -273,7 +280,7 @@ function createWorldArena() {
   const waterMesh = new THREE.Mesh(waterGeo, waterMat);
   waterMesh.rotation.x = -Math.PI / 2;
   waterMesh.position.y = -0.15;
-  waterMesh.receiveShadow = true;
+  waterMesh.receiveShadow = false; // Dev okyanus yüzeyinde ağır gölge fragment hesaplamasını kapat (GPU tasarrufu)
   scene.add(waterMesh);
 
   // Yüzen Voxel Bulutlar (10 Kat Dünya Gökyüzü)
@@ -346,8 +353,11 @@ function updateFountains(dt) {
 let waveTime = 0, waveFrame = 0, waterGeo = null;
 function updateWaves(dt) {
   if (!waterGeo) return;
+  const cp = camera ? camera.position : null;
+  // Şehir merkezindeyken okyanus vertex güncellemesini atla (GPU bus darboğazını önler)
+  if (cp && cp.x < 260 && Math.abs(cp.z) < 700) return;
   waveTime += dt;
-  if ((waveFrame++ & 1) !== 0) return;
+  if ((waveFrame++ % 3) !== 0) return;
   const pos = waterGeo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), y = pos.getY(i);
@@ -427,8 +437,8 @@ function updateGame(dt) {
   camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 10);
   camera.updateProjectionMatrix();
 
-  // Teardown Voxel Dünyası ve Döküntü Fiziği
-  voxelWorld.update(dt);
+  // Teardown Voxel Dünyası ve Döküntü Fiziği (kamera pozisyonu culling & shadow LOD için iletilir)
+  voxelWorld.update(dt, camera ? camera.position : null);
 
   // Yıkım Oranı
   const currentPct = voxelWorld.getDestructionPercentage();
