@@ -590,19 +590,21 @@ export class StoryManager {
     this.cinematicGroup.add(van);
     this.newsVan = van;
 
-    // Pankartlı İsyancılar
+    // Pankartlı İsyancılar (Kullanıcı Talebi: David'in villası önünde çok fazla halk/kalabalık olsun)
     this.protesters = [];
-    const slogans = ['DEFOL STERLING!', 'PARALARIMIZI VER!', 'HIRSIZ STERLING!', 'BANKALARI BIRAK!'];
-    for (let i = 0; i < 11; i++) {
-      const ang = (i / 11) * Math.PI - 0.2;
-      const r = 4.5 + Math.random() * 3.5;
+    const slogans = ['DEFOL STERLING!', 'PARALARIMIZI VER!', 'HIRSIZ STERLING!', 'BANKALARI BIRAK!', 'HAKKIMIZI YEDİRMEYİZ!', 'YALANCI PATRON!'];
+    for (let i = 0; i < 32; i++) {
+      const row = Math.floor(i / 11);
+      const col = i % 11;
+      const ang = (col / 10) * Math.PI * 0.85 - 0.25;
+      const r = 4.2 + row * 2.8 + (Math.random() - 0.5) * 1.2;
       const px = vx + Math.cos(ang) * r;
-      const pz = vz + 3.0 + Math.sin(ang) * r;
+      const pz = vz + 2.5 + Math.sin(ang) * r;
       const p = this._buildProtesterModel(slogans[i % slogans.length]);
       p.position.set(px, vy, pz);
       p.rotation.y = Math.PI + (Math.random() - 0.5) * 0.6;
       p.userData.baseY = vy;
-      p.userData.animOffset = Math.random() * 10;
+      p.userData.animOffset = Math.random() * 12;
       this.cinematicGroup.add(p);
       this.protesters.push(p);
     }
@@ -816,12 +818,14 @@ export class StoryManager {
 
   _spawnMissionProtesters(vx, vy, vz) {
     this.protesters = [];
-    const slogans = ['DEFOL STERLING!', 'PARAMIZI VER!', 'KATİL STERLING!', 'HESAP VERECEKSİN!'];
-    for (let i = 0; i < 14; i++) {
-      const ang = (i / 14) * Math.PI * 1.5 - 0.4;
-      const r = 6.0 + Math.random() * 8.0;
+    const slogans = ['DEFOL STERLING!', 'PARAMIZI VER!', 'KATİL STERLING!', 'HESAP VERECEKSİN!', 'HAKKIMIZI YEDİRMEYİZ!', 'YALANCI PATRON!'];
+    for (let i = 0; i < 32; i++) {
+      const row = Math.floor(i / 11);
+      const col = i % 11;
+      const ang = (col / 10) * Math.PI * 0.9 - 0.3;
+      const r = 4.8 + row * 2.8 + (Math.random() - 0.5) * 1.2;
       const px = vx + Math.cos(ang) * r;
-      const pz = vz + 2.0 + Math.sin(ang) * r;
+      const pz = vz + 2.2 + Math.sin(ang) * r;
       const p = this._buildProtesterModel(slogans[i % slogans.length]);
       p.position.set(px, vy, pz);
       p.userData.isTarget = true;

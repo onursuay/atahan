@@ -154,8 +154,8 @@ export class DayNight {
       if (this.scene.background && this.scene.background.copy) this.scene.background.copy(sky);
       if (this.scene.fog) {
         if (this.scene.fog.color && this.scene.fog.color.copy) this.scene.fog.color.copy(sky);
-        this.scene.fog.near = 400;
-        this.scene.fog.far = 3200 - 800 * night;
+        this.scene.fog.near = 110;
+        this.scene.fog.far = 175;
       }
     }
     if (this.ambient) {

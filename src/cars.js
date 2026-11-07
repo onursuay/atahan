@@ -10,7 +10,7 @@ const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yü
 // ya da sağa/sola yuvarlak bir yayla dönerler; yolun ucunda U dönüşü yaparlar. Dokuz tür (bkz. carmodels.js).
 // İçlerinde sürücü görünür. Hasar bölgeseldir (ön/arka/sol/sağ); ön bölge parçalanınca araç durup dumanlanır.
 // ─────────────────────────────────────────────────────────────────────────────
-const CAR_COUNT = 65;
+const CAR_COUNT = 36;
 const U = 0.75;                      // eski birim -> metre
 const TURN_R = 4.2;                  // dönüş yarıçapı (m)
 const COLORS = [0xdc2626, 0xf59e0b, 0xfacc15, 0x2563eb, 0x16a34a, 0xf3f4f6, 0x111827, 0x9333ea, 0xf97316, 0x06b6d4, 0xe11d48, 0x84cc16];

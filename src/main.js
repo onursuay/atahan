@@ -117,7 +117,7 @@ function init() {
   // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 5X Genişletilmiş Harita Görüşü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
-  scene.fog = new THREE.Fog(0x78a7ff, 320, 900);
+  scene.fog = new THREE.Fog(0x78a7ff, 110, 175);
 
   // 2. Kamera: 950 m görüş mesafesi (optimize edilmiş derinlik ve yüksek FPS)
   camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 950);

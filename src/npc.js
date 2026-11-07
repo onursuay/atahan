@@ -11,7 +11,7 @@ import { DogManager, CatManager } from './animals.js';
 // Mermiyle (kurşunla) vurulunca komple dağılmazlar: KAFAYA isabet kafayı parçalar (ten küpleri + kırmızı kan küpleri),
 // gövdeye isabet yaralar; ceset yere yığılır ve bir süre kalır. Bir süre sonra başka yerde yenisi doğar.
 // ─────────────────────────────────────────────────────────────────────────────
-const NPC_COUNT = 125;
+const NPC_COUNT = 55;
 const SCALE = 1.6;               // normal insandan bir buçuk kat büyük
 const HALF_W = 0.22 * SCALE;
 const HEIGHT = 2.5;              // çarpışma yüksekliği (model 2.5 m): 3.5 m'lik iç mekan tavanlarına ve 3.0 m'deki tavan lambalarına sığar

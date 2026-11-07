@@ -36,7 +36,8 @@ function makeCubeTexture(def) {
 
 // Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
 const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // 0.5 m küpte 1; küçüldükçe daha çok küp gerekir
-const CHUNK_SIZE = 96; // metre: geniş dünya için optimize edilmiş bölge boyutu (draw call sayısını %93 azaltır)
+const CHUNK_SIZE = 48; // metre: Minecraft tarzı dinamik bölge boyutu (performansı ve akıcı chunk yüklemeyi maksimize eder)
+const CHUNK_STREAM_DIST = 165; // metre: bu mesafeden uzaktaki bölgeler GPU çiziminden tamamen çıkarılır (0 kasma)
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
@@ -909,14 +910,14 @@ export class VoxelWorld {
     this.collapse.update(dt);
     if (this.bridge) this.bridge.update(dt);
 
-    // Chunk LOD & Distance Culling: Sis sınırının (320m) ötesindeki chunk'ları render'dan çıkar
-    // ve yalnızca oyuncuya yakın (<75m) binalara gerçek zamanlı gölge ver (60 FPS garantisi)
+    // Minecraft Tarzı Chunk LOD & Distance Streaming: Sis sınırının (165m) ötesindeki chunk'ları çizimden çıkar
+    // Oyuncu yaklaştıkça sisten yumuşakça yüklenir, uzaklaşınca geçici olarak silinir (0 kasma)
     this._cullTimer = (this._cullTimer || 0) + dt;
-    if (this._cullTimer >= 0.08 && camPos && this.chunkMeshes.length > 0) {
+    if (this._cullTimer >= 0.06 && camPos && this.chunkMeshes.length > 0) {
       this._cullTimer = 0;
       const camX = camPos.x, camZ = camPos.z;
-      const maxDistSq = 320 * 320;
-      const shadowDistSq = 75 * 75;
+      const maxDistSq = CHUNK_STREAM_DIST * CHUNK_STREAM_DIST;
+      const shadowDistSq = 50 * 50;
       for (let i = 0; i < this.chunkMeshes.length; i++) {
         const m = this.chunkMeshes[i];
         const u = m.userData;
