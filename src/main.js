@@ -630,8 +630,10 @@ function setFirstPerson(on) {
 
 function updateCamera(dt) {
   if (storyManager && storyManager.controlsLocked &&
-     (storyManager.currentPhase === STORY_PHASES.CINEMATIC_BANK ||
-      storyManager.currentPhase === STORY_PHASES.CINEMATIC_PROTEST ||
+     (storyManager.currentPhase === STORY_PHASES.CINEMATIC_BANK_ARRIVE ||
+      storyManager.currentPhase === STORY_PHASES.CINEMATIC_BANK_MEET ||
+      storyManager.currentPhase === STORY_PHASES.CINEMATIC_DRONE_PROTEST ||
+      storyManager.currentPhase === STORY_PHASES.PHONE_CALL ||
       storyManager.currentPhase === STORY_PHASES.LIMO_RIDE ||
       storyManager.currentPhase === STORY_PHASES.VILLA_ARRIVAL)) {
     return;
