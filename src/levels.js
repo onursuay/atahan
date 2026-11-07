@@ -1298,6 +1298,26 @@ export class LevelManager {
     this.world.terrain.rampArea = (xm, zm) => { if (xm >= 295) return xm < 455 && zm > -95 && zm < 12; const x = xm / U; return Math.abs(zm / U) <= 6.6 && ((x >= 258 && x < 286) || (x >= 325 && x < 360)); };   // x≥295 m: yalnız villa yolu asfaltı vardır
     this.world.terrain.heightFn = (xm, zm, mat) => {
       const x = xm / U, z = zm / U;
+
+      // Kum (Sahil ve Su Altı Okyanus Tabanı)
+      if (mat && (mat.id === PALETTE.SAND.id || (mat.name && mat.name.startsWith('Kum')))) {
+        const wave = 28 * Math.sin(z * 0.014) + 16 * Math.cos(z * 0.032) + 8 * Math.sin(z * 0.065);
+        const b0 = -845 + wave;
+        if (x < b0) {
+          const distM = (b0 - x) * U;
+          if (distM <= 12) {
+            return -0.10 - (distM / 12) * 0.30;
+          }
+          if (distM <= 38) {
+            const t = (distM - 12) / 26;
+            return -0.40 - t * 1.20;
+          }
+          const mounds = 0.28 * Math.sin(xm * 0.12) * Math.cos(zm * 0.09) + 0.16 * Math.sin(zm * 0.24);
+          return -1.60 + mounds;
+        }
+        return 0;
+      }
+
       if (!mat || !mat.isGrass) return 0;
       let h = 0;
       for (const [cx, cz, sg, A] of hills) h += A * Math.exp(-((x - cx) ** 2 + (z - cz) ** 2) / (2 * sg * sg));
@@ -3029,26 +3049,51 @@ export class LevelManager {
       // 1. Çok çok sığ kıyı tabanı (ayak bileği seviyesinde sığ su)
       w.fillBox(b0 - 24, 0, z, b0, 0, z + 5, PALETTE.SAND);
 
-      // 2. Yavaşça eğimle uzanan düz deniz tabanı yolu (x: b0-120 .. b0-24)
-      w.fillBox(b0 - 120, 0, z, b0 - 24, 0, z + 5, PALETTE.SAND);
+      // 2. Yavaşça eğimle uzanan ve görünmez batı sınırına kadar giden düz deniz tabanı yolu
+      w.fillBox(b0 - 450, 0, z, b0 - 24, 0, z + 5, PALETTE.SAND);
     }
 
-    // Deniz tabanında hafif kum tepeleri (underwater mounds / sand dunes)
-    for (let z = -650; z <= 650; z += 45) {
-      const hx = Math.round(-910 + coastWave(z) * 0.4);
-      w.fillBox(hx - 8, 1, z - 12, hx + 8, 1, z + 12, PALETTE.SAND);
-      w.fillBox(hx - 4, 2, z - 6, hx + 4, 2, z + 6, PALETTE.SAND);
-    }
+    // ── SU ALTINDAKİ KIRILABİLİR DENİZ TAŞLARI VE ÇAKILLAR (UNDERWATER SEA PEBBLES & ROCKS) ──
+    // Kullanıcının isteği: "Deniz çakıl taşları falan onları eklemişsin ancak onlar neden sahilde?
+    // Onların denizin içinde olması lazımdı, benim amacım oydu. Denizi kaplasın yani."
+    // Denizin içindeki kum tabanında (su altında) denizi kaplayan kırılabilir çakıl ve deniz kayaları:
+    const rockMaterials = [PALETTE.STONE, PALETTE.CONCRETE, PALETTE.BEIGE];
+    for (let z = -750; z <= 750; z += 14) {
+      const wave = coastWave(z);
+      const b0 = Math.round(-845 + wave);
 
-    // ── KIRILABİLİR KÜÇÜK DENİZ TAŞLARI (SEA ROCKS) ──
-    // Kullanıcının isteği: "Deniz taşları ekle küçük küçük, onları da kırabilelim."
-    for (let z = -720; z <= 720; z += 32) {
-      const rx = Math.round(-875 + coastWave(z) * 0.6);
-      const rMat = Math.random() > 0.5 ? PALETTE.STONE : PALETTE.CONCRETE;
-      w.fillBox(rx - 1, 1, z, rx + 1, 2, z + 1, rMat);
-      if (Math.random() > 0.4) {
-        w.fillBox(rx + 2, 1, z - 2, rx + 3, 1, z - 1, PALETTE.STONE);
-        w.fillBox(rx - 3, 1, z + 2, rx - 2, 2, z + 3, PALETTE.STONE);
+      // Kıyıdan denizin içine doğru farklı derinlik ve mesafelerde denizi kaplar
+      const dists = [14, 28, 48, 76, 110, 155, 210, 275];
+      for (let di = 0; di < dists.length; di++) {
+        const dist = dists[di] + ((Math.abs(z * 37 + di * 53)) % 9) - 4;
+        const rx = b0 - dist;
+        const xm = rx * 0.75, zm = z * 0.75;
+        const distM = dist * 0.75;
+        const mounds = 0.28 * Math.sin(xm * 0.12) * Math.cos(zm * 0.09) + 0.16 * Math.sin(zm * 0.24);
+        const depthM = distM <= 12 ? -0.10 - (distM / 12) * 0.30 : distM <= 38 ? -0.40 - ((distM - 12) / 26) * 1.20 : -1.60 + mounds;
+
+        // Su seviyesi -0.15m'nin tamamen altında, deniz tabanında duran ince voxel koordinatı
+        const vy0 = Math.round(depthM / 0.25);
+        const fx0 = 3 * rx - 1, fz0 = 3 * z - 1;
+        const rMat = rockMaterials[(Math.abs(z * 13 + di * 7)) % rockMaterials.length];
+
+        const rockType = (Math.abs(z * 7 + di * 19)) % 4;
+        if (rockType === 0) {
+          // Tekil küçük deniz çakılı
+          w.raw(fx0, vy0, fz0, fx0 + 1, vy0 + 1, fz0 + 1, rMat);
+        } else if (rockType === 1) {
+          // İki parçalı deniz taşı grubu
+          w.raw(fx0, vy0, fz0, fx0 + 1, vy0 + 1, fz0 + 1, rMat);
+          w.raw(fx0 + 2, vy0, fz0 - 2, fx0 + 3, vy0, fz0 - 1, PALETTE.STONE);
+        } else if (rockType === 2) {
+          // Orta boy deniz kayası (tabanda doğal taş)
+          w.raw(fx0 - 1, vy0, fz0 - 1, fx0 + 2, vy0 + 1, fz0 + 2, rMat);
+          w.raw(fx0, vy0 + 2, fz0, fx0 + 1, vy0 + 2, fz0 + 1, PALETTE.STONE);
+        } else {
+          // Dağınık çakıl öbeği
+          w.raw(fx0 - 2, vy0, fz0 + 1, fx0 - 1, vy0, fz0 + 2, PALETTE.STONE);
+          w.raw(fx0 + 1, vy0, fz0 - 2, fx0 + 2, vy0 + 1, fz0 - 1, rMat);
+        }
       }
     }
 
@@ -3056,7 +3101,7 @@ export class LevelManager {
     // Kullanıcının isteği: "Sanki bir gemi batmış gibi küçük bir gemi ekle. Denizin altına böyle gemi batmış gibi
     // çok paslı, kahverengi hafif tel rengi tonlarında koyu kahverengi tonlarında biraz yosunlanmış bir gemi ekle böyle batmış.
     // Geminin sadece üçte biri olsun, üçte biri olsun ama küçük bir gemi olsun tamam mı?"
-    this.buildSunkenShipwreck(-915, 1, 175);
+    this.buildSunkenShipwreck(-915, -2, 175);
   }
 
   // GİZLİ SU ALTI BATIK GEMİSİ (Üçte biri kalmış küçük batık)

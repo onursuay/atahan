@@ -320,7 +320,7 @@ export class Terrain {
         if (this.land[i] !== 1) continue;
         const c = i % cols, r = Math.floor(i / cols);
         const hm = this.heightFn(minX + (c + 0.5) * CELL, minZ + (r + 0.5) * CELL, this.matList[this.matIdx[i]]);
-        this.hq[i] = Math.max(0, Math.round(hm / CELL));
+        this.hq[i] = Math.round(hm / CELL);
       }
     }
 

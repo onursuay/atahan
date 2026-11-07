@@ -26,6 +26,8 @@ const GRAVITY = 25;
 const MAX_FALL = 40;
 const WATER_LEVEL = -0.15;   // main.js içindeki deniz yüzeyi (waterMesh.position.y) ile aynı olmalı
 const WATER_BOUND = 4500;    // 5x genişletilmiş harita sınırları
+const SEA_WALL_WEST = -1060; // Görünmez deniz duvarı (okyanusta boşluğa düşmeyi engelleyen fiziksel bariyer)
+const SEA_WALL_Z_BOUND = 1400;
 const WATER_ENTER_DEPTH = 1.25;  // sığ sularda ayak yere basarken yürünür, göğüs hizasını geçip taban desteği kesilince yüzülür
 const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)
 const FLOAT_DEPTH_UP = 0.45; // Space basılıyken daha yüksekte yüzer
@@ -510,6 +512,7 @@ export class Character {
   }
 
   _overlaps(x, feetY, z) {
+    if (x <= SEA_WALL_WEST || Math.abs(z) >= SEA_WALL_Z_BOUND) return true; // Görünmez deniz duvarı (okyanus aşılmaz)
     const S = VOXEL_SIZE;
     // Zemin iki katmandır. Alt katman (taban kayası) her yerde katıdır ve kırılamaz;
     // üst katman yalnız sağlam olduğu hücrelerde katıdır (kırılan yerde çukurun tabanında yürünür).
@@ -543,6 +546,15 @@ export class Character {
     if (delta === 0) return feet;
     const nx = axis === 'x' ? pos.x + delta : pos.x;
     const nz = axis === 'z' ? pos.z + delta : pos.z;
+
+    // Görünmez okyanus duvarı engeli
+    if (nx <= SEA_WALL_WEST || Math.abs(nz) >= SEA_WALL_Z_BOUND) {
+      if (axis === 'x') pos.x = Math.max(SEA_WALL_WEST + 0.05, pos.x);
+      else pos.z = THREE.MathUtils.clamp(pos.z, -SEA_WALL_Z_BOUND + 0.05, SEA_WALL_Z_BOUND - 0.05);
+      this.vel[axis] = 0;
+      this.blockedHoriz = true;
+      return feet;
+    }
 
     if (!this._overlaps(nx, feet, nz)) {
       pos.x = nx; pos.z = nz;
@@ -663,9 +675,9 @@ export class Character {
       }
     }
 
-    // Deniz sınırından fazla açılmasın
-    pos.x = THREE.MathUtils.clamp(pos.x, -WATER_BOUND, WATER_BOUND);
-    pos.z = THREE.MathUtils.clamp(pos.z, -WATER_BOUND, WATER_BOUND);
+    // Deniz sınırından fazla açılmasın (batıda -1060 m görünmez deniz duvarı)
+    pos.x = THREE.MathUtils.clamp(pos.x, SEA_WALL_WEST + 0.05, WATER_BOUND);
+    pos.z = THREE.MathUtils.clamp(pos.z, -SEA_WALL_Z_BOUND + 0.05, SEA_WALL_Z_BOUND - 0.05);
     pos.y = feet + BODY_H / 2;
 
     // Kinematik gövdeyi Cannon'un kendi başına kaydırmasını engelle

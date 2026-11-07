@@ -822,6 +822,44 @@ export class CollapseSystem {
     return broken;
   }
 
+  // Düşen binanın/kulenin çarptığı alt yapıyı ezmesi (kesilmiş alt parçayı veya temeli parçalar)
+  _crushLowerStructure(c, numLayers = 1) {
+    const vw = this.vw;
+    const vox = vw.voxels;
+    let broken = 0, debris = 0;
+    const breakProb = clamp((c.vy - 1.8) / 8.0, 0.45, 1.0);
+
+    for (const b of c.cols) {
+      const topIy = Math.round(b.sup / S) - 1;
+      const groundY = vw.terrain.heightAt(b.x, b.z);
+      const groundIy = Math.round(groundY / S);
+
+      for (let ly = 0; ly < numLayers; ly++) {
+        const iy = topIy - ly;
+        if (iy < groundIy) break;
+        const v = vox.get(key(b.v.ix, iy, b.v.iz));
+        if (v && v.active) {
+          if (Math.random() <= breakProb) {
+            v.active = false;
+            vw._hideVoxel(v);
+            broken++;
+            if (debris < 18 && vw.dynamicDebris.length < vw.maxDynamicDebris && Math.random() < 0.4) {
+              debris++;
+              vw.spawnLooseVoxel(v.x, v.y, v.z, v.type, { x: c.com.x, y: v.y, z: c.com.z }, 0.5, 2.5, 10 + c.vy);
+            }
+          }
+        }
+      }
+      b.sup = this._support(b.v.ix, b.v.iz, topIy + 1, b.x, b.z);
+    }
+    vw.destroyedVoxels += broken;
+    if (broken > 0) {
+      sound.playBlockHit();
+      if (this.onShake) this.onShake(Math.min(0.28, 0.05 + c.vy / 80));
+    }
+    return broken;
+  }
+
   _stepFall(c, dt) {
     c.vy = Math.min(32, c.vy + GRAVITY * 0.65 * dt);
     const drop = c.vy * dt;
@@ -846,6 +884,14 @@ export class CollapseSystem {
           const hit = this._checkHit(p.x, p.y, p.z);
           if (hit === 'voxel') {
             const vImpact = Math.hypot(c.vy, c.omega * Math.hypot(f.s, f.h));
+            const chunkH = c.ext.maxY - c.ext.minY;
+            const minSpan = Math.min(c.ext.maxX - c.ext.minX, c.ext.maxZ - c.ext.minZ);
+            const isSlender = (chunkH / Math.max(minSpan, 1)) > 1.35 || minSpan < 8.5;
+            const th = this.vw.terrain.heightAt(p.x, p.z);
+            if (isSlender && p.y > th + 1.2) {
+              this._smashBuildingAt(c, p, Math.max(vImpact, 6.5));
+              continue;
+            }
             if (this._smashBuildingAt(c, p, vImpact)) continue;
             this._pose(c); this._settle(c, vImpact, c.theta, p.clone()); return true;
           }
@@ -860,17 +906,66 @@ export class CollapseSystem {
     return false;
   }
 
-  // Düz düşen parça zemine/alt yapıya değdiğinde (Teardown tarzı):
-  // Yalnızca düşüş hızı (c.vy) yüksekse temas eden en alt katman hıza göre ezilir ve bina frenler.
-  // Durduğunda ağırlık merkezi temas yüzeyinin içindeyse olduğu gibi sağlam oturur; dışındaysa o kenardan devrilir.
+  // Düz düşen parça zemine/alt yapıya değdiğinde (Teardown fiziği):
+  // 1) İnce / çubuksu yapılar (Havalimanı kulesi, sütun, baca vb.): temeli kesildiğinde havada durma şansı YOKTUR!
+  //    Alttaki yapıyı parçalayarak yere kadar düşer, hasar alır, devrilir ve zeminde Teardown fiziğiyle parçalanır.
+  // 2) Geniş binalar: altındaki boşluğa düşer, çarpma hızına göre alt katmanı ve temas ettiği yapıyı ezer, frenleyerek oturur.
   _contact(c) {
     const impact = c.vy;
-    const maxCrushLayers = clamp(Math.floor((impact - 3.5) / 3.5), 0, 4);
-    if (c.vy > 4.2 && c.crushLayers < maxCrushLayers) {
-      const broken = this._crushBottomLayer(c);
+    const chunkH = c.ext.maxY - c.ext.minY;
+    const spanX = c.ext.maxX - c.ext.minX;
+    const spanZ = c.ext.maxZ - c.ext.minZ;
+    const minSpan = Math.min(spanX, spanZ);
+    // İnce / çubuksu yapılar: havalimanı kulesi, dar sütun, baca vb.
+    const isSlender = (chunkH / Math.max(minSpan, 1)) > 1.35 || minSpan < 8.5;
+
+    // Zemine mi çarptı yoksa altındaki bir yapıya/kesilmiş alt parçaya mı?
+    let groundCount = 0;
+    for (const b of c.cols) {
+      if (b.sup <= this.vw.terrain.heightAt(b.x, b.z) + 0.35) groundCount++;
+    }
+    const hitSolidGround = c.cols.length > 0 && (groundCount / c.cols.length >= 0.55);
+
+    // ── 1. DURUM: İNCE / ÇUBUKSU NESNELER (HAVALİMANI KULESİ, SÜTUN, BACA VB.) ──
+    // Kullanıcının isteği: "Kuleyi ortadan ikiye böldüm... ortasını yıktığım zaman fiziği kullanaraktan
+    // o düşecek, yere kadar düşecek çünkü artık temeli gitmiş, onun durma şansı yok. Yere düşene kadar gidecek,
+    // alttan çarptığı bölge hasar alsın... sonra yere düştüğü zaman Teardown'daki fizik gibi yap."
+    if (isSlender && !hitSolidGround) {
+      // 1. Düşen kulenin temas eden alt katmanını ez
+      this._crushBottomLayer(c);
+
+      // 2. Altındaki yapıyı ez ve kolonlarını parçala (alttaki parçanın içinden geçip gitsin)
+      this._crushLowerStructure(c, 2);
+
+      // 3. İvmesini korusun ve aşağı doğru düşmeye devam etsin (kesinlikle havada asılı kalıp durmaz!)
+      c.vy = Math.max(4.8, c.vy * 0.88);
+
+      // 4. Temeli koptuğu için devrilmeye başlasın
+      if (!c.d || c.phase !== 'tip') {
+        let dx = c.asymDir ? c.asymDir.dx : (Math.random() - 0.5);
+        let dz = c.asymDir ? c.asymDir.dz : (Math.random() - 0.5);
+        const dl = Math.hypot(dx, dz) || 1;
+        dx /= dl; dz /= dl;
+        const lowP = Math.min(...c.cols.map(b => b.by + c.oy0 + c.oy1));
+        this._beginTip(c, { dx, dz, px: c.com.x + dx * (minSpan * 0.3), py: lowP, pz: c.com.z + dz * (minSpan * 0.3) }, 0.015, 0.08);
+      }
+      return false; // Havada durma şansı yok, yere kadar düşecek!
+    }
+
+    // ── 2. DURUM: GENİŞ DİKDÖRTGEN BİNALAR ──
+    // Kullanıcının isteği: "Bina dikdörtgen olduğu için onun düşmesi zor. Çubuk şeklinde uzun bir şey değil.
+    // O düşmesin, sadece birazcık böyle ortasını kestiğim büyüklüğe bağlı, ortasını kestiğim için aşağı doğru,
+    // o boşluğa doğru düşerekten biraz böyle parçalansın alt tarafı. Sonra Teardown'daki fizik gibi yap,
+    // sonra altı böyle parçalansın bir andan sonra dursun hızına bağlı, tamam mı?"
+    const maxCrushLayers = clamp(Math.floor((impact - 2.5) / 2.8), 1, 4);
+    if (c.vy > 3.2 && c.crushLayers < maxCrushLayers) {
+      this._crushBottomLayer(c);
+      if (!hitSolidGround) {
+        this._crushLowerStructure(c, 1);
+      }
       c.crushLayers++;
-      c.vy = Math.max(0, c.vy * 0.52 - 1.8);
-      if (broken > 0 && c.vy > 4.2 && c.crushLayers < maxCrushLayers) {
+      c.vy = Math.max(0, c.vy * 0.48 - 1.8);
+      if (c.vy > 3.5 && c.crushLayers < maxCrushLayers) {
         return false;
       }
     }
@@ -884,7 +979,7 @@ export class CollapseSystem {
       py = Math.min(py, b.by + c.oy0 + c.oy1);
     }
 
-    // Kalan temas alanı ağırlık merkezini taşımıyorsa veya alt kısım tek taraflı kesilmişse o yöne devrilir
+    // Kalan temas alanı ağırlık merkezini taşımıyorsa veya alt kısım asimetrik kesilmişse o yöne devrilir
     const h = hull2(pts), r = nearestOnHull(h, c.com.x, c.com.z);
     if (r && (!r.inside && r.dist >= 0.35)) {
       let dx = c.com.x - r.qx, dz = c.com.z - r.qz; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
@@ -899,7 +994,7 @@ export class CollapseSystem {
       return false;
     }
 
-    // Düz oturdu: üst gövde hiç kırılmadan olduğu gibi yerine yerleşir
+    // Geniş bina hızını kaybedip oturdu: arayüzdeki kırık dökük parçalarla yerine oturur
     this._settle(c, impact, 0, null);
     return true;
   }
@@ -927,6 +1022,14 @@ export class CollapseSystem {
         const hit = this._checkHit(p.x, p.y, p.z);
         if (hit === 'voxel') {
           const vLocal = Math.abs(c.omega) * Math.hypot(f.s, f.h);
+          const chunkH = c.ext.maxY - c.ext.minY;
+          const minSpan = Math.min(c.ext.maxX - c.ext.minX, c.ext.maxZ - c.ext.minZ);
+          const isSlender = (chunkH / Math.max(minSpan, 1)) > 1.35 || minSpan < 8.5;
+          const th = this.vw.terrain.heightAt(p.x, p.z);
+          if (isSlender && p.y > th + 1.2) {
+            this._smashBuildingAt(c, p, Math.max(vLocal, 6.5));
+            continue;
+          }
           if (this._smashBuildingAt(c, p, vLocal)) continue;
           this._pose(c);
           this._settle(c, vLocal, c.theta, p.clone());
@@ -994,11 +1097,11 @@ export class CollapseSystem {
     const vw = this.vw, p = new THREE.Vector3();
     const speed = Math.max(0, v);
 
-    // Hıza bağlı lokal hasar parametreleri (düşük hızda 0 hasar, yüksek hızda yalnız temas noktasında kırılma)
-    const contactRadius = contact ? clamp((speed - 2.2) * 0.28, 0, 3.0) : 0;
-    const contactProbMax = clamp((speed - 2.2) / 13.0, 0, 0.85);
-    const groundCrushH = clamp((speed - 3.0) * 0.11, 0, 1.1);
-    const groundProbMax = clamp((speed - 3.0) / 14.0, 0, 0.80);
+    // Hıza bağlı lokal hasar parametreleri (Teardown fiziği: yere çarptığında alt kısım hıza göre ezilir)
+    const contactRadius = contact ? clamp((speed - 2.0) * 0.40, 0, 5.0) : 0;
+    const contactProbMax = clamp((speed - 2.0) / 10.0, 0, 0.92);
+    const groundCrushH = clamp((speed - 2.5) * 0.18, 0, 2.2);
+    const groundProbMax = clamp((speed - 2.5) / 10.0, 0, 0.88);
 
     const dummy = new THREE.Object3D();
     const placedByChunk = new Set(); // bu parçanın kendi küplerinin yerleştiği ızgara hücreleri
