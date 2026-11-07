@@ -1087,6 +1087,67 @@ class SoundEngine {
     });
   }
 
+  // Undertale Tarzı Diyalog Karakter Bip Sesi (Her harfte daktilo / konuşma sesi)
+  playDialogBeep(freq = 180) {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(freq + (Math.random() - 0.5) * 35, now);
+    g.gain.setValueAtTime(0.06, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 0.06);
+  }
+
+  // Telefon Çalma Sesi (Vintage dijital telefon çift zil sesi)
+  playPhoneRing() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    [ [853, 960, 0.0], [853, 960, 0.22] ].forEach(([f1, f2, delay]) => {
+      const t = now + delay;
+      const osc1 = this.ctx.createOscillator(), osc2 = this.ctx.createOscillator(), g = this.ctx.createGain();
+      osc1.type = 'sine'; osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(f1, t);
+      osc2.frequency.setValueAtTime(f2, t);
+      g.gain.setValueAtTime(0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc1.connect(g); osc2.connect(g);
+      g.connect(this.ctx.destination);
+      osc1.start(t); osc2.start(t);
+      osc1.stop(t + 0.19); osc2.stop(t + 0.19);
+    });
+  }
+
+  // Sinematik Sahne Geçiş Vuruşu (Sub-bass boom)
+  playCinematicBoom() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, now);
+    osc.frequency.exponentialRampToValueAtTime(28, now + 1.2);
+    g.gain.setValueAtTime(0.35, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 1.25);
+  }
+
+  // Limuzin Lüks Vakumlu Kapı Sesi
+  playLimoDoor() {
+    if (this.muted || !this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.35);
+    g.gain.setValueAtTime(0.2, now);
+    g.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(g); g.connect(this.ctx.destination);
+    osc.start(now); osc.stop(now + 0.36);
+    this.playNoise(0.25, 0.08, 450);
+  }
+
   // Gürültü (Noise) Üreteci
   playNoise(duration, volume, filterFreq = 1000) {
     if (!this.ctx) return;

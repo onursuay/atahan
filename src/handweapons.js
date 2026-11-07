@@ -636,6 +636,20 @@ export class HandWeapons {
       }
     }
 
+    // Hikaye isyancısına mı çarptı?
+    if (this.storyManager) {
+      const hitDist = hit ? origin.distanceTo(hit) : o.range;
+      const sh = this.storyManager.checkBulletHit(origin, dir, hitDist);
+      if (sh) {
+        this._spawnTracer(muzzle, sh.point);
+        this.flashTimer = 0.04;
+        this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        this._shotSound(o);
+        return;
+      }
+    }
+
     // Mermi önce bir NPC'ye mi çarptı?
     if (this.npcs) {
       const hitDist = hit ? origin.distanceTo(hit) : o.range;
@@ -770,6 +784,7 @@ export class HandWeapons {
       const pt = base.clone().addScaledVector(dir, d);
       const n = this.voxelWorld.sweepCut(pt, SABER_RADIUS);
       cut += n;
+      if (this.storyManager) this.storyManager.checkSphereHit(pt, SABER_RADIUS + 0.35);
       if (this.npcs) this.npcs.hitSphere(pt, SABER_RADIUS + 0.25);
       if (this.cars) this.cars.bladeHit(pt, SABER_RADIUS);       // ışın kılıcı arabayı (demir dahil) keser
       this.voxelWorld.doors.hitSphere(pt, SABER_RADIUS, 4);        // ve kapıları
@@ -838,6 +853,7 @@ export class HandWeapons {
     for (let i = 0; i < cur.length; i++) {
       const c = cur[i];
       if (c.distanceToSquared(cam.position) < safe2 || vel[i].length() < SPIN_MIN_SPEED) continue;
+      if (this.storyManager) this.storyManager.checkSphereHit(c, SPIN_CUT_RADIUS + 0.35);
       if (this.npcs) this.npcs.hitSphere(c, SPIN_CUT_RADIUS + 0.3);
       if (this.cars) this.cars.bladeHit(c, SPIN_CUT_RADIUS + 0.3);
       this.voxelWorld.doors.hitSphere(c, SPIN_CUT_RADIUS + 0.3, 4);

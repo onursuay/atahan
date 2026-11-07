@@ -21,13 +21,14 @@ import { MapSystem } from './map.js';
 import { MetroSystem } from './metro.js';
 import { SeaLife } from './sealife.js';
 import { BusManager } from './bus.js';
+import { StoryManager, STORY_PHASES } from './story.js';
 
 let scene, camera, renderer;
 let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
-let props, mapSystem, metro, seaLife, busManager;
+let props, mapSystem, metro, seaLife, busManager, storyManager;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -245,6 +246,10 @@ function init() {
   try { mapSystem = new MapSystem(); } catch (e) { console.warn(e); }
   try { seaLife = new SeaLife(scene, voxelWorld); } catch (e) { console.warn(e); }
   try { busManager = new BusManager(scene, voxelWorld, character); } catch (e) { console.warn(e); }
+  try {
+    storyManager = new StoryManager(scene, voxelWorld, character, camera, weaponSystem, handWeapons);
+    handWeapons.storyManager = storyManager;
+  } catch (e) { console.warn('storyManager başlatılamadı:', e); }
 
   finishLoadingUI();
   // Garanti yükleme emniyet kilitleri (Watchdog)
@@ -431,9 +436,9 @@ function updateGame(dt) {
     }
   }
   // Jenerik: kontroller kapalı; bitince oyuncu ilk hareketinde koltuktan kalkar (göz yüksekliği yükselir)
-  if (introActive) { for (const k in inputState) inputState[k] = false; updateIntro(dt); }
+  if (introActive || (storyManager && storyManager.controlsLocked)) { for (const k in inputState) inputState[k] = false; if (introActive) updateIntro(dt); }
   else if (seated && (inputState.forward || inputState.backward || inputState.left || inputState.right || inputState.jump)) seated = false;
-  if (!introActive) eyeOffset += ((seated ? INTRO_SEAT_EYE : 1.8) - eyeOffset) * (1 - Math.exp(-5 * dt));
+  if (!introActive && (!storyManager || !storyManager.controlsLocked)) eyeOffset += ((seated ? INTRO_SEAT_EYE : 1.8) - eyeOffset) * (1 - Math.exp(-5 * dt));
   if (voxelWorld.homeTV) {
     voxelWorld.homeTV.light.intensity = voxelWorld.homeTV.broken ? 0 : (14 + Math.sin(performance.now() * 0.011) * 2 + Math.sin(performance.now() * 0.0047) * 2.5);   // TV ışığı hafifçe titrer, kırılınca söner
     if (voxelWorld.homeTV.update) voxelWorld.homeTV.update(dt);
@@ -465,6 +470,12 @@ function updateGame(dt) {
   if (seaLife) seaLife.update(dt, character ? character.mesh.position : null);
   if (metro && !introWaiting) metro.update(dt, character);
   if (busManager && !introWaiting) busManager.update(dt, character, inputState);
+  if (storyManager) storyManager.update(dt, character.mesh.position);
+  if (storyManager && storyManager.weaponsLocked) {
+    if (handWeapons && handWeapons.root.visible) handWeapons.root.visible = false;
+  } else if (!introActive) {
+    if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
+  }
   // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik
   doorActors.length = 0;
   doorActors.push({ x: character.mesh.position.x, y: character.mesh.position.y, z: character.mesh.position.z });
@@ -532,16 +543,22 @@ function startIntro() {
     if (bBtn) bBtn.onclick = () => { $('mm-set').style.display = 'none'; $('mm-home').style.display = 'flex'; };
     if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
     if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
-    if (pBtn) pBtn.onclick = () => {      // OYNA: menü kapanır, jenerik başlar
+    if (pBtn) pBtn.onclick = () => {      // OYNA: menü kapanır, sinematik hikaye başlar
       try {
         menu.style.display = 'none';
         introWaiting = false; introT = 0;
         try { sound.init(); } catch (e) {}
-        // Oyuna başlandığı an şehirdeki evimizin 2. katındaki televizyon odasında koltukta başlasın
-        const cfg = (levelManager && levelManager.levelConfigs) ? levelManager.levelConfigs[levelManager.currentLevelIndex || 0] : null;
-        if (cfg && cfg.spawn) character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
-        seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
-        cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
+        document.body.classList.remove('intro');
+        if (introFadeEl) introFadeEl.style.display = 'none';
+        introActive = false;
+        if (storyManager) {
+          storyManager.startStory();
+        } else {
+          const cfg = (levelManager && levelManager.levelConfigs) ? levelManager.levelConfigs[levelManager.currentLevelIndex || 0] : null;
+          if (cfg && cfg.spawn) character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+          seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
+          cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
+        }
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
         console.warn('Oyna basildiginda kurtarma calisti:', err);
@@ -612,6 +629,13 @@ function setFirstPerson(on) {
 }
 
 function updateCamera(dt) {
+  if (storyManager && storyManager.controlsLocked &&
+     (storyManager.currentPhase === STORY_PHASES.CINEMATIC_BANK ||
+      storyManager.currentPhase === STORY_PHASES.CINEMATIC_PROTEST ||
+      storyManager.currentPhase === STORY_PHASES.LIMO_RIDE ||
+      storyManager.currentPhase === STORY_PHASES.VILLA_ARRIVAL)) {
+    return;
+  }
   const charPos = character.mesh.position;
 
   if (inCar && cars.driven) {
@@ -914,6 +938,7 @@ function updateCrosshair() {
 
 function fireWeapon() {
   if (inCar) return;
+  if (storyManager && (storyManager.controlsLocked || storyManager.weaponsLocked)) return;
   if (rightHeld) {
     if (props.held) {
       props.throwHeld(camera);
@@ -959,6 +984,7 @@ function fireWeapon() {
 }
 
 function selectWeapon(idx) {
+  if (storyManager && storyManager.weaponsLocked) return;
   if (scopeOn && idx !== 8) toggleScope();
   weaponSystem.setWeapon(idx);
   handWeapons.setWeapon(idx);
@@ -972,6 +998,7 @@ function selectWeapon(idx) {
 
 // Bilgisayarın E Tuşuna Basınca Çekiç Vursun (Ahtapot modundaysa Topaç gibi dönerek etrafındaki eşyaları kırsın!)
 function useHammer() {
+  if (storyManager && storyManager.controlsLocked) return;
   sound.init();
   if (weaponSystem.currentWeapon === 16) {
     handWeapons.octopus.startTopacSpin(
@@ -997,6 +1024,7 @@ function useHammer() {
 
   // Çekiç menzilindeki NPC'ye de vurur
   npcs.hitSphere(charPos.clone().addScaledVector(dir, 1.8), 0.9);
+  if (storyManager) storyManager.checkSphereHit(charPos.clone().addScaledVector(dir, 1.8), 1.8);
 
   // Çekiç menzilindeki kapıyı, eşyaları veya televizyon ekranını da kırar
   if (voxelWorld.homeTV) {
@@ -1170,6 +1198,13 @@ function setupEventListeners() {
 
   window.addEventListener('mousemove', (e) => {
     if (introActive) return;   // jenerik: bakış animasyonla yönetilir, fare etkisiz
+    if (storyManager && storyManager.currentPhase === STORY_PHASES.LIMO_RIDE) {
+      const sensitivity = 0.0035 * mouseSens;
+      window._storyCamYaw = (window._storyCamYaw || 0) - e.movementX * sensitivity;
+      window._storyCamPitch = Math.max(-0.6, Math.min(0.6, (window._storyCamPitch || 0) + e.movementY * sensitivity));
+      return;
+    }
+    if (storyManager && storyManager.controlsLocked) return;
     // Kapı tutulurken fare bakışı değil kapıyı sürükler
     if (voxelWorld.doors.drag) {
       voxelWorld.doors.dragMove(e.movementX, e.movementY, camera);
