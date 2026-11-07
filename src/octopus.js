@@ -285,7 +285,7 @@ export class OctopusSystem {
     this.hudEl = document.createElement('div');
     this.hudEl.id = 'octopus-hud';
     this.hudEl.innerHTML = `
-      <div class="octo-title">🐙 AHTAPOT KONTROLLERİ</div>
+      <div class="octo-title">🦾 MEKANİK AHTAPOT ROBOTU</div>
       <div><span class="octo-key">SOL TIK</span> Kol At (Bina Sar / İnsan Tut)</div>
       <div><span class="octo-key">FARE KAYDIR</span> Tutulan Binayı Sök / İnsanı Kaldır</div>
       <div><span class="octo-key">SOL TIK (TUTARKEN)</span> Binayı / İnsanı Fırlat!</div>
@@ -412,18 +412,17 @@ export class OctopusSystem {
     this._scareRaf = requestAnimationFrame(step);
   }
 
-  // ───────────────────────── Birinci Şahıs Ahtapot Kolları ve Yüzgeçler ─────────────────────────
+  // ───────────────────────── Birinci Şahıs Mekanik Ahtapot Kolları ─────────────────────────
   _buildFirstPersonArms() {
     this.fpGroup = new THREE.Group();
     this.fpGroup.visible = false;
     this.hw.root.add(this.fpGroup);
 
-    const skinMat = new THREE.MeshLambertMaterial({ color: 0x7e22ce });      // koyu mor ahtapot derisi
-    const ridgeMat = new THREE.MeshLambertMaterial({ color: 0x581c87 });     // sırt boğumu
-    const tipMat = new THREE.MeshLambertMaterial({ color: 0xa855f7 });       // parlak mor uç/üst
-    const finMat = new THREE.MeshLambertMaterial({ color: 0x9333ea });       // yan yüzgeç rengi
-    const finInnerMat = new THREE.MeshLambertMaterial({ color: 0xc084fc });  // yüzgeç iç zarı
-    const suckerMat = new THREE.MeshLambertMaterial({ color: 0xf5d0fe });    // açık pembe-mor vantuzlar
+    const titaniumMat = new THREE.MeshLambertMaterial({ color: 0x334155 }); // koyu titanyum metal
+    const steelMat = new THREE.MeshLambertMaterial({ color: 0x475569 });    // fırçalanmış çelik
+    const clawMat = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });     // krom pençeler
+    const pitMat = new THREE.MeshLambertMaterial({ color: 0x090d16 });      // Kullanıcı isteği: metal çukurlar / oyuklar
+    const cyanMat = new THREE.MeshLambertMaterial({ color: 0x06b6d4 });     // neon hidrolik enerji devresi
 
     const makeArmAndFin = (side) => {
       const g = new THREE.Group();
@@ -431,12 +430,12 @@ export class OctopusSystem {
       const segs = 12;
       for (let i = 0; i < segs; i++) {
         const u = i / (segs - 1);
-        const w = 0.14 * (1 - u * 0.58);
-        const h = 0.12 * (1 - u * 0.58);
+        const w = 0.15 * (1 - u * 0.52);
+        const h = 0.13 * (1 - u * 0.52);
         const d = 0.115;
         const seg = new THREE.Mesh(
           new THREE.BoxGeometry(w, h, d),
-          i > segs - 4 ? tipMat : skinMat
+          i > segs - 3 ? clawMat : (i % 2 === 0 ? titaniumMat : steelMat)
         );
         const x = -side * (Math.sin(u * Math.PI * 0.75) * 0.055 - u * 0.03);
         const y = Math.sin(u * Math.PI) * 0.045 + (u > 0.65 ? (u - 0.65) * 0.12 : 0);
@@ -446,38 +445,47 @@ export class OctopusSystem {
         seg.rotation.y = side * (0.18 - u * 0.32);
         armCurve.add(seg);
 
-        // Üst kas sırtı
-        const ridge = new THREE.Mesh(new THREE.BoxGeometry(w * 0.65, h * 0.35, d * 0.9), ridgeMat);
+        // KULLANICI İSTEĞİ: Metal çubuk gövdesinde minik çukurlar (Pits / Recesses)
+        const pit = new THREE.Mesh(new THREE.BoxGeometry(w * 0.35, h * 0.28, d * 0.4), pitMat);
+        pit.position.set(x + side * (w * 0.42), y, z);
+        armCurve.add(pit);
+
+        // Üst sırt metal zırhı ve cyan enerji hattı
+        const ridge = new THREE.Mesh(new THREE.BoxGeometry(w * 0.6, h * 0.25, d * 0.85), steelMat);
         ridge.position.set(x, y + h * 0.5, z);
         armCurve.add(ridge);
 
-        // İç-alt kısımda çift sıra kare vantuzlar
+        const cyanPiston = new THREE.Mesh(new THREE.BoxGeometry(w * 0.3, 0.02, d * 0.6), cyanMat);
+        cyanPiston.position.set(x, y + h * 0.58, z);
+        armCurve.add(cyanPiston);
+
+        // Mekanik kilit dişleri / perçinler
         if (i >= 1 && i < segs - 1) {
-          const sr = w * 0.34;
+          const sr = w * 0.32;
           for (const row of [-1, 1]) {
-            const sucker = new THREE.Mesh(new THREE.BoxGeometry(sr, sr * 0.6, sr), suckerMat);
-            sucker.position.set(
-              x - side * (w * 0.48),
-              y - h * 0.32 + row * sr * 0.65,
+            const rivet = new THREE.Mesh(new THREE.BoxGeometry(sr * 0.75, sr * 0.45, sr * 0.75), pitMat);
+            rivet.position.set(
+              x - side * (w * 0.46),
+              y - h * 0.32 + row * sr * 0.55,
               z
             );
-            armCurve.add(sucker);
+            armCurve.add(rivet);
           }
         }
       }
 
-      // Yan Yüzgeç
+      // Yan Metal Kanatçık / Hidrolik Dengeleyici
       const finPivot = new THREE.Group();
       finPivot.position.set(side * 0.08, 0.03, -0.22);
-      const finOuter = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.025, 0.34), finMat);
+      const finOuter = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.025, 0.34), titaniumMat);
       finOuter.position.set(side * 0.07, 0.01, -0.04);
       finOuter.rotation.z = -side * 0.22;
       finOuter.rotation.y = side * 0.28;
-      const finInner = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.018, 0.26), finInnerMat);
+      const finInner = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.018, 0.26), cyanMat);
       finInner.position.set(side * 0.06, 0.005, -0.04);
       finInner.rotation.z = -side * 0.22;
       finInner.rotation.y = side * 0.28;
-      const finTip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.18), finMat);
+      const finTip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.02, 0.18), steelMat);
       finTip.position.set(side * 0.12, 0.02, -0.22);
       finTip.rotation.z = -side * 0.32;
       finTip.rotation.y = side * 0.42;
@@ -494,7 +502,7 @@ export class OctopusSystem {
     this.fpGroup.add(this.leftArmFP.group, this.rightArmFP.group);
   }
 
-  // ───────────────────────── Dünya Sahnesinde Fırlatılan ve Tutan İnce Kollar (Sağ ve Sol) ─────────────────────────
+  // ───────────────────────── Dünya Sahnesinde Fırlatılan Titanyum Mekanik Kollar ─────────────────────────
   _buildWorldTentacle() {
     this.worldGroup = new THREE.Group();
     this.worldGroup.visible = false;
@@ -504,9 +512,10 @@ export class OctopusSystem {
     this.leftWorldGroup.visible = false;
     this.mainScene.add(this.leftWorldGroup);
 
-    const skinMat = new THREE.MeshLambertMaterial({ color: 0x7e22ce });
-    const stripeMat = new THREE.MeshLambertMaterial({ color: 0x9333ea });
-    const suckerMat = new THREE.MeshLambertMaterial({ color: 0xf5d0fe });
+    const titaniumMat = new THREE.MeshLambertMaterial({ color: 0x334155 });
+    const steelMat = new THREE.MeshLambertMaterial({ color: 0x475569 });
+    const pitMat = new THREE.MeshLambertMaterial({ color: 0x090d16 });
+    const cyanMat = new THREE.MeshLambertMaterial({ color: 0x06b6d4 });
 
     const createArmSegs = (parentGroup) => {
       const segs = [];
@@ -514,16 +523,21 @@ export class OctopusSystem {
         const segGroup = new THREE.Group();
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(0.28, 0.28, 1.0),
-          i % 2 === 0 ? skinMat : stripeMat
+          i % 2 === 0 ? titaniumMat : steelMat
         );
         segGroup.add(body);
 
-        // Her boğumun altında vantuzlar
-        const s1 = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.22), suckerMat);
-        s1.position.set(-0.08, -0.15, -0.2);
-        const s2 = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.22), suckerMat);
-        s2.position.set(0.08, -0.15, 0.2);
-        segGroup.add(s1, s2);
+        // KULLANICI İSTEĞİ: Her segmentte metal çukurlar (Pits)
+        const p1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.35), pitMat);
+        p1.position.set(-0.14, 0, 0);
+        const p2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 0.35), pitMat);
+        p2.position.set(0.14, 0, 0);
+        segGroup.add(p1, p2);
+
+        // Cyan hidrolik enerji devresi
+        const cyanWire = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.04, 0.8), cyanMat);
+        cyanWire.position.set(0, 0.14, 0);
+        segGroup.add(cyanWire);
 
         parentGroup.add(segGroup);
         segs.push({ group: segGroup, body });

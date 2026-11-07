@@ -23,7 +23,11 @@ export const STORY_PHASES = {
   LIMO_RIDE: 6,              // Limuzin içi VIP kabin, koltukta oturuş, 2 kaslı koruma, sakin köprü yolculuğu
   VILLA_ARRIVAL: 7,          // Villaya varış, David ve silah çantalı koruması, cephane teslimi
   MISSION_COMBAT: 8,         // Görev: Kapının önünü kapatan isyancıları temizleme
-  MISSION_VICTORY: 9         // Zafer ve David'in tebriği
+  BETRAYAL_CONFRONTATION: 9, // Sahne 9: İhanet! Korumalar bizi yakalar, silahlar/para gasp edilir, tekmeyle atılırız
+  DEJECTED_WALK_HOME: 10,    // Sahne 10: Şehirde insanlar gezerken eve doğru kambur, hüzünlü yürüyüş
+  HOME_COUCH_REVELATION: 11, // Sahne 11: Evde koltukta pişman oturuş, aniden kameraya bakış & ekran kararması
+  SECRET_WORKSHOP_OCTOPUS: 12,// Sahne 12: Tony Stark stili mekanik laboratuvar, ahtapot kolları montajı
+  FREE_ROAM_REVENGE: 13      // Hikaye bitti, Mekanik Ahtapot devrede, serbest intikam!
 };
 
 const BOX = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -405,6 +409,41 @@ export class StoryManager {
           <rect x="36" y="64" width="28" height="5" fill="#090d16"/>
           <rect x="6" y="80" width="88" height="20" fill="#020617"/>
           <rect x="43" y="80" width="14" height="20" fill="#dc2626"/>
+        </svg>
+      `;
+    } else if (speaker === 'thought') {
+      return `
+        <svg viewBox="0 0 100 100" width="105" height="105">
+          <rect width="100" height="100" fill="#090d16"/>
+          <rect x="20" y="22" width="60" height="58" fill="#d4a373"/>
+          <rect x="18" y="16" width="64" height="20" fill="#4a2f13"/>
+          <rect x="18" y="24" width="8" height="14" fill="#4a2f13"/>
+          <rect x="28" y="48" width="14" height="6" fill="#1e293b"/>
+          <rect x="58" y="48" width="14" height="6" fill="#1e293b"/>
+          <rect x="32" y="51" width="6" height="4" fill="#3b82f6"/>
+          <rect x="62" y="51" width="6" height="4" fill="#3b82f6"/>
+          <path d="M38 72 Q50 64 62 72" fill="none" stroke="#7f1d1d" stroke-width="3" stroke-linecap="round"/>
+          <rect x="12" y="80" width="76" height="20" fill="#1e293b"/>
+          <circle cx="82" cy="22" r="5" fill="#38bdf8" opacity="0.8"/>
+          <circle cx="90" cy="14" r="7" fill="#38bdf8" opacity="0.9"/>
+        </svg>
+      `;
+    } else if (speaker === 'player_determined') {
+      return `
+        <svg viewBox="0 0 100 100" width="105" height="105">
+          <rect width="100" height="100" fill="#090d16"/>
+          <rect x="20" y="18" width="60" height="60" fill="#ffdbac"/>
+          <rect x="18" y="12" width="64" height="20" fill="#4a2f13"/>
+          <rect x="18" y="22" width="8" height="14" fill="#4a2f13"/>
+          <line x1="26" y1="36" x2="44" y2="42" stroke="#2b1b0e" stroke-width="4" stroke-linecap="round"/>
+          <line x1="74" y1="36" x2="56" y2="42" stroke="#2b1b0e" stroke-width="4" stroke-linecap="round"/>
+          <rect x="30" y="44" width="12" height="9" fill="#06b6d4"/>
+          <rect x="58" y="44" width="12" height="9" fill="#06b6d4"/>
+          <rect x="34" y="46" width="4" height="5" fill="#ffffff"/>
+          <rect x="62" y="46" width="4" height="5" fill="#ffffff"/>
+          <rect x="38" y="64" width="24" height="5" fill="#ffffff" stroke="#991b1b" stroke-width="1.5"/>
+          <rect x="12" y="80" width="76" height="20" fill="#0284c7"/>
+          <line x1="72" y1="28" x2="72" y2="60" stroke="#06b6d4" stroke-width="2"/>
         </svg>
       `;
     }
@@ -841,7 +880,21 @@ export class StoryManager {
   skipCurrentCinematic() {
     this.dialogBox.style.display = 'none';
     this.setFade(0, 300);
-    this.startPhaseTvNewsMorning();
+    if (this.currentPhase <= STORY_PHASES.PHONE_CALL) {
+      this.startPhaseTvNewsMorning();
+    } else if (this.currentPhase === STORY_PHASES.LIMO_RIDE || this.currentPhase === STORY_PHASES.WAIT_LIMO) {
+      this.startPhaseVillaArrival();
+    } else if (this.currentPhase === STORY_PHASES.BETRAYAL_CONFRONTATION) {
+      this.startDejectedWalkHome();
+    } else if (this.currentPhase === STORY_PHASES.DEJECTED_WALK_HOME) {
+      this.startHomeCouchRevelation();
+    } else if (this.currentPhase === STORY_PHASES.HOME_COUCH_REVELATION) {
+      this.startSecretWorkshopOctopus();
+    } else if (this.currentPhase === STORY_PHASES.SECRET_WORKSHOP_OCTOPUS) {
+      this.finishStoryAndUnlockRevenge();
+    } else {
+      this.startPhaseTvNewsMorning();
+    }
   }
 
   // Oyuncu limuzine yaklaştığında tetiklenir (2 saniye bakar, sonra biner)
@@ -932,6 +985,7 @@ export class StoryManager {
     }
 
     // David Sterling (Kapının içinde, SİYAH GÜNEŞ GÖZLÜKLÜ)
+    window._octopusUnlocked = false; // Ahtapot kesinlikle henüz açık değildir!
     const david = this._buildDavidModel();
     david.position.set(vx + 1.2, vy, vz - 1.5);
     david.rotation.y = 0; // Dışarıdaki kapıya bakar
@@ -943,12 +997,14 @@ export class StoryManager {
     guardR.position.set(vx + 2.6, vy, vz - 1.5);
     guardR.rotation.y = 0;
     this.cinematicGroup.add(guardR);
+    this.guardR = guardR;
 
     // David'in Solunda Koruması (Kolları bağlı)
     const guardL = this._buildMuscleGuardModel(false);
     guardL.position.set(vx - 0.2, vy, vz - 1.5);
     guardL.rotation.y = 0;
     this.cinematicGroup.add(guardL);
+    this.guardL = guardL;
 
     // İSYANCILAR: Kapıyı kesinlikle geçmezler, dışarıdaki yolda barikat kurmuşlardır!
     this._spawnMissionProtesters();
@@ -1034,48 +1090,45 @@ export class StoryManager {
     if (remaining > 0) {
       this.setMission('KAPININ ÖNÜNDEKİ İSYANCILARI ETKİSİZ HALE GETİR', `Kalan İsyancı Sayısı: ${remaining}`);
     } else {
-      this.startVictoryPhase();
+      this.startBetrayalConfrontation();
     }
   }
 
-  // İsyancı Vurulma Mantığı (Tek atışta ölüm, kan küpleri, yere devrilme)
+  // İsyancı Vurulma Mantığı (Tek atışta patlayarak parçalanma, et ve kan küpleri saçılması)
   onHitProtester(protesterMesh, hitPoint) {
     if (!protesterMesh || !protesterMesh.userData || protesterMesh.userData.dead) return;
     protesterMesh.userData.dead = true;
     protesterMesh.userData.hp = 0;
 
-    // Vurulma ve kemik kırılma sesleri
+    // Patlama, vurulma ve parçalanma sesleri
+    sound.playExplosion(0.75);
     sound.playNpcHit();
     sound.playBlockHit();
 
-    // Görsel kübik kan fışkırması (Voxel Blood Effect)
+    // Büyük kırmızı kan ve et küpleri fışkırması / patlama parçalanması
     if (this.voxelWorld && this.voxelWorld.spawnLooseVoxel) {
-      const bloodCols = [0x991b1b, 0xdc2626, 0xef4444, 0x7f1d1d];
-      const pos = hitPoint || protesterMesh.position.clone().add(new THREE.Vector3(0, 1.3, 0));
-      for (let i = 0; i < 18; i++) {
+      const bloodCols = [0x991b1b, 0xdc2626, 0xef4444, 0x7f1d1d, 0xb91c1c];
+      const pos = hitPoint || protesterMesh.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+      for (let i = 0; i < 38; i++) {
+        const spread = (Math.random() - 0.5) * 0.9;
         this.voxelWorld.spawnLooseVoxel(
-          pos.x + (Math.random() - 0.5) * 0.5,
-          pos.y + (Math.random() - 0.5) * 0.5,
-          pos.z + (Math.random() - 0.5) * 0.5,
+          pos.x + spread,
+          pos.y + (Math.random() - 0.1) * 1.2,
+          pos.z + (Math.random() - 0.5) * 0.9,
           { color: bloodCols[i % bloodCols.length] },
           pos,
-          0.8,
-          2.5,
-          80,
+          1.8 + Math.random() * 2.2,
+          3.5 + Math.random() * 2.5,
+          120,
           null,
-          1.4
+          1.8
         );
       }
     }
 
-    // Yere devrilme ve pankartı düşürme
-    protesterMesh.rotation.x = Math.PI / 2;
-    protesterMesh.position.y = (protesterMesh.userData.baseY || 12.0) + 0.18;
-    const placard = protesterMesh.userData.placard;
-    if (placard) {
-      placard.rotation.z = Math.PI / 2;
-      placard.position.y -= 0.6;
-    }
+    // İsyancı gövdesi patlayarak parçalanır ve anında sahneden silinir
+    this.cinematicGroup.remove(protesterMesh);
+    if (protesterMesh.geometry) protesterMesh.geometry.dispose();
 
     this.updateCombatMissionHUD();
   }
@@ -1129,34 +1182,345 @@ export class StoryManager {
     }
   }
 
-  startVictoryPhase() {
-    this.currentPhase = STORY_PHASES.MISSION_VICTORY;
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 9: İHANET! (David & Korumalar parayı ve silahları gasp eder, tekmeyle atarlar)
+  // ═══════════════════════════════════════════════════════════════════════════
+  startBetrayalConfrontation() {
+    this.currentPhase = STORY_PHASES.BETRAYAL_CONFRONTATION;
+    this.phaseTimer = 0;
     this.controlsLocked = true;
+    this.weaponsLocked = true;
+    this.guardsSeize = false;
+    this.guardKick = false;
+
+    // Kalan isyancı nesnelerini temizle
+    for (const p of this.protesters) {
+      if (p.parent) p.parent.remove(p);
+    }
+    this.protesters = [];
 
     sound.playLevelWin();
-    this.setMission('GÖREV TAMAMLANDI!', 'David Sterling yanınıza geliyor...');
+    this.setMission('GÖREV TAMAMLANDI', 'David Sterling ile görüşmek için villaya dönüldü...');
 
-    const david = this.davidActor;
-    if (david && this.character) {
-      david.position.set(this.character.mesh.position.x + 2.2, 12.0, this.character.mesh.position.z + 1.5);
-      david.lookAt(this.character.mesh.position);
+    const vx = 395.0, vy = 12.0, vz = -55.0;
+
+    // Oyuncu David'in karşısında durur
+    if (this.character) {
+      this.character.setFirstPerson(false);
+      this.character.mesh.position.set(vx, vy, vz + 5.0);
+      this.character.mesh.rotation.y = Math.PI; // David'e bakar
+      if (this.character.body) {
+        this.character.body.position.set(vx, vy + 1.0, vz + 5.0);
+        this.character.body.velocity.set(0, 0, 0);
+      }
     }
+
+    // David ve Korumaların konumunu garantiye al
+    if (!this.davidActor) {
+      const david = this._buildDavidModel();
+      david.position.set(vx, vy, vz + 1.0);
+      david.rotation.y = 0;
+      this.cinematicGroup.add(david);
+      this.davidActor = david;
+    } else {
+      this.davidActor.position.set(vx, vy, vz + 1.0);
+      this.davidActor.rotation.y = 0;
+    }
+
+    if (!this.guardL) {
+      this.guardL = this._buildMuscleGuardModel(false);
+      this.guardL.position.set(vx - 1.8, vy, vz + 1.0);
+      this.cinematicGroup.add(this.guardL);
+    } else {
+      this.guardL.position.set(vx - 1.8, vy, vz + 1.0);
+    }
+
+    if (!this.guardR) {
+      this.guardR = this._buildMuscleGuardModel(true);
+      this.guardR.position.set(vx + 1.8, vy, vz + 1.0);
+      this.cinematicGroup.add(this.guardR);
+    } else {
+      this.guardR.position.set(vx + 1.8, vy, vz + 1.0);
+    }
+
+    // Kamera: Geniş sinematik yüzleşme açısı
+    this.camera.position.set(vx - 3.2, vy + 2.0, vz + 7.8);
+    this.camera.lookAt(vx, vy + 1.5, vz + 1.5);
 
     setTimeout(() => {
       this.startDialogQueue([
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-          text: 'Harika bir temizlik! Şehir artık tamamen benim ve senin sayende hiçbir pürüz kalmadı.'
+          text: 'Aferin sana! Tam beklediğim gibi acımasızca işi bitirdin. Kapımın önündeki o sefil isyancı ayak takımı tamamen temizlendi!'
+        },
+        {
+          speaker: 'player', name: 'OYUNCU', color: '#38bdf8',
+          text: 'Tamam güzel, anlaşmamızı yerine getirdim. Şimdi şu para işini konuşalım... Söz verdiğin yüklü miktardaki ödemeyi ve silahları teslim alayım.'
         },
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-          text: 'Söz verdiğim gibi: Silahlar sende kalıyor ve hesabına dağlar kadar para aktarıldı. Şimdi git ve bu şehrin tadını çıkar!'
+          text: 'Ödeme mi?.. Hahaha! Evet, tabii ki... GÜVENLİKLER! ALIN ŞUNU VE TEMİZLEYİN!'
+        },
+        {
+          speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
+          text: 'Ah zavallı dostum... Sen gerçekten bu kadar saf ve aptal mısın? Koskoca bankaların, gökdelenlerin ve şehrin mutlak sahibi sana trilyonlarca lira ve özel silahlarını bırakır mı sandın?'
+        },
+        {
+          speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
+          text: 'Sen sadece benim kirli işlerimi yapan, kullanılıp atılacak küçük bir maşaydın! İşin bitti, şimdi çöplüğüne geri dön! Korumalar... Atın bu dilenciyi dışarı!'
         }
       ], () => {
-        this.controlsLocked = false;
-        this.setMission('SERBEST MOD', 'Şehir ve silahlar artık tamamen senin kontrolünde!');
+        // Diyalog bitince koruma arkadan tekme vurur, kapı dışarı atılırız
+        this.guardKick = true;
+        sound.playExplosion(0.25);
+        sound.playIronHit();
+
+        if (this.character) {
+          this.character.mesh.position.z = vz + 15.0; // Kapı dışına fırlatılırız
+          if (this.character.body) this.character.body.position.z = vz + 15.0;
+        }
+
+        // Kapı çarparak kilitlenir
+        setTimeout(() => {
+          sound.playDoorSlide();
+          sound.playIronHit();
+          this.setFade(1, 900);
+          setTimeout(() => {
+            this.startDejectedWalkHome();
+          }, 1100);
+        }, 600);
       });
-    }, 1500);
+    }, 1200);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 10: ŞEHİRDE İNSANLAR GEZERKEN EVE DOĞRU KAMBUR, HÜZÜNLÜ YÜRÜYÜŞ
+  // (Araya bina girmeyen geniş cadde açısı, kambur hüzünlü yürüyüş, iç ses pişmanlık)
+  // ═══════════════════════════════════════════════════════════════════════════
+  startDejectedWalkHome() {
+    this.currentPhase = STORY_PHASES.DEJECTED_WALK_HOME;
+    this.phaseTimer = 0;
+    this.cinematicGroup.clear();
+
+    // Şehirdeki yayaları ve trafiği yeniden aktifleştir
+    if (this.voxelWorld && this.voxelWorld.npcs && this.voxelWorld.npcs.npcs) {
+      this.voxelWorld.npcs.npcs.forEach(n => { if (n.group) n.group.visible = true; });
+    }
+
+    this.setMission('PİŞMANLIK & DÖNÜŞ', 'Her şeyinizi kaybettiniz... Yıkılmış halde eve doğru yürüyorsunuz.');
+    this.setFade(0, 600);
+
+    // Oyuncuyu Batı Şehir'deki ana caddenin kaldırımına yerleştir (-60'tan -105'e yürür)
+    const startX = -60.0, startY = 1.0, startZ = 27.5;
+    if (this.character) {
+      this.character.setFirstPerson(false);
+      this.character.mesh.position.set(startX, startY, startZ);
+      this.character.mesh.rotation.y = -Math.PI / 2; // Batıya (eve) doğru yürür
+      if (this.character.body) {
+        this.character.body.position.set(startX, startY, startZ);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+    }
+
+    // Yolda geçen 2-3 sivil vatandaş modeli ekle
+    const npc1 = this._buildProtesterModel();
+    if (npc1.userData && npc1.userData.placard) npc1.remove(npc1.userData.placard);
+    npc1.position.set(-78.0, 1.0, 24.5);
+    npc1.rotation.y = Math.PI / 2; // Karşı yöne yürür
+    this.cinematicGroup.add(npc1);
+
+    const npc2 = this._buildProtesterModel();
+    if (npc2.userData && npc2.userData.placard) npc2.remove(npc2.userData.placard);
+    npc2.position.set(-92.0, 1.0, 30.5);
+    npc2.rotation.y = Math.PI / 2;
+    this.cinematicGroup.add(npc2);
+
+    this.startDialogQueue([
+      {
+        speaker: 'thought', name: 'İÇ SES (PİŞMANLIK)', color: '#93c5fd',
+        text: 'Neden yaptım bunu?.. O açgözlü milyarderin yalanları uğruna masum insanları vurdum...'
+      },
+      {
+        speaker: 'thought', name: 'İÇ SES', color: '#93c5fd',
+        text: 'Paramı, silahlarımı, her şeyimi elimden aldı... Beni bir çöp gibi kapının önüne koydu.'
+      },
+      {
+        speaker: 'thought', name: 'İÇ SES', color: '#93c5fd',
+        text: 'Ona güvenmek hayatımın en büyük hatasıydı. Çok pişmanım, hem de çok...'
+      }
+    ], () => {
+      // Yürüyüş tamamlanınca ev sahnesine geç
+      this.setFade(1, 750);
+      setTimeout(() => {
+        this.startHomeCouchRevelation();
+      }, 900);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 11: EVDE KOLTUKTA PİŞMAN OTURUŞ, ANİDEN KAMERAYA BAKIŞ & ANINDA KARARMA
+  // ═══════════════════════════════════════════════════════════════════════════
+  startHomeCouchRevelation() {
+    this.currentPhase = STORY_PHASES.HOME_COUCH_REVELATION;
+    this.phaseTimer = 0;
+    this.headSnapUp = false;
+    this.cinematicGroup.clear();
+
+    const couchX = -110.25, couchY = 7.05, couchZ = 19.75;
+
+    // Oyuncu 2. kattaki koltukta oturur
+    if (this.character) {
+      this.character.setFirstPerson(false);
+      this.character.mesh.position.set(couchX, couchY, couchZ);
+      this.character.mesh.rotation.y = 0; // Karşıya odaya bakar
+      if (this.character.body) {
+        this.character.body.position.set(couchX, couchY, couchZ);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+      // Hüzünlü koltuk oturuşu: Dizler bükülü, kollar dizlerde, kafa yere eğik
+      if (this.character.leftLeg) this.character.leftLeg.rotation.x = -Math.PI / 2;
+      if (this.character.rightLeg) this.character.rightLeg.rotation.x = -Math.PI / 2;
+      if (this.character.torso) this.character.torso.rotation.x = 0.35;
+      if (this.character.leftArm) this.character.leftArm.rotation.x = 0.65;
+      if (this.character.rightArm) this.character.rightArm.rotation.x = 0.65;
+      if (this.character.head) this.character.head.rotation.x = 0.55; // Yere bakar
+    }
+
+    // Kamera: Koltuktaki oyuncunun tam karşısı (yakın plan sinematik açı)
+    this.camera.position.set(couchX, couchY + 0.75, couchZ + 2.1);
+    this.camera.lookAt(couchX, couchY + 0.35, couchZ);
+
+    this.setFade(0, 600);
+    this.setMission('BİR FİKİR DOĞUYOR...', 'Yenilgiyi kabullenecek misin, yoksa kendi kurallarını mı yazacaksın?');
+
+    setTimeout(() => {
+      this.startDialogQueue([
+        {
+          speaker: 'thought', name: 'İÇ SES', color: '#93c5fd',
+          text: 'Elimde hiçbir şey kalmadı... Burada bir kenara atılmış bir hiç gibi oturup çürümeyi mi bekleyeceğim?..'
+        }
+      ], () => {
+        // 1.5 saniye derin sessizlik, sonra fikir kıvılcımı sesi
+        setTimeout(() => {
+          sound.playExplosion(0.12);
+          sound.playZap();
+
+          this.startDialogQueue([
+            {
+              speaker: 'player_determined', name: 'OYUNCU (KARARLILIK)', color: '#38bdf8',
+              text: '...HAYIR! Pes etmeyeceğim. Eğer onun kurallarıyla oynarsam kaybederim... Ama kendi kurallarımı yaratırsam...'
+            }
+          ], () => {
+            // Tam bu anda kafa aniden kameraya döner ve EKRAN ANINDA SİMSİYAH KARARIR!
+            this.headSnapUp = true;
+            sound.playIronHit();
+            setTimeout(() => {
+              this.setFade(1, 30); // Kullanıcı isteği: Ekran baktığımız anda hemen kararır
+              setTimeout(() => {
+                this.startSecretWorkshopOctopus();
+              }, 400);
+            }, 300);
+          });
+        }, 1200);
+      });
+    }, 800);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 12: TONY STARK MEKANİK LABORATUVARI & MEKANİK AHTAPOT ROBOTU MONTAJI
+  // (Önce sağ kol gösterilir, titanyum kollarda çukurlar/oyuklar bulunur, intikam yemini)
+  // ═══════════════════════════════════════════════════════════════════════════
+  startSecretWorkshopOctopus() {
+    this.currentPhase = STORY_PHASES.SECRET_WORKSHOP_OCTOPUS;
+    this.phaseTimer = 0;
+    this.cinematicGroup.clear();
+
+    const wx = 0, wy = -45.0, wz = 0; // Yeraltı mekanik atölye koordinatları
+    this._buildTonyStarkWorkshopAndArms(wx, wy, wz);
+
+    // Oyuncu laboratuvarın merkezindeki teknolojik platformda durur
+    if (this.character) {
+      this.character.setFirstPerson(false);
+      this.character.mesh.position.set(wx, wy + 0.25, wz);
+      this.character.mesh.rotation.y = 0; // Karşıya bakar
+      if (this.character.body) {
+        this.character.body.position.set(wx, wy + 0.25, wz);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+      if (this.character.leftLeg) this.character.leftLeg.rotation.set(0, 0, 0);
+      if (this.character.rightLeg) this.character.rightLeg.rotation.set(0, 0, 0);
+      if (this.character.torso) this.character.torso.rotation.set(0, 0, 0);
+      if (this.character.head) this.character.head.rotation.set(0, 0, 0);
+      if (this.character.leftArm) this.character.leftArm.rotation.set(-0.2, 0, -0.2);
+      if (this.character.rightArm) this.character.rightArm.rotation.set(-0.45, 0, 0.35); // Sağ kol öne uzanır
+    }
+
+    // Kamera: Kullanıcı isteği -> "Ekran bizim ilk önce sağ kolumuzu göstersin"
+    this.camera.position.set(wx + 0.65, wy + 1.45, wz + 0.95);
+    this.camera.lookAt(wx + 0.35, wy + 1.25, wz + 0.1);
+
+    this.setFade(0, 600);
+    sound.playSaberOn();
+    sound.playTentacleWrap();
+    this.setMission('GİZLİ LABORATUVAR', 'Mekanik Ahtapot Robotu prototipi monte ediliyor...');
+
+    setTimeout(() => {
+      this.startDialogQueue([
+        {
+          speaker: 'player_determined', name: 'OYUNCU (GİZLİ ATÖLYE)', color: '#38bdf8',
+          text: 'Elimdeki son kuruşa kadar her şeyi bu yeraltı atölyesine ve prototipe yatırdım...'
+        },
+        {
+          speaker: 'player_determined', name: 'OYUNCU', color: '#38bdf8',
+          text: 'Titanyum alaşımlı çubuklar, mikro-hidrolikler ve gövdeye oyulmuş metal çukurlar... Mekanik Ahtapot Robotu tamamlandı!'
+        },
+        {
+          speaker: 'player_determined', name: 'OYUNCU', color: '#38bdf8',
+          text: 'David Sterling... Beni sokağa attın ama şimdi karşına silahsız değil, durdurulamaz bir güç olarak çıkıyorum! İNTİKAM VAKTİ GELDİ!'
+        }
+      ], () => {
+        this.finishStoryAndUnlockRevenge();
+      });
+    }, 1000);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HİKAYE TAMAMLANDI: MEKANİK AHTAPOT ROBOTU AÇILIR & SERBEST İNTİKAM BAŞLAR!
+  // ═══════════════════════════════════════════════════════════════════════════
+  finishStoryAndUnlockRevenge() {
+    this.currentPhase = STORY_PHASES.FREE_ROAM_REVENGE;
+    this.controlsLocked = false;
+    this.weaponsLocked = false;
+    window._octopusUnlocked = true;
+
+    // Oyuncuyu dışarı caddenin önüne ışınla
+    const returnPos = new THREE.Vector3(-105.0, 1.2, 28.0);
+    if (this.character) {
+      this.character.mesh.position.copy(returnPos);
+      this.character.mesh.rotation.set(0, 0, 0);
+      if (this.character.body) {
+        this.character.body.position.copy(returnPos);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+      this.character.setFirstPerson(true);
+      if (this.character.head) this.character.head.rotation.set(0, 0, 0);
+      if (this.character.torso) this.character.torso.rotation.set(0, 0, 0);
+      if (this.character.leftArm) this.character.leftArm.rotation.set(0, 0, 0);
+      if (this.character.rightArm) this.character.rightArm.rotation.set(0, 0, 0);
+      if (this.character.leftLeg) this.character.leftLeg.rotation.set(0, 0, 0);
+      if (this.character.rightLeg) this.character.rightLeg.rotation.set(0, 0, 0);
+    }
+
+    // Mekanik Ahtapot silahını otomatik olarak kuşan
+    if (this.weaponSystem) this.weaponSystem.setWeapon(16);
+    if (this.handWeapons) this.handWeapons.setWeapon(16);
+
+    this.cinematicGroup.clear();
+    this.setFade(0, 400);
+
+    sound.playLevelWin();
+    sound.playTentacleWrap();
+    this.setMission('🦾 İNTİKAM ZAMANI!', 'Mekanik Ahtapot devreye girdi! David Sterling’e ve şehrine haddini bildir!');
   }
 
   // ── Güncelleme Döngüsü ──
@@ -1254,6 +1618,97 @@ export class StoryManager {
         }
       }
     }
+
+    // Sahne 9: İhanet Yüzleşmesi & Korumaların Bizi Yakalaması
+    if (this.currentPhase === STORY_PHASES.BETRAYAL_CONFRONTATION) {
+      const vx = 395.0, vy = 12.0, vz = -55.0;
+      this.camera.position.set(vx - 3.2, vy + 2.0, vz + 7.8);
+      this.camera.lookAt(vx, vy + 1.5, vz + 1.5);
+
+      if (this.davidActor && this.davidActor.userData) {
+        const { lArm, rArm } = this.davidActor.userData;
+        if (lArm && rArm) {
+          lArm.rotation.x = THREE.MathUtils.lerp(lArm.rotation.x, 0.45, dt * 3.0);
+          rArm.rotation.x = THREE.MathUtils.lerp(rArm.rotation.x, 0.45, dt * 3.0);
+        }
+      }
+
+      if (this.phaseTimer > 5.0 && !this.guardKick) {
+        if (this.guardL) this.guardL.position.z = THREE.MathUtils.lerp(this.guardL.position.z, vz + 4.2, dt * 2.0);
+        if (this.guardR) this.guardR.position.z = THREE.MathUtils.lerp(this.guardR.position.z, vz + 4.2, dt * 2.0);
+      }
+    }
+
+    // Sahne 10: Hüzünlü, Kambur Yürüyüş (Cadde boyunca batıya doğru -X yönünde)
+    if (this.currentPhase === STORY_PHASES.DEJECTED_WALK_HOME) {
+      if (this.character && this.character.mesh) {
+        const curX = Math.max(-105.0, this.character.mesh.position.x - dt * 1.8);
+        this.character.mesh.position.x = curX;
+        if (this.character.body) this.character.body.position.x = curX;
+
+        const t = this.phaseTimer * 2.4;
+        if (this.character.head) this.character.head.rotation.x = 0.42;
+        if (this.character.torso) this.character.torso.rotation.x = 0.18;
+        if (this.character.leftArm) this.character.leftArm.rotation.x = 0.22 + Math.sin(t) * 0.12;
+        if (this.character.rightArm) this.character.rightArm.rotation.x = 0.22 - Math.sin(t) * 0.12;
+        if (this.character.leftLeg) this.character.leftLeg.rotation.x = -Math.sin(t) * 0.28;
+        if (this.character.rightLeg) this.character.rightLeg.rotation.x = Math.sin(t) * 0.28;
+
+        // Geniş açık cadde hizasından takip (araya bina girmez!)
+        this.camera.position.set(curX - 4.2, 1.0 + 1.8, 27.5 + 3.4);
+        this.camera.lookAt(curX + 0.6, 1.0 + 1.2, 27.5);
+      }
+    }
+
+    // Sahne 11: Koltukta Pişman Oturuş & Aniden Kameraya Bakış
+    if (this.currentPhase === STORY_PHASES.HOME_COUCH_REVELATION) {
+      const couchX = -110.25, couchY = 7.05, couchZ = 19.75;
+      this.camera.position.set(couchX, couchY + 0.75, couchZ + 2.1);
+      this.camera.lookAt(couchX, couchY + 0.35, couchZ);
+
+      if (this.character && this.character.head) {
+        if (this.headSnapUp) {
+          this.character.head.rotation.x = THREE.MathUtils.lerp(this.character.head.rotation.x, -0.05, dt * 14.0);
+        } else {
+          this.character.head.rotation.x = 0.55;
+        }
+      }
+    }
+
+    // Sahne 12: Tony Stark Tarzı Yeraltı Mekanik Laboratuvarı & Ahtapot Kolları Montajı
+    if (this.currentPhase === STORY_PHASES.SECRET_WORKSHOP_OCTOPUS) {
+      const wx = 0, wy = -45.0, wz = 0;
+
+      if (this.sparkLight) {
+        this.sparkLight.intensity = (Math.random() > 0.35 ? 2.5 + Math.random() * 2.5 : 0.4);
+      }
+
+      if (this.phaseTimer < 4.0) {
+        this.camera.position.set(wx + 0.65, wy + 1.45, wz + 0.95);
+        this.camera.lookAt(wx + 0.35, wy + 1.25, wz + 0.1);
+      } else {
+        const camAngle = (this.phaseTimer - 4.0) * 0.45;
+        this.camera.position.set(
+          wx + Math.sin(camAngle) * 3.4,
+          wy + 1.6 + Math.sin(camAngle * 0.8) * 0.3,
+          wz + Math.cos(camAngle) * 3.4
+        );
+        this.camera.lookAt(wx, wy + 1.25, wz);
+      }
+
+      if (this.workshopTentacles && this.workshopTentacles.length > 0) {
+        const tTime = this.phaseTimer * 3.5;
+        this.workshopTentacles.forEach((tObj, idx) => {
+          const side = tObj.cfg.side;
+          const isTop = tObj.cfg.isTop;
+          tObj.segs.forEach((segGroup, sIdx) => {
+            const wave = Math.sin(tTime + sIdx * 0.4 + idx) * 0.15;
+            segGroup.rotation.x = (isTop ? -0.18 : 0.12) + wave;
+            segGroup.rotation.y = side * (0.16 + wave * 0.5);
+          });
+        });
+      }
+    }
   }
 
   // Sakin, akıcı, gerçekçi limuzin sürüşü & VIP kabinde kusursuz oturuş
@@ -1315,8 +1770,212 @@ export class StoryManager {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 3D MODELLER (Siyah Gözlüklü David, Mutlu Arthur, Farklı Korumalar, Limuzin)
+  // 3D MODELLER (Siyah Gözlüklü David, Mutlu Arthur, Farklı Korumalar, Limuzin, Tony Stark Atölyesi)
   // ═══════════════════════════════════════════════════════════════════════════
+
+  _buildTonyStarkWorkshopAndArms(wx, wy, wz) {
+    const g = new THREE.Group();
+    g.position.set(wx, wy, wz);
+
+    const darkMetalMat = MAT(0x1e293b, { roughness: 0.4, metalness: 0.7 });
+    const floorSteelMat = MAT(0x0f172a, { roughness: 0.3, metalness: 0.85 });
+    const cautionYellow = MAT(0xfacc15, { roughness: 0.4 });
+    const cyanNeonMat = MAT(0x06b6d4, { emissive: 0x06b6d4, emissiveIntensity: 2.2, roughness: 0.1 });
+    const titaniumMat = MAT(0x334155, { roughness: 0.3, metalness: 0.8 });
+    const steelMat = MAT(0x64748b, { roughness: 0.25, metalness: 0.9 });
+    const pitMat = MAT(0x020617, { roughness: 0.95 }); // Metal çukur / oyuk detayı
+    const arcGlowMat = MAT(0x38bdf8, { emissive: 0x0284c7, emissiveIntensity: 3.5 });
+
+    // 1. Zemin ve Emniyet Şeritleri
+    const floor = new THREE.Mesh(BOX(18, 0.4, 16), floorSteelMat);
+    floor.position.y = -0.2;
+    g.add(floor);
+
+    for (let i = -7; i <= 7; i += 2) {
+      const stripeL = new THREE.Mesh(BOX(0.6, 0.42, 1.4), cautionYellow);
+      stripeL.position.set(-8.2, -0.19, i);
+      g.add(stripeL);
+      const stripeR = new THREE.Mesh(BOX(0.6, 0.42, 1.4), cautionYellow);
+      stripeR.position.set(8.2, -0.19, i);
+      g.add(stripeR);
+    }
+
+    // 2. Duvarlar (Perçinli endüstriyel metal paneller)
+    const backWall = new THREE.Mesh(BOX(18, 6.5, 0.4), darkMetalMat);
+    backWall.position.set(0, 3.0, -7.8);
+    g.add(backWall);
+
+    const leftWall = new THREE.Mesh(BOX(0.4, 6.5, 16), darkMetalMat);
+    leftWall.position.set(-8.8, 3.0, 0);
+    g.add(leftWall);
+
+    const rightWall = new THREE.Mesh(BOX(0.4, 6.5, 16), darkMetalMat);
+    rightWall.position.set(8.8, 3.0, 0);
+    g.add(rightWall);
+
+    // 3. Tavan Çelik Kirişleri
+    for (let z = -6; z <= 6; z += 4) {
+      const girder = new THREE.Mesh(BOX(18, 0.35, 0.35), darkMetalMat);
+      girder.position.set(0, 6.2, z);
+      g.add(girder);
+    }
+
+    // 4. Merkezi Platform (Oyuncunun durduğu teknolojik zemin)
+    const platMat = MAT(0x334155, { metalness: 0.8, roughness: 0.3 });
+    const platform = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.4, 0.25, 8), platMat);
+    platform.position.set(0, 0.12, 0);
+    g.add(platform);
+
+    const platRing = new THREE.Mesh(new THREE.CylinderGeometry(2.35, 2.38, 0.08, 8), cyanNeonMat);
+    platRing.position.set(0, 0.22, 0);
+    g.add(platRing);
+
+    // 5. Sol Tezgah: Mekanik Torna & Kaynak İstasyonu
+    const bench1 = new THREE.Mesh(BOX(1.4, 1.2, 4.2), darkMetalMat);
+    bench1.position.set(-4.5, 0.6, -2.5);
+    g.add(bench1);
+
+    const vice = new THREE.Mesh(BOX(0.35, 0.35, 0.45), steelMat);
+    vice.position.set(-4.3, 1.35, -3.2);
+    g.add(vice);
+
+    const weldBase = new THREE.Mesh(BOX(0.4, 0.5, 0.4), darkMetalMat);
+    weldBase.position.set(-4.2, 1.45, -1.8);
+    g.add(weldBase);
+
+    const weldArm = new THREE.Mesh(BOX(0.12, 0.8, 0.12), steelMat);
+    weldArm.position.set(-3.9, 1.85, -1.8);
+    weldArm.rotation.z = -0.55;
+    g.add(weldArm);
+
+    const sparkLight = new THREE.PointLight(0x67e8f9, 2.5, 4.5);
+    sparkLight.position.set(-3.5, 1.7, -1.8);
+    g.add(sparkLight);
+    this.sparkLight = sparkLight;
+
+    // 6. Sağ Hologram / Bilgisayar Konsolu
+    const terminalBase = new THREE.Mesh(BOX(1.5, 1.1, 3.2), darkMetalMat);
+    terminalBase.position.set(4.5, 0.55, -2.5);
+    g.add(terminalBase);
+
+    const screen1 = new THREE.Mesh(BOX(0.08, 0.85, 1.2), MAT(0x0284c7, { emissive: 0x0284c7, emissiveIntensity: 2.0 }));
+    screen1.position.set(4.2, 1.45, -3.1);
+    screen1.rotation.y = -0.3;
+    g.add(screen1);
+
+    const screen2 = new THREE.Mesh(BOX(0.08, 0.85, 1.2), MAT(0x0369a1, { emissive: 0x0369a1, emissiveIntensity: 1.8 }));
+    screen2.position.set(4.2, 1.45, -1.9);
+    screen2.rotation.y = 0.2;
+    g.add(screen2);
+
+    // 7. Aydınlatma
+    const cyanSpot = new THREE.SpotLight(0x38bdf8, 3.2, 14, Math.PI / 4, 0.4);
+    cyanSpot.position.set(0, 5.8, 0);
+    cyanSpot.target.position.set(0, 1.0, 0);
+    g.add(cyanSpot);
+    g.add(cyanSpot.target);
+
+    const warmLight = new THREE.PointLight(0xfef08a, 1.0, 6.0);
+    warmLight.position.set(-4.0, 2.5, -2.5);
+    g.add(warmLight);
+
+    // 8. OYUNCUNUN SIRTINA TAKILAN MEKANİK AHTAPOT ROBOTU MODELİ
+    // (Titanyum çubuklar, mikro-hidrolik pistonlar ve gövdede çukurlar / oyuklar)
+    const apparatus = new THREE.Group();
+    apparatus.position.set(0, 0, 0);
+
+    const chassis = new THREE.Mesh(BOX(0.68, 0.82, 0.26), titaniumMat);
+    chassis.position.set(0, 1.35, -0.22);
+    apparatus.add(chassis);
+
+    const arcCore = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.08, 16), arcGlowMat);
+    arcCore.rotation.x = Math.PI / 2;
+    arcCore.position.set(0, 1.35, -0.36);
+    apparatus.add(arcCore);
+
+    // Sağ Kol Siber Zırhı / Mekanik Bileklik (İlk kadrajda öne çıkar)
+    const cyberArm = new THREE.Mesh(BOX(0.32, 0.55, 0.32), steelMat);
+    cyberArm.position.set(0.62, 1.15, 0.1);
+    apparatus.add(cyberArm);
+
+    const pitArm = new THREE.Mesh(BOX(0.08, 0.28, 0.34), pitMat);
+    pitArm.position.set(0.62, 1.15, 0.1);
+    apparatus.add(pitArm);
+
+    // 4 Adet Eklemli Mekanik Ahtapot Kolu (Titanyum çubuklar & minik çukurlar)
+    const tentacles = [];
+    const tentacleConfigs = [
+      { startX: -0.32, startY: 1.62, startZ: -0.28, side: -1, isTop: true },
+      { startX:  0.32, startY: 1.62, startZ: -0.28, side:  1, isTop: true },
+      { startX: -0.28, startY: 1.08, startZ: -0.28, side: -1, isTop: false },
+      { startX:  0.28, startY: 1.08, startZ: -0.28, side:  1, isTop: false }
+    ];
+
+    tentacleConfigs.forEach((cfg) => {
+      const tRoot = new THREE.Group();
+      tRoot.position.set(cfg.startX, cfg.startY, cfg.startZ);
+
+      let curParent = tRoot;
+      const segGroups = [];
+      const numSegs = 7;
+
+      for (let s = 0; s < numSegs; s++) {
+        const segGroup = new THREE.Group();
+        const u = s / (numSegs - 1);
+        const w = 0.22 * (1 - u * 0.45);
+        const h = 0.20 * (1 - u * 0.45);
+        const d = 0.32;
+
+        const segMesh = new THREE.Mesh(BOX(w, h, d), s % 2 === 0 ? titaniumMat : steelMat);
+        segMesh.position.set(0, 0, -d * 0.5);
+        segGroup.add(segMesh);
+
+        // KULLANICI İSTEĞİ: Metal çubuk olduğu için bazı yerlerinde minik çukurlar / oyuklar (Pits)
+        const pitLeft = new THREE.Mesh(BOX(0.04, h * 0.45, d * 0.38), pitMat);
+        pitLeft.position.set(-w * 0.51, 0, -d * 0.5);
+        segGroup.add(pitLeft);
+
+        const pitRight = new THREE.Mesh(BOX(0.04, h * 0.45, d * 0.38), pitMat);
+        pitRight.position.set(w * 0.51, 0, -d * 0.5);
+        segGroup.add(pitRight);
+
+        // Cyan Enerji Devresi
+        const cyanLine = new THREE.Mesh(BOX(w * 0.28, 0.03, d * 0.75), cyanNeonMat);
+        cyanLine.position.set(0, h * 0.51, -d * 0.5);
+        segGroup.add(cyanLine);
+
+        // Uç Kısma Üçlü Çelik Kıskaç Pençeler
+        if (s === numSegs - 1) {
+          const clawMat = MAT(0xe2e8f0, { roughness: 0.15, metalness: 0.95 });
+          const claw1 = new THREE.Mesh(BOX(0.05, 0.05, 0.25), clawMat);
+          claw1.position.set(0, 0.08, -d - 0.1);
+          claw1.rotation.x = -0.25;
+          const claw2 = new THREE.Mesh(BOX(0.05, 0.05, 0.25), clawMat);
+          claw2.position.set(-0.08, -0.06, -d - 0.1);
+          claw2.rotation.z = -0.4;
+          const claw3 = new THREE.Mesh(BOX(0.05, 0.05, 0.25), clawMat);
+          claw3.position.set(0.08, -0.06, -d - 0.1);
+          claw3.rotation.z = 0.4;
+          segGroup.add(claw1, claw2, claw3);
+        }
+
+        segGroup.position.set(0, 0, s === 0 ? 0 : -d);
+        curParent.add(segGroup);
+        segGroups.push(segGroup);
+        curParent = segGroup;
+      }
+
+      apparatus.add(tRoot);
+      tentacles.push({ root: tRoot, segs: segGroups, cfg });
+    });
+
+    g.add(apparatus);
+    this.workshopApparatus = apparatus;
+    this.workshopTentacles = tentacles;
+
+    this.cinematicGroup.add(g);
+    return g;
+  }
 
   _buildDavidModel() {
     const g = new THREE.Group();

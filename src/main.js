@@ -478,7 +478,7 @@ function updateGame(dt) {
     storyManager.update(dt, character.mesh.position);
     const inCinematic = storyManager.currentPhase !== STORY_PHASES.NONE &&
                         storyManager.currentPhase !== STORY_PHASES.MISSION_COMBAT &&
-                        storyManager.currentPhase !== STORY_PHASES.MISSION_VICTORY;
+                        storyManager.currentPhase !== STORY_PHASES.FREE_ROAM_REVENGE;
     document.body.classList.toggle('story-cinematic', inCinematic);
     if (inCinematic && remoteModel) remoteModel.visible = false;
   }
@@ -642,12 +642,7 @@ function setFirstPerson(on) {
 }
 
 function updateCamera(dt) {
-  if (storyManager && storyManager.controlsLocked &&
-     (storyManager.currentPhase === STORY_PHASES.CINEMATIC_BOARDROOM ||
-      storyManager.currentPhase === STORY_PHASES.CINEMATIC_DRONE_PROTEST ||
-      storyManager.currentPhase === STORY_PHASES.PHONE_CALL ||
-      storyManager.currentPhase === STORY_PHASES.LIMO_RIDE ||
-      storyManager.currentPhase === STORY_PHASES.VILLA_ARRIVAL)) {
+  if (storyManager && storyManager.controlsLocked) {
     return;
   }
   const charPos = character.mesh.position;
@@ -999,6 +994,7 @@ function fireWeapon() {
 
 function selectWeapon(idx) {
   if (storyManager && storyManager.weaponsLocked) return;
+  if (idx === 16 && !window._octopusUnlocked) return;
   if (scopeOn && idx !== 8) toggleScope();
   weaponSystem.setWeapon(idx);
   handWeapons.setWeapon(idx);
@@ -1133,8 +1129,9 @@ function setupEventListeners() {
       }
     }
 
-    // T tuşu: Son silah olan Ahtapot silahını al (veya ahtapottaysa önceki silaha dön)
+    // T tuşu: Son silah olan Mekanik Ahtapot silahını al (açıksa)
     if ((key === 't' || e.code === 'KeyT') && !e.repeat && !inCar) {
+      if (!window._octopusUnlocked) return;
       releaseHand();
       if (weaponSystem.currentWeapon === 16) selectWeapon(0);
       else selectWeapon(16);
@@ -1171,7 +1168,14 @@ function setupEventListeners() {
     // TAB: sıradaki silaha geç (son silahtan sonra başa döner); menü yoktur, imleç kilitli kalır
     if (e.code === 'Tab') {
       e.preventDefault();
-      if (!e.repeat && !inCar) { releaseHand(); selectWeapon((weaponSystem.currentWeapon + 1) % weaponSystem.weapons.length); }
+      if (!e.repeat && !inCar) {
+        releaseHand();
+        let next = (weaponSystem.currentWeapon + 1) % weaponSystem.weapons.length;
+        if (next === 16 && !window._octopusUnlocked) {
+          next = (next + 1) % weaponSystem.weapons.length;
+        }
+        selectWeapon(next);
+      }
     }
   });
 
