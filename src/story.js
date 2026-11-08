@@ -1050,6 +1050,17 @@ export class StoryManager {
     this.weaponsLocked = false;
     this._betrayalTriggered = false;
 
+    // Villa demir kapısını sonuna kadar açık tut
+    if (this.voxelWorld && this.voxelWorld.doors) {
+      for (const d of this.voxelWorld.doors.doors) {
+        if (d.gate) {
+          d.open = 1;
+          d.target = 1;
+          d.hold = 99999;
+        }
+      }
+    }
+
     if (this.weaponSystem) this.weaponSystem.setWeapon(1);
     if (this.handWeapons) this.handWeapons.setWeapon(1);
 
@@ -1057,8 +1068,11 @@ export class StoryManager {
     this.updateCombatMissionHUD();
   }
 
-  // 36 Adet İsyancı: Kapının hemen önünde sık ve öfkeli kalabalık olarak toplanırlar (z = -46.5 .. -37.0)
+  // 24 Adet İsyancı: Kapı koridorunun tam önünde (x = 392.2 .. 397.6, z = -46.5 .. -36.5) toplanırlar
   _spawnMissionProtesters() {
+    for (const oldP of this.protesters) {
+      if (oldP.parent) oldP.parent.remove(oldP);
+    }
     this.protesters = [];
     const slogans = [
       'DEFOL STERLING!', 'PARAMIZI VER!', 'KATİL STERLING!',
@@ -1066,22 +1080,22 @@ export class StoryManager {
       'BANKALAR BİZİMDİR!', 'PARAMI ÇALAMAZSIN!'
     ];
 
-    const totalCount = 36;
+    const totalCount = 24;
     for (let i = 0; i < totalCount; i++) {
-      const col = i % 9;
-      const row = Math.floor(i / 9);
+      const col = i % 4;
+      const row = Math.floor(i / 4);
 
-      // Yol genişliği x = 387 .. 403 (Tam kapı önü)
-      const px = 387.0 + col * 1.8 + (Math.random() - 0.5) * 0.4;
-      // Dış yol derinliği z = -46.5 .. -37.0 (hepsi kapıdan net görünür, rampada kaybolmazlar)
-      const pz = -46.5 + row * 2.8 + (Math.random() - 0.5) * 0.5;
+      // x = 392.2 .. 397.6 (Tam 8.5m kapı açıklığının ortası, duvar arkasında kalmaz!)
+      const px = 392.2 + col * 1.8 + (Math.random() - 0.5) * 0.2;
+      // z = -46.5 .. -36.5 (Kapının hemen dışı, net görüş alanı)
+      const pz = -46.5 + row * 2.0 + (Math.random() - 0.5) * 0.3;
 
       const gy = (this.voxelWorld && this.voxelWorld.terrain) ? this.voxelWorld.terrain.topYAt(px, pz) : 12.0;
       const finalY = Math.max(0.5, gy);
 
       const p = this._buildProtesterModel(slogans[i % slogans.length]);
       p.position.set(px, finalY, pz);
-      p.rotation.y = Math.PI + (Math.random() - 0.5) * 0.3; // Villaya ve kapıya doğru dönük
+      p.rotation.y = Math.PI; // Villaya ve kapıya doğru dönük
       p.userData.isTarget = true;
       p.userData.hp = 100;
       p.userData.dead = false;
@@ -1659,6 +1673,21 @@ export class StoryManager {
           placard.rotation.z = Math.sin(t * 1.5) * 0.25;
           placard.rotation.x = -Math.sin(t * 1.2) * 0.15;
         }
+      }
+    }
+
+    // Görev çatışma takibi (Her karede canlı isyancı sayısını kontrol et)
+    if (this.currentPhase === STORY_PHASES.MISSION_COMBAT && !this._betrayalTriggered) {
+      for (const p of this.protesters) {
+        if (!p.userData.dead) {
+          if (!p.parent || !p.visible || p.position.y < 0.5) {
+            p.userData.dead = true;
+          }
+        }
+      }
+      const remaining = this.protesters.filter(p => !p.userData.dead).length;
+      if (remaining === 0) {
+        this.updateCombatMissionHUD();
       }
     }
 

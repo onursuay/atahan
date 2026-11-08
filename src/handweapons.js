@@ -581,6 +581,19 @@ export class HandWeapons {
       }
     }
 
+    // Hikaye isyancısına mı çarptı? (Kapı demirleri veya mesafe engeline takılmadan önce kontrol edilir)
+    if (this.storyManager) {
+      const sh = this.storyManager.checkBulletHit(origin, dir, o.range);
+      if (sh) {
+        this._spawnTracer(muzzle, sh.point);
+        this.flashTimer = 0.04;
+        this.kick = Math.min(1, this.kick + 0.35);
+        this.flashLight.position.copy(muzzle);
+        this._shotSound(o);
+        return;
+      }
+    }
+
     // Önce bir kapıya mı çarptı? (kapalı kapı mermiyi durdurur ve hasar alır)
     if (this.voxelWorld.doors) {
       const dh = this.voxelWorld.doors.rayHit(origin, dir, hit ? origin.distanceTo(hit) : o.range);
@@ -636,19 +649,7 @@ export class HandWeapons {
       }
     }
 
-    // Hikaye isyancısına mı çarptı?
-    if (this.storyManager) {
-      const hitDist = hit ? origin.distanceTo(hit) : o.range;
-      const sh = this.storyManager.checkBulletHit(origin, dir, hitDist);
-      if (sh) {
-        this._spawnTracer(muzzle, sh.point);
-        this.flashTimer = 0.04;
-        this.kick = Math.min(1, this.kick + 0.35);
-        this.flashLight.position.copy(muzzle);
-        this._shotSound(o);
-        return;
-      }
-    }
+
 
     // Mermi önce bir NPC'ye mi çarptı?
     if (this.npcs) {

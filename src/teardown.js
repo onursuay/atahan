@@ -470,6 +470,7 @@ export class VoxelWorld {
     if (this.planes) this.planes.hitSphere(blastPos, blastRadius);
     if (this.cars) this.cars.hitSphere(blastPos, blastRadius);
     this.doors.explode(blastPos, blastRadius);    // yakındaki kapılar kırılır
+    if (window._storyManager) window._storyManager.checkSphereHit(blastPos, blastRadius * 1.5);
     if (this.homeTV) this.homeTV.hitSphere(blastPos, blastRadius);   // yakındaki TV ekranı kırılır ve kararır
     if (this.props) this.props.impulse(blastPos, blastRadius, force);   // yakındaki eşyalar savrulur
     if (this.bridge) this.bridge.hitSphere(blastPos, blastRadius);   // köprü iplerini koparır
