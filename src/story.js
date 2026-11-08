@@ -1141,7 +1141,7 @@ export class StoryManager {
     // Oyuncu villanın kapı içindeki avluda durur
     if (this.character && this.character.body) {
       this.character.body.position.set(vx - 2.5, vy + 1.0, vz);
-      this.character.mesh.position.set(vx - 2.5, vy, vz);
+      this.character.mesh.position.set(vx - 2.5, vy + 0.475, vz);
       this.character.body.velocity.set(0, 0, 0);
     }
 
@@ -1393,7 +1393,7 @@ export class StoryManager {
     this.playerApproachingDavid = true;
     if (this.character) {
       this.character.setFirstPerson(false);
-      this.character.mesh.position.set(vx, vy, vz + 9.5);
+      this.character.mesh.position.set(vx, vy + 0.475, vz + 9.5);
       this.character.mesh.rotation.y = Math.PI; // David'e bakar
       if (this.character.body) {
         this.character.body.position.set(vx, vy + 1.0, vz + 9.5);
@@ -1520,13 +1520,13 @@ export class StoryManager {
     this.setFade(0, 600);
 
     // Oyuncuyu Batı Şehir'deki ana caddenin kaldırımına yerleştir (-60'tan -105'e yürür)
-    const startX = -60.0, startY = 1.0, startZ = 27.5;
+    const startX = -60.0, startY = 0.5, startZ = 27.5;
     if (this.character) {
       this.character.setFirstPerson(false);
-      this.character.mesh.position.set(startX, startY, startZ);
+      this.character.mesh.position.set(startX, startY + 0.475, startZ);
       this.character.mesh.rotation.y = -Math.PI / 2; // Batıya (eve) doğru yürür
       if (this.character.body) {
-        this.character.body.position.set(startX, startY, startZ);
+        this.character.body.position.set(startX, startY + 1.0, startZ);
         this.character.body.velocity.set(0, 0, 0);
       }
     }
@@ -1576,7 +1576,7 @@ export class StoryManager {
     this.cameraZoomingToFace = false;
     this.cinematicGroup.clear();
 
-    const couchX = -110.25, couchY = 5.95, couchZ = 19.75;
+    const couchX = -110.25, couchY = 6.45, couchZ = 19.75;
 
     // Oyuncu 2. kattaki koltukta düzgünce oturur (doğuya, odaya ve kameraya doğru)
     if (this.character) {
@@ -1584,7 +1584,7 @@ export class StoryManager {
       this.character.mesh.position.set(couchX, couchY, couchZ);
       this.character.mesh.rotation.set(0, Math.PI / 2, 0); // Doğuya bakar
       if (this.character.body) {
-        this.character.body.position.set(couchX, couchY, couchZ);
+        this.character.body.position.set(couchX, 7.0, couchZ);
         this.character.body.velocity.set(0, 0, 0);
       }
       // Düzgün koltuk oturuşu: Dizler 90 derece bükük, eller dizlerde
@@ -1597,8 +1597,8 @@ export class StoryManager {
     }
 
     // Kamera: Koltuktaki oyuncunun tam karşısı (göz hizasında)
-    this.camera.position.set(couchX + 2.5, couchY + 1.15, couchZ);
-    this.camera.lookAt(couchX, couchY + 0.95, couchZ);
+    this.camera.position.set(couchX + 2.5, couchY + 0.65, couchZ);
+    this.camera.lookAt(couchX, couchY + 0.5, couchZ);
 
     this.setFade(0, 600);
     this.setMission('BİR FİKİR DOĞUYOR...', 'Yenilgiyi kabullenecek misin, yoksa kendi kurallarını mı yazacaksın?');
@@ -1657,10 +1657,10 @@ export class StoryManager {
     // Oyuncu laboratuvarın merkezindeki teknolojik platformda durur
     if (this.character) {
       this.character.setFirstPerson(false);
-      this.character.mesh.position.set(wx, wy + 0.25, wz);
+      this.character.mesh.position.set(wx, wy + 0.475, wz);
       this.character.mesh.rotation.y = 0; // Karşıya bakar
       if (this.character.body) {
-        this.character.body.position.set(wx, wy + 0.25, wz);
+        this.character.body.position.set(wx, wy + 1.0, wz);
         this.character.body.velocity.set(0, 0, 0);
       }
       if (this.character.leftLeg) this.character.leftLeg.rotation.set(0, 0, 0);
@@ -1750,14 +1750,8 @@ export class StoryManager {
     window._octopusUnlocked = true;
     window._onlyOctopusMode = true; // Sadece ahtapot modu
 
-    const returnPos = new THREE.Vector3(-105.0, 1.2, 28.0);
     if (this.character) {
-      this.character.mesh.position.copy(returnPos);
-      this.character.mesh.rotation.set(0, 0, 0);
-      if (this.character.body) {
-        this.character.body.position.copy(returnPos);
-        this.character.body.velocity.set(0, 0, 0);
-      }
+      this.character.resetPosition(-105.0, 1.5, 4.2);
       this.character.setFirstPerson(true);
       if (this.character.head) this.character.head.rotation.set(0, 0, 0);
       if (this.character.torso) this.character.torso.rotation.set(0, 0, 0);
@@ -1812,10 +1806,10 @@ export class StoryManager {
     // Oyuncu villanın ön avlusunda David'in karşısında durur
     if (this.character) {
       this.character.setFirstPerson(false);
-      this.character.mesh.position.set(383.0, vy, vz);
+      this.character.mesh.position.set(383.0, vy + 0.475, vz);
       this.character.mesh.rotation.set(0, Math.PI / 2, 0); // Doğuya, David'e bakar
       if (this.character.body) {
-        this.character.body.position.set(383.0, vy, vz);
+        this.character.body.position.set(383.0, vy + 1.0, vz);
         this.character.body.velocity.set(0, 0, 0);
       }
     }
@@ -1958,12 +1952,12 @@ export class StoryManager {
       this.cinematicGroup.clear();
 
       // Oyuncuyu evinin önündeki kaldırıma bırakır
-      const hx = -105.0, hy = 1.2, hz = 28.0;
+      const hx = -105.0, hy = 0.5, hz = 4.2;
       if (this.character) {
-        this.character.mesh.position.set(hx, hy, hz);
+        this.character.mesh.position.set(hx, hy + 0.475, hz);
         this.character.mesh.rotation.set(0, -Math.PI / 2, 0); // Eve doğru bakar
         if (this.character.body) {
-          this.character.body.position.set(hx, hy, hz);
+          this.character.body.position.set(hx, hy + 1.0, hz);
           this.character.body.velocity.set(0, 0, 0);
         }
       }
@@ -1975,8 +1969,8 @@ export class StoryManager {
       this.cinematicGroup.add(pCar);
       this.policeCars = [pCar];
 
-      this.camera.position.set(hx + 3.0, hy + 2.0, hz + 2.0);
-      this.camera.lookAt(hx, hy + 1.5, hz);
+      this.camera.position.set(hx + 3.0, hy + 1.8, hz + 2.0);
+      this.camera.lookAt(hx, hy + 1.2, hz);
 
       this.setFade(0, 500);
       sound.playDoorSlide();
@@ -2002,15 +1996,15 @@ export class StoryManager {
     this.cinematicGroup.clear();
     this.chairSplinters = [];
 
-    const rx = -110.25, ry = 5.95, rz = 19.75;
+    const rx = -110.25, floorY = 6.0, rz = 19.75;
 
     // Oyuncu 2. kattaki oturma odasında sinirli bir şekilde ayakta durur
     if (this.character) {
       this.character.setFirstPerson(false);
-      this.character.mesh.position.set(rx + 1.2, ry, rz);
+      this.character.mesh.position.set(rx + 1.2, floorY + 0.475, rz);
       this.character.mesh.rotation.set(0, Math.PI / 2, 0); // Karşıya bakar
       if (this.character.body) {
-        this.character.body.position.set(rx + 1.2, ry, rz);
+        this.character.body.position.set(rx + 1.2, floorY + 1.0, rz);
         this.character.body.velocity.set(0, 0, 0);
       }
       if (this.character.leftLeg) this.character.leftLeg.rotation.set(0, 0, 0);
@@ -2022,13 +2016,13 @@ export class StoryManager {
 
     // Evdeki ahşap sandalye
     const chair = this._buildChairModel();
-    chair.position.set(rx + 1.2, ry, rz + 0.85);
+    chair.position.set(rx + 1.2, floorY, rz + 0.85);
     this.cinematicGroup.add(chair);
     this.chairMesh = chair;
 
     // Kamera: Oyuncunun öfkeli duruşunu ve odayı gösterir
-    this.camera.position.set(rx + 3.2, ry + 1.45, rz);
-    this.camera.lookAt(rx + 1.0, ry + 1.2, rz);
+    this.camera.position.set(rx + 3.2, floorY + 1.6, rz);
+    this.camera.lookAt(rx + 1.0, floorY + 1.35, rz);
 
     this.setFade(0, 400);
     sound.playDoorSlide();
@@ -2065,10 +2059,10 @@ export class StoryManager {
     // Oyuncu örsün başında çekiç tutar
     if (this.character) {
       this.character.setFirstPerson(false);
-      this.character.mesh.position.set(wx, wy + 0.25, wz + 0.45);
+      this.character.mesh.position.set(wx, wy + 0.475, wz + 0.45);
       this.character.mesh.rotation.set(0, 0, 0); // Örse doğru bakar
       if (this.character.body) {
-        this.character.body.position.set(wx, wy + 0.25, wz + 0.45);
+        this.character.body.position.set(wx, wy + 1.0, wz + 0.45);
         this.character.body.velocity.set(0, 0, 0);
       }
     }
@@ -2173,14 +2167,8 @@ export class StoryManager {
     window._onlyOctopusMode = false; // Artık serbest modda bütün silahlar ve Mekanik Ahtapot kullanılabilir!
 
     // Oyuncuyu yeraltı gizli sığınak kapısından dışarı caddeye çıkar
-    const returnPos = new THREE.Vector3(-105.0, 1.2, 28.0);
     if (this.character) {
-      this.character.mesh.position.copy(returnPos);
-      this.character.mesh.rotation.set(0, 0, 0);
-      if (this.character.body) {
-        this.character.body.position.copy(returnPos);
-        this.character.body.velocity.set(0, 0, 0);
-      }
+      this.character.resetPosition(-105.0, 1.5, 4.2);
       this.character.setFirstPerson(true);
       if (this.character.head) this.character.head.rotation.set(0, 0, 0);
       if (this.character.torso) this.character.torso.rotation.set(0, 0, 0);
@@ -2405,10 +2393,10 @@ export class StoryManager {
     if (this.currentPhase === STORY_PHASES.DEJECTED_WALK_HOME) {
       if (this.character && this.character.mesh) {
         const curX = Math.max(-105.0, this.character.mesh.position.x - dt * 2.2);
-        this.character.mesh.position.set(curX, 1.0, 27.5);
+        this.character.mesh.position.set(curX, 0.5 + 0.475, 27.5);
         this.character.mesh.rotation.set(0, -Math.PI / 2, 0); // Karakter kesinlikle ileri (batıya) bakar, sağa/sola kaymaz!
         if (this.character.body) {
-          this.character.body.position.set(curX, 1.0, 27.5);
+          this.character.body.position.set(curX, 0.5 + 1.0, 27.5);
           this.character.body.velocity.set(0, 0, 0);
         }
 
@@ -2421,19 +2409,19 @@ export class StoryManager {
         if (this.character.rightLeg) this.character.rightLeg.rotation.set(Math.sin(t) * 0.45, 0, 0);
 
         // Geniş açık cadde hizasından takip (araya bina girmez!)
-        this.camera.position.set(curX - 4.2, 1.0 + 1.8, 27.5 + 3.8);
-        this.camera.lookAt(curX + 0.6, 1.0 + 1.2, 27.5);
+        this.camera.position.set(curX - 4.2, 0.5 + 1.8, 27.5 + 3.8);
+        this.camera.lookAt(curX + 0.6, 0.5 + 1.2, 27.5);
       }
     }
 
     // Sahne 11: Koltukta Pişman Oturuş & Kararlı Yüze Yakınlaşma
     if (this.currentPhase === STORY_PHASES.HOME_COUCH_REVELATION) {
-      const couchX = -110.25, couchY = 5.95, couchZ = 19.75;
+      const couchX = -110.25, couchY = 6.45, couchZ = 19.75;
       if (this.character && this.character.mesh) {
         this.character.mesh.position.set(couchX, couchY, couchZ);
         this.character.mesh.rotation.set(0, Math.PI / 2, 0); // Karşıya bakar
         if (this.character.body) {
-          this.character.body.position.set(couchX, couchY, couchZ);
+          this.character.body.position.set(couchX, 7.0, couchZ);
           this.character.body.velocity.set(0, 0, 0);
         }
       }
@@ -2441,11 +2429,11 @@ export class StoryManager {
       if (this.cameraZoomingToFace) {
         // Kararlı bir şekilde yüzümüze doğru yaklaşan kamera
         this.camera.position.x = THREE.MathUtils.lerp(this.camera.position.x, couchX + 0.95, dt * 2.8);
-        this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, couchY + 1.05, dt * 2.8);
-        this.camera.lookAt(couchX, couchY + 0.98, couchZ);
+        this.camera.position.y = THREE.MathUtils.lerp(this.camera.position.y, couchY + 0.55, dt * 2.8);
+        this.camera.lookAt(couchX, couchY + 0.5, couchZ);
       } else {
-        this.camera.position.set(couchX + 2.5, couchY + 1.15, couchZ);
-        this.camera.lookAt(couchX, couchY + 0.95, couchZ);
+        this.camera.position.set(couchX + 2.5, couchY + 0.65, couchZ);
+        this.camera.lookAt(couchX, couchY + 0.5, couchZ);
       }
 
       if (this.character && this.character.head) {
@@ -2581,7 +2569,7 @@ export class StoryManager {
 
     // Sahne 16: Eve Giriş, 3 Saniye Sessizlik & Sandalyeyi Parçalama
     if (this.currentPhase === STORY_PHASES.HOME_CHAIR_RAGE) {
-      const rx = -110.25, ry = 5.95, rz = 19.75;
+      const rx = -110.25, floorY = 6.0, rz = 19.75;
       if (this.rageStage === 'silent_wait') {
         if (this.phaseTimer >= 3.0) {
           this.rageStage = 'grab_chair';
@@ -2589,7 +2577,7 @@ export class StoryManager {
         }
       } else if (this.rageStage === 'grab_chair') {
         if (this.chairMesh) {
-          this.chairMesh.position.set(rx + 1.2, ry + 1.4, rz + 0.3);
+          this.chairMesh.position.set(rx + 1.2, floorY + 1.4, rz + 0.3);
           this.chairMesh.rotation.set(-0.4, 0, 0.3);
         }
         if (this.character && this.character.leftArm && this.character.rightArm) {
@@ -2613,7 +2601,7 @@ export class StoryManager {
             sound.playBlockBreak();
             sound.playExplosion();
             sound.playHammerHit();
-            this._spawnChairSplinters(-106.0, ry + 1.1, rz + 0.3);
+            this._spawnChairSplinters(-106.0, floorY + 1.1, rz + 0.3);
 
             if (this.character && this.character.leftArm && this.character.rightArm) {
               this.character.leftArm.rotation.set(0.3, 0, 0);
@@ -2625,8 +2613,8 @@ export class StoryManager {
                 speaker: 'player_determined', name: 'OYUNCU (ÖFKEYLE BAĞIRARAK)', color: '#38bdf8',
                 text: 'LANET OLSUN! Beni kanunlarla, polislerle ve milyarlarıyla durdurabileceklerini sanıyorlar!',
                 onStart: () => {
-                  this.camera.position.set(rx + 2.8, ry + 1.5, rz);
-                  this.camera.lookAt(rx + 1.2, ry + 1.3, rz);
+                  this.camera.position.set(rx + 2.8, floorY + 1.6, rz);
+                  this.camera.lookAt(rx + 1.2, floorY + 1.35, rz);
                 }
               },
               {
@@ -2655,8 +2643,8 @@ export class StoryManager {
             sp.position.z += sp.userData.vz * dt;
             sp.rotation.x += sp.userData.rx * dt;
             sp.rotation.y += sp.userData.ry * dt;
-            if (sp.position.y <= ry + 0.05) {
-              sp.position.y = ry + 0.05;
+            if (sp.position.y <= floorY + 0.05) {
+              sp.position.y = floorY + 0.05;
               sp.userData.vy = -sp.userData.vy * 0.3;
               sp.userData.vx *= 0.6;
               sp.userData.vz *= 0.6;

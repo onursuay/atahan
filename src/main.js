@@ -248,6 +248,7 @@ function init() {
   try { busManager = new BusManager(scene, voxelWorld, character); } catch (e) { console.warn(e); }
   try {
     storyManager = new StoryManager(scene, voxelWorld, character, camera, weaponSystem, handWeapons);
+    character.storyManager = storyManager;
     handWeapons.storyManager = storyManager;
     weaponSystem.storyManager = storyManager;
     if (npcs) npcs.storyManager = storyManager;
@@ -631,8 +632,8 @@ function startIntro() {
           storyManager.setMission('💣 SERBEST MOD', 'Şehir tamamen senin! Bütün silahlar ve Mekanik Ahtapot emrinde. İstediğin gibi yık, arabalara bin ve eğlen!');
         }
 
-        const cfg = (levelManager && levelManager.levelConfigs) ? levelManager.levelConfigs[levelManager.currentLevelIndex || 0] : null;
-        if (cfg && cfg.spawn) character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+        // Serbest modda oyuncu evin önünde, geniş caddede ayakta başlar
+        character.resetPosition(-105.0, 1.5, 4.2);
         seated = false; eyeOffset = 1.8;
         setFirstPerson(false);
 

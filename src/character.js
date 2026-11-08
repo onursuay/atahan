@@ -362,6 +362,19 @@ export class Character {
   update(dt, inputState, cameraEulerY) {
     if (!this.body) return;
 
+    // Sinematik sırasında kontroller kilitliyse (storyManager.controlsLocked) Cannon fiziği ve yerçekimi devre dışıdır
+    if (this.storyManager && this.storyManager.controlsLocked) {
+      this.vel.set(0, 0, 0);
+      this.vy = 0;
+      this.vx = 0;
+      this.vz = 0;
+      if (this.body) {
+        this.body.velocity.set(0, 0, 0);
+        this.body.angularVelocity.set(0, 0, 0);
+      }
+      return;
+    }
+
     let moveX = 0;
     let moveZ = 0;
 
@@ -464,8 +477,8 @@ export class Character {
     // Voxel çarpışması, yerçekimi, zıplama ve su fiziği
     this._stepPhysics(dt, inputState);
 
-    // Haritadan aşağı düşme
-    if (this.body.position.y < -10) {
+    // Haritadan aşağı düşme (Yeraltı laboratuvarı -45m'de olduğu için güvenli eşik -120m)
+    if (this.body.position.y < -120) {
       this.resetPosition(this.spawn.x, this.spawn.y, this.spawn.z);
     }
 
