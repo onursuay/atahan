@@ -194,6 +194,7 @@ function init() {
   });
 
   handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
+  handWeapons.character = character;
   handWeapons.setFirstPerson(firstPerson);
   handWeapons.onAmmoChange = updateMagUI;
   handWeapons.arsenal.onShake = (s) => { screenShake = Math.max(screenShake, s); };
@@ -441,7 +442,7 @@ function updateGame(dt) {
       character.vel.set(0, 0, 0);
       character.mesh.position.set(cfg.spawn.x, cfg.spawn.y - 0.525, cfg.spawn.z);
     } else {
-      character.update(dt, inputState, cameraYaw);
+      character.update(dt, inputState, cameraYaw, cameraPitch);
     }
   }
   // Jenerik: kontroller kapalı; bitince oyuncu ilk hareketinde koltuktan kalkar (göz yüksekliği yükselir)
@@ -1036,6 +1037,16 @@ function fireWeapon() {
   if (cur === 17) { handWeapons.fireHeld = true; return; } // Plazma lazeri: basılı tutunca ateş
   if (cur >= 10 && cur <= 15 || cur === 18 || cur === 19) { handWeapons.arsenal.fire(cur); return; }   // cephanelik: kara delik, yıldırım, eritici, deprem, yıkım topu, testere, nuke, cryo
   if (cur === 16) { handWeapons.octopus.onLeftClick((s) => { screenShake = Math.max(screenShake, s); }); return; } // Ahtapot: sol tıkla dokunaç at / sar / tut / fırlat
+  if (cur === 20) {
+    if (handWeapons && handWeapons.elemental) {
+      if (handWeapons.elemental.fireSwordActive) {
+        handWeapons.elemental.slashFireSword((s) => { screenShake = Math.max(screenShake, s); });
+      } else {
+        handWeapons.elemental.shootFireball((s) => { screenShake = Math.max(screenShake, s); });
+      }
+    }
+    return;
+  }
   if (cur === 3 || cur === 4) {                           // Bombalar: yerleştir
     if (bombs.place(cur === 3 ? 'timed' : 'remote')) handWeapons.onRocketFired();
     return;
@@ -1071,6 +1082,7 @@ function selectWeapon(idx) {
   if (handWeapons) {
     handWeapons.setBombModel(idx);
     if (handWeapons.octopus) handWeapons.octopus.onSwitch(idx, character);
+    if (handWeapons.elemental) handWeapons.elemental.onSwitch(idx, character);
   }
   updateWeaponUI();
 }
@@ -1180,6 +1192,13 @@ function setupEventListeners() {
     if (key === 'a' || e.code === 'KeyA') inputState.left = true;
     if (key === 'd' || e.code === 'KeyD') inputState.right = true;
     if (e.code === 'Space') {
+      if (!inCar && weaponSystem && weaponSystem.currentWeapon === 20 && handWeapons && handWeapons.elemental && handWeapons.elemental.currentElement === 'fire') {
+        if (!e.repeat) {
+          handWeapons.elemental.toggleFlight(character);
+        }
+        e.preventDefault();
+        return;
+      }
       inputState.jump = true;
       e.preventDefault();
     }
@@ -1204,6 +1223,18 @@ function setupEventListeners() {
       releaseHand();
       if (weaponSystem.currentWeapon === 16) selectWeapon(0);
       else selectWeapon(16);
+    }
+
+    // Y tuşu: Elemental Robot silahını seç / Ateş elementindeyse Alev Kılıcını çek/kına sok
+    if ((key === 'y' || e.code === 'KeyY') && !e.repeat && !inCar) {
+      releaseHand();
+      if (weaponSystem.currentWeapon !== 20) {
+        selectWeapon(20);
+      } else {
+        if (handWeapons && handWeapons.elemental) {
+          handWeapons.elemental.toggleFireSword();
+        }
+      }
     }
 
     // Q tuşu: Ahtapota dönüştüğümüz zaman her basışta çok büyük bir zıplama yapıp geri aşağı iner (zıpla-in)
@@ -1259,10 +1290,22 @@ function setupEventListeners() {
 
   window.addEventListener('mouseup', (e) => {
     if (e.button === 0) handWeapons.fireHeld = false;
-    if (e.button === 2) releaseHand();
+    if (e.button === 2) {
+      if (handWeapons && handWeapons.elemental) handWeapons.elemental.setDragonBreath(false);
+      releaseHand();
+    }
   });
-  window.addEventListener('blur', releaseHand);
-  window.addEventListener('wheel', (e) => { if (rightHeld && props.held) props.adjustDistance(-Math.sign(e.deltaY) * 0.3); });   // tutulan eşyanın uzaklığı
+  window.addEventListener('blur', () => {
+    if (handWeapons && handWeapons.elemental) handWeapons.elemental.setDragonBreath(false);
+    releaseHand();
+  });
+  window.addEventListener('wheel', (e) => {
+    if (weaponSystem && weaponSystem.currentWeapon === 20 && handWeapons && handWeapons.elemental) {
+      handWeapons.elemental.cycleElement(Math.sign(e.deltaY));
+      return;
+    }
+    if (rightHeld && props.held) props.adjustDistance(-Math.sign(e.deltaY) * 0.3);
+  });
   window.addEventListener('contextmenu', (e) => e.preventDefault());   // sağ tık menüsü açılmasın: sağ tık = el
 
   canvasContainer.addEventListener('mousedown', (e) => {
@@ -1277,6 +1320,8 @@ function setupEventListeners() {
         if (!handled) {
           grabDoor();
         }
+      } else if (weaponSystem.currentWeapon === 20 && handWeapons && handWeapons.elemental && handWeapons.elemental.currentElement === 'fire') {
+        handWeapons.elemental.setDragonBreath(true);
       } else {
         grabDoor();
       }

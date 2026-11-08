@@ -4,6 +4,7 @@ import { VOXEL_SIZE } from './teardown.js';
 import { GROUND_Y } from './terrain.js';
 import { Arsenal } from './arsenal.js';
 import { OctopusSystem } from './octopus.js';
+import { ElementalSystem } from './elemental.js';
 
 // Elde taşınan silahlar: ekranın sağ altında görünen silah modelleri (birinci şahıs),
 // minigun (basılı tutunca otomatik ateş) ve ışın kılıcı (savurma ile yıkım).
@@ -105,6 +106,7 @@ export class HandWeapons {
     this._buildGuns();
     this.arsenal = new Arsenal(this);   // 6 yeni silah (kimlik 10-15)
     this.octopus = new OctopusSystem(this); // Ahtapot silahı ve dönüşümü (kimlik 16)
+    this.elemental = new ElementalSystem(this); // Elemental Robot silahı (kimlik 20)
     this.gunCooldown = 0;
     this.scoped = false;
     this.mag = { ...MAG_SIZE };   // her silahın şarjöründeki mermi
@@ -202,6 +204,7 @@ export class HandWeapons {
     this.bombModel.visible = !h && (i === 3 || i === 4);
     Object.entries(this.gunModels).forEach(([k, g]) => g.visible = !h && Number(k) === i);
     if (this.arsenal) this.arsenal.applyVisibility(i);
+    if (this.elemental && this.elemental.gauntletRoot) this.elemental.gauntletRoot.visible = !h && i === 20;
   }
 
   // Sağ el minigunu (tekli minigun ve çift minigunun sağ eli) + sol el minigunu (yalnız çift minigunda; sağın aynası)
@@ -306,6 +309,7 @@ export class HandWeapons {
     this._endSpin();
     this._applyVisibility();
     if (this.arsenal) this.arsenal.onSwitch(i);
+    if (this.elemental) this.elemental.onSwitch(i, this.character);
     if (i !== 8) this.scoped = false;
     if (i === 2) sound.playSaberOn();
     else sound.updateSaberHum(false);
@@ -429,6 +433,7 @@ export class HandWeapons {
     // Cephanelik (10-15): model, ateş ve mermi/etki güncellemesi
     this.arsenal.update(dt, ctx, { swayX, swayY, drop });
     if (this.octopus) this.octopus.update(dt, ctx);
+    if (this.elemental) this.elemental.update(dt, ctx);
 
     // Işın kılıcı: hafif parlama + savurma animasyonu
     const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.02);

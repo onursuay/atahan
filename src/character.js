@@ -359,7 +359,7 @@ export class Character {
   }
 
   // W, A, S, D ve Zıplama Güncellemesi
-  update(dt, inputState, cameraEulerY) {
+  update(dt, inputState, cameraEulerY, cameraPitch = 0) {
     if (!this.body) return;
 
     // Sinematik sırasında kontroller kilitliyse (storyManager.controlsLocked) Cannon fiziği ve yerçekimi devre dışıdır
@@ -372,6 +372,45 @@ export class Character {
         this.body.velocity.set(0, 0, 0);
         this.body.angularVelocity.set(0, 0, 0);
       }
+      return;
+    }
+
+    // ─── ATEŞ ELEMENTİ SÜPERSONİK UÇUŞ MODU (Space ile açılır/kapanır) ───
+    if (this.elementalFlight) {
+      const FLIGHT_SPEED = 135; // 135 m/s süpersonik uçuş hızı (şehri 4-5 sn'de geçer)
+
+      const cosP = Math.cos(cameraPitch);
+      const sinP = Math.sin(cameraPitch);
+      const sinY = Math.sin(cameraEulerY);
+      const cosY = Math.cos(cameraEulerY);
+
+      // 3B Bakış Doğrultusu
+      const lookX = -sinY * cosP;
+      const lookY = -sinP;
+      const lookZ = -cosY * cosP;
+
+      // Yatay Sağ Doğrultusu
+      const strafeX = cosY;
+      const strafeZ = -sinY;
+
+      const moveVec = new THREE.Vector3(0, 0, 0);
+      if (inputState.forward)  moveVec.add(new THREE.Vector3(lookX, lookY, lookZ));
+      if (inputState.backward) moveVec.add(new THREE.Vector3(-lookX, -lookY, -lookZ));
+      if (inputState.right)    moveVec.add(new THREE.Vector3(strafeX, 0, strafeZ));
+      if (inputState.left)     moveVec.add(new THREE.Vector3(-strafeX, 0, -strafeZ));
+
+      if (moveVec.lengthSq() > 0.001) {
+        moveVec.normalize().multiplyScalar(FLIGHT_SPEED);
+        this.vel.copy(moveVec);
+        this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, cameraEulerY, 14 * dt);
+      } else {
+        const damp = Math.pow(0.85, dt * 60);
+        this.vel.multiplyScalar(damp);
+      }
+
+      this._stepPhysics(dt, inputState);
+      this.mesh.position.copy(this.body.position);
+      this.mesh.position.y -= FOOT_OFFSET_Y;
       return;
     }
 
@@ -647,6 +686,8 @@ export class Character {
         const bob = Math.sin(this.swimBobTime * 2.2) * 0.055;
         const target = inputState.jump ? FLOAT_DEPTH_UP : (FLOAT_DEPTH + bob);
         this.vel.y += ((depth - target) * 16 - this.vel.y * 3.6) * h;
+      } else if (this.elementalFlight) {
+        // Süpersonik uçuş modunda yerçekimi düşüşü uygulanmaz
       } else {
         this.vel.y = Math.max(-MAX_FALL, this.vel.y - GRAVITY * h);
       }

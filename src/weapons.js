@@ -37,7 +37,8 @@ export class WeaponSystem {
       { id: 16, type: 'octopus', name: 'Mekanik Ahtapot', ammo: Infinity, desc: 'Sol Tık: Sar | Sağ Tık: Çek | Q: Dev Zıpla' },
       { id: 17, type: 'plasma', name: 'Plazma Lazeri', ammo: Infinity, desc: 'Basılı tut: binaları eriten kesintisiz gök plazması' },
       { id: 18, type: 'nuke', name: 'Mini Nuke', ammo: Infinity, desc: 'Tıkla: taktik nükleer roket, devasa patlama ve krater' },
-      { id: 19, type: 'cryo', name: 'Cryo Topu', ammo: Infinity, desc: 'Tıkla: buz patlaması, dondurup tuzla buz eder' }
+      { id: 19, type: 'cryo', name: 'Cryo Topu', ammo: Infinity, desc: 'Tıkla: buz patlaması, dondurup tuzla buz eder' },
+      { id: 20, type: 'elemental', name: 'Elemental Robot', ammo: Infinity, desc: 'Sol Tık: Ateş Topu | Sağ Tık: Ejderha Nefesi | Space: Uçuş | Y: Alev Kılıcı | Tekerlek: Element' }
     ];
 
     this.cooldown = 0;
