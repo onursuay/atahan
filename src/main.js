@@ -274,8 +274,12 @@ function init() {
 
     updateGame(dt);
     renderer.clear();
-    renderer.render(scene, camera);
-    handWeapons.render(renderer);
+    if (storyManager && storyManager.splitScreenActive) {
+      storyManager.renderSplitScreen(renderer, scene);
+    } else {
+      renderer.render(scene, camera);
+      handWeapons.render(renderer);
+    }
   }
   requestAnimationFrame(animate);
 }
@@ -478,7 +482,9 @@ function updateGame(dt) {
     storyManager.update(dt, character.mesh.position);
     const inCinematic = storyManager.currentPhase !== STORY_PHASES.NONE &&
                         storyManager.currentPhase !== STORY_PHASES.MISSION_COMBAT &&
-                        storyManager.currentPhase !== STORY_PHASES.FREE_ROAM_REVENGE;
+                        storyManager.currentPhase !== STORY_PHASES.REVENGE_TRAVEL_VILLA &&
+                        storyManager.currentPhase !== STORY_PHASES.FREE_ROAM_REVENGE &&
+                        storyManager.currentPhase !== STORY_PHASES.FREE_ROAM_AFTER_CALL;
     document.body.classList.toggle('story-cinematic', inCinematic);
     if (inCinematic && remoteModel) remoteModel.visible = false;
   }
@@ -550,11 +556,28 @@ function startIntro() {
     const menu = document.getElementById('main-menu') || document.createElement('div');
     const $ = (id) => menu.querySelector('#' + id);
     const sBtn = $('mm-settings'), bBtn = $('mm-back'), sndBtn = $('mm-sound'), sensInp = $('mm-sens'), pBtn = $('mm-play');
+    const modeStoryBtn = $('mm-mode-story'), modeFreeBtn = $('mm-mode-free'), modeBackBtn = $('mm-mode-back');
+
     if (sBtn) sBtn.onclick = () => { $('mm-home').style.display = 'none'; $('mm-set').style.display = 'flex'; };
     if (bBtn) bBtn.onclick = () => { $('mm-set').style.display = 'none'; $('mm-home').style.display = 'flex'; };
     if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
     if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
-    if (pBtn) pBtn.onclick = () => {      // OYNA: menü kapanır, sinematik hikaye başlar
+
+    // OYNA: Oyun Modu Seçim ekranını açar (Hikaye Modu veya Serbest Mod)
+    if (pBtn) pBtn.onclick = () => {
+      $('mm-home').style.display = 'none';
+      const mPanel = $('mm-mode');
+      if (mPanel) mPanel.style.display = 'flex';
+      else startStoryMode();
+    };
+
+    if (modeBackBtn) modeBackBtn.onclick = () => {
+      const mPanel = $('mm-mode');
+      if (mPanel) mPanel.style.display = 'none';
+      $('mm-home').style.display = 'flex';
+    };
+
+    const startStoryMode = () => {
       try {
         menu.style.display = 'none';
         introWaiting = false; introT = 0;
@@ -562,6 +585,7 @@ function startIntro() {
         document.body.classList.remove('intro');
         if (introFadeEl) introFadeEl.style.display = 'none';
         introActive = false;
+        window._gameMode = 'story';
         if (storyManager) {
           if (remoteModel) remoteModel.visible = false;
           document.body.classList.add('story-cinematic');
@@ -574,13 +598,56 @@ function startIntro() {
         }
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
-        console.warn('Oyna basildiginda kurtarma calisti:', err);
+        console.warn('Hikaye modu baslatma hatasi:', err);
         menu.style.display = 'none';
         document.body.classList.remove('intro');
         if (introFadeEl) introFadeEl.style.display = 'none';
         introActive = false;
       }
     };
+
+    const startFreeRoamMode = () => {
+      try {
+        menu.style.display = 'none';
+        introWaiting = false; introT = 0;
+        try { sound.init(); } catch (e) {}
+        document.body.classList.remove('intro');
+        if (introFadeEl) introFadeEl.style.display = 'none';
+        introActive = false;
+        window._gameMode = 'freeroam';
+        window._octopusUnlocked = true;
+        window._onlyOctopusMode = false;
+        if (remoteModel) remoteModel.visible = false;
+        if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
+
+        if (storyManager) {
+          storyManager.currentPhase = STORY_PHASES.FREE_ROAM_REVENGE;
+          storyManager.controlsLocked = false;
+          storyManager.weaponsLocked = false;
+          storyManager.cinematicGroup.clear();
+          storyManager.showDialog(false);
+          storyManager.showSkipButton(false);
+          storyManager.setFade(0, 300);
+          storyManager.setMission('💣 SERBEST MOD', 'Şehir tamamen senin! Bütün silahlar ve Mekanik Ahtapot emrinde. İstediğin gibi yık, arabalara bin ve eğlen!');
+        }
+
+        const cfg = (levelManager && levelManager.levelConfigs) ? levelManager.levelConfigs[levelManager.currentLevelIndex || 0] : null;
+        if (cfg && cfg.spawn) character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
+        seated = false; eyeOffset = 1.8;
+        setFirstPerson(false);
+
+        if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
+      } catch (err) {
+        console.warn('Serbest mod baslatma hatasi:', err);
+        menu.style.display = 'none';
+        document.body.classList.remove('intro');
+        if (introFadeEl) introFadeEl.style.display = 'none';
+        introActive = false;
+      }
+    };
+
+    if (modeStoryBtn) modeStoryBtn.onclick = startStoryMode;
+    if (modeFreeBtn) modeFreeBtn.onclick = startFreeRoamMode;
     introMenuEl = menu;
   }
   // Oyun ana menüyle başlar: OYNA'ya basılana kadar ekran siyah, jenerik bekler
@@ -994,7 +1061,7 @@ function fireWeapon() {
 
 function selectWeapon(idx) {
   if (storyManager && storyManager.weaponsLocked) return;
-  if (window._onlyOctopusMode && idx !== 16) return;
+  if (window._onlyOctopusMode && idx !== 16 && idx !== 0) return;
   if (idx === 16 && !window._octopusUnlocked) return;
   if (scopeOn && idx !== 8) toggleScope();
   weaponSystem.setWeapon(idx);

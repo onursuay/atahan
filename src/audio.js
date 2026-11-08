@@ -1148,6 +1148,33 @@ class SoundEngine {
     this.playNoise(0.25, 0.08, 450);
   }
 
+  // Polis Sireni (İki tonlu Amerikan / Şehir devriye sireni)
+  playPoliceSiren(duration = 3.5) {
+    if (this.muted || !this.ctx) return null;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    // 600Hz ile 950Hz arasında periyodik yükselip alçalma
+    for (let t = 0; t < duration; t += 0.8) {
+      osc.frequency.setValueAtTime(620, now + t);
+      osc.frequency.linearRampToValueAtTime(960, now + t + 0.4);
+      osc.frequency.linearRampToValueAtTime(620, now + t + 0.8);
+    }
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.18, now + duration - 0.5);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(1800, now);
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + duration);
+    return { osc, gain };
+  }
+
   // Gürültü (Noise) Üreteci
   playNoise(duration, volume, filterFreq = 1000) {
     if (!this.ctx) return;

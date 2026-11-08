@@ -27,7 +27,14 @@ export const STORY_PHASES = {
   DEJECTED_WALK_HOME: 10,    // Sahne 10: Şehirde insanlar gezerken eve doğru kambur, hüzünlü yürüyüş
   HOME_COUCH_REVELATION: 11, // Sahne 11: Evde koltukta pişman oturuş, aniden kameraya bakış & ekran kararması
   SECRET_WORKSHOP_OCTOPUS: 12,// Sahne 12: Tony Stark stili mekanik laboratuvar, ahtapot kolları montajı
-  FREE_ROAM_REVENGE: 13      // Hikaye bitti, Mekanik Ahtapot devrede, serbest intikam!
+  REVENGE_TRAVEL_VILLA: 13,  // Sahne 13: Ahtapot ile sığınaktan çıkış, Doğu Adası'na villaya intikama gidiş
+  POLICE_CONFRONTATION: 14,  // Sahne 14: David'le yüzleşme, polis sirenleri, detaylı araçtan iniş, 7 yıl hapis uyarısı
+  POLICE_ESCORT_HOME: 15,    // Sahne 15: Polis aracıyla eve bırakılma
+  HOME_CHAIR_RAGE: 16,       // Sahne 16: Eve sinirli giriş, 3 saniye sessizlik, sandalyeyi duvara fırlatıp kırma
+  FORGING_SUPERWEAPON: 17,   // Sahne 17: Laboratuvara yeniden iniş, örs ve çekiçle yeni süper silah dövme
+  CORP_TOWER_SPLITSCREEN: 18,// Sahne 18: Kamera kuleye yükselir, dürbünlü CEO & David Sterling Split-screen telefon görüşmesi
+  FREE_ROAM_REVENGE: 19,     // Bölüm 1 sonu: Serbest intikam modu!
+  FREE_ROAM_AFTER_CALL: 20
 };
 
 const BOX = (w, h, d) => new THREE.BoxGeometry(w, h, d);
@@ -152,6 +159,19 @@ export class StoryManager {
     this.arthurActor = null;
     this.newsVan = null;
 
+    // Split-Screen ve Yeni Sinematikler
+    this.splitScreenActive = false;
+    this.cameraDavid = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+    this.cameraCeo = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+    this.ceoActor = null;
+    this.policeCars = [];
+    this.policeOfficers = [];
+    this.chairMesh = null;
+    this.chairSplinters = [];
+    this.rageStage = '';
+    this.superweaponForgeCore = null;
+    this.superweaponHammer = null;
+
     // Drone kamera açısı
     this.droneAngle = 0;
 
@@ -242,6 +262,44 @@ export class StoryManager {
     container.appendChild(hud);
     this.missionHud = hud;
 
+    // Split Screen Ortadan İkiye Bölücü Çizgi & Etiketler
+    const splitDivider = document.createElement('div');
+    splitDivider.id = 'story-split-divider';
+    splitDivider.style.cssText = `
+      position: absolute; left: 50%; top: 0; bottom: 0; width: 4px;
+      background: linear-gradient(180deg, #f59e0b, #38bdf8, #f59e0b);
+      box-shadow: 0 0 18px rgba(56, 189, 248, 0.9);
+      transform: translateX(-50%); z-index: 100001; display: none; pointer-events: none;
+    `;
+    container.appendChild(splitDivider);
+    this.splitDivider = splitDivider;
+
+    const labelL = document.createElement('div');
+    labelL.id = 'story-split-label-left';
+    labelL.style.cssText = `
+      position: absolute; top: 24px; left: 24px;
+      background: rgba(15, 23, 42, 0.92); border: 2px solid #f59e0b; border-radius: 6px;
+      padding: 8px 16px; color: #fde047; font-size: 14px; font-weight: 800;
+      letter-spacing: 1.5px; z-index: 100001; display: none; pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    `;
+    labelL.innerText = '🏢 DAVID STERLING - MERKEZ MALİKANE';
+    container.appendChild(labelL);
+    this.splitLabelL = labelL;
+
+    const labelR = document.createElement('div');
+    labelR.id = 'story-split-label-right';
+    labelR.style.cssText = `
+      position: absolute; top: 24px; right: 24px;
+      background: rgba(15, 23, 42, 0.92); border: 2px solid #38bdf8; border-radius: 6px;
+      padding: 8px 16px; color: #38bdf8; font-size: 14px; font-weight: 800;
+      letter-spacing: 1.5px; z-index: 100001; display: none; pointer-events: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+    `;
+    labelR.innerText = '🔭 NOVA HOLDİNG CEO\'SU - KULE 9. KAT';
+    container.appendChild(labelR);
+    this.splitLabelR = labelR;
+
     // Undertale Tarzı Net & Görünür Retro Diyalog Kutusu
     const dbox = document.createElement('div');
     dbox.id = 'story-dialog-box';
@@ -279,6 +337,41 @@ export class StoryManager {
         this.advanceDialog();
       }
     });
+  }
+
+  setSplitScreen(active) {
+    this.splitScreenActive = active;
+    if (this.splitDivider) this.splitDivider.style.display = active ? 'block' : 'none';
+    if (this.splitLabelL) this.splitLabelL.style.display = active ? 'block' : 'none';
+    if (this.splitLabelR) this.splitLabelR.style.display = active ? 'block' : 'none';
+  }
+
+  renderSplitScreen(renderer, scene) {
+    if (!this.cameraDavid || !this.cameraCeo) {
+      renderer.render(scene, this.camera);
+      return;
+    }
+    const w = window.innerWidth, h = window.innerHeight;
+    const halfW = Math.floor(w / 2);
+
+    renderer.setScissorTest(true);
+
+    // Sol Yarı: David Sterling
+    renderer.setViewport(0, 0, halfW, h);
+    renderer.setScissor(0, 0, halfW, h);
+    this.cameraDavid.aspect = halfW / h;
+    this.cameraDavid.updateProjectionMatrix();
+    renderer.render(scene, this.cameraDavid);
+
+    // Sağ Yarı: Nova Holding CEO'su
+    renderer.setViewport(halfW, 0, w - halfW, h);
+    renderer.setScissor(halfW, 0, w - halfW, h);
+    this.cameraCeo.aspect = (w - halfW) / h;
+    this.cameraCeo.updateProjectionMatrix();
+    renderer.render(scene, this.cameraCeo);
+
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, w, h);
   }
 
   showSkipButton(visible) {
@@ -427,6 +520,52 @@ export class StoryManager {
           <rect x="12" y="80" width="76" height="20" fill="#1e293b"/>
           <circle cx="82" cy="22" r="5" fill="#38bdf8" opacity="0.8"/>
           <circle cx="90" cy="14" r="7" fill="#38bdf8" opacity="0.9"/>
+        </svg>
+      `;
+    } else if (speaker === 'police') {
+      return `
+        <svg viewBox="0 0 100 100" width="105" height="105">
+          <rect width="100" height="100" fill="#090d16"/>
+          <rect x="20" y="20" width="60" height="58" fill="#d4a373"/>
+          <rect x="16" y="8" width="68" height="22" fill="#1e3a8a"/>
+          <polygon points="12,24 88,24 78,32 22,32" fill="#020617"/>
+          <circle cx="50" cy="18" r="5" fill="#facc15"/>
+          <rect x="28" y="42" width="14" height="6" fill="#020617"/>
+          <rect x="58" y="42" width="14" height="6" fill="#020617"/>
+          <circle cx="35" cy="45" r="2.5" fill="#38bdf8"/>
+          <circle cx="65" cy="45" r="2.5" fill="#38bdf8"/>
+          <line x1="38" y1="62" x2="62" y2="62" stroke="#020617" stroke-width="4"/>
+          <rect x="10" y="78" width="80" height="22" fill="#1e3a8a"/>
+          <polygon points="46,80 54,80 56,92 44,92" fill="#facc15"/>
+        </svg>
+      `;
+    } else if (speaker === 'ceo' || speaker === 'ceo_phone') {
+      return `
+        <svg viewBox="0 0 100 100" width="105" height="105">
+          <rect width="100" height="100" fill="#090d16"/>
+          <rect x="22" y="20" width="56" height="56" fill="#f5d0b5"/>
+          <rect x="20" y="12" width="60" height="18" fill="#334155"/>
+          <rect x="20" y="22" width="6" height="14" fill="#334155"/>
+          <rect x="26" y="38" width="18" height="12" fill="rgba(56,189,248,0.2)" stroke="#38bdf8" stroke-width="2"/>
+          <rect x="56" y="38" width="18" height="12" fill="rgba(56,189,248,0.2)" stroke="#38bdf8" stroke-width="2"/>
+          <line x1="44" y1="44" x2="56" y2="44" stroke="#38bdf8" stroke-width="2"/>
+          <line x1="40" y1="62" x2="60" y2="62" stroke="#475569" stroke-width="3"/>
+          <rect x="10" y="76" width="80" height="24" fill="#1e293b"/>
+          <polygon points="45,76 55,76 53,98 47,98" fill="#2563eb"/>
+          <rect x="74" y="28" width="14" height="28" rx="3" fill="#020617" stroke="#38bdf8" stroke-width="1.5"/>
+        </svg>
+      `;
+    } else if (speaker === 'david_phone') {
+      return `
+        <svg viewBox="0 0 100 100" width="105" height="105">
+          <rect width="100" height="100" fill="#090d16"/>
+          <rect x="20" y="16" width="60" height="60" fill="#d4a373"/>
+          <rect x="18" y="12" width="64" height="22" fill="#1e293b"/>
+          <rect x="25" y="37" width="22" height="15" fill="#000000"/>
+          <rect x="53" y="37" width="22" height="15" fill="#000000"/>
+          <rect x="10" y="78" width="80" height="22" fill="#0f172a"/>
+          <rect x="44" y="78" width="12" height="22" fill="#dc2626"/>
+          <rect x="12" y="28" width="14" height="28" rx="3" fill="#facc15" stroke="#ca8a04" stroke-width="1.5"/>
         </svg>
       `;
     } else if (speaker === 'player_determined') {
@@ -901,6 +1040,18 @@ export class StoryManager {
     } else if (this.currentPhase === STORY_PHASES.HOME_COUCH_REVELATION) {
       this.startSecretWorkshopOctopus();
     } else if (this.currentPhase === STORY_PHASES.SECRET_WORKSHOP_OCTOPUS) {
+      this.startRevengeTravelVilla();
+    } else if (this.currentPhase === STORY_PHASES.REVENGE_TRAVEL_VILLA) {
+      this.startPoliceConfrontation();
+    } else if (this.currentPhase === STORY_PHASES.POLICE_CONFRONTATION) {
+      this.startPoliceEscortHome();
+    } else if (this.currentPhase === STORY_PHASES.POLICE_ESCORT_HOME) {
+      this.startHomeChairRage();
+    } else if (this.currentPhase === STORY_PHASES.HOME_CHAIR_RAGE) {
+      this.startForgingSuperweapon();
+    } else if (this.currentPhase === STORY_PHASES.FORGING_SUPERWEAPON) {
+      this.startCorpTowerAscent();
+    } else if (this.currentPhase === STORY_PHASES.CORP_TOWER_SPLITSCREEN) {
       this.finishStoryAndUnlockRevenge();
     } else {
       this.startPhaseTvNewsMorning();
@@ -1580,11 +1731,434 @@ export class StoryManager {
         setTimeout(() => {
           this.setFade(1, 600);
           setTimeout(() => {
-            this.finishStoryAndUnlockRevenge();
+            this.startRevengeTravelVilla();
           }, 700);
         }, 1200);
       });
     }, 800);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 13: MEKANİK AHTAPOT İLE SIĞINAKTAN ÇIKIŞ & VİLLAYA GİDİŞ
+  // (Oyuncu sığınaktan çıkar, elinde sadece Mekanik Ahtapot vardır, villaya zıplar)
+  // ═══════════════════════════════════════════════════════════════════════════
+  startRevengeTravelVilla() {
+    this.currentPhase = STORY_PHASES.REVENGE_TRAVEL_VILLA;
+    this.phaseTimer = 0;
+    this.controlsLocked = false;
+    this.weaponsLocked = false;
+    window._octopusUnlocked = true;
+    window._onlyOctopusMode = true; // Sadece ahtapot modu
+
+    const returnPos = new THREE.Vector3(-105.0, 1.2, 28.0);
+    if (this.character) {
+      this.character.mesh.position.copy(returnPos);
+      this.character.mesh.rotation.set(0, 0, 0);
+      if (this.character.body) {
+        this.character.body.position.copy(returnPos);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+      this.character.setFirstPerson(true);
+      if (this.character.head) this.character.head.rotation.set(0, 0, 0);
+      if (this.character.torso) this.character.torso.rotation.set(0, 0, 0);
+      if (this.character.leftArm) this.character.leftArm.rotation.set(0, 0, 0);
+      if (this.character.rightArm) this.character.rightArm.rotation.set(0, 0, 0);
+      if (this.character.leftLeg) this.character.leftLeg.rotation.set(0, 0, 0);
+      if (this.character.rightLeg) this.character.rightLeg.rotation.set(0, 0, 0);
+    }
+
+    if (this.weaponSystem) this.weaponSystem.setWeapon(16);
+    if (this.handWeapons) this.handWeapons.setWeapon(16);
+
+    this.cinematicGroup.clear();
+
+    // David Sterling ve korumaları villayı bekler
+    const vx = 395.0, vy = 12.0, vz = -55.0;
+    const david = this._buildDavidModel();
+    david.position.set(vx, vy, vz + 1.0);
+    david.rotation.y = 0;
+    this.cinematicGroup.add(david);
+    this.davidActor = david;
+
+    const guardL = this._buildMuscleGuardModel(false);
+    guardL.position.set(vx - 2.2, vy, vz + 1.0);
+    this.cinematicGroup.add(guardL);
+
+    const guardR = this._buildMuscleGuardModel(true);
+    guardR.position.set(vx + 2.2, vy, vz + 1.0);
+    this.cinematicGroup.add(guardR);
+
+    this.setFade(0, 450);
+    sound.playLevelWin();
+    sound.playTentacleWrap();
+    this.setMission('🦾 İNTİKAM VAKTİ: VİLLAYA GİT!', 'Mekanik Ahtapot kollarıyla (T / Q ile dev zıplama) Doğu Adası\'ndaki villaya git ve David Sterling ile hesaplaş!');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 14: DAVID\'LE YÜZLEŞME & POLİS MÜDAHALESİ (DETAYLI ARAÇTAN İNİŞ & 7 YIL HAPİS)
+  // ═══════════════════════════════════════════════════════════════════════════
+  startPoliceConfrontation() {
+    this.currentPhase = STORY_PHASES.POLICE_CONFRONTATION;
+    this.phaseTimer = 0;
+    this.controlsLocked = true;
+    this.weaponsLocked = false;
+    this.cinematicGroup.clear();
+    this.policeCars = [];
+    this.policeOfficers = [];
+    this.policeExitStage = 0;
+
+    const vx = 395.0, vy = 12.0, vz = -55.0;
+
+    // Oyuncu villanın ön avlusunda David'in karşısında durur
+    if (this.character) {
+      this.character.setFirstPerson(false);
+      this.character.mesh.position.set(383.0, vy, vz);
+      this.character.mesh.rotation.set(0, Math.PI / 2, 0); // Doğuya, David'e bakar
+      if (this.character.body) {
+        this.character.body.position.set(383.0, vy, vz);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+    }
+
+    // David Sterling (Merdivenlerin üstünde)
+    const david = this._buildDavidModel();
+    david.position.set(vx, vy, vz);
+    david.rotation.y = -Math.PI / 2; // Batıya, oyuncuya bakar
+    this.cinematicGroup.add(david);
+    this.davidActor = david;
+
+    // 2 Koruma
+    const gL = this._buildMuscleGuardModel(false);
+    gL.position.set(vx, vy, vz - 2.0);
+    gL.rotation.y = -Math.PI / 2;
+    this.cinematicGroup.add(gL);
+
+    const gR = this._buildMuscleGuardModel(true);
+    gR.position.set(vx, vy, vz + 2.0);
+    gR.rotation.y = -Math.PI / 2;
+    this.cinematicGroup.add(gR);
+
+    // 2 Polis Arabası (Başlangıçta yolun girişinden hızla gelir)
+    const pCar1 = this._buildPoliceCarModel();
+    pCar1.position.set(340.0, vy, vz - 4.5);
+    this.cinematicGroup.add(pCar1);
+
+    const pCar2 = this._buildPoliceCarModel();
+    pCar2.position.set(332.0, vy, vz + 4.5);
+    this.cinematicGroup.add(pCar2);
+
+    this.policeCars = [pCar1, pCar2];
+
+    // Polis Memurları
+    const chief = this._buildPoliceOfficerModel(true);
+    chief.position.set(376.0, vy, vz - 3.4);
+    chief.rotation.y = Math.PI / 2;
+    chief.visible = false;
+    this.cinematicGroup.add(chief);
+
+    const officer2 = this._buildPoliceOfficerModel(false);
+    officer2.position.set(376.0, vy, vz + 3.4);
+    officer2.rotation.y = Math.PI / 2;
+    officer2.visible = false;
+    this.cinematicGroup.add(officer2);
+
+    this.policeOfficers = [chief, officer2];
+
+    // Kamera: Oyuncu ile David arasındaki dramatik açı
+    this.camera.position.set(387.0, vy + 2.2, vz - 5.5);
+    this.camera.lookAt(389.0, vy + 1.5, vz);
+
+    sound.playPoliceSiren(5.0);
+
+    // Diyalog zinciri: David'in oyalaması -> Sirenler durur -> Polislerin inişi ve 7 yıl hapis uyarısı -> Oyuncu iç sesi
+    this.startDialogQueue([
+      {
+        speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
+        text: 'Hahahaha! Bak sen şu fareye! Sırtına taktığın o metal tentaküllerle beni devirebileceğini mi sandın? Benim arkamda kimler var haberin var mı senin?!',
+        onStart: () => {
+          this.camera.position.set(392.5, vy + 1.8, vz + 1.8);
+          this.camera.lookAt(vx, vy + 1.6, vz);
+        }
+      },
+      {
+        speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
+        text: 'Biraz oyalan bakalım çocuk... Bakalım o mekanik kolların seni kanunların ve şehrin adaletinden koruyabilecek mi!',
+        onStart: () => {
+          this.camera.position.set(380.0, vy + 2.5, vz - 7.0);
+          this.camera.lookAt(385.0, vy + 1.5, vz);
+        }
+      },
+      {
+        speaker: 'police', name: 'POLİS ŞEFİ', color: '#38bdf8',
+        text: 'DUR! SAKİN OL VE O MEKANİK KOLLARINI DERHAL İNDİR! David Sterling\'e saldıramazsın!',
+        onStart: () => {
+          this.policeExitStage = 2;
+          if (chief) {
+            chief.visible = true;
+            chief.position.set(380.5, vy, vz - 1.2);
+            chief.rotation.y = 0.4;
+            if (chief.userData.rArm) chief.userData.rArm.rotation.set(1.4, 0, 0); // DUR işareti
+          }
+          this.camera.position.set(378.0, vy + 1.9, vz - 2.5);
+          this.camera.lookAt(383.0, vy + 1.5, vz);
+          sound.playUiBeep();
+        }
+      },
+      {
+        speaker: 'police', name: 'POLİS ŞEFİ', color: '#38bdf8',
+        text: 'David Sterling bu şehrin en büyük vergi mükellefi ve özel dokunulmazlığı var! Ona saldırmak için hiçbir yasal ruhsatın ve izin belgen yok!',
+        onStart: () => {
+          sound.playUiBeep();
+        }
+      },
+      {
+        speaker: 'police', name: 'POLİS ŞEFİ', color: '#38bdf8',
+        text: 'Eğer ona saldırırsan ya da canına kast edersen devasa para cezalarına çarptırılırsın ve EN AZ 7 YIL ağır hapis cezası alırsın!',
+        onStart: () => {
+          sound.playUiBeep();
+        }
+      },
+      {
+        speaker: 'thought', name: 'OYUNCU (İÇİNDEN)', color: '#38bdf8',
+        text: '(Dişlerini sıkarak) Lanet olsun... Ne kadar güçlü olsam da kuralları çiğneyip 7 yılımı parmaklıklar ardında çürütemem... Şimdilik geri çekilmek zorundayım.',
+        onStart: () => {
+          this.camera.position.set(384.8, vy + 1.7, vz + 0.6);
+          this.camera.lookAt(383.0, vy + 1.6, vz);
+        }
+      },
+      {
+        speaker: 'player', name: 'OYUNCU', color: '#38bdf8',
+        text: '...Anlaşıldı memur bey. Kanunlara saygılıyım. Geri çekiliyorum.',
+        onStart: () => {
+          sound.playUiBeep();
+        }
+      },
+      {
+        speaker: 'police', name: 'POLİS ŞEFİ', color: '#38bdf8',
+        text: 'Akıllıca bir karar evlat. Şimdi polis aracına bin, seni evine bırakıyoruz. Ve sakın bir daha buraya yaklaşma!',
+        onStart: () => {
+          sound.playUiBeep();
+        }
+      }
+    ], () => {
+      this.startPoliceEscortHome();
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 15: POLİS ARACIYLA EVE BIRAKILMA
+  // ═══════════════════════════════════════════════════════════════════════════
+  startPoliceEscortHome() {
+    this.currentPhase = STORY_PHASES.POLICE_ESCORT_HOME;
+    this.phaseTimer = 0;
+    this.controlsLocked = true;
+    this.setFade(1, 500);
+
+    setTimeout(() => {
+      this.cinematicGroup.clear();
+
+      // Oyuncuyu evinin önündeki kaldırıma bırakır
+      const hx = -105.0, hy = 1.2, hz = 28.0;
+      if (this.character) {
+        this.character.mesh.position.set(hx, hy, hz);
+        this.character.mesh.rotation.set(0, -Math.PI / 2, 0); // Eve doğru bakar
+        if (this.character.body) {
+          this.character.body.position.set(hx, hy, hz);
+          this.character.body.velocity.set(0, 0, 0);
+        }
+      }
+
+      // Kaldırımda uzaklaşan polis aracı
+      const pCar = this._buildPoliceCarModel();
+      pCar.position.set(-103.0, hy, hz + 5.0);
+      pCar.rotation.y = 0;
+      this.cinematicGroup.add(pCar);
+      this.policeCars = [pCar];
+
+      this.camera.position.set(hx + 3.0, hy + 2.0, hz + 2.0);
+      this.camera.lookAt(hx, hy + 1.5, hz);
+
+      this.setFade(0, 500);
+      sound.playDoorSlide();
+
+      setTimeout(() => {
+        this.setFade(1, 400);
+        setTimeout(() => {
+          this.startHomeChairRage();
+        }, 500);
+      }, 2000);
+    }, 700);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 16: EVE SİNİRLİ GİRİŞ, 3 SANİYE SESSİZLİK & SANDALYEYİ DUVARA FIRLATIP KIRMA
+  // ═══════════════════════════════════════════════════════════════════════════
+  startHomeChairRage() {
+    this.currentPhase = STORY_PHASES.HOME_CHAIR_RAGE;
+    this.phaseTimer = 0;
+    this.rageStage = 'silent_wait';
+    this.controlsLocked = true;
+    this.weaponsLocked = true;
+    this.cinematicGroup.clear();
+    this.chairSplinters = [];
+
+    const rx = -110.25, ry = 5.95, rz = 19.75;
+
+    // Oyuncu 2. kattaki oturma odasında sinirli bir şekilde ayakta durur
+    if (this.character) {
+      this.character.setFirstPerson(false);
+      this.character.mesh.position.set(rx + 1.2, ry, rz);
+      this.character.mesh.rotation.set(0, Math.PI / 2, 0); // Karşıya bakar
+      if (this.character.body) {
+        this.character.body.position.set(rx + 1.2, ry, rz);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+      if (this.character.leftLeg) this.character.leftLeg.rotation.set(0, 0, 0);
+      if (this.character.rightLeg) this.character.rightLeg.rotation.set(0, 0, 0);
+      if (this.character.leftArm) this.character.leftArm.rotation.set(0.2, 0, -0.15); // Yumruk sıkılı
+      if (this.character.rightArm) this.character.rightArm.rotation.set(0.2, 0, 0.15);
+      if (this.character.head) this.character.head.rotation.set(0.25, 0, 0);
+    }
+
+    // Evdeki ahşap sandalye
+    const chair = this._buildChairModel();
+    chair.position.set(rx + 1.2, ry, rz + 0.85);
+    this.cinematicGroup.add(chair);
+    this.chairMesh = chair;
+
+    // Kamera: Oyuncunun öfkeli duruşunu ve odayı gösterir
+    this.camera.position.set(rx + 3.2, ry + 1.45, rz);
+    this.camera.lookAt(rx + 1.0, ry + 1.2, rz);
+
+    this.setFade(0, 400);
+    sound.playDoorSlide();
+
+    // 3 saniye sessizlik başlar
+    this.setMission('ÖFKE VE SESSİZLİK...', 'David Sterling kanunların arkasına saklandı. Şimdi ne yapacaksın?');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 17: YERALTI ATÖLYESİNE İNİŞ & YENİ GİZLİ SÜPER SİLAH DÖVME
+  // ═══════════════════════════════════════════════════════════════════════════
+  startForgingSuperweapon() {
+    this.currentPhase = STORY_PHASES.FORGING_SUPERWEAPON;
+    this.phaseTimer = 0;
+    this.controlsLocked = true;
+    this.cinematicGroup.clear();
+
+    const wx = 0, wy = -45.0, wz = 0;
+    this._buildTonyStarkWorkshopAndArms(wx, wy, wz);
+
+    // Örsün üzerinde yeni parlayan süper silah çekirdeği
+    const coreMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.9,
+      roughness: 0.2,
+      metalness: 0.9
+    });
+    const core = new THREE.Mesh(BOX(0.4, 0.25, 0.5), coreMat);
+    core.position.set(wx, wy + 1.15, wz + 1.2);
+    this.cinematicGroup.add(core);
+    this.superweaponForgeCore = core;
+
+    // Oyuncu örsün başında çekiç tutar
+    if (this.character) {
+      this.character.setFirstPerson(false);
+      this.character.mesh.position.set(wx, wy + 0.25, wz + 0.45);
+      this.character.mesh.rotation.set(0, 0, 0); // Örse doğru bakar
+      if (this.character.body) {
+        this.character.body.position.set(wx, wy + 0.25, wz + 0.45);
+        this.character.body.velocity.set(0, 0, 0);
+      }
+    }
+
+    // Çekiç modeli
+    const hammer = new THREE.Group();
+    const handle = new THREE.Mesh(BOX(0.08, 0.9, 0.08), MAT(0x475569));
+    handle.position.set(0, 0.35, 0);
+    hammer.add(handle);
+    const head = new THREE.Mesh(BOX(0.24, 0.3, 0.4), MAT(0x0f172a, { metalness: 0.8 }));
+    head.position.set(0, 0.75, 0);
+    hammer.add(head);
+    hammer.position.set(wx + 0.35, wy + 1.2, wz + 0.7);
+    this.cinematicGroup.add(hammer);
+    this.superweaponHammer = hammer;
+
+    // Kamera: Örs ve oyuncunun profili
+    this.camera.position.set(wx + 2.4, wy + 1.8, wz + 0.8);
+    this.camera.lookAt(wx, wy + 1.2, wz + 1.0);
+
+    this.setFade(0, 400);
+
+    this.startDialogQueue([
+      {
+        speaker: 'player_determined', name: 'OYUNCU (YENİ SÜPER SİLAH)', color: '#38bdf8',
+        text: 'Demek kanunların arkasına saklanıyorsun David... Bakalım arkasında durduğun hiçbir zırh ve duvar bu silahın gücüne dayanabilecek mi!',
+        onStart: () => {
+          sound.playUiBeep();
+        }
+      }
+    ], () => {
+      // Çekiç vuruşları başlar
+      let strike = 0;
+      const strikeInterval = setInterval(() => {
+        if (this.currentPhase !== STORY_PHASES.FORGING_SUPERWEAPON || strike >= 4) {
+          clearInterval(strikeInterval);
+          if (this.currentPhase === STORY_PHASES.FORGING_SUPERWEAPON) {
+            this.startCorpTowerAscent();
+          }
+          return;
+        }
+        strike++;
+        sound.playIronHit();
+        sound.playBlockHit();
+        sound.playZap();
+      }, 450);
+    });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SAHNE 18: KAMERANIN ŞİRKET KULESİNE YÜKSELİŞİ & SPLIT-SCREEN TELEFON GÖRÜŞMESİ
+  // (Kamera yeraltından göğe fırlar, Nova Kulesi 9. katına varır; CEO dürbünle izler, David arar!)
+  // ═══════════════════════════════════════════════════════════════════════════
+  startCorpTowerAscent() {
+    this.currentPhase = STORY_PHASES.CORP_TOWER_SPLITSCREEN;
+    this.phaseTimer = 0;
+    this.controlsLocked = true;
+    this.towerAscentStage = 'flying'; // 'flying' -> 'arrived_window' -> 'split_call'
+    this.cinematicGroup.clear();
+
+    // Nova Kulesi 9. Kat Penthouse Koordinatları
+    const cx = -111.75, cy = 34.0, cz = 164.0;
+
+    // CEO Modeli (9. katta pencere önünde durur)
+    const ceo = this._buildCeoModel();
+    ceo.position.set(cx, cy, cz);
+    ceo.rotation.y = Math.PI; // Kuzeye, oyuncunun evine doğru bakar
+    this.cinematicGroup.add(ceo);
+    this.ceoActor = ceo;
+
+    // David Sterling Modeli (Malikanesindeki lüks koltuğunda oturur)
+    const vx = 395.0, vy = 12.0, vz = -55.0;
+    const davidArmchair = new THREE.Mesh(BOX(1.2, 1.1, 1.2), MAT(0x450a0a, { roughness: 0.6 }));
+    davidArmchair.position.set(vx, vy + 0.55, vz);
+    this.cinematicGroup.add(davidArmchair);
+
+    const davidPhone = this._buildDavidWithPhoneModel();
+    davidPhone.position.set(vx, vy + 0.35, vz);
+    davidPhone.rotation.y = -0.3;
+    this.cinematicGroup.add(davidPhone);
+    this.davidActor = davidPhone;
+
+    // Split Screen Kameraları
+    this.cameraDavid.position.set(vx + 1.8, vy + 1.85, vz + 1.8);
+    this.cameraDavid.lookAt(vx, vy + 1.5, vz);
+
+    this.cameraCeo.position.set(cx + 1.6, cy + 1.85, cz - 1.8);
+    this.cameraCeo.lookAt(cx, cy + 1.65, cz);
+
+    this.setMission('GÖZETLEME VE ŞİRKETLER...', 'Şehirdeki 6 büyük şirket kulesi David Sterling\'e çalışıyor!');
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1594,8 +2168,9 @@ export class StoryManager {
     this.currentPhase = STORY_PHASES.FREE_ROAM_REVENGE;
     this.controlsLocked = false;
     this.weaponsLocked = false;
+    this.setSplitScreen(false);
     window._octopusUnlocked = true;
-    window._onlyOctopusMode = true; // Silahlarımız olmasın, sadece Mekanik Ahtapot olsun!
+    window._onlyOctopusMode = false; // Artık serbest modda bütün silahlar ve Mekanik Ahtapot kullanılabilir!
 
     // Oyuncuyu yeraltı gizli sığınak kapısından dışarı caddeye çıkar
     const returnPos = new THREE.Vector3(-105.0, 1.2, 28.0);
@@ -1640,7 +2215,7 @@ export class StoryManager {
 
     sound.playLevelWin();
     sound.playTentacleWrap();
-    this.setMission('🦾 İNTİKAM ZAMANI!', 'Sadece Mekanik Ahtapot silahın var! Villaya git ve David Sterling ile hesaplaş!');
+    this.setMission('🦾 BÖLÜM 1 TAMAMLANDI: ŞİRKETLER TEYAKKUZDA!', 'Mekanik Ahtapot ve tüm silahların açık! Şehri dilediğin gibi keşfet, binaları yık ve eğlen!');
   }
 
   // ── Güncelleme Döngüsü ──
@@ -1940,6 +2515,235 @@ export class StoryManager {
             segGroup.rotation.y = side * (0.16 + wave * 0.5);
           });
         });
+      }
+    }
+
+    // Sahne 13: Ahtapot ile Sığınaktan Çıkış & Villaya Gidiş Kontrolü
+    if (this.currentPhase === STORY_PHASES.REVENGE_TRAVEL_VILLA) {
+      if (playerPos) {
+        const dist = Math.hypot(playerPos.x - 390.0, playerPos.z - (-55.0));
+        if (dist < 32.0) {
+          this.startPoliceConfrontation();
+        }
+      }
+    }
+
+    // Sahne 14: David'le Yüzleşme & Polis Müdahalesi
+    if (this.currentPhase === STORY_PHASES.POLICE_CONFRONTATION) {
+      const vy = 12.0, vz = -55.0;
+      const flash = Math.sin(this.phaseTimer * 16.0) > 0;
+      this.policeCars.forEach((pCar, idx) => {
+        const targetX = 374.0 - idx * 2.0;
+        if (pCar.position.x < targetX - 0.2) {
+          pCar.position.x = THREE.MathUtils.lerp(pCar.position.x, targetX, dt * 2.5);
+        }
+        if (pCar.userData.sirenBlue && pCar.userData.sirenRed) {
+          pCar.userData.sirenBlue.material.color.setHex(flash ? 0x00f0ff : 0x001133);
+          pCar.userData.sirenRed.material.color.setHex(flash ? 0x220000 : 0xff1111);
+        }
+      });
+
+      // Araç durduğunda kapı açılır ve polis detaylı olarak iner (önce bacaklar uzanır, sonra gövde çıkar)
+      if (this.policeCars[0] && this.policeCars[0].position.x >= 370.0) {
+        if (this.policeCars[0].userData.door) {
+          this.policeCars[0].userData.door.rotation.y = THREE.MathUtils.lerp(
+            this.policeCars[0].userData.door.rotation.y,
+            -1.2,
+            dt * 3.5
+          );
+        }
+        if (this.policeOfficers[0]) {
+          const chief = this.policeOfficers[0];
+          chief.visible = true;
+          if (this.policeExitStage === 0) {
+            // Ayaklar kapıdan dışarı uzanır
+            if (chief.userData.lLeg) chief.userData.lLeg.rotation.set(-0.8, 0, 0.4);
+            if (chief.userData.rLeg) chief.userData.rLeg.rotation.set(-0.6, 0, 0.5);
+            chief.position.set(374.5, vy + 0.3, vz - 3.4);
+            if (this.phaseTimer > 3.0) this.policeExitStage = 1;
+          } else if (this.policeExitStage === 1) {
+            // Gövde ve kafa araçtan çıkar, ayağa dikilir
+            chief.position.x = THREE.MathUtils.lerp(chief.position.x, 377.5, dt * 3.0);
+            chief.position.y = THREE.MathUtils.lerp(chief.position.y, vy, dt * 3.0);
+            if (chief.userData.lLeg) chief.userData.lLeg.rotation.set(0, 0, 0);
+            if (chief.userData.rLeg) chief.userData.rLeg.rotation.set(0, 0, 0);
+          }
+        }
+      }
+    }
+
+    // Sahne 15: Polis Aracıyla Eve Dönüş
+    if (this.currentPhase === STORY_PHASES.POLICE_ESCORT_HOME) {
+      if (this.policeCars && this.policeCars[0]) {
+        this.policeCars[0].position.z += dt * 9.0;
+      }
+    }
+
+    // Sahne 16: Eve Giriş, 3 Saniye Sessizlik & Sandalyeyi Parçalama
+    if (this.currentPhase === STORY_PHASES.HOME_CHAIR_RAGE) {
+      const rx = -110.25, ry = 5.95, rz = 19.75;
+      if (this.rageStage === 'silent_wait') {
+        if (this.phaseTimer >= 3.0) {
+          this.rageStage = 'grab_chair';
+          sound.playHammerSwing();
+        }
+      } else if (this.rageStage === 'grab_chair') {
+        if (this.chairMesh) {
+          this.chairMesh.position.set(rx + 1.2, ry + 1.4, rz + 0.3);
+          this.chairMesh.rotation.set(-0.4, 0, 0.3);
+        }
+        if (this.character && this.character.leftArm && this.character.rightArm) {
+          this.character.leftArm.rotation.set(-1.8, 0, 0.3);
+          this.character.rightArm.rotation.set(-1.8, 0, -0.3);
+        }
+        if (this.phaseTimer >= 3.7) {
+          this.rageStage = 'throw_chair';
+          sound.playShoot();
+        }
+      } else if (this.rageStage === 'throw_chair') {
+        if (this.chairMesh) {
+          this.chairMesh.position.x += dt * 14.0;
+          this.chairMesh.position.y += Math.sin((this.phaseTimer - 3.7) * 4.0) * 0.1;
+          this.chairMesh.rotation.z += dt * 12.0;
+          this.chairMesh.rotation.x += dt * 8.0;
+
+          if (this.chairMesh.position.x >= -106.2) {
+            this.rageStage = 'smashed';
+            this.chairMesh.visible = false;
+            sound.playBlockBreak();
+            sound.playExplosion();
+            sound.playHammerHit();
+            this._spawnChairSplinters(-106.0, ry + 1.1, rz + 0.3);
+
+            if (this.character && this.character.leftArm && this.character.rightArm) {
+              this.character.leftArm.rotation.set(0.3, 0, 0);
+              this.character.rightArm.rotation.set(0.3, 0, 0);
+            }
+
+            this.startDialogQueue([
+              {
+                speaker: 'player_determined', name: 'OYUNCU (ÖFKEYLE BAĞIRARAK)', color: '#38bdf8',
+                text: 'LANET OLSUN! Beni kanunlarla, polislerle ve milyarlarıyla durdurabileceklerini sanıyorlar!',
+                onStart: () => {
+                  this.camera.position.set(rx + 2.8, ry + 1.5, rz);
+                  this.camera.lookAt(rx + 1.2, ry + 1.3, rz);
+                }
+              },
+              {
+                speaker: 'player_determined', name: 'OYUNCU', color: '#38bdf8',
+                text: 'Eğer kanunlar ve mahkemeler David Sterling\'i koruyorsa... Ben de hiçbir kanunun, hiçbir ordunun durduramayacağı BİR SİLAH YAPARIM!',
+                onStart: () => {
+                  sound.playDoorSlide();
+                }
+              }
+            ], () => {
+              this.setFade(1, 400);
+              setTimeout(() => {
+                this.startForgingSuperweapon();
+              }, 500);
+            });
+          }
+        }
+      }
+
+      if (this.chairSplinters && this.chairSplinters.length > 0) {
+        for (const sp of this.chairSplinters) {
+          if (sp.userData.vy !== undefined) {
+            sp.userData.vy -= 16.0 * dt;
+            sp.position.x += sp.userData.vx * dt;
+            sp.position.y += sp.userData.vy * dt;
+            sp.position.z += sp.userData.vz * dt;
+            sp.rotation.x += sp.userData.rx * dt;
+            sp.rotation.y += sp.userData.ry * dt;
+            if (sp.position.y <= ry + 0.05) {
+              sp.position.y = ry + 0.05;
+              sp.userData.vy = -sp.userData.vy * 0.3;
+              sp.userData.vx *= 0.6;
+              sp.userData.vz *= 0.6;
+            }
+          }
+        }
+      }
+    }
+
+    // Sahne 17: Yeraltı Yeni Silah İmalatı (Örste Demir Vuruşları & Kıvılcımlar)
+    if (this.currentPhase === STORY_PHASES.FORGING_SUPERWEAPON) {
+      if (this.superweaponHammer) {
+        const swing = Math.sin(this.phaseTimer * 7.0);
+        this.superweaponHammer.rotation.x = Math.max(0, swing) * 0.9;
+      }
+      if (this.superweaponForgeCore) {
+        const pulse = 0.6 + Math.sin(this.phaseTimer * 8.0) * 0.4;
+        this.superweaponForgeCore.material.emissiveIntensity = pulse;
+      }
+    }
+
+    // Sahne 18: Şirket Kulesine Yükseliş & Split-Screen Telefon Konuşması
+    if (this.currentPhase === STORY_PHASES.CORP_TOWER_SPLITSCREEN) {
+      const cx = -111.75, cy = 34.0, cz = 164.0;
+
+      if (this.towerAscentStage === 'flying') {
+        const t = Math.min(1.0, this.phaseTimer / 3.2);
+        const easeT = THREE.MathUtils.smoothstep(t, 0, 1);
+
+        const curX = THREE.MathUtils.lerp(0, cx, easeT);
+        const curY = THREE.MathUtils.lerp(-43.0, 52.0, Math.sin(easeT * Math.PI * 0.85)) * (1 - easeT) + (cy + 1.5) * easeT;
+        const curZ = THREE.MathUtils.lerp(3.0, cz - 3.8, easeT);
+
+        this.camera.position.set(curX, curY, curZ);
+        this.camera.lookAt(cx, cy + 1.6, cz);
+
+        if (t >= 1.0) {
+          this.towerAscentStage = 'split_call';
+          this.setSplitScreen(true);
+          sound.playPhoneRing();
+
+          this.startDialogQueue([
+            {
+              speaker: 'ceo_phone', name: "NOVA HOLDİNG CEO'SU", color: "#38bdf8",
+              text: "Alo, Bay Sterling? Nova Kulesi'nin zirvesinden termal dürbünle atölyesini izliyorum... O çocuk pes etmedi. Yeraltında devasa yeni bir süper silah dövmeye başladı!"
+            },
+            {
+              speaker: 'david_phone', name: "DAVID STERLING", color: "#facc15",
+              text: "NE?! O sefil hala akıllanmadı mı?! Polislerimizin ve kanunların onu durduracağını sanıyordum!"
+            },
+            {
+              speaker: 'ceo_phone', name: "NOVA HOLDİNG CEO'SU", color: "#38bdf8",
+              text: "Kolları ve teknolojisi hafife alınmayacak kadar tehlikeli efendim. Örsün üzerinde eşi benzeri görülmemiş bir enerji çekirdeği dövüyor."
+            },
+            {
+              speaker: 'david_phone', name: "DAVID STERLING", color: "#facc15",
+              text: "Öyle bir silah yapmasına NE PAHASINA OLURSA OLSUN İZİN VERMEYİN! Bütün şirket birliklerinizi, güvenlik ağınızı ve özel timleri alarma geçirin!"
+            },
+            {
+              speaker: 'ceo_phone', name: "NOVA HOLDİNG CEO'SU", color: "#38bdf8",
+              text: "Merak etmeyin efendim. 6 şirketin tüm savunma protokolleri devrede. Atölyeden burnunu çıkardığı an karşısında dev bir ordu bulacak. O silah asla tamamlanamayacak!"
+            },
+            {
+              speaker: 'david_phone', name: "DAVID STERLING", color: "#facc15",
+              text: "Güzel... Gözünü ondan bir saniye bile ayırma. Bu şehirde benim iznim olmadan kimse imparatorluk kuramaz!"
+            }
+          ], () => {
+            this.setSplitScreen(false);
+            this.setFade(1, 500);
+            setTimeout(() => {
+              this.finishStoryAndUnlockRevenge();
+            }, 600);
+          });
+        }
+      } else if (this.towerAscentStage === 'split_call') {
+        const bob = Math.sin(this.phaseTimer * 12.0) * 0.04;
+        const activeSpeaker = this.activeDialog ? this.activeDialog.speaker : '';
+
+        if (this.davidActor && this.davidActor.userData && this.davidActor.userData.head) {
+          const isDavidTalking = activeSpeaker === 'david_phone' && this.isTyping;
+          this.davidActor.userData.head.position.y = 1.98 + (isDavidTalking ? bob : 0);
+        }
+
+        if (this.ceoActor && this.ceoActor.userData && this.ceoActor.userData.head) {
+          const isCeoTalking = activeSpeaker === 'ceo_phone' && this.isTyping;
+          this.ceoActor.userData.head.position.y = 1.95 + (isCeoTalking ? bob : 0);
+        }
       }
     }
   }
@@ -2283,19 +3087,23 @@ export class StoryManager {
     const tie = new THREE.Mesh(BOX(0.12, 0.65, 0.44), MAT(0xdc2626));
     tie.position.set(0, 1.32, 0.02); g.add(tie);
 
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 1.98, 0);
     const head = new THREE.Mesh(BOX(0.48, 0.48, 0.48), MAT(0xd4a373));
-    head.position.set(0, 1.98, 0); g.add(head);
+    headGroup.add(head);
 
     const hair = new THREE.Mesh(BOX(0.5, 0.18, 0.5), MAT(0x1e293b));
-    hair.position.set(0, 2.18, 0); g.add(hair);
+    hair.position.set(0, 0.2, 0);
+    headGroup.add(hair);
 
     const shadesMat = MAT(0x050505, { roughness: 0.1, metalness: 0.9 });
     const shadesL = new THREE.Mesh(BOX(0.17, 0.13, 0.5), shadesMat);
-    shadesL.position.set(-0.12, 1.98, 0.03); g.add(shadesL);
+    shadesL.position.set(-0.12, 0, 0.03); headGroup.add(shadesL);
     const shadesR = new THREE.Mesh(BOX(0.17, 0.13, 0.5), shadesMat);
-    shadesR.position.set(0.12, 1.98, 0.03); g.add(shadesR);
+    shadesR.position.set(0.12, 0, 0.03); headGroup.add(shadesR);
     const shadesBridge = new THREE.Mesh(BOX(0.1, 0.04, 0.5), shadesMat);
-    shadesBridge.position.set(0, 2.0, 0.03); g.add(shadesBridge);
+    shadesBridge.position.set(0, 0.02, 0.03); headGroup.add(shadesBridge);
+    g.add(headGroup);
 
     const armMat = MAT(0x1e1b4b);
     const lArmGroup = new THREE.Group();
@@ -2312,6 +3120,7 @@ export class StoryManager {
     rArmGroup.add(rArmMesh);
     g.add(rArmGroup);
 
+    g.userData.head = headGroup;
     g.userData.lArm = lArmGroup;
     g.userData.rArm = rArmGroup;
 
@@ -2320,10 +3129,272 @@ export class StoryManager {
 
   _buildDavidWithPhoneModel() {
     const g = this._buildDavidModel();
-    const phone = new THREE.Mesh(BOX(0.1, 0.22, 0.06), MAT(0xfacc15, { metalness: 0.9 }));
-    phone.position.set(0.26, 1.98, 0.1);
-    g.add(phone);
+    if (g.userData.rArm) {
+      g.userData.rArm.rotation.set(1.4, 0, -0.35);
+      const phone = new THREE.Mesh(BOX(0.08, 0.2, 0.04), MAT(0xfacc15, { metalness: 0.9 }));
+      phone.position.set(0, -0.35, 0.05);
+      g.userData.rArm.add(phone);
+    }
     return g;
+  }
+
+  _buildPoliceOfficerModel(isChief = false) {
+    const g = new THREE.Group();
+    const uniformMat = MAT(0x1e3a8a);
+    const pantsMat = MAT(0x0f172a);
+    const skinMat = MAT(0xd4a373);
+    const goldMat = MAT(0xfacc15, { metalness: 0.8 });
+
+    const lLeg = new THREE.Group();
+    lLeg.position.set(-0.2, 0.9, 0);
+    const lLegMesh = new THREE.Mesh(BOX(0.28, 0.9, 0.28), pantsMat);
+    lLegMesh.position.set(0, -0.45, 0);
+    lLeg.add(lLegMesh);
+    g.add(lLeg);
+
+    const rLeg = new THREE.Group();
+    rLeg.position.set(0.2, 0.9, 0);
+    const rLegMesh = new THREE.Mesh(BOX(0.28, 0.9, 0.28), pantsMat);
+    rLegMesh.position.set(0, -0.45, 0);
+    rLeg.add(rLegMesh);
+    g.add(rLeg);
+
+    const torso = new THREE.Mesh(BOX(0.68, 0.85, 0.4), uniformMat);
+    torso.position.set(0, 1.32, 0);
+    g.add(torso);
+
+    const badge = new THREE.Mesh(BOX(0.12, 0.14, 0.04), goldMat);
+    badge.position.set(-0.16, 1.48, 0.21);
+    g.add(badge);
+
+    const belt = new THREE.Mesh(BOX(0.7, 0.12, 0.42), MAT(0x020617));
+    belt.position.set(0, 0.95, 0);
+    g.add(belt);
+
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 1.95, 0);
+    const headMesh = new THREE.Mesh(BOX(0.44, 0.44, 0.44), skinMat);
+    headGroup.add(headMesh);
+
+    const capBase = new THREE.Mesh(BOX(0.5, 0.14, 0.52), uniformMat);
+    capBase.position.set(0, 0.24, 0.02);
+    headGroup.add(capBase);
+
+    const capVisor = new THREE.Mesh(BOX(0.46, 0.04, 0.2), MAT(0x020617, { roughness: 0.1 }));
+    capVisor.position.set(0, 0.18, 0.32);
+    capVisor.rotation.x = 0.2;
+    headGroup.add(capVisor);
+
+    const capBadge = new THREE.Mesh(BOX(0.1, 0.1, 0.02), goldMat);
+    capBadge.position.set(0, 0.28, 0.28);
+    headGroup.add(capBadge);
+    g.add(headGroup);
+
+    const lArm = new THREE.Group();
+    lArm.position.set(-0.44, 1.65, 0);
+    const lArmMesh = new THREE.Mesh(BOX(0.2, 0.8, 0.2), uniformMat);
+    lArmMesh.position.set(0, -0.35, 0);
+    lArm.add(lArmMesh);
+    g.add(lArm);
+
+    const rArm = new THREE.Group();
+    rArm.position.set(0.44, 1.65, 0);
+    const rArmMesh = new THREE.Mesh(BOX(0.2, 0.8, 0.2), uniformMat);
+    rArmMesh.position.set(0, -0.35, 0);
+    rArm.add(rArmMesh);
+    g.add(rArm);
+
+    g.userData.lLeg = lLeg;
+    g.userData.rLeg = rLeg;
+    g.userData.lArm = lArm;
+    g.userData.rArm = rArm;
+    g.userData.head = headGroup;
+
+    return g;
+  }
+
+  _buildPoliceCarModel() {
+    const g = new THREE.Group();
+    const whiteMat = MAT(0xf8fafc, { roughness: 0.2 });
+    const blueMat = MAT(0x1d4ed8, { roughness: 0.3 });
+    const blackMat = MAT(0x0f172a, { roughness: 0.8 });
+    const glassMat = MAT(0x38bdf8, { roughness: 0.1, transparent: true, opacity: 0.6 });
+
+    const chassis = new THREE.Mesh(BOX(4.6, 0.3, 2.1), blackMat);
+    chassis.position.set(0, 0.45, 0);
+    g.add(chassis);
+
+    const hood = new THREE.Mesh(BOX(1.4, 0.55, 2.05), blueMat);
+    hood.position.set(1.45, 0.85, 0);
+    g.add(hood);
+
+    const trunk = new THREE.Mesh(BOX(1.2, 0.55, 2.05), blueMat);
+    trunk.position.set(-1.55, 0.85, 0);
+    g.add(trunk);
+
+    const cabin = new THREE.Mesh(BOX(2.0, 0.55, 2.05), whiteMat);
+    cabin.position.set(0, 0.85, 0);
+    g.add(cabin);
+
+    const roof = new THREE.Mesh(BOX(1.8, 0.65, 1.7), whiteMat);
+    roof.position.set(-0.1, 1.45, 0);
+    g.add(roof);
+
+    const windshield = new THREE.Mesh(BOX(0.08, 0.6, 1.6), glassMat);
+    windshield.position.set(0.82, 1.42, 0);
+    windshield.rotation.z = -0.35;
+    g.add(windshield);
+
+    const rearGlass = new THREE.Mesh(BOX(0.08, 0.6, 1.6), glassMat);
+    rearGlass.position.set(-1.02, 1.42, 0);
+    rearGlass.rotation.z = 0.35;
+    g.add(rearGlass);
+
+    const sirenBar = new THREE.Mesh(BOX(0.4, 0.12, 1.2), MAT(0x334155));
+    sirenBar.position.set(-0.1, 1.82, 0);
+    g.add(sirenBar);
+
+    const sirenBlue = new THREE.Mesh(BOX(0.35, 0.14, 0.5), new THREE.MeshBasicMaterial({ color: 0x38bdf8 }));
+    sirenBlue.position.set(-0.1, 1.83, 0.32);
+    g.add(sirenBlue);
+
+    const sirenRed = new THREE.Mesh(BOX(0.35, 0.14, 0.5), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+    sirenRed.position.set(-0.1, 1.83, -0.32);
+    g.add(sirenRed);
+
+    const doorGroup = new THREE.Group();
+    doorGroup.position.set(0.7, 0.85, 1.04);
+    const doorPanel = new THREE.Mesh(BOX(1.1, 0.55, 0.08), whiteMat);
+    doorPanel.position.set(-0.55, 0, 0);
+    doorGroup.add(doorPanel);
+    g.add(doorGroup);
+
+    const wheelPositions = [[-1.3, 0.45, 1.08], [-1.3, 0.45, -1.08], [1.3, 0.45, 1.08], [1.3, 0.45, -1.08]];
+    for (const [wx, wy, wz] of wheelPositions) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.32, 16), blackMat);
+      wheel.rotation.x = Math.PI / 2;
+      wheel.position.set(wx, wy, wz);
+      g.add(wheel);
+    }
+
+    g.userData.door = doorGroup;
+    g.userData.sirenBlue = sirenBlue;
+    g.userData.sirenRed = sirenRed;
+
+    return g;
+  }
+
+  _buildCeoModel() {
+    const g = new THREE.Group();
+    const suitMat = MAT(0x1e293b);
+    const skinMat = MAT(0xf5d0b5);
+    const tieMat = MAT(0x2563eb);
+    const goldMat = MAT(0xfacc15, { metalness: 0.9 });
+
+    const lLeg = new THREE.Mesh(BOX(0.28, 0.9, 0.28), suitMat); lLeg.position.set(-0.18, 0.45, 0); g.add(lLeg);
+    const rLeg = new THREE.Mesh(BOX(0.28, 0.9, 0.28), suitMat); rLeg.position.set(0.18, 0.45, 0); g.add(rLeg);
+
+    const torso = new THREE.Mesh(BOX(0.68, 0.85, 0.38), suitMat);
+    torso.position.set(0, 1.32, 0);
+    g.add(torso);
+
+    const tie = new THREE.Mesh(BOX(0.1, 0.65, 0.4), tieMat);
+    tie.position.set(0, 1.32, 0.02);
+    g.add(tie);
+
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 1.95, 0);
+    const headMesh = new THREE.Mesh(BOX(0.44, 0.44, 0.44), skinMat);
+    headGroup.add(headMesh);
+    const hair = new THREE.Mesh(BOX(0.48, 0.16, 0.48), MAT(0x334155));
+    hair.position.set(0, 0.22, 0);
+    headGroup.add(hair);
+    g.add(headGroup);
+
+    const lArm = new THREE.Group();
+    lArm.position.set(-0.44, 1.65, 0);
+    const lArmMesh = new THREE.Mesh(BOX(0.2, 0.65, 0.2), suitMat);
+    lArmMesh.position.set(0.18, 0.15, 0.22);
+    lArmMesh.rotation.set(1.4, -0.2, 0.3);
+    lArm.add(lArmMesh);
+
+    const binoGroup = new THREE.Group();
+    binoGroup.position.set(0.22, 0.35, 0.36);
+    const binoL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.24, 12), MAT(0x0f172a));
+    binoL.rotation.x = Math.PI / 2;
+    binoL.position.set(-0.08, 0, 0);
+    binoGroup.add(binoL);
+    const binoR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.24, 12), MAT(0x0f172a));
+    binoR.rotation.x = Math.PI / 2;
+    binoR.position.set(0.08, 0, 0);
+    binoGroup.add(binoR);
+    const binoBridge = new THREE.Mesh(BOX(0.16, 0.04, 0.06), MAT(0x334155));
+    binoGroup.add(binoBridge);
+    lArm.add(binoGroup);
+    g.add(lArm);
+
+    const rArm = new THREE.Group();
+    rArm.position.set(0.44, 1.65, 0);
+    const rArmMesh = new THREE.Mesh(BOX(0.2, 0.65, 0.2), suitMat);
+    rArmMesh.position.set(-0.16, 0.15, 0.12);
+    rArmMesh.rotation.set(1.45, 0.1, -0.35);
+    rArm.add(rArmMesh);
+
+    const watch = new THREE.Mesh(BOX(0.06, 0.06, 0.24), goldMat);
+    watch.position.set(-0.18, 0.32, 0.12);
+    rArm.add(watch);
+
+    const phone = new THREE.Mesh(BOX(0.06, 0.18, 0.1), MAT(0x020617, { metalness: 0.9 }));
+    phone.position.set(-0.2, 0.36, 0.1);
+    rArm.add(phone);
+    g.add(rArm);
+
+    g.userData.head = headGroup;
+    g.userData.lArm = lArm;
+    g.userData.rArm = rArm;
+
+    return g;
+  }
+
+  _buildChairModel() {
+    const g = new THREE.Group();
+    const woodMat = MAT(0x854d0e, { roughness: 0.7 });
+
+    for (const [x, z] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) {
+      const leg = new THREE.Mesh(BOX(0.08, 0.5, 0.08), woodMat);
+      leg.position.set(x, 0.25, z);
+      g.add(leg);
+    }
+
+    const seat = new THREE.Mesh(BOX(0.52, 0.08, 0.52), woodMat);
+    seat.position.set(0, 0.52, 0);
+    g.add(seat);
+
+    const back = new THREE.Mesh(BOX(0.52, 0.6, 0.08), woodMat);
+    back.position.set(0, 0.86, -0.22);
+    g.add(back);
+
+    return g;
+  }
+
+  _spawnChairSplinters(x, y, z) {
+    const fragments = [];
+    const woodMat = MAT(0x854d0e, { roughness: 0.7 });
+    for (let i = 0; i < 16; i++) {
+      const w = 0.08 + Math.random() * 0.14;
+      const h = 0.08 + Math.random() * 0.18;
+      const d = 0.08 + Math.random() * 0.14;
+      const mesh = new THREE.Mesh(BOX(w, h, d), woodMat);
+      mesh.position.set(x + (Math.random() - 0.5) * 0.4, y + (Math.random() - 0.5) * 0.4, z + (Math.random() - 0.5) * 0.4);
+      mesh.userData.vx = (Math.random() - 0.5) * 6.0;
+      mesh.userData.vy = 2.0 + Math.random() * 4.5;
+      mesh.userData.vz = (Math.random() - 0.5) * 6.0;
+      mesh.userData.rx = (Math.random() - 0.5) * 12.0;
+      mesh.userData.ry = (Math.random() - 0.5) * 12.0;
+      this.cinematicGroup.add(mesh);
+      fragments.push(mesh);
+    }
+    this.chairSplinters = fragments;
   }
 
   _buildArthurHappyModel() {
