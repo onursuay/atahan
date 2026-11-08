@@ -348,68 +348,29 @@ export class OctopusSystem {
     this.scare3D = g;
   }
 
-  // Silah 16'ya geçildiğinde ekrana kare/voxel ahtapot atlama + kararma + vıcık vıcık kaybolma animasyonu
-  _triggerJumpScare() {
-    sound.playOctopusSquish();
+  // Tony Stark / Transformers mekanik robotik zırh kuşanma geçişi (Ahtapot ekrana atlamaz, doğrudan mekanik ses ve enerjiyle başlar)
+  _triggerMechTransformersSuitUp() {
+    sound.playIronHit();
+    sound.playDoorSlide();
+    sound.playZap();
+    sound.playSaberOn();
+
     if (this._scareRaf) cancelAnimationFrame(this._scareRaf);
-    const start = performance.now();
-    const totalDur = 2400; // 2.4 sn
+    if (this.scare3D) this.scare3D.visible = false;
 
-    this.scareEl.style.opacity = '1';
-    if (this.scare3D) this.scare3D.visible = true;
+    // Yüksek teknolojili siyan/mavi enerji flaşı
+    if (this.scareEl) {
+      this.scareEl.style.background = 'radial-gradient(circle, rgba(6,182,212,0.45) 0%, rgba(15,23,42,0.85) 100%)';
+      this.scareEl.style.opacity = '1';
+      this.scareEl.style.transition = 'opacity 0.35s ease-out';
+      if (this.scareArtEl) this.scareArtEl.style.display = 'none';
 
-    const step = (now) => {
-      if (!this.active) {
-        this.scareEl.style.opacity = '0';
-        if (this.scare3D) this.scare3D.visible = false;
-        return;
-      }
-      const elapsed = now - start;
-      const u = Math.min(1, elapsed / totalDur);
-
-      if (u < 0.15) {
-        // 0..0.36 sn: Kare voxel ahtapot kameranın üstüne hızla atlar ve ekran simsiyah kararır
-        const k = u / 0.15;
-        const scale = 0.2 + k * 1.15;
-        this.scareArtEl.style.transform = `scale(${scale.toFixed(3)})`;
-        this.scareEl.style.background = `rgba(4, 0, 10, ${(k * 0.96).toFixed(3)})`;
-        this.scareEl.style.opacity = '1';
-        if (this.scare3D) {
-          this.scare3D.position.set(0, -0.1 + k * 0.1, -1.8 + k * 1.25);
-          this.scare3D.rotation.set(0, 0, Math.sin(k * 10) * 0.12);
+      setTimeout(() => {
+        if (this.scareEl) {
+          this.scareEl.style.opacity = '0';
         }
-      } else if (u < 0.36) {
-        // 0.36..0.86 sn: Ekran karanlık, kare ahtapot ekrana yapışmış halde vıcık vıcık sarsılır
-        const w = (u - 0.15) / 0.21;
-        const sx = 1.35 + Math.round(Math.sin(w * Math.PI * 6)) * 0.04;
-        const sy = 1.35 - Math.round(Math.sin(w * Math.PI * 6)) * 0.04;
-        this.scareArtEl.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
-        this.scareEl.style.background = `rgba(4, 0, 10, 0.96)`;
-        this.scareEl.style.opacity = '1';
-        if (this.scare3D) {
-          this.scare3D.position.set(Math.sin(w * 25) * 0.02, 0, -0.55);
-        }
-      } else {
-        // 0.86..2.40 sn: Kare ahtapot vıcık vıcık seslerle kademeli olarak aşağı kayıp yok olur
-        const f = (u - 0.36) / 0.64;
-        const ease = 1 - Math.pow(1 - f, 2);
-        const slideY = Math.round(ease * 18) * 10;
-        this.scareArtEl.style.transform = `translate(0px, ${slideY}px) scale(1.35)`;
-        this.scareEl.style.background = `rgba(4, 0, 10, ${(0.96 * (1 - ease)).toFixed(3)})`;
-        this.scareEl.style.opacity = String((1 - ease).toFixed(3));
-        if (this.scare3D) {
-          this.scare3D.position.set(0, -ease * 0.9, -0.55);
-        }
-      }
-
-      if (u < 1) {
-        this._scareRaf = requestAnimationFrame(step);
-      } else {
-        this.scareEl.style.opacity = '0';
-        if (this.scare3D) this.scare3D.visible = false;
-      }
-    };
-    this._scareRaf = requestAnimationFrame(step);
+      }, 140);
+    }
   }
 
   // ───────────────────────── Birinci Şahıs Mekanik Ahtapot Kolları ─────────────────────────
@@ -593,7 +554,7 @@ export class OctopusSystem {
 
     if (want && !wasActive) {
       this._resetTentacle();
-      this._triggerJumpScare();
+      this._triggerMechTransformersSuitUp();
     } else if (!want && wasActive) {
       this._resetTentacle();
       if (this.scareEl) this.scareEl.style.opacity = '0';

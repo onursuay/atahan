@@ -994,6 +994,7 @@ function fireWeapon() {
 
 function selectWeapon(idx) {
   if (storyManager && storyManager.weaponsLocked) return;
+  if (window._onlyOctopusMode && idx !== 16) return;
   if (idx === 16 && !window._octopusUnlocked) return;
   if (scopeOn && idx !== 8) toggleScope();
   weaponSystem.setWeapon(idx);
