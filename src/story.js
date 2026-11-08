@@ -475,6 +475,9 @@ export class StoryManager {
     }
 
     this.activeDialog = this.dialogQueue[this.dialogIndex];
+    if (this.activeDialog && typeof this.activeDialog.onStart === 'function') {
+      try { this.activeDialog.onStart(); } catch (e) { console.error(e); }
+    }
     this.dialogSpeakerEl.innerText = this.activeDialog.name;
     this.dialogSpeakerEl.style.color = this.activeDialog.color || '#facc15';
     this.dialogPortraitEl.innerHTML = this._getPortraitSVG(this.activeDialog.speaker);
@@ -1045,6 +1048,7 @@ export class StoryManager {
     this.currentPhase = STORY_PHASES.MISSION_COMBAT;
     this.controlsLocked = false;
     this.weaponsLocked = false;
+    this._betrayalTriggered = false;
 
     if (this.weaponSystem) this.weaponSystem.setWeapon(1);
     if (this.handWeapons) this.handWeapons.setWeapon(1);
@@ -1091,12 +1095,14 @@ export class StoryManager {
 
   updateCombatMissionHUD() {
     if (this.currentPhase !== STORY_PHASES.MISSION_COMBAT) return;
+    if (this._betrayalTriggered) return;
     const remaining = this.protesters.filter(p => !p.userData.dead).length;
     if (remaining > 0) {
       this.setMission('KAPININ ÖNÜNDEKİ İSYANCILARI ETKİSİZ HALE GETİR', `Kalan İsyancı Sayısı: ${remaining}`);
     } else {
+      this._betrayalTriggered = true;
       // Bütün adamlar öldüğünde ve tabela kaldırma tamamen bittiğinde sahne başlar
-      this.setMission('BÜTÜN İSYANCILAR TEMİZLENDİ!', 'David Sterling ile konuşmak için kapıya dönülüyor...');
+      this.setMission('GÖREV TAMAMLANDI! BÜTÜN İSYANCILAR TEMİZLENDİ', 'David Sterling ile konuşmak için villaya dönülüyor...');
       setTimeout(() => {
         this.startBetrayalConfrontation();
       }, 1200);
@@ -1202,6 +1208,8 @@ export class StoryManager {
     this.controlsLocked = true;
     this.weaponsLocked = true;
     this.guardsSeize = false;
+    this.guardsAdvancing = false;
+    this.davidHandsBehindBack = false;
     this.guardKick = false;
 
     // Kalan isyancı nesnelerini temizle
@@ -1263,15 +1271,38 @@ export class StoryManager {
       this.startDialogQueue([
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-          text: 'Aferin! Sen başardın, yaptığın iş için teşekkür ederim. Kapımın önündeki o sefil isyancı ayak takımı tamamen temizlendi.'
+          text: 'Aferin! Sen başardın, yaptığın iş için teşekkür ederim. Kapımın önündeki o sefil isyancı ayak takımı tamamen temizlendi.',
+          onStart: () => {
+            this.davidHandsBehindBack = false;
+            this.guardsAdvancing = false;
+            this.guardsSeize = false;
+          }
         },
         {
           speaker: 'player', name: 'OYUNCU', color: '#38bdf8',
-          text: 'Tamam güzel, ancak şu para işini konuşalım. Söz verdiğin yüklü miktardaki ödemeyi ve silahları ver bakalım.'
+          text: 'Tamam güzel, ancak şu para işini konuşalım. Söz verdiğin yüklü miktardaki ödemeyi ve silahları ver bakalım.',
+          onStart: () => {
+            // Biz konuşurken güvenlikler yavaşça bize doğru yürümeye başlar
+            this.guardsAdvancing = true;
+          }
         },
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
-          text: 'Üzgünüm dostum... Ama para falan yok! Sen gerçekten bu kadar saf mısın? GÜVENLİKLER! ALIN ŞUNU VE TEMİZLEYİN!'
+          text: 'Evet... Üzgünüm dostum... Ama para falan yok! Sen gerçekten bu kadar saf mısın? GÜVENLİKLER! ALIN ŞUNU VE TEMİZLEYİN!',
+          onStart: () => {
+            // Adam ellerini arkaya doğru koyar
+            this.davidHandsBehindBack = true;
+            this.guardsAdvancing = false;
+            this.guardsSeize = true; // Güvenlikler bizi tutar
+            sound.playIronHit();
+            sound.playBlockHit();
+            // Silahlar ve para zorla alınır
+            this.weaponsLocked = true;
+            if (this.character && this.character.hammer) this.character.hammer.visible = false;
+            if (this.character && this.character.pistolGroup) this.character.pistolGroup.visible = false;
+            if (this.handWeapons) this.handWeapons.setWeapon(0);
+            this.setMission('İHANET! TÜM SİLAHLAR VE PARA GASP EDİLDİ!', 'David anlaşmayı bozdu! Korumalar tüm teçhizatını zorla aldı.');
+          }
         },
         {
           speaker: 'david', name: 'DAVID STERLING', color: '#facc15',
@@ -1665,14 +1696,41 @@ export class StoryManager {
       if (this.davidActor && this.davidActor.userData) {
         const { lArm, rArm } = this.davidActor.userData;
         if (lArm && rArm) {
-          lArm.rotation.x = THREE.MathUtils.lerp(lArm.rotation.x, 0.45, dt * 3.0);
-          rArm.rotation.x = THREE.MathUtils.lerp(rArm.rotation.x, 0.45, dt * 3.0);
+          if (this.davidHandsBehindBack) {
+            // David ellerini arkaya doğru koyar
+            lArm.rotation.x = THREE.MathUtils.lerp(lArm.rotation.x, -0.65, dt * 4.0);
+            rArm.rotation.x = THREE.MathUtils.lerp(rArm.rotation.x, -0.65, dt * 4.0);
+          } else {
+            lArm.rotation.x = THREE.MathUtils.lerp(lArm.rotation.x, 0.45, dt * 3.0);
+            rArm.rotation.x = THREE.MathUtils.lerp(rArm.rotation.x, 0.45, dt * 3.0);
+          }
         }
       }
 
-      if (this.phaseTimer > 5.0 && !this.guardKick) {
-        if (this.guardL) this.guardL.position.z = THREE.MathUtils.lerp(this.guardL.position.z, vz + 4.2, dt * 2.0);
-        if (this.guardR) this.guardR.position.z = THREE.MathUtils.lerp(this.guardR.position.z, vz + 4.2, dt * 2.0);
+      if (this.guardsAdvancing && !this.guardKick) {
+        // Güvenlikler yavaşça oyuncunun iki yanına yaklaşır
+        const targetZ = vz + 5.0;
+        if (this.guardL) {
+          this.guardL.position.z = THREE.MathUtils.lerp(this.guardL.position.z, targetZ, dt * 2.2);
+          this.guardL.position.x = THREE.MathUtils.lerp(this.guardL.position.x, vx - 1.1, dt * 2.2);
+        }
+        if (this.guardR) {
+          this.guardR.position.z = THREE.MathUtils.lerp(this.guardR.position.z, targetZ, dt * 2.2);
+          this.guardR.position.x = THREE.MathUtils.lerp(this.guardR.position.x, vx + 1.1, dt * 2.2);
+        }
+      }
+
+      if (this.guardsSeize && !this.guardKick) {
+        // Güvenlikler oyuncuyu kollarından tutar
+        const targetZ = vz + 4.8;
+        if (this.guardL) {
+          this.guardL.position.set(vx - 0.72, vy, targetZ);
+          this.guardL.rotation.y = 0.25;
+        }
+        if (this.guardR) {
+          this.guardR.position.set(vx + 0.72, vy, targetZ);
+          this.guardR.rotation.y = -0.25;
+        }
       }
     }
 
