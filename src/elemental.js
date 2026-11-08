@@ -579,20 +579,22 @@ export class ElementalSystem {
   // (Space'e basılı tutmasın, sadece tıkladığında uçmaya başlasın. Bir daha basarsa uçmayı bıraksın.)
   // ─────────────────────────────────────────────────────────────────────────
   toggleFlight(character) {
-    if (!this.active) return;
-    if (this.currentElement !== 'fire') return;
+    if (!this.active && !this.flightActive) return;
+    if (this.currentElement !== 'fire' && !this.flightActive) return;
 
     this.flightActive = !this.flightActive;
     if (character) {
       character.elementalFlight = this.flightActive;
+      character.vel.set(0, 0, 0);
+      character.knock.set(0, 0, 0);
     }
 
     if (this.flightActive) {
       sound.playFlightWhoosh();
-      this._showBanner('🚀 SÜPERSONİK ATEŞ UÇUŞU AKTİF!', 'W, A, S, D ile süpersonik hızda şehri turlayın! İnmek için Space\'e tekrar tıklayın.');
+      this._showBanner('🚀 SÜPERSONİK ATEŞ UÇUŞU AKTİF!', 'W, A, S, D ile süpersonik hızda uçun! İnmek ve eski yürümeye dönmek için Space\'e tekrar basın.');
     } else {
-      sound.playJump && sound.playJump();
-      this._showBanner('🛬 UÇUŞ MODU KAPATILDI', 'Yere iniş yapıldı.');
+      if (sound.playJump) sound.playJump();
+      this._showBanner('🛬 UÇUŞ MODU KAPATILDI', 'Yere iniş yapıldı, eski yürüme kontrollerine dönüldü.');
     }
   }
 

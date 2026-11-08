@@ -205,16 +205,22 @@ function init() {
 
   voxelWorld.collapse.onShake = (v) => { screenShake = Math.max(screenShake, v); };
   cars = new CarManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (dx, dz, speed) => {
+    if (character && character.elementalFlight) return;
     character.applyKnock(dx * Math.min(14, 4 + speed * 0.6), 4, dz * Math.min(14, 4 + speed * 0.6));
     damagePlayer(8 + speed * 1.2);
   });
   voxelWorld.cars = cars;
-  cars.onCrash = (impact) => { damagePlayer(Math.min(35, impact * 1.1)); screenShake = Math.max(screenShake, 0.5); };
+  cars.onCrash = (impact) => {
+    if (character && character.elementalFlight) return;
+    damagePlayer(Math.min(35, impact * 1.1));
+    screenShake = Math.max(screenShake, 0.5);
+  };
   handWeapons.cars = cars;
   planes = new PlaneManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text), (s) => { screenShake = Math.max(screenShake, s); });
   voxelWorld.planes = planes;
   handWeapons.planes = planes;
   voxelWorld.onBlast = (pos, radius, force) => {
+    if (character && character.elementalFlight) return;
     const p = character.mesh.position;
     const dx = p.x - pos.x, dy = p.y + 1 - pos.y, dz = p.z - pos.z;
     const d = Math.hypot(dx, dy, dz), reach = radius * 1.8;
@@ -327,6 +333,8 @@ function createWorldArena() {
 }
 
 function damagePlayer(amount) {
+  // "Uçtuğumuz zaman binalara çarptığımızda hasar almayalım. Kaç kere çarparsak çarpalım hasar almayalım."
+  if (character && character.elementalFlight) return;
   if (performance.now() < invulnUntil || amount <= 0) return;
   hp -= amount;
   lastHitT = performance.now();
@@ -1194,6 +1202,24 @@ function setupEventListeners() {
     if (key === 'a' || e.code === 'KeyA') inputState.left = true;
     if (key === 'd' || e.code === 'KeyD') inputState.right = true;
     if (e.code === 'Space') {
+      // Karakter uçuş modundaysa, Space'e tekrar basıldığında uçmayı bırakır ve eski yürüme kontrollerine döner
+      if (character && character.elementalFlight) {
+        if (!e.repeat) {
+          if (handWeapons && handWeapons.elemental) {
+            handWeapons.elemental.flightActive = false;
+          }
+          character.elementalFlight = false;
+          character.vel.set(0, 0, 0);
+          character.knock.set(0, 0, 0);
+          character.mesh.rotation.y = cameraYaw + Math.PI;
+          if (sound.playJump) sound.playJump();
+          if (handWeapons && handWeapons.elemental && handWeapons.elemental._showBanner) {
+            handWeapons.elemental._showBanner('🛬 UÇUŞ MODU KAPATILDI', 'Yere inildi, eski yürüme kontrolleri geri geldi.');
+          }
+        }
+        e.preventDefault();
+        return;
+      }
       if (!inCar && weaponSystem && weaponSystem.currentWeapon === 20 && handWeapons && handWeapons.elemental && handWeapons.elemental.currentElement === 'fire') {
         if (!e.repeat) {
           handWeapons.elemental.toggleFlight(character);

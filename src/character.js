@@ -39,6 +39,14 @@ const STEP_UP_MAX = 0.5;     // otomatik çıkılabilen en yüksek basamak (m)
 const WATER_SPEED_MUL = 0.70; // Suda rahat ve akıcı yüzme hızı
 const WATER_HOP_SPEED = 11;  // kıyıya çıkarken zıplama hızı
 
+// Açıların en kısa yay üzerinden (360 derece dönmeden / sola sapmadan) yumuşak enterpolasyonu
+function lerpAngle(from, to, t) {
+  let diff = (to - from) % (Math.PI * 2);
+  if (diff < -Math.PI) diff += Math.PI * 2;
+  if (diff > Math.PI) diff -= Math.PI * 2;
+  return from + diff * Math.min(1, Math.max(0, t));
+}
+
 export class Character {
   constructor(scene, physicsWorld, particleSystem, voxelWorld = null) {
     this.scene = scene;
@@ -406,7 +414,7 @@ export class Character {
       if (moveVec.lengthSq() > 0.001) {
         moveVec.normalize().multiplyScalar(FLIGHT_SPEED);
         this.vel.copy(moveVec);
-        this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, cameraEulerY, 14 * dt);
+        this.mesh.rotation.y = lerpAngle(this.mesh.rotation.y, cameraEulerY + Math.PI, 14 * dt);
 
         // ─── BİNALARI DELİP GEÇME (Breaching Ram / Drill) ───
         // "çok fazla hızlanıp bir binaya ya da bir şeye çarparsak böyle orayı delip geçip uçmaya devam edelim"
@@ -430,8 +438,9 @@ export class Character {
           }
         }
       } else {
-        const damp = Math.pow(0.85, dt * 60);
-        this.vel.multiplyScalar(damp);
+        // "Uçtuğumda durduğumda karakter de yerinde dursun, sabit dursun" - sürtünme yerine tam havada asılı kalma
+        this.vel.set(0, 0, 0);
+        this.knock.set(0, 0, 0);
       }
 
       // ─── YUKARIDAN AŞAĞIYA HIZLI DALIP YERE ÇARPMA (METEOR / DEPREM ŞOKU) ───
@@ -498,8 +507,14 @@ export class Character {
       this.vel.x = worldX * this.moveSpeed * speedMul;
       this.vel.z = worldZ * this.moveSpeed * speedMul;
 
-      const targetAngle = Math.atan2(worldX, worldZ);
-      this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, targetAngle, 14 * dt);
+      // İleri W tuşuna basıldığında tam kamera bakış doğrultusunda gitsin, sola sapma olmasın
+      let targetAngle;
+      if (moveX === 0 && moveZ === -1) {
+        targetAngle = cameraEulerY + Math.PI;
+      } else {
+        targetAngle = Math.atan2(worldX, worldZ);
+      }
+      this.mesh.rotation.y = lerpAngle(this.mesh.rotation.y, targetAngle, 14 * dt);
 
       this.walkCycle += dt * 14;
       const swing = Math.sin(this.walkCycle) * 0.75;
@@ -558,6 +573,7 @@ export class Character {
     }
 
     this.knock.multiplyScalar(Math.exp(-4 * dt));
+    if (this.knock.lengthSq() < 0.001) this.knock.set(0, 0, 0);
 
     // Jetpack: havadayken Space basılı tutulursa itki; yakıt bitince ya da bırakınca düşüş
     this.airTime = this.isGrounded ? 0 : this.airTime + dt;
@@ -823,8 +839,9 @@ export class Character {
     this.body.velocity.set(0, 0, 0);
   }
 
-  // Patlama dalgası oyuncuyu iter
+  // Patlama dalgası oyuncuyu iter (Uçuş modundayken oyuncu sarsılmaz/hasar almaz)
   applyKnock(vx, vy, vz) {
+    if (this.elementalFlight) return;
     this.knock.x += vx; this.knock.z += vz;
     this.vel.y += vy;
     this.isGrounded = false;
