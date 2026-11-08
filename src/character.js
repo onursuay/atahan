@@ -162,18 +162,22 @@ export class Character {
     this.mesh.add(this._rightEye);
 
     // ── 3D YÜZ VE DETAYLAR (Küçük Burun, Kaşlar, Kulaklar) ──
+    // Kafa içine eklenir; 3. şahıstayken kamerayı rahatsız etmemesi için gizli tutulur
     const pNose = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.14, 0.1), this._skinMat);
-    pNose.position.set(0, 1.76, 0.44);
+    pNose.position.set(0, -0.04, 0.44);
     const browMat = new THREE.MeshLambertMaterial({ color: 0x2b1b0e });
     const pBrowL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.04), browMat);
-    pBrowL.position.set(-0.18, 1.96, 0.42); pBrowL.rotation.z = 0.04;
+    pBrowL.position.set(-0.18, 0.16, 0.42); pBrowL.rotation.z = 0.04;
     const pBrowR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.05, 0.04), browMat);
-    pBrowR.position.set(0.18, 1.96, 0.42); pBrowR.rotation.z = -0.04;
+    pBrowR.position.set(0.18, 0.16, 0.42); pBrowR.rotation.z = -0.04;
     const pEarL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.14), this._skinMat);
-    pEarL.position.set(-0.43, 1.8, 0);
+    pEarL.position.set(-0.43, 0, 0);
     const pEarR = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 0.14), this._skinMat);
-    pEarR.position.set(0.43, 1.8, 0);
-    this.mesh.add(pNose, pBrowL, pBrowR, pEarL, pEarR);
+    pEarR.position.set(0.43, 0, 0);
+    this.faceDetails = [pNose, pBrowL, pBrowR, pEarL, pEarR];
+    this.head.add(pNose, pBrowL, pBrowR, pEarL, pEarR);
+    // Üçüncü şahıstayken (ve uçarken) kaş/göz ekranda görünmesin
+    this.faceDetails.forEach(m => m.visible = false);
 
     // ── GÖVDE ──
     this._bodyMat = new THREE.MeshLambertMaterial({ map: shirtTex });
@@ -377,7 +381,7 @@ export class Character {
 
     // ─── ATEŞ ELEMENTİ SÜPERSONİK UÇUŞ MODU (Space ile açılır/kapanır) ───
     if (this.elementalFlight) {
-      const FLIGHT_SPEED = 135; // 135 m/s süpersonik uçuş hızı (şehri 4-5 sn'de geçer)
+      const FLIGHT_SPEED = 185; // 185 m/s süper hızlı süpersonik uçuş
 
       const cosP = Math.cos(cameraPitch);
       const sinP = Math.sin(cameraPitch);
@@ -403,9 +407,65 @@ export class Character {
         moveVec.normalize().multiplyScalar(FLIGHT_SPEED);
         this.vel.copy(moveVec);
         this.mesh.rotation.y = THREE.MathUtils.lerp(this.mesh.rotation.y, cameraEulerY, 14 * dt);
+
+        // ─── BİNALARI DELİP GEÇME (Breaching Ram / Drill) ───
+        // "çok fazla hızlanıp bir binaya ya da bir şeye çarparsak böyle orayı delip geçip uçmaya devam edelim"
+        if (this.voxelWorld && this.vel.length() > 25) {
+          const dir = this.vel.clone().normalize();
+          for (const d of [2.2, 4.4]) {
+            const checkPt = this.body.position.clone().addScaledVector(dir, d);
+            const ix = Math.floor(checkPt.x / VOXEL_SIZE);
+            const iy = Math.floor(checkPt.y / VOXEL_SIZE);
+            const iz = Math.floor(checkPt.z / VOXEL_SIZE);
+            const mat = this.voxelWorld.getVoxel ? this.voxelWorld.getVoxel(ix, iy, iz) : null;
+            if (mat !== undefined && mat !== null && mat !== 0) {
+              this.voxelWorld.explode(checkPt, 3.8, 380);
+              this.voxelWorld.sweepCut(checkPt, 4.2, null);
+              if (this.particleSystem) this.particleSystem.createExplosion(checkPt, 5, 0xff5500);
+              sound.playExplosion(0.7);
+              if (sound.playIronHit) sound.playIronHit();
+              if (this.onShake) this.onShake(0.35);
+              break;
+            }
+          }
+        }
       } else {
         const damp = Math.pow(0.85, dt * 60);
         this.vel.multiplyScalar(damp);
+      }
+
+      // ─── YUKARIDAN AŞAĞIYA HIZLI DALIP YERE ÇARPMA (METEOR / DEPREM ŞOKU) ───
+      // "ve bir anda yere yukarıdan aşağıya doğru böyle uçarsak hızlı bir şekilde bir anda yeri sarsalım"
+      const isDiving = this.vel.y < -30;
+      const nearGround = this.body.position.y <= 2.2 || (this.isGrounded && this.vel.y < -15);
+      if (isDiving && nearGround) {
+        const slamPos = this.body.position.clone();
+        slamPos.y = Math.max(0.5, slamPos.y);
+
+        if (this.voxelWorld) {
+          this.voxelWorld.explode(slamPos, 11.5, 650);
+          this.voxelWorld.sweepCut(slamPos, 12.0, null);
+          if (this.voxelWorld.doors) this.voxelWorld.doors.hitSphere(slamPos, 14.0, 10);
+          if (this.voxelWorld.bridge) this.voxelWorld.bridge.hitSphere(slamPos, 14.0);
+          if (this.voxelWorld.cars) this.voxelWorld.cars.bladeHit(slamPos, 16.0);
+          if (this.voxelWorld.npcs) this.voxelWorld.npcs.hitSphere(slamPos, 18.0);
+        }
+
+        if (this.particleSystem) {
+          this.particleSystem.createExplosion(slamPos, 10, 0xff3b00);
+          this.particleSystem.createExplosion(slamPos.clone().add(new THREE.Vector3(0, 2.5, 0)), 8, 0xffea00);
+        }
+
+        if (this.onShake) this.onShake(1.2);
+        sound.playExplosion(2.2);
+        if (sound.playTNTExplosion) sound.playTNTExplosion();
+        if (sound.playImplosion) sound.playImplosion();
+
+        if (this.elemental && this.elemental.spawnSeismicShockwave) {
+          this.elemental.spawnSeismicShockwave(slamPos);
+        }
+
+        this.vel.set(0, 16, 0); // Yerden hafifçe yukarı seker
       }
 
       this._stepPhysics(dt, inputState);
@@ -542,6 +602,8 @@ export class Character {
     this.rightLeg.visible = !on;
     this._leftEye.visible = !on && this.currentMode === 'cyborg';
     this._rightEye.visible = !on && this.currentMode === 'cyborg';
+    // Kaş, göz ve 3D burun üçüncü şahısta asla kadraja girmez
+    if (this.faceDetails) this.faceDetails.forEach(m => m.visible = false);
     // Kollar omuz hizasından biraz içeri ve öne alınır: aşağı bakınca ve çekiç savururken kadraja girer
     this.leftArm.position.set(on ? -0.45 : -0.6, 1.3, on ? 0.1 : 0);
     this.rightArm.position.set(on ? 0.45 : 0.6, 1.3, on ? 0.1 : 0);
@@ -718,6 +780,11 @@ export class Character {
       feet = this._moveAxis('x', (this.vel.x + this.knock.x) * h, pos, feet);
       feet = this._moveAxis('z', (this.vel.z + this.knock.z) * h, pos, feet);
       this.lastBlocked = this.blockedHoriz;
+      if (this.elementalFlight && this.blockedHoriz && this.voxelWorld) {
+        this.voxelWorld.explode(this.body.position, 3.6, 320);
+        this.voxelWorld.sweepCut(this.body.position, 4.0, null);
+        this.blockedHoriz = false;
+      }
 
       // İnişte zemine yapış: yokuş aşağı yürürken havada sekmesin (en fazla 0.3 m aşağıda zemin varsa oraya in)
       if (this.isGrounded && this.vel.y <= 0 && !this.inWater && !this.jetting && !inputState.jump && this._overlaps(pos.x, feet - 0.3, pos.z)) {

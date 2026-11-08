@@ -16,7 +16,20 @@ import { VOXEL_SIZE } from './teardown.js';
 //        Sol tıkla savurarak hem yakarak hem de parçalayarak binaları ve nesneleri yıkar.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const FLIGHT_SPEED = 135; // m/s — 600m metropol haritasını ~4.5 saniyede baştan başa geçer!
+const FLIGHT_SPEED = 185; // m/s — 600m metropol haritasını ~3.5 saniyede baştan başa geçer!
+
+// Performans optimizasyonu: Her karede BoxGeometry ve Material üretilmesini engelleyen paylaşımlı havuz
+const SHARED_GEO_020 = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+const SHARED_GEO_018 = new THREE.BoxGeometry(0.18, 0.18, 0.18);
+const SHARED_GEO_024 = new THREE.BoxGeometry(0.24, 0.24, 0.24);
+
+const SHARED_FIRE_MATS = [
+  new THREE.MeshBasicMaterial({ color: 0xffea00 }),
+  new THREE.MeshBasicMaterial({ color: 0xff7700 }),
+  new THREE.MeshBasicMaterial({ color: 0xef4444 }),
+  new THREE.MeshBasicMaterial({ color: 0xff1100 }),
+  new THREE.MeshBasicMaterial({ color: 0xff3b00 })
+];
 
 export class ElementalSystem {
   constructor(handWeapons) {
@@ -28,6 +41,7 @@ export class ElementalSystem {
 
     this.active = false;
     this.animTime = 0;
+    this.thrusterTick = 0;
 
     // Element Yönetimi
     this.elements = ['fire', 'electric', 'air'];
@@ -45,6 +59,7 @@ export class ElementalSystem {
 
     // Aktif Yanan Alevler (Burning Clusters - zamanla sönmeye başlar)
     this.burningClusters = [];
+    this.seismicShockwaves = [];
 
     // Ejderha Nefesi (Flamethrower) Durumu
     this.dragonBreathActive = false;
@@ -397,11 +412,8 @@ export class ElementalSystem {
 
       const speed = 28 + Math.random() * 18;
       const vel = dir.multiplyScalar(speed);
-      const c = fireColors[Math.floor(Math.random() * fireColors.length)];
-
-      const geo = new THREE.BoxGeometry(0.24, 0.24, 0.24);
-      const mat = new THREE.MeshBasicMaterial({ color: c });
-      const pMesh = new THREE.Mesh(geo, mat);
+      const mat = SHARED_FIRE_MATS[Math.floor(Math.random() * SHARED_FIRE_MATS.length)];
+      const pMesh = new THREE.Mesh(SHARED_GEO_024, mat);
       pMesh.position.copy(origin).add(new THREE.Vector3((Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.2));
       this.group.add(pMesh);
 
@@ -584,6 +596,39 @@ export class ElementalSystem {
     }
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // SİSMİK DEPREM ŞOK DALGASI (Yukarıdan Yere Çarpınca)
+  // ─────────────────────────────────────────────────────────────────────────
+  spawnSeismicShockwave(slamPos) {
+    const ringGeo = new THREE.RingGeometry(0.8, 2.2, 32);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xff6600,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.95,
+      depthWrite: false
+    });
+    const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+    ringMesh.position.set(slamPos.x, slamPos.y + 0.15, slamPos.z);
+    ringMesh.rotation.x = -Math.PI / 2;
+    this.mainScene.add(ringMesh);
+
+    const light = new THREE.PointLight(0xff4400, 6, 28);
+    light.position.set(slamPos.x, slamPos.y + 2, slamPos.z);
+    this.mainScene.add(light);
+
+    this.seismicShockwaves.push({
+      mesh: ringMesh,
+      light,
+      radius: 1.0,
+      t: 0,
+      duration: 0.85
+    });
+
+    // Çarpma etrafında 4 yangın kümesi başlat
+    this._igniteArea(slamPos, 4);
+  }
+
   _showBanner(title, desc) {
     const hintEl = document.getElementById('weapon-hint');
     if (hintEl) {
@@ -645,6 +690,25 @@ export class ElementalSystem {
     // Yanan alanlar güncellemesi (zamanla sönen yangınlar)
     this._updateBurningClusters(dt);
 
+    // Sismik deprem şok dalgaları animasyonu (Yukarıdan yere çarpınca yayılan alev dalgası)
+    for (let i = this.seismicShockwaves.length - 1; i >= 0; i--) {
+      const sw = this.seismicShockwaves[i];
+      sw.t += dt;
+      const progress = sw.t / sw.duration;
+      sw.radius = THREE.MathUtils.lerp(1.0, 24.0, Math.pow(progress, 0.6));
+      sw.mesh.scale.set(sw.radius, sw.radius, 1.0);
+      sw.mesh.material.opacity = Math.max(0, 1.0 - progress);
+      sw.light.intensity = Math.max(0, 6.0 * (1.0 - progress));
+
+      if (sw.t >= sw.duration) {
+        this.mainScene.remove(sw.mesh);
+        this.mainScene.remove(sw.light);
+        sw.mesh.geometry.dispose();
+        sw.mesh.material.dispose();
+        this.seismicShockwaves.splice(i, 1);
+      }
+    }
+
     // Uçuş modu esnasında ayaklardan / sırttan fışkıran alev jetleri
     if (this.flightActive && this.hw && this.hw.character) {
       this._emitFlightThrusterParticles(dt);
@@ -660,11 +724,10 @@ export class ElementalSystem {
       fb.vel.y -= 4.0 * dt;
       const nextPos = fb.pos.clone().addScaledVector(fb.vel, dt);
 
-      // Uçuş sırasında arkasında alev küpü pikselleri bırak
-      if (Math.random() < 0.8) {
-        const pGeo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
-        const pMat = new THREE.MeshBasicMaterial({ color: Math.random() < 0.5 ? 0xffea00 : 0xff3b00 });
-        const pMesh = new THREE.Mesh(pGeo, pMat);
+      // Uçuş sırasında arkasında alev küpü pikselleri bırak (performans için paylaşımlı havuz)
+      if (Math.random() < 0.6) {
+        const mat = SHARED_FIRE_MATS[Math.floor(Math.random() * SHARED_FIRE_MATS.length)];
+        const pMesh = new THREE.Mesh(SHARED_GEO_018, mat);
         pMesh.position.copy(fb.pos);
         this.group.add(pMesh);
         this.ps.particles.push({
@@ -672,8 +735,8 @@ export class ElementalSystem {
           velocity: new THREE.Vector3((Math.random() - 0.5) * 2, 1 + Math.random() * 2, (Math.random() - 0.5) * 2),
           gravity: 0,
           rotSpeed: 4,
-          life: 0.3,
-          maxLife: 0.3,
+          life: 0.28,
+          maxLife: 0.28,
           scaleSpeed: -0.6
         });
       }
@@ -727,17 +790,19 @@ export class ElementalSystem {
   }
 
   _emitFlightThrusterParticles(dt) {
+    this.thrusterTick = (this.thrusterTick || 0) + dt;
+    if (this.thrusterTick < 0.035) return; // 28 Hz yeterlidir; her karede yüzlerce nesne üretilmesini önler
+    this.thrusterTick = 0;
+
     const char = this.hw.character;
     if (!char || !char.mesh) return;
 
     const p = char.mesh.position.clone();
     p.y += 0.2; // Ayak hizası
 
-    const fireColors = [0xffea00, 0xff7700, 0xff2200];
     for (let i = 0; i < 2; i++) {
-      const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-      const mat = new THREE.MeshBasicMaterial({ color: fireColors[Math.floor(Math.random() * fireColors.length)] });
-      const m = new THREE.Mesh(geo, mat);
+      const mat = SHARED_FIRE_MATS[Math.floor(Math.random() * SHARED_FIRE_MATS.length)];
+      const m = new THREE.Mesh(SHARED_GEO_020, mat);
       m.position.copy(p).add(new THREE.Vector3((Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.2, (Math.random() - 0.5) * 0.4));
       this.group.add(m);
 
@@ -746,8 +811,8 @@ export class ElementalSystem {
         velocity: new THREE.Vector3((Math.random() - 0.5) * 3, -16 - Math.random() * 8, (Math.random() - 0.5) * 3),
         gravity: 0,
         rotSpeed: 8,
-        life: 0.25,
-        maxLife: 0.25,
+        life: 0.22,
+        maxLife: 0.22,
         scaleSpeed: -0.7
       });
     }

@@ -195,6 +195,8 @@ function init() {
 
   handWeapons = new HandWeapons(scene, camera, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   handWeapons.character = character;
+  character.onShake = (s) => { screenShake = Math.max(screenShake, s); };
+  character.elemental = handWeapons.elemental;
   handWeapons.setFirstPerson(firstPerson);
   handWeapons.onAmmoChange = updateMagUI;
   handWeapons.arsenal.onShake = (s) => { screenShake = Math.max(screenShake, s); };
