@@ -246,10 +246,11 @@ export class LevelManager {
     this.buildTower(-22, 1, -30, -14, 20, -8, { ...CC, side: 'x1' });
     this.buildOutdoorFashionStore(-22, 1, 34, -14, 12, 52);          // AVM dışı bağımsız MODA & GİYİM mağazası
     this.buildTower(-22, 1, -52, -14, 12, -34, { ...BR, side: 'x1' });
-    this.buildMarket(-42, 1, 74, -32, 10, 94);
-    this.buildBazaar(-22, 1, 74, -14, 9, 102);
-    this.buildTower(-42, 1, 98, -32, 22, 122, { ...SL, side: 'x1' });
-    this.buildTower(-22, 1, 106, -14, 14, 126, { ...CC, side: 'x1' });
+    // ── KOCAMAN 2 KATLI HİPER SÜPERMARKET (MEGA GROSS MARKET) ──
+    // Çelik kafes açık tavan, Teardown tarzı metal raflar, yürüyen rampa, 8 reyon,
+    // 4 adet bantlı kasa, yükleme deposu, tekerlekli arabayla koli taşıyan işçi,
+    // hunici işçi ve alışveriş arabası süren anne & çocuk!
+    this.buildMegaSupermarket(-46, 1, 72, -12, 18, 126);
     this.buildTower(-22, 1, -96, -14, 18, -76, { ...CR, side: 'x1' });
     this.buildTower(-22, 1, -124, -14, 14, -102, { ...TR, side: 'x1' });
     // Batı genişlemesi (x -154..-80): yeni mahalleler
@@ -257,7 +258,7 @@ export class LevelManager {
     this.buildTower(-120, 1, -40, -96, 22, -8, { ...GR, side: 'z2' });
     this.buildTower(-120, 1, 74, -96, 12, 100, { ...BR, side: 'z1' });
     this.buildTower(-120, 1, -100, -96, 14, -74, { ...CR, side: 'z2' });
-    this.buildTower(-120, 1, 104, -96, 18, 126, { ...CC, side: 'z1' });
+    this.buildBakkal(-120, 1, 104, -96, 8, 126, 'GÜVEN BAKKALI', 0x16a34a);
     this.buildTower(-120, 1, -126, -96, 16, -104, { ...TR, side: 'z2' });
     this.buildTower(-150, 1, -40, -134, 10, -8, { ...SL, side: 'x2' });
     this.buildTower(-150, 1, 74, -134, 12, 110, { ...CC, side: 'x2' });
@@ -306,7 +307,7 @@ export class LevelManager {
     this.buildGrandSchoolCampus(274, 1, 146, 356, 18, 258);                         // KOCAMAN OKUL KAMPÜSÜ: duvarlar, futbol sahası, çocuklar ve okul zili!
     this.buildTower(270, 1, -38, 288, 26, -8, { ...CC, side: 'z2' });               // iş merkezi
     this.buildTower(270, 1, -82, 288, 20, -50, { ...BR, side: 'z1', interior: 'hotel' });  // otel
-    this.buildTower(270, 1, -122, 286, 24, -96, { ...CC, side: 'z2' });             // apartmanlar
+    this.buildBakkal(270, 1, -122, 286, 8, -100, 'YILDIZ BAKKALI', 0xdc2626);        // Ada Yıldız Bakkalı
     this.buildTower(324, 1, 8, 356, 28, 38, { ...CC, side: 'z1' });                 // apartman bloğu
     this.buildTower(324, 1, -38, 356, 22, -8, { ...BR, side: 'z2' });               // ofis kulesi
     this.buildTower(374, 1, 78, 394, 14, 100, { ...BR, side: 'x1' });
@@ -1189,8 +1190,8 @@ export class LevelManager {
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x1');
   }
 
-  // MAHALLE BAKKALI: Taze ekmek bölmesi, bakkal amca, ekmek alan çocuklar
-  buildBakkal(x1, y1, z1, x2, y2, z2) {
+  // MAHALLE BAKKALI: Taze ekmek bölmesi, bakkal amca, ekmek alan çocuklar, bayram şekerleri & bakkal çeşitleri
+  buildBakkal(x1, y1, z1, x2, y2, z2, name = 'MAHALLE BAKKALI', signColor = 0xb45309) {
     const w = this.b, vw = this.world;
     w.beginBuilding();
     w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.WOOD);
@@ -1202,7 +1203,7 @@ export class LevelManager {
 
     // Bakkal Tabelası
     const kit = new Kit(vw);
-    kit.sign('MAHALLE BAKKALI', { neon: true, color: 0xb45309, fg: 0xfef08a, w: 5.6, h: 1.1 }, (x2 + 0.25) * 0.75, (y1 + 5.5) * 0.5, zc * 0.75, -Math.PI / 2);
+    kit.sign(name, { neon: true, color: signColor, fg: 0xfef08a, w: 5.8, h: 1.1 }, (x2 + 0.25) * 0.75, (y1 + 5.5) * 0.5, zc * 0.75, -Math.PI / 2);
 
     // Ekmek Dolabı / Rafları (Ahşap bölmeler ve taze ekmekler)
     w.fillBox(x1 + 1, y1, z1 + 1, x1 + 2, y1 + 3, zc - 1, PALETTE.WOOD);
@@ -1211,10 +1212,13 @@ export class LevelManager {
       vw.propSpawns.push({ kind: 'bread', x: (x1 + 1.5) * 0.75, y: (y1 + 1.8) * 0.5, z: z * 0.75 });
     }
 
-    // Atıştırmalıklar ve içecekler
+    // Atıştırmalıklar, şekerlemeler ve içecekler
     vw.propSpawns.push({ kind: 'cola', x: (x1 + 1.5) * 0.75, y: (y1 + 3.5) * 0.5, z: (zc + 2) * 0.75 });
     vw.propSpawns.push({ kind: 'iced_tea', x: (x1 + 1.5) * 0.75, y: (y1 + 3.5) * 0.5, z: (zc + 4) * 0.75 });
     vw.propSpawns.push({ kind: 'chips', x: (x1 + 3.5) * 0.75, y: (y1 + 2.5) * 0.5, z: (z2 - 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'candy_box', x: (x1 + 3.5) * 0.75, y: (y1 + 1.8) * 0.5, z: (z2 - 3) * 0.75 });
+    vw.propSpawns.push({ kind: 'sweets', x: (x1 + 2.5) * 0.75, y: (y1 + 2.5) * 0.5, z: (z2 - 3) * 0.75 });
+    vw.propSpawns.push({ kind: 'shampoo', x: (x1 + 3.5) * 0.75, y: (y1 + 3.5) * 0.5, z: (z2 - 1) * 0.75 });
 
     // Kasa Tezgâhı & Bakkal Amca
     const csX = x2 - 2;
@@ -1232,6 +1236,252 @@ export class LevelManager {
     });
 
     this.addWindowBands(x1, y1, z1, x2, y2, z2, 'x2');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // KOCAMAN 2 KATLI HİPER SÜPERMARKET (MEGA GROSS MARKET)
+  // Çelik kafes kiriş açık tavan, Teardown tarzı metal raflar, yürüyen rampa,
+  // 5 bantlı kasa, abur cubur, deterjan, sprey, kırtasiye, bayram şekeri,
+  // köşe TV duvarı & kutuda televizyonlar, kamp ve doğa sporları, giyim,
+  // yükleme depolu ve tekerlekli arabayla koli taşıyan işçi, hunici işçi,
+  // alışveriş arabası süren anne & çocuk!
+  // ═══════════════════════════════════════════════════════════════════════════
+  buildMegaSupermarket(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+
+    // 1. Dış İskelet (Beton Zemin, Beyaz Panel Cephe ve Koyu Yeşil Detaylar)
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.WHITE, PALETTE.CONCRETE);
+
+    // 2. Kat Döşemesi (Mezzanine Floor at y = 9)
+    // Orta atrium boşluğu (x: x1+10 .. x2-10, z: z1+16 .. z1+38) açık bırakılarak alt kat ve üst kat birbirini görür!
+    w.fillBox(x1 + 1, 9, z1 + 1, x2 - 1, 9, z2 - 1, PALETTE.CONCRETE);
+    w.clearBox(x1 + 8, 9, z1 + 14, x2 - 8, 9, z1 + 36);
+
+    // Atrium etrafı krom/cam güvenlik korkulukları
+    for (let x = x1 + 8; x <= x2 - 8; x++) {
+      w.fillBox(x, 10, z1 + 14, x, 10, z1 + 14, PALETTE.GLASS);
+      w.fillBox(x, 10, z1 + 36, x, 10, z1 + 36, PALETTE.GLASS);
+    }
+    for (let z = z1 + 14; z <= z1 + 36; z++) {
+      w.fillBox(x1 + 8, 10, z, x1 + 8, 10, z, PALETTE.GLASS);
+      w.fillBox(x2 - 8, 10, z, x2 - 8, 10, z, PALETTE.GLASS);
+    }
+
+    // Katlar Arası Geniş Yürüyen Rampa / Merdiven (Escalator / Moving Ramp)
+    const rampX = x1 + 16;
+    for (let step = 0; step <= 8; step++) {
+      const sy = 1 + step;
+      const sz = z1 + 18 + step * 2;
+      w.fillBox(rampX - 2, sy, sz, rampX + 2, sy, sz + 1, PALETTE.IRON);
+      w.fillBox(rampX - 3, sy + 1, sz, rampX - 3, sy + 2, sz + 1, PALETTE.GLASS);
+      w.fillBox(rampX + 3, sy + 1, sz, rampX + 3, sy + 2, sz + 1, PALETTE.GLASS);
+    }
+
+    // 3. Yüksek Açık Çatı Çelik Kafes Kirişleri (Exposed Industrial Steel Roof Trusses)
+    // "O süpermarketin yukarısı çok geniş olsun böyle. Hani olur ya böyle yukarısı demir böyle desteklerle kaplı falan."
+    for (let z = z1 + 4; z <= z2 - 4; z += 8) {
+      w.fillBox(x1 + 1, y2 - 1, z, x2 - 1, y2 - 1, z, PALETTE.IRON);
+      for (let x = x1 + 3; x <= x2 - 5; x += 6) {
+        w.fillBox(x, y2 - 2, z, x + 2, y2 - 1, z, PALETTE.IRON);
+        w.fillBox(x + 2, y2 - 1, z, x + 4, y2 - 2, z, PALETTE.IRON);
+      }
+      // Büyük spiral havalandırma borusu
+      w.fillBox(x1 + 10, y2 - 2, z - 1, x1 + 13, y2 - 2, z + 1, PALETTE.SLATE);
+      // Asılı Endüstriyel Yüksek Tavan LED Lambaları
+      w.fillBox(x1 + 18, y2 - 2, z, x1 + 18, y2 - 2, z, PALETTE.LAMP);
+      w.fillBox(x2 - 12, y2 - 2, z, x2 - 12, y2 - 2, z, PALETTE.LAMP);
+    }
+
+    // 4. Ön Cephe & Giriş Kapıları (x1 tarafı ana caddeye bakar)
+    const zMid = Math.round((z1 + z2) / 2);
+    // Boydan boya modern çift katlı cam vitrin
+    w.fillBox(x1, y1 + 1, z1 + 4, x1, y2 - 2, z2 - 4, PALETTE.GLASS);
+    // İki çift otomatik sürgülü kapı girişi
+    const door1Z = z1 + 14, door2Z = z1 + 26;
+    [door1Z, door2Z].forEach(dz => {
+      w.clearBox(x1, y1, dz - 2, x1, y1 + 4, dz + 2);
+      this.world.doors.addSliding({
+        sx: x1 * 0.75, sz: dz * 0.75,
+        ax: 0, az: 1, width: 3.8, height: 3.0, y: 0.5
+      });
+      w.fillBox(x1 - 3, y1 + 5, dz - 3, x1, y1 + 5, dz + 3, PALETTE.DGREEN);
+    });
+
+    // 5. Devasa Neon Tabela: MEGA GROSS SÜPERMARKET
+    const kit = new Kit(vw);
+    kit.sign('MEGA GROSS MARKET', { neon: true, color: 0x16a34a, fg: 0xfef08a, w: 12.0, h: 1.8 }, (x1 - 0.3) * 0.75, (y1 + 12.5) * 0.5, zMid * 0.75, Math.PI / 2);
+    kit.sign('2. KAT: ELEKTRONİK & GİYİM & KAMP', { neon: false, bg: 0x0f172a, fg: 0x38bdf8, w: 9.0, h: 1.0 }, (x1 - 0.25) * 0.75, (y1 + 9.5) * 0.5, zMid * 0.75, Math.PI / 2);
+
+    // 6. Alışveriş Arabası Park İstasyonu (Girişte iç içe geçmiş metal alışveriş arabaları)
+    for (let cRow = 0; cRow < 3; cRow++) {
+      for (let cZ = z1 + 8; cZ <= z1 + 12; cZ += 1.4) {
+        vw.propSpawns.push({
+          kind: 'shopping_cart',
+          x: (x1 + 3 + cRow * 1.5) * 0.75,
+          y: 0.8,
+          z: cZ * 0.75,
+          yaw: Math.PI / 2
+        });
+      }
+    }
+
+    // 7. Kasa Hattı (5 Adet Bantlı Kasa Tezgâhı & Kasiyerler)
+    const checkoutX = x1 + 10;
+    for (let i = 0; i < 4; i++) {
+      const cz = z1 + 16 + i * 5;
+      w.fillBox(checkoutX - 2, y1, cz - 1, checkoutX + 2, y1 + 2, cz + 1, PALETTE.WHITE);
+      w.fillBox(checkoutX - 1, y1 + 2, cz, checkoutX + 1, y1 + 2, cz, PALETTE.BLACK);
+      vw.propSpawns.push({
+        kind: 'cash_register',
+        x: (checkoutX + 1.2) * 0.75,
+        y: (y1 + 2.5) * 0.5,
+        z: cz * 0.75,
+        yaw: -Math.PI / 2
+      });
+      vw.workers.push({
+        x: (checkoutX + 0.5) * 0.75,
+        y: 0.5,
+        z: (cz - 0.8) * 0.75,
+        yaw: Math.PI / 2,
+        pose: 'stand',
+        style: 'shop',
+        shirt: 0x16a34a
+      });
+    }
+
+    // 8. ZEMİN KAT REYONLARI (Ground Floor Aisles)
+    const makeSteelShelf = (sx1, sy1, sz1, sx2, sy2, sz2) => {
+      w.fillBox(sx1, sy1, sz1, sx1, sy2, sz1, PALETTE.IRON);
+      w.fillBox(sx2, sy1, sz1, sx2, sy2, sz1, PALETTE.IRON);
+      w.fillBox(sx1, sy1, sz2, sx1, sy2, sz2, PALETTE.IRON);
+      w.fillBox(sx2, sy1, sz2, sx2, sy2, sz2, PALETTE.IRON);
+      for (let ly of [sy1 + 1, sy1 + 3, sy1 + 5]) {
+        if (ly <= sy2) w.fillBox(sx1, ly, sz1, sx2, ly, sz2, PALETTE.IRON);
+      }
+    };
+
+    // ── REYON A: Abur Cubur, Cips & İçecekler ──
+    const rAx = x1 + 18;
+    makeSteelShelf(rAx, y1, z1 + 6, rAx + 2, y1 + 5, z1 + 22);
+    for (let z = z1 + 7; z <= z1 + 21; z += 2) {
+      vw.propSpawns.push({ kind: 'chips', x: (rAx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'cola', x: (rAx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'iced_tea', x: (rAx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'can', x: (rAx + 1.6) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
+    }
+
+    // ── REYON B: Bayram Şekeri & Çikolata Özel Reyonu ──
+    const rBx = x1 + 24;
+    w.fillBox(rBx - 1, y1, z1 + 8, rBx + 3, y1 + 2, z1 + 18, PALETTE.GOLD);
+    kit.sign('BAYRAM ŞEKERLERİ & ÇİKOLATA', { neon: false, bg: 0x991b1b, fg: 0xfef08a, w: 5.5, h: 0.9 }, (rBx + 1) * 0.75, (y1 + 4) * 0.5, (z1 + 13) * 0.75, 0);
+    for (let z = z1 + 9; z <= z1 + 17; z += 2) {
+      vw.propSpawns.push({ kind: 'candy_box', x: (rBx) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'candy_box', x: (rBx + 2) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'sweets', x: (rBx + 1) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
+    }
+
+    // ── REYON C: Deterjan, Spreyler, Saç Spreyi, Şampuan ──
+    const rCx = x1 + 30;
+    makeSteelShelf(rCx, y1, z1 + 6, rCx + 2, y1 + 5, z1 + 24);
+    for (let z = z1 + 7; z <= z1 + 23; z += 2) {
+      vw.propSpawns.push({ kind: 'detergent', x: (rCx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'shampoo', x: (rCx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'spray', x: (rCx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
+    }
+
+    // ── REYON D: Okula Dönüş & Kırtasiye Reyonu ──
+    const rDx = x2 - 8;
+    makeSteelShelf(rDx, y1, z1 + 6, rDx + 2, y1 + 5, z1 + 24);
+    kit.sign('OKULA DÖNÜŞ KIRTASİYE', { neon: false, bg: 0x1d4ed8, fg: 0xffffff, w: 6.0, h: 0.9 }, (rDx + 1) * 0.75, (y1 + 6.5) * 0.5, (z1 + 15) * 0.75, 0);
+    for (let z = z1 + 7; z <= z1 + 23; z += 2) {
+      vw.propSpawns.push({ kind: 'crayons', x: (rDx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'notebook', x: (rDx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'pencil_case', x: (rDx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'book', x: (rDx + 1.6) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
+    }
+
+    // ── 9. ARKA BÜYÜK DEPO (Warehouse & Delivery Storage) ──
+    const depZ1 = z2 - 16, depZ2 = z2 - 1;
+    w.fillBox(x1 + 1, y1, depZ1, x2 - 1, y2 - 1, depZ1, PALETTE.CONCRETE);
+    w.clearBox(x1 + 16, y1, depZ1, x1 + 20, y1 + 4, depZ1);
+    w.clearBox(x2 - 1, y1, depZ1 + 4, x2, y1 + 6, depZ2 - 2);
+    w.fillBox(x2, y1, depZ1 + 4, x2, y1 + 6, depZ2 - 2, PALETTE.SLATE);
+
+    for (let dx = x1 + 4; dx <= x2 - 6; dx += 8) {
+      makeSteelShelf(dx, y1, depZ1 + 3, dx + 4, y1 + 7, depZ1 + 6);
+      for (let px = dx + 1; px <= dx + 3; px += 2) {
+        vw.propSpawns.push({ kind: 'pallet_box', x: px * 0.75, y: (y1 + 1.8) * 0.5, z: (depZ1 + 4.5) * 0.75 });
+        vw.propSpawns.push({ kind: 'box', x: px * 0.75, y: (y1 + 3.8) * 0.5, z: (depZ1 + 4.5) * 0.75 });
+        vw.propSpawns.push({ kind: 'pallet_box', x: px * 0.75, y: (y1 + 5.8) * 0.5, z: (depZ1 + 4.5) * 0.75 });
+      }
+    }
+
+    // Depo zemininde sıralı güvenlik hunileri ("hunileri yerine koysun")
+    for (let coneZ = depZ1 + 2; coneZ <= depZ1 + 8; coneZ += 2) {
+      vw.propSpawns.push({ kind: 'traffic_cone', x: (x1 + 15) * 0.75, y: 0.6, z: coneZ * 0.75 });
+    }
+
+    // ── 10. 1. KAT (ÜST KAT) BÖLÜMLERİ (Upper Floor Departments) ──
+    const fy = 9;
+
+    // ── A. Köşe TV & Elektronik Alanı ──
+    const tvCornerX = x1 + 3, tvCornerZ = z1 + 6;
+    w.fillBox(tvCornerX, fy + 2, tvCornerZ, tvCornerX, fy + 5, tvCornerZ + 6, PALETTE.LAMP_BLUE);
+    w.fillBox(tvCornerX, fy + 2, tvCornerZ + 8, tvCornerX, fy + 5, tvCornerZ + 14, PALETTE.LAMP_GREEN);
+    w.fillBox(tvCornerX, fy + 2, tvCornerZ, tvCornerX - 1, fy + 5, tvCornerZ + 14, PALETTE.BLACK);
+
+    makeSteelShelf(tvCornerX + 4, fy, tvCornerZ, tvCornerX + 6, fy + 5, tvCornerZ + 12);
+    for (let tz = tvCornerZ + 2; tz <= tvCornerZ + 10; tz += 3) {
+      vw.propSpawns.push({ kind: 'tv_box', x: (tvCornerX + 5) * 0.75, y: (fy + 1.8) * 0.5, z: tz * 0.75, yaw: Math.PI / 2 });
+      vw.propSpawns.push({ kind: 'tv_box', x: (tvCornerX + 5) * 0.75, y: (fy + 3.8) * 0.5, z: tz * 0.75, yaw: Math.PI / 2 });
+      vw.propSpawns.push({ kind: 'game_console', x: (tvCornerX + 2) * 0.75, y: (fy + 1.6) * 0.5, z: tz * 0.75 });
+      vw.propSpawns.push({ kind: 'laptop', x: (tvCornerX + 2) * 0.75, y: (fy + 3.6) * 0.5, z: tz * 0.75 });
+    }
+
+    // ── B. Kamp & Doğa Sporları Reyonu ──
+    const campX = x1 + 18, campZ = z1 + 8;
+    w.fillBox(campX, fy, campZ, campX + 6, fy + 1, campZ + 6, PALETTE.WOOD);
+    kit.sign('DOĞA SPORLARI & KAMP', { neon: true, color: 0x15803d, fg: 0xfef08a, w: 6.0, h: 1.0 }, (campX + 3) * 0.75, (fy + 4) * 0.5, campZ * 0.75, 0);
+    vw.propSpawns.push({ kind: 'camping_tent_bag', x: (campX + 1.5) * 0.75, y: (fy + 1.6) * 0.5, z: (campZ + 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'camping_tent_bag', x: (campX + 4.5) * 0.75, y: (fy + 1.6) * 0.5, z: (campZ + 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'cooler_box', x: (campX + 1.5) * 0.75, y: (fy + 1.6) * 0.5, z: (campZ + 4.5) * 0.75 });
+    vw.propSpawns.push({ kind: 'camping_lantern', x: (campX + 3.5) * 0.75, y: (fy + 1.6) * 0.5, z: (campZ + 4.5) * 0.75 });
+    vw.propSpawns.push({ kind: 'chair', x: (campX + 4.8) * 0.75, y: (fy + 1.6) * 0.5, z: (campZ + 4.5) * 0.75 });
+
+    // ── C. Giysi & Tekstil Reyonu ──
+    const fashX = x2 - 10, fashZ = z1 + 8;
+    kit.sign('TREND GİYİM & MODA', { neon: true, color: 0xd946ef, fg: 0xffffff, w: 5.8, h: 1.0 }, (fashX + 3) * 0.75, (fy + 4) * 0.5, fashZ * 0.75, 0);
+    w.fillBox(fashX, fy, fashZ + 2, fashX + 6, fy + 3, fashZ + 2, PALETTE.IRON);
+    for (let fx = fashX + 1; fx <= fashX + 5; fx += 1.5) {
+      vw.propSpawns.push({ kind: 'shirt', x: fx * 0.75, y: (fy + 3.2) * 0.5, z: (fashZ + 2) * 0.75 });
+      vw.propSpawns.push({ kind: 'jacket', x: fx * 0.75, y: (fy + 3.2) * 0.5, z: (fashZ + 4) * 0.75 });
+      vw.propSpawns.push({ kind: 'pants', x: fx * 0.75, y: (fy + 3.2) * 0.5, z: (fashZ + 6) * 0.75 });
+      vw.propSpawns.push({ kind: 'shoe', x: fx * 0.75, y: (fy + 1.4) * 0.5, z: (fashZ + 5) * 0.75 });
+    }
+
+    // ── 11. NPC ETKİLEŞİMLERİ (Çalışanlar, Koli Taşıyan Görevli, Anne ve Çocuk) ──
+    vw.supermarketSpecialNPCs = vw.supermarketSpecialNPCs || [];
+    vw.supermarketSpecialNPCs.push({
+      type: 'stock_worker',
+      depotPos: { x: (x1 + 18) * 0.75, y: 0.5, z: (depZ1 + 4) * 0.75 },
+      aislePos: { x: (rAx + 1) * 0.75, y: 0.5, z: (z1 + 12) * 0.75 }
+    });
+
+    vw.supermarketSpecialNPCs.push({
+      type: 'cone_worker',
+      conePos1: { x: (x1 + 14) * 0.75, y: 0.5, z: (z1 + 12) * 0.75 },
+      conePos2: { x: (x1 + 14) * 0.75, y: 0.5, z: (depZ1 + 3) * 0.75 }
+    });
+
+    vw.supermarketSpecialNPCs.push({
+      type: 'mom_and_kid',
+      startPos: { x: (x1 + 4) * 0.75, y: 0.5, z: (z1 + 12) * 0.75 },
+      candyPos: { x: (rBx + 1) * 0.75, y: 0.5, z: (z1 + 13) * 0.75 },
+      schoolPos: { x: (rDx + 1) * 0.75, y: 0.5, z: (z1 + 15) * 0.75 },
+      checkoutPos: { x: (checkoutX) * 0.75, y: 0.5, z: (z1 + 18) * 0.75 },
+      exitPos: { x: (x1 - 2) * 0.75, y: 0.5, z: (z1 + 14) * 0.75 }
+    });
   }
 
   // TEKNO MARKET (AVM dışı bağımsız teknoloji mağazası):
@@ -3292,7 +3542,7 @@ export class LevelManager {
   // Konum: x: -740 .. -540, z: -680 .. -150
   // ─────────────────────────────────────────────────────────────────────────────
   buildAirport() {
-    const w = this.b;
+    const w = this.b, vw = this.world;
     w.beginBuilding();
 
     // 1. UÇAK PİSTİ (RUNWAY 09/27) — 40 birim genişlik, 480 birim uzunluk (360 metre!)
@@ -3364,26 +3614,109 @@ export class LevelManager {
       });
     });
 
-    // Terminal İçi:
-    // Zemin Kat (Arrivals): Bagaj alım bantları (Luggage Carousels)
-    [-450, -390, -330].forEach(bz => {
+    // ── KULLANICI İSTEĞİ: HAVALİMANI TÜM KATLARINI ARAŞTIRIP ZENGİN DETAYLARLA DONATMA ──
+    const kit = new Kit(vw);
+
+    // ─────────────────────────────────────────────────────────────
+    // Zemin Kat (Arrivals / Gelen Yolcu & Bagaj Alım Salonu):
+    // 3 adet dev döner bagaj bandı, dönen bavullar, LCD monitörler,
+    // Kayıp Bagaj & Danışma bankosu, karşılama salonu
+    // ─────────────────────────────────────────────────────────────
+    const carouselZ = [-450, -390, -330];
+    carouselZ.forEach((bz, idx) => {
       w.fillBox(tX1 - 18, 1, bz - 6, tX1 - 6, 1, bz + 6, PALETTE.IRON);         // dönen bagaj bandı
       w.clearBox(tX1 - 15, 1, bz - 3, tX1 - 9, 1, bz + 3);                      // iç boşluk
       w.fillBox(tX1 - 15, 1, bz - 3, tX1 - 9, 2, bz + 3, PALETTE.WHITE);        // merkez süsü
+
+      // Bant üstündeki rengarenk bavullar (Luggage)
+      vw.propSpawns.push({ kind: 'luggage', x: (tX1 - 16.5) * 0.75, y: 0.8, z: (bz - 4) * 0.75, yaw: 0 });
+      vw.propSpawns.push({ kind: 'luggage', x: (tX1 - 7.5) * 0.75, y: 0.8, z: (bz + 3) * 0.75, yaw: Math.PI / 3 });
+      vw.propSpawns.push({ kind: 'luggage', x: (tX1 - 12) * 0.75, y: 0.8, z: (bz - 5) * 0.75, yaw: Math.PI / 2 });
+      vw.propSpawns.push({ kind: 'luggage', x: (tX1 - 14) * 0.75, y: 0.8, z: (bz + 5) * 0.75, yaw: 2.2 });
+
+      // Tavanda asılı LCD Uçuş Geliş Bilgi Ekranı
+      kit.sign(`BAGAJ BANDI 0${idx + 1}`, { neon: true, color: 0x0284c7, fg: 0xffffff, w: 4.8, h: 0.85 }, (tX1 - 12) * 0.75, 2.5, bz * 0.75, 0);
     });
-    // 1. Kat (Departures): Check-in Kontuarları ve Güvenlik X-Ray Kapıları
+
+    // Kayıp Bagaj (Lost & Found) & Karşılama Danışma Bankosu
+    const infoZ = -480;
+    w.fillBox(tX1 - 16, 1, infoZ - 3, tX1 - 12, 2, infoZ + 3, PALETTE.WOOD);
+    vw.workers.push({ x: (tX1 - 14) * 0.75, y: 0.5, z: infoZ * 0.75, yaw: -Math.PI / 2, pose: 'stand', style: 'office', shirt: 0x0284c7 });
+    vw.propSpawns.push({ kind: 'laptop', x: (tX1 - 13.5) * 0.75, y: 1.6, z: infoZ * 0.75 });
+    vw.propSpawns.push({ kind: 'phone', x: (tX1 - 13.5) * 0.75, y: 1.6, z: (infoZ + 1.5) * 0.75 });
+    kit.sign('DANIŞMA & KAYIP EŞYA', { neon: false, bg: 0x0f172a, fg: 0x38bdf8, w: 5.5, h: 0.8 }, (tX1 - 14) * 0.75, 2.3, infoZ * 0.75, 0);
+
+    // ─────────────────────────────────────────────────────────────
+    // 1. Kat (Departures / Giden Yolcu, Bilet Kontuarı & Güvenlik):
+    // Check-in masaları, havayolu personeli, bavul kuyruğu,
+    // tartı kantarları, X-Ray kapıları ve Dev FIDS Uçuş Tablosu
+    // ─────────────────────────────────────────────────────────────
+    // Asılı Dev Uçuş Kalkış Tablosu (Departure Board)
+    kit.sign('UÇUŞ KALKIŞ (DEPARTURES)', { neon: true, color: 0x0284c7, fg: 0xfef08a, w: 11.0, h: 1.5 }, (tX1 - 22) * 0.75, 6.2, -390 * 0.75, 0);
+
     for (let z = tZ0 + 20; z <= tZ1 - 20; z += 18) {
-      w.fillBox(tX1 - 20, 8, z - 4, tX1 - 16, 9, z + 4, PALETTE.WHITE);         // check-in masası
+      // Check-in desk bankosu ve kantarı
+      w.fillBox(tX1 - 20, 8, z - 4, tX1 - 16, 9, z + 4, PALETTE.WHITE);
       w.fillBox(tX1 - 20, 10, z - 2, tX1 - 20, 11, z + 2, PALETTE.IRON);        // bilet monitörleri
-      // Güvenlik metal detektör kapısı
+      w.fillBox(tX1 - 16, 8, z - 3, tX1 - 15, 8, z - 1, PALETTE.IRON);          // bagaj tartı kantarı
+
+      // Check-in bilet görevlisi memur
+      vw.workers.push({ x: (tX1 - 18.5) * 0.75, y: 4.2, z: z * 0.75, yaw: -Math.PI / 2, pose: 'stand', style: 'office', shirt: 0x0284c7 });
+      vw.propSpawns.push({ kind: 'cash_register', x: (tX1 - 17.5) * 0.75, y: 5.0, z: z * 0.75, yaw: -Math.PI / 2 });
+
+      // Kontuar önünde sıradaki bavullar
+      vw.propSpawns.push({ kind: 'luggage', x: (tX1 - 14) * 0.75, y: 4.5, z: (z - 1.5) * 0.75, yaw: 0.3 });
+      vw.propSpawns.push({ kind: 'luggage', x: (tX1 - 13.5) * 0.75, y: 4.5, z: (z + 1.5) * 0.75, yaw: 1.4 });
+
+      // Güvenlik metal detektör kapısı & üniformalı güvenlik polisi
       w.fillBox(tX1 - 32, 8, z - 2, tX1 - 32, 11, z - 2, PALETTE.IRON);
       w.fillBox(tX1 - 32, 8, z + 2, tX1 - 32, 11, z + 2, PALETTE.IRON);
       w.fillBox(tX1 - 32, 11, z - 2, tX1 - 32, 11, z + 2, PALETTE.IRON);
+      vw.workers.push({ x: (tX1 - 34) * 0.75, y: 4.2, z: z * 0.75, yaw: Math.PI / 2, pose: 'stand', style: 'cop', shirt: 0x1e293b });
     }
-    // 2. Kat (Gates & Duty Free): Bekleme koltuk sıraları ve Duty-Free
+
+    // ─────────────────────────────────────────────────────────────
+    // 2. Kat (Gates, Havalimanı Cafe & Duty-Free Alışveriş):
+    // Airport Cafe barı, kahveler, çörekler, Duty Free lüks parfümeri,
+    // hediyelikler, elektronikler, kapı bekleme salonu ve valizler
+    // ─────────────────────────────────────────────────────────────
+    // A. Havalimanı Cafe Lounge
+    const cafeZ = -460;
+    w.fillBox(tX0 + 14, 16, cafeZ - 6, tX0 + 24, 17, cafeZ + 6, PALETTE.WOOD);
+    kit.sign('AIRPORT CAFE & LOUNGE', { neon: true, color: 0xb45309, fg: 0xfef08a, w: 7.5, h: 1.1 }, (tX0 + 19) * 0.75, 10.5, cafeZ * 0.75, 0);
+    vw.workers.push({ x: (tX0 + 19) * 0.75, y: 8.5, z: cafeZ * 0.75, yaw: 0, pose: 'stand', style: 'cafe', shirt: 0xd97706 });
+    vw.propSpawns.push({ kind: 'coffee', x: (tX0 + 17) * 0.75, y: 9.2, z: (cafeZ - 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'coffee', x: (tX0 + 19) * 0.75, y: 9.2, z: (cafeZ + 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'donut', x: (tX0 + 21) * 0.75, y: 9.2, z: (cafeZ - 1) * 0.75 });
+    vw.propSpawns.push({ kind: 'water_bottle', x: (tX0 + 22) * 0.75, y: 9.2, z: (cafeZ + 1) * 0.75 });
+
+    // B. Duty-Free Lüks Alışveriş Mağazası (Geniş cam vitrinli reyonlar)
+    const dfZ = -360;
+    w.fillBox(tX1 - 24, 16, dfZ - 14, tX1 - 8, 16, dfZ + 14, PALETTE.WHITE);
+    w.fillBox(tX1 - 24, 16, dfZ - 14, tX1 - 22, 19, dfZ + 14, PALETTE.GLASS);
+    w.fillBox(tX1 - 10, 16, dfZ - 14, tX1 - 8, 19, dfZ + 14, PALETTE.GLASS);
+    kit.sign('DUTY FREE SHOP & PARFUM', { neon: true, color: 0x7c3aed, fg: 0xffffff, w: 9.0, h: 1.2 }, (tX1 - 16) * 0.75, 10.5, dfZ * 0.75, 0);
+
+    // Duty-Free raflarındaki lüks parfümler, kutulu hediyeler ve cihazlar
+    vw.propSpawns.push({ kind: 'spray', x: (tX1 - 16) * 0.75, y: 9.0, z: (dfZ - 8) * 0.75 });
+    vw.propSpawns.push({ kind: 'spray', x: (tX1 - 16) * 0.75, y: 9.0, z: (dfZ - 5) * 0.75 });
+    vw.propSpawns.push({ kind: 'candy_box', x: (tX1 - 16) * 0.75, y: 9.0, z: (dfZ - 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'sweets', x: (tX1 - 16) * 0.75, y: 9.0, z: (dfZ + 2) * 0.75 });
+    vw.propSpawns.push({ kind: 'phone', x: (tX1 - 16) * 0.75, y: 9.0, z: (dfZ + 5) * 0.75 });
+    vw.propSpawns.push({ kind: 'laptop', x: (tX1 - 16) * 0.75, y: 9.0, z: (dfZ + 8) * 0.75 });
+    vw.propSpawns.push({ kind: 'cash_register', x: (tX1 - 12) * 0.75, y: 9.0, z: dfZ * 0.75, yaw: -Math.PI / 2 });
+    vw.workers.push({ x: (tX1 - 10) * 0.75, y: 8.5, z: dfZ * 0.75, yaw: -Math.PI / 2, pose: 'stand', style: 'shop', shirt: 0x7c3aed });
+
+    // C. Bekleme Salonu Koltuk Sıraları & Kapılar (Gate 1 & Gate 2)
+    kit.sign('GATE 01 - B737 ISTANBUL', { neon: true, color: 0x16a34a, fg: 0xffffff, w: 6.2, h: 0.9 }, (tX0 + 4) * 0.75, 10.5, -420 * 0.75, Math.PI / 2);
+    kit.sign('GATE 02 - B737 LONDON', { neon: true, color: 0x16a34a, fg: 0xffffff, w: 6.2, h: 0.9 }, (tX0 + 4) * 0.75, 10.5, -350 * 0.75, Math.PI / 2);
+
     for (let z = tZ0 + 16; z <= tZ1 - 16; z += 14) {
       w.fillBox(tX0 + 8, 16, z - 4, tX0 + 12, 16, z + 4, PALETTE.WOOD);         // yolcu bekleme koltukları
       w.fillBox(tX0 + 8, 17, z - 4, tX0 + 8, 17, z + 4, PALETTE.WOOD);          // koltuk arkalığı
+      // Yolcuların yanındaki bavul ve kahveler
+      vw.propSpawns.push({ kind: 'luggage', x: (tX0 + 10) * 0.75, y: 8.5, z: (z - 2) * 0.75, yaw: 0.5 });
+      vw.propSpawns.push({ kind: 'coffee', x: (tX0 + 11) * 0.75, y: 8.8, z: (z + 2) * 0.75 });
     }
 
     // 4. TELESKOPİK YOLCU KÖRÜKLERİ (JET BRIDGES)

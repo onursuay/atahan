@@ -79,6 +79,7 @@ export class NPCManager {
     this.strollers = [];
     this.chatGroups = [];
     this.playgroundKids = [];
+    this.supermarketSpecialNPCs = [];
   }
 
   reset() {
@@ -117,6 +118,14 @@ export class NPCManager {
       });
     }
     this.playgroundKids = [];
+    if (this.supermarketSpecialNPCs) {
+      this.supermarketSpecialNPCs.forEach(s => {
+        if (s.group) this.scene.remove(s.group);
+        if (s.momGroup) this.scene.remove(s.momGroup);
+        if (s.kidGroup) this.scene.remove(s.kidGroup);
+      });
+    }
+    this.supermarketSpecialNPCs = [];
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (const m of this.voxelWorld.marketCats || []) this.cats.addMarketCats(m.x, m.y, m.z); // market kedileri
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
@@ -133,6 +142,7 @@ export class NPCManager {
     this._spawnStrollers();                                                  // BEBEK ARABASI VE ANNE: Tekerlekli arabada oturan bebek ve gezdiren annesi
     this._spawnChatGroups();                                                 // PARKTA SOHBET EDENLER: Bankta ikililer ve çemberde konuşan 4-5 kişilik gruplar
     this._spawnPlaygroundKids();                                             // OYUN PARKI: Salıncakta sallanan ve kaydıraktan kayan çocuklar
+    for (const sm of this.voxelWorld.supermarketSpecialNPCs || []) this._spawnSupermarketSpecialNPC(sm);
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
@@ -801,6 +811,7 @@ export class NPCManager {
     this.cats.update(dt, playerPos);
     this._updateBakkalKids(dt);
     this._updateMarketShoppers(dt);
+    this._updateSupermarketSpecialNPCs(dt);
     this._updateCarOwners(dt);
   }
 
@@ -1026,6 +1037,250 @@ export class NPCManager {
         }
       }
       sh.group.position.set(sh.x, sh.y, sh.z);
+    }
+  }
+
+  // ── SÜPERMARKET ÖZEL ÇALIŞANLARI & MÜŞTERİLERİ ──
+  // 1. Koli taşıma arabasıyla depodan raflara kutu taşıyan işçi
+  // 2. Güvenlik hunilerini kontrol edip yerleştiren işçi
+  // 3. Alışveriş arabasıyla gezen anne ve çocuğu
+  _spawnSupermarketSpecialNPC(spec) {
+    if (spec.type === 'stock_worker') {
+      const body = this._makeBody(false, null, { shirt: 0xd97706, pants: 0x1e293b });
+      body.g.scale.setScalar(SCALE);
+      body.g.position.set(spec.depotPos.x, spec.depotPos.y, spec.depotPos.z);
+      this.scene.add(body.g);
+
+      // Taşıma arabası ve üzerindeki koli kutusu
+      const cart = new THREE.Group();
+      const cartBase = new THREE.Mesh(boxGeo(0.5, 0.08, 0.7), mat(0x475569));
+      const cartHandle = new THREE.Mesh(boxGeo(0.44, 0.5, 0.04), mat(0x94a3b8));
+      cartHandle.position.set(0, 0.25, -0.32);
+      const boxOnCart = new THREE.Mesh(boxGeo(0.44, 0.36, 0.44), mat(0xd4a373));
+      boxOnCart.position.set(0, 0.22, 0.05);
+      cart.add(cartBase, cartHandle, boxOnCart);
+      cart.position.set(0, -0.4, 0.6);
+      body.g.add(cart);
+
+      this.supermarketSpecialNPCs.push({
+        type: 'stock_worker',
+        ...body, group: body.g, cart, boxOnCart, spec,
+        x: spec.depotPos.x, y: spec.depotPos.y, z: spec.depotPos.z,
+        phase: 'go_to_aisle', timer: 0, cycle: 0
+      });
+    } else if (spec.type === 'cone_worker') {
+      const body = this._makeBody(false, null, { shirt: 0xf59e0b, pants: 0x334155 });
+      body.g.scale.setScalar(SCALE);
+      body.g.position.set(spec.conePos1.x, spec.conePos1.y, spec.conePos1.z);
+      this.scene.add(body.g);
+
+      const cone = new THREE.Mesh(boxGeo(0.18, 0.28, 0.18), mat(0xea580c));
+      cone.position.set(0.2, -0.3, 0.25);
+      body.rArm.add(cone);
+
+      this.supermarketSpecialNPCs.push({
+        type: 'cone_worker',
+        ...body, group: body.g, cone, spec,
+        x: spec.conePos1.x, y: spec.conePos1.y, z: spec.conePos1.z,
+        phase: 'inspect1', timer: 2.2, cycle: 0
+      });
+    } else if (spec.type === 'mom_and_kid') {
+      const mom = this._makeBody(false, null, { shirt: 0xd946ef, pants: 0x1e3a5f });
+      mom.g.scale.setScalar(SCALE);
+      mom.g.position.set(spec.startPos.x, spec.startPos.y, spec.startPos.z);
+      this.scene.add(mom.g);
+
+      // Alışveriş arabası
+      const cart = new THREE.Group();
+      const wire = new THREE.Mesh(boxGeo(0.44, 0.32, 0.54), mat(0x94a3b8));
+      const redHandle = new THREE.Mesh(boxGeo(0.42, 0.04, 0.04), mat(0xdc2626));
+      redHandle.position.set(0, 0.18, -0.28);
+      cart.add(wire, redHandle);
+      cart.position.set(0, -0.4, 0.55);
+      mom.g.add(cart);
+
+      const kid = this._makeBody(false, null, { shirt: 0x38bdf8, pants: 0x475569 });
+      kid.g.scale.setScalar(SCALE * 0.62);
+      kid.g.position.set(spec.startPos.x + 0.6, spec.startPos.y, spec.startPos.z - 0.2);
+      this.scene.add(kid.g);
+
+      this.supermarketSpecialNPCs.push({
+        type: 'mom_and_kid',
+        mom, kid, momGroup: mom.g, kidGroup: kid.g, cart, spec,
+        x: spec.startPos.x, y: spec.startPos.y, z: spec.startPos.z,
+        phase: 'go_to_candy', timer: 0, cycle: 0
+      });
+    }
+  }
+
+  _updateSupermarketSpecialNPCs(dt) {
+    for (const s of this.supermarketSpecialNPCs) {
+      s.cycle += dt * 6.5;
+
+      if (s.type === 'stock_worker') {
+        const walk = () => {
+          s.lLeg.rotation.x = Math.sin(s.cycle) * 0.5;
+          s.rLeg.rotation.x = -Math.sin(s.cycle) * 0.5;
+          s.lArm.rotation.x = -0.5;
+          s.rArm.rotation.x = -0.5;
+        };
+
+        if (s.phase === 'go_to_aisle') {
+          const target = s.spec.aislePos;
+          const dx = target.x - s.x, dz = target.z - s.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            s.phase = 'stock_shelf';
+            s.timer = 3.0;
+            s.boxOnCart.visible = false;
+          } else {
+            s.heading = Math.atan2(dx, dz);
+            s.group.rotation.y = s.heading;
+            s.x += (dx / d) * dt * 1.5;
+            s.z += (dz / d) * dt * 1.5;
+            walk();
+          }
+        } else if (s.phase === 'stock_shelf') {
+          s.timer -= dt;
+          s.lArm.rotation.x = -1.2 + Math.sin(s.cycle * 2) * 0.2;
+          s.rArm.rotation.x = -1.2 - Math.sin(s.cycle * 2) * 0.2;
+          if (s.timer <= 0) s.phase = 'return_to_depot';
+        } else if (s.phase === 'return_to_depot') {
+          const target = s.spec.depotPos;
+          const dx = target.x - s.x, dz = target.z - s.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            s.phase = 'load_box';
+            s.timer = 2.5;
+          } else {
+            s.heading = Math.atan2(dx, dz);
+            s.group.rotation.y = s.heading;
+            s.x += (dx / d) * dt * 1.5;
+            s.z += (dz / d) * dt * 1.5;
+            walk();
+          }
+        } else if (s.phase === 'load_box') {
+          s.timer -= dt;
+          if (s.timer <= 0) {
+            s.boxOnCart.visible = true;
+            s.phase = 'go_to_aisle';
+          }
+        }
+        s.group.position.set(s.x, s.y, s.z);
+
+      } else if (s.type === 'cone_worker') {
+        if (s.phase === 'inspect1') {
+          s.timer -= dt;
+          s.rArm.rotation.x = -1.2;
+          if (s.timer <= 0) s.phase = 'walk_to_cone2';
+        } else if (s.phase === 'walk_to_cone2') {
+          const target = s.spec.conePos2;
+          const dx = target.x - s.x, dz = target.z - s.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.5) {
+            s.phase = 'inspect2';
+            s.timer = 2.5;
+          } else {
+            s.heading = Math.atan2(dx, dz);
+            s.group.rotation.y = s.heading;
+            s.x += (dx / d) * dt * 1.3;
+            s.z += (dz / d) * dt * 1.3;
+            s.lLeg.rotation.x = Math.sin(s.cycle) * 0.5;
+            s.rLeg.rotation.x = -Math.sin(s.cycle) * 0.5;
+          }
+        } else if (s.phase === 'inspect2') {
+          s.timer -= dt;
+          s.rArm.rotation.x = -1.0;
+          if (s.timer <= 0) s.phase = 'walk_to_cone1';
+        } else if (s.phase === 'walk_to_cone1') {
+          const target = s.spec.conePos1;
+          const dx = target.x - s.x, dz = target.z - s.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.5) {
+            s.phase = 'inspect1';
+            s.timer = 2.5;
+          } else {
+            s.heading = Math.atan2(dx, dz);
+            s.group.rotation.y = s.heading;
+            s.x += (dx / d) * dt * 1.3;
+            s.z += (dz / d) * dt * 1.3;
+            s.lLeg.rotation.x = Math.sin(s.cycle) * 0.5;
+            s.rLeg.rotation.x = -Math.sin(s.cycle) * 0.5;
+          }
+        }
+        s.group.position.set(s.x, s.y, s.z);
+
+      } else if (s.type === 'mom_and_kid') {
+        const walk = () => {
+          s.mom.lLeg.rotation.x = Math.sin(s.cycle) * 0.5;
+          s.mom.rLeg.rotation.x = -Math.sin(s.cycle) * 0.5;
+          s.mom.lArm.rotation.x = -0.55;
+          s.mom.rArm.rotation.x = -0.55;
+          s.kid.lLeg.rotation.x = Math.sin(s.cycle * 1.2) * 0.6;
+          s.kid.rLeg.rotation.x = -Math.sin(s.cycle * 1.2) * 0.6;
+          s.kid.lArm.rotation.x = -Math.sin(s.cycle * 1.2) * 0.5;
+          s.kid.rArm.rotation.x = Math.sin(s.cycle * 1.2) * 0.5;
+        };
+
+        let target = null;
+        if (s.phase === 'go_to_candy') target = s.spec.candyPos;
+        else if (s.phase === 'go_to_school') target = s.spec.schoolPos;
+        else if (s.phase === 'go_to_checkout') target = s.spec.checkoutPos;
+        else if (s.phase === 'go_to_exit') target = s.spec.exitPos;
+
+        if (target) {
+          const dx = target.x - s.x, dz = target.z - s.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            if (s.phase === 'go_to_candy') {
+              s.phase = 'wait_candy';
+              s.timer = 3.0;
+              s.kid.rArm.rotation.x = -1.5;
+            } else if (s.phase === 'go_to_school') {
+              s.phase = 'wait_school';
+              s.timer = 2.5;
+            } else if (s.phase === 'go_to_checkout') {
+              s.phase = 'wait_checkout';
+              s.timer = 2.5;
+            } else if (s.phase === 'go_to_exit') {
+              s.phase = 'cooldown';
+              s.timer = 15.0;
+              s.momGroup.visible = false;
+              s.kidGroup.visible = false;
+            }
+          } else {
+            s.heading = Math.atan2(dx, dz);
+            s.momGroup.rotation.y = s.heading;
+            s.kidGroup.rotation.y = s.heading;
+            s.x += (dx / d) * dt * 1.4;
+            s.z += (dz / d) * dt * 1.4;
+            walk();
+          }
+        } else if (s.phase === 'wait_candy') {
+          s.timer -= dt;
+          s.kid.rArm.rotation.x = -1.4 + Math.sin(s.cycle * 3) * 0.2;
+          if (s.timer <= 0) s.phase = 'go_to_school';
+        } else if (s.phase === 'wait_school') {
+          s.timer -= dt;
+          if (s.timer <= 0) s.phase = 'go_to_checkout';
+        } else if (s.phase === 'wait_checkout') {
+          s.timer -= dt;
+          if (s.timer <= 0) s.phase = 'go_to_exit';
+        } else if (s.phase === 'cooldown') {
+          s.timer -= dt;
+          if (s.timer <= 0) {
+            s.x = s.spec.startPos.x;
+            s.z = s.spec.startPos.z;
+            s.momGroup.visible = true;
+            s.kidGroup.visible = true;
+            s.phase = 'go_to_candy';
+          }
+        }
+
+        s.momGroup.position.set(s.x, s.y, s.z);
+        const cosH = Math.cos(s.heading || 0), sinH = Math.sin(s.heading || 0);
+        s.kidGroup.position.set(s.x + cosH * 0.65 - sinH * 0.2, s.y, s.z - sinH * 0.65 - cosH * 0.2);
+      }
     }
   }
 
@@ -2150,6 +2405,14 @@ export class NPCManager {
   // Kullanıcı İsteği: "Hatta parkta falan oynayan da olsun."
   _spawnPlaygroundKids() {
     this.playgroundKids = [];
+    if (this.supermarketSpecialNPCs) {
+      this.supermarketSpecialNPCs.forEach(s => {
+        if (s.group) this.scene.remove(s.group);
+        if (s.momGroup) this.scene.remove(s.momGroup);
+        if (s.kidGroup) this.scene.remove(s.kidGroup);
+      });
+    }
+    this.supermarketSpecialNPCs = [];
 
     // 1. Salıncakta sallanan çocuklar
     const swingPositions = [
