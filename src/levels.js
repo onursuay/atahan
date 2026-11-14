@@ -1813,7 +1813,9 @@ export class LevelManager {
     w.fillBox(x1, y1, z1, x2, y1, z2, PALETTE.WOOD); // Ahşap kordon deck
     for (let z = z1 + 4; z <= z2 - 4; z += 8) {
       this.tree(Math.round((x1 + x2) / 2), z, 6);
-      this.bench((x1 + 2) * 0.75, z * 0.75, Math.PI / 2);
+      // Ahşap sahil oturma bankları
+      w.fillBox(x1 + 1, y1 + 1, z - 1, x1 + 2, y1 + 1, z + 1, PALETTE.WOOD);
+      w.fillBox(x1 + 1, y1 + 2, z - 1, x1 + 1, y1 + 3, z + 1, PALETTE.WOOD);
       this.lamp(x1 - 1, z, 0, 1);
     }
   }
