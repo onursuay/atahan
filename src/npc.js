@@ -80,6 +80,7 @@ export class NPCManager {
     this.chatGroups = [];
     this.playgroundKids = [];
     this.supermarketSpecialNPCs = [];
+    this.hotelStaffNPCs = [];
   }
 
   reset() {
@@ -126,6 +127,12 @@ export class NPCManager {
       });
     }
     this.supermarketSpecialNPCs = [];
+    if (this.hotelStaffNPCs) {
+      this.hotelStaffNPCs.forEach(h => {
+        if (h.group) this.scene.remove(h.group);
+      });
+    }
+    this.hotelStaffNPCs = [];
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (const m of this.voxelWorld.marketCats || []) this.cats.addMarketCats(m.x, m.y, m.z); // market kedileri
     for (let i = 0; i < NPC_COUNT; i++) this._spawn();
@@ -143,6 +150,7 @@ export class NPCManager {
     this._spawnChatGroups();                                                 // PARKTA SOHBET EDENLER: Bankta ikililer ve çemberde konuşan 4-5 kişilik gruplar
     this._spawnPlaygroundKids();                                             // OYUN PARKI: Salıncakta sallanan ve kaydıraktan kayan çocuklar
     for (const sm of this.voxelWorld.supermarketSpecialNPCs || []) this._spawnSupermarketSpecialNPC(sm);
+    for (const hs of this.voxelWorld.hotelStaff || []) this._spawnHotelStaffNPC(hs);
   }
 
   // ── Çarpışma: karakterle aynı kurallar (iki katmanlı zemin + voxeller) ──
@@ -813,6 +821,7 @@ export class NPCManager {
     this._updateMarketShoppers(dt);
     this._updateSupermarketSpecialNPCs(dt);
     this._updateCarOwners(dt);
+    this._updateHotelStaffNPCs(dt);
   }
 
   // ── MAHALLE BAKKALI: Ekmek alan, parasını ödeyip çıkan çocuklar ──
@@ -1284,6 +1293,256 @@ export class NPCManager {
     }
   }
 
+  // ── 5 YILDIZLI GRAND HOTEL ÇALIŞANLARI (KIRMIZI-SARI ÜNİFORMALI) ──
+  // Kullanıcı İsteği: "Oyuna bir otel ekle, çalışanları olsun kırmızı sarı giysili.
+  // Bazıları servis götürsün, bazıları odalara gitsin."
+  _spawnHotelStaffNPC(spec) {
+    // Kırmızı ceket (0xdc2626), altın sarısı yelek/apolet (0xfacc15), siyah pantolon (0x18181b)
+    const body = this._makeBody(false, null, { shirt: spec.shirt || 0xdc2626, pants: spec.pants || 0x18181b });
+    body.g.scale.setScalar(SCALE);
+
+    // Bellboy şapkası / kepi (Kırmızı silindir kep, altın sarısı şerit)
+    const cap = new THREE.Group();
+    const capBase = new THREE.Mesh(boxGeo(0.24, 0.12, 0.24), mat(spec.shirt || 0xdc2626));
+    const capStripe = new THREE.Mesh(boxGeo(0.25, 0.04, 0.25), mat(spec.vest || 0xfacc15));
+    capStripe.position.y = -0.02;
+    cap.add(capBase, capStripe);
+    cap.position.set(0, 1.76, 0.02);
+    body.g.add(cap);
+
+    // Altın sarısı yelek / apolet detayları
+    const vestMesh = new THREE.Mesh(boxGeo(0.42, 0.44, 0.22), mat(spec.vest || 0xfacc15));
+    vestMesh.position.set(0, 0.96, 0.02);
+    body.g.add(vestMesh);
+
+    if (spec.type === 'room_service') {
+      // 1. ODA SERVİSİ: Elinde gümüş servis tepsisi ve kubbeli servis kapağı (cloche)
+      const trayGroup = new THREE.Group();
+      const tray = new THREE.Mesh(boxGeo(0.38, 0.03, 0.38), mat(0xe2e8f0));
+      const cloche = new THREE.Mesh(boxGeo(0.22, 0.16, 0.22), mat(0xcfd8dc));
+      cloche.position.y = 0.09;
+      const glass = new THREE.Mesh(boxGeo(0.08, 0.14, 0.08), mat(0x38bdf8));
+      glass.position.set(0.12, 0.08, 0.1);
+      trayGroup.add(tray, cloche, glass);
+      trayGroup.position.set(0.05, -0.32, 0.28);
+      body.rArm.add(trayGroup);
+
+      body.g.position.set(spec.kitchenPos.x, spec.kitchenPos.y, spec.kitchenPos.z);
+      this.scene.add(body.g);
+
+      this.hotelStaffNPCs.push({
+        type: 'room_service',
+        ...body, group: body.g, trayGroup, spec,
+        x: spec.kitchenPos.x, y: spec.kitchenPos.y, z: spec.kitchenPos.z,
+        phase: 'walk_to_target', timer: 0, cycle: Math.random() * 5
+      });
+    } else if (spec.type === 'room_attendant') {
+      // 2. ODALARA GİDEN KAT GÖREVLİSİ: Odaları tek tek teftiş edip gezer
+      const clipboard = new THREE.Mesh(boxGeo(0.18, 0.24, 0.04), mat(0xfacc15));
+      clipboard.position.set(0.05, -0.3, 0.2);
+      body.lArm.add(clipboard);
+
+      body.g.position.set(spec.startPos.x, spec.startPos.y, spec.startPos.z);
+      this.scene.add(body.g);
+
+      this.hotelStaffNPCs.push({
+        type: 'room_attendant',
+        ...body, group: body.g, spec,
+        x: spec.startPos.x, y: spec.startPos.y, z: spec.startPos.z,
+        roomIdx: 0, phase: 'walk_to_room', timer: 0, cycle: Math.random() * 5
+      });
+    } else if (spec.type === 'receptionist') {
+      // 3. RESEPSİYONİST: Lobide resepsiyon deski arkasında misafirleri karşılar
+      body.g.position.set(spec.x, spec.y, spec.z);
+      body.g.rotation.y = spec.yaw;
+      body.lArm.rotation.x = -1.1;
+      body.rArm.rotation.x = -1.1;
+      this.scene.add(body.g);
+
+      this.hotelStaffNPCs.push({
+        type: 'receptionist',
+        ...body, group: body.g, spec,
+        x: spec.x, y: spec.y, z: spec.z,
+        phase: 'greet', timer: 3.0, cycle: Math.random() * 5
+      });
+    } else if (spec.type === 'bellboy_luggage') {
+      // 4. BAVUL TAŞIYAN BELLBOY: Altın sarısı tekerlekli bavul arabası
+      const cart = new THREE.Group();
+      const cartFrame = new THREE.Mesh(boxGeo(0.5, 0.08, 0.7), mat(0xfacc15));
+      const cartHandle = new THREE.Mesh(boxGeo(0.44, 0.6, 0.05), mat(0xeab308));
+      cartHandle.position.set(0, 0.3, -0.32);
+      const suit1 = new THREE.Mesh(boxGeo(0.4, 0.22, 0.28), mat(0xdc2626));
+      suit1.position.set(0, 0.15, -0.05);
+      const suit2 = new THREE.Mesh(boxGeo(0.36, 0.18, 0.24), mat(0x2563eb));
+      suit2.position.set(0, 0.33, -0.05);
+      cart.add(cartFrame, cartHandle, suit1, suit2);
+      cart.position.set(0, -0.4, 0.6);
+      body.g.add(cart);
+
+      body.g.position.set(spec.entrancePos.x, spec.entrancePos.y, spec.entrancePos.z);
+      this.scene.add(body.g);
+
+      this.hotelStaffNPCs.push({
+        type: 'bellboy_luggage',
+        ...body, group: body.g, cart, spec,
+        x: spec.entrancePos.x, y: spec.entrancePos.y, z: spec.entrancePos.z,
+        phase: 'walk_to_lobby', timer: 0, cycle: Math.random() * 5
+      });
+    }
+  }
+
+  _updateHotelStaffNPCs(dt) {
+    if (!this.hotelStaffNPCs || this.hotelStaffNPCs.length === 0) return;
+    for (const h of this.hotelStaffNPCs) {
+      h.cycle += dt * 6.0;
+
+      const walk = () => {
+        h.lLeg.rotation.x = Math.sin(h.cycle) * 0.55;
+        h.rLeg.rotation.x = -Math.sin(h.cycle) * 0.55;
+      };
+
+      if (h.type === 'room_service') {
+        h.rArm.rotation.x = -1.25;
+        h.lArm.rotation.x = Math.sin(h.cycle) * 0.3;
+
+        if (h.phase === 'walk_to_target') {
+          const target = h.spec.targetPos;
+          const dx = target.x - h.x, dz = target.z - h.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            h.phase = 'serve_food';
+            h.timer = 3.2;
+          } else {
+            h.heading = Math.atan2(dx, dz);
+            h.group.rotation.y = h.heading;
+            h.x += (dx / d) * dt * 1.5;
+            h.z += (dz / d) * dt * 1.5;
+            walk();
+          }
+        } else if (h.phase === 'serve_food') {
+          h.timer -= dt;
+          h.lLeg.rotation.x = 0; h.rLeg.rotation.x = 0;
+          h.rArm.rotation.x = -1.1 + Math.sin(h.cycle * 2) * 0.15;
+          h.head.rotation.x = 0.2;
+          if (h.timer <= 0) h.phase = 'walk_to_secondary';
+        } else if (h.phase === 'walk_to_secondary') {
+          const target = h.spec.secondaryPos;
+          const dx = target.x - h.x, dz = target.z - h.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            h.phase = 'return_to_kitchen';
+            h.timer = 2.5;
+          } else {
+            h.heading = Math.atan2(dx, dz);
+            h.group.rotation.y = h.heading;
+            h.x += (dx / d) * dt * 1.4;
+            h.z += (dz / d) * dt * 1.4;
+            walk();
+          }
+        } else if (h.phase === 'return_to_kitchen') {
+          const target = h.spec.kitchenPos;
+          const dx = target.x - h.x, dz = target.z - h.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            h.phase = 'prepare_order';
+            h.timer = 4.0;
+          } else {
+            h.heading = Math.atan2(dx, dz);
+            h.group.rotation.y = h.heading;
+            h.x += (dx / d) * dt * 1.5;
+            h.z += (dz / d) * dt * 1.5;
+            walk();
+          }
+        } else if (h.phase === 'prepare_order') {
+          h.timer -= dt;
+          h.lLeg.rotation.x = 0; h.rLeg.rotation.x = 0;
+          h.rArm.rotation.x = -0.8;
+          h.lArm.rotation.x = -0.8;
+          if (h.timer <= 0) h.phase = 'walk_to_target';
+        }
+        h.group.position.set(h.x, h.y, h.z);
+      } else if (h.type === 'room_attendant') {
+        if (h.phase === 'walk_to_room') {
+          const roomList = h.spec.roomPositions;
+          const target = roomList[h.roomIdx % roomList.length];
+          const dx = target.x - h.x, dz = target.z - h.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            h.phase = 'inspect_room';
+            h.timer = 4.0;
+          } else {
+            h.heading = Math.atan2(dx, dz);
+            h.group.rotation.y = h.heading;
+            h.x += (dx / d) * dt * 1.35;
+            h.z += (dz / d) * dt * 1.35;
+            walk();
+            h.lArm.rotation.x = -1.0;
+            h.rArm.rotation.x = Math.sin(h.cycle) * 0.4;
+          }
+        } else if (h.phase === 'inspect_room') {
+          h.timer -= dt;
+          h.lLeg.rotation.x = 0; h.rLeg.rotation.x = 0;
+          h.lArm.rotation.x = -1.2 + Math.sin(h.cycle * 2.5) * 0.25;
+          h.rArm.rotation.x = -1.2 - Math.sin(h.cycle * 2.5) * 0.25;
+          if (h.timer <= 0) {
+            h.roomIdx = (h.roomIdx + 1) % h.spec.roomPositions.length;
+            h.phase = 'walk_to_room';
+          }
+        }
+        h.group.position.set(h.x, h.y, h.z);
+      } else if (h.type === 'receptionist') {
+        h.timer -= dt;
+        h.lLeg.rotation.x = 0; h.rLeg.rotation.x = 0;
+        h.head.rotation.y = Math.sin(h.cycle * 0.6) * 0.35;
+        h.lArm.rotation.x = -1.1 + Math.sin(h.cycle) * 0.1;
+        h.rArm.rotation.x = -1.1 - Math.sin(h.cycle) * 0.1;
+      } else if (h.type === 'bellboy_luggage') {
+        h.lArm.rotation.x = -0.55;
+        h.rArm.rotation.x = -0.55;
+
+        if (h.phase === 'walk_to_lobby') {
+          const target = h.spec.lobbyPos;
+          const dx = target.x - h.x, dz = target.z - h.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            h.phase = 'unload_luggage';
+            h.timer = 3.5;
+          } else {
+            h.heading = Math.atan2(dx, dz);
+            h.group.rotation.y = h.heading;
+            h.x += (dx / d) * dt * 1.35;
+            h.z += (dz / d) * dt * 1.35;
+            walk();
+          }
+        } else if (h.phase === 'unload_luggage') {
+          h.timer -= dt;
+          h.lLeg.rotation.x = 0; h.rLeg.rotation.x = 0;
+          h.head.rotation.y = Math.sin(h.cycle) * 0.25;
+          if (h.timer <= 0) h.phase = 'return_to_entrance';
+        } else if (h.phase === 'return_to_entrance') {
+          const target = h.spec.entrancePos;
+          const dx = target.x - h.x, dz = target.z - h.z;
+          const d = Math.hypot(dx, dz);
+          if (d < 0.6) {
+            h.phase = 'wait_guests';
+            h.timer = 4.0;
+          } else {
+            h.heading = Math.atan2(dx, dz);
+            h.group.rotation.y = h.heading;
+            h.x += (dx / d) * dt * 1.35;
+            h.z += (dz / d) * dt * 1.35;
+            walk();
+          }
+        } else if (h.phase === 'wait_guests') {
+          h.timer -= dt;
+          h.lLeg.rotation.x = 0; h.rLeg.rotation.x = 0;
+          if (h.timer <= 0) h.phase = 'walk_to_lobby';
+        }
+        h.group.position.set(h.x, h.y, h.z);
+      }
+    }
+  }
+
   // ── PARK HALİNDEKİ ARABALARA BİNEN SAHİPLERİ ──
   _spawnCarOwner(spec) {
     const body = this._makeBody(false, null, { shirt: pick(SHIRTS) });
@@ -1725,6 +1984,17 @@ export class NPCManager {
       const cy = n.y + HEIGHT / 2;
       const d = Math.hypot(n.x - center.x, cy - center.y, n.z - center.z);
       if (d <= radius + HIT_RADIUS) { this._kill(n, center); killed++; }
+    }
+    if (this.hotelStaffNPCs) {
+      for (let i = this.hotelStaffNPCs.length - 1; i >= 0; i--) {
+        const h = this.hotelStaffNPCs[i];
+        const d = Math.hypot(h.x - center.x, h.y + 0.9 - center.y, h.z - center.z);
+        if (d <= radius + 0.8) {
+          if (h.group) this.scene.remove(h.group);
+          this.hotelStaffNPCs.splice(i, 1);
+          killed++;
+        }
+      }
     }
     return killed;
   }

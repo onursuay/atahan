@@ -443,38 +443,19 @@ export class Character {
         this.knock.set(0, 0, 0);
       }
 
+      // Dalış durumunu takip et
+      if (this.vel.y < -12) {
+        this._wasDiving = true;
+      } else if (this.vel.y > 5) {
+        this._wasDiving = false;
+      }
+
       // ─── YUKARIDAN AŞAĞIYA HIZLI DALIP YERE ÇARPMA (METEOR / DEPREM ŞOKU) ───
-      // "ve bir anda yere yukarıdan aşağıya doğru böyle uçarsak hızlı bir şekilde bir anda yeri sarsalım"
-      const isDiving = this.vel.y < -30;
-      const nearGround = this.body.position.y <= 2.2 || (this.isGrounded && this.vel.y < -15);
+      // "Tam zemine temas ettiğimiz zaman zemin kırılsın. W tuşunu bırakmayı beklemeden anında kırılsın."
+      const isDiving = this.vel.y < -18 || this._wasDiving;
+      const nearGround = this.isGrounded || this._overlaps(this.body.position.x, this.body.position.y - FOOT_OFFSET_Y - 0.6, this.body.position.z);
       if (isDiving && nearGround) {
-        const slamPos = this.body.position.clone();
-        slamPos.y = Math.max(0.5, slamPos.y);
-
-        if (this.voxelWorld) {
-          this.voxelWorld.explode(slamPos, 11.5, 650);
-          this.voxelWorld.sweepCut(slamPos, 12.0, null);
-          if (this.voxelWorld.doors) this.voxelWorld.doors.hitSphere(slamPos, 14.0, 10);
-          if (this.voxelWorld.bridge) this.voxelWorld.bridge.hitSphere(slamPos, 14.0);
-          if (this.voxelWorld.cars) this.voxelWorld.cars.bladeHit(slamPos, 16.0);
-          if (this.voxelWorld.npcs) this.voxelWorld.npcs.hitSphere(slamPos, 18.0);
-        }
-
-        if (this.particleSystem) {
-          this.particleSystem.createExplosion(slamPos, 10, 0xff3b00);
-          this.particleSystem.createExplosion(slamPos.clone().add(new THREE.Vector3(0, 2.5, 0)), 8, 0xffea00);
-        }
-
-        if (this.onShake) this.onShake(1.2);
-        sound.playExplosion(2.2);
-        if (sound.playTNTExplosion) sound.playTNTExplosion();
-        if (sound.playImplosion) sound.playImplosion();
-
-        if (this.elemental && this.elemental.spawnSeismicShockwave) {
-          this.elemental.spawnSeismicShockwave(slamPos);
-        }
-
-        this.vel.set(0, 16, 0); // Yerden hafifçe yukarı seker
+        this.triggerGroundSlam(this.body.position, Math.abs(this.vel.y));
       }
 
       this._stepPhysics(dt, inputState);
@@ -820,6 +801,13 @@ export class Character {
           for (let k = 0; k < 12; k++) { const mid = (lo + hi) / 2; if (this._overlaps(pos.x, mid, pos.z)) lo = mid; else hi = mid; }
           feet = hi;
           this.isGrounded = true;
+
+          // ATEŞ ELEMENTİ UÇUŞUNDA YERE TEMAS ETTİĞİMİZ AN ANINDA ZEMİNİ KIR!
+          // W tuşunu bırakmayı beklemeden, tam zemine çarptığı anda zemin patlasın ve kırılsın!
+          if (this.elementalFlight && (this.vel.y < -8 || this._wasDiving)) {
+            const hitPos = new THREE.Vector3(pos.x, feet, pos.z);
+            this.triggerGroundSlam(hitPos, Math.abs(this.vel.y));
+          }
         } else {
           const snapped = Math.floor((newFeet + BODY_H - EPS) / S) * S - BODY_H;
           feet = this._overlaps(pos.x, snapped, pos.z) ? feet : snapped;
@@ -837,6 +825,55 @@ export class Character {
 
     // Kinematik gövdeyi Cannon'un kendi başına kaydırmasını engelle
     this.body.velocity.set(0, 0, 0);
+  }
+
+  // ─── ATEŞ ELEMENTİ SERT İNİŞ / ZEMİN KIRILMASI (TAM TEMAS ANINDA ANINDA KIRILMA) ───
+  // "Oyunda ateş elementini açıp uçtuğumuz zaman yere sertçe iniş yaptığımızda aniden zemin kırılsın.
+  // Çünkü zemine dokunduğumuzda ve bilgisayarın W tuşunu bıraktığımız zaman yer kırılıyor.
+  // Tam zemine temas ettiğimiz zaman zemin kırılsın."
+  triggerGroundSlam(hitPos, impactSpeed = 40) {
+    if (!this.elementalFlight) return;
+    const now = performance.now();
+    if (this._lastSlamTime && now - this._lastSlamTime < 320) return;
+    this._lastSlamTime = now;
+    this._wasDiving = false;
+
+    const slamPos = (hitPos ? hitPos.clone() : this.body.position.clone());
+    slamPos.y = Math.max(0.3, slamPos.y);
+
+    if (this.voxelWorld) {
+      const radius = 12.0;
+      this.voxelWorld.explode(slamPos, radius, 800);
+      this.voxelWorld.sweepCut(slamPos, radius + 1.2, null);
+      if (this.voxelWorld.breakGround) {
+        this.voxelWorld.breakGround(slamPos, 4.2, 450);
+        this.voxelWorld.breakGround(slamPos.clone().add(new THREE.Vector3(2.5, 0, 0)), 3.2, 250);
+        this.voxelWorld.breakGround(slamPos.clone().add(new THREE.Vector3(-2.5, 0, 0)), 3.2, 250);
+        this.voxelWorld.breakGround(slamPos.clone().add(new THREE.Vector3(0, 0, 2.5)), 3.2, 250);
+        this.voxelWorld.breakGround(slamPos.clone().add(new THREE.Vector3(0, 0, -2.5)), 3.2, 250);
+      }
+      if (this.voxelWorld.doors) this.voxelWorld.doors.hitSphere(slamPos, 14.0, 10);
+      if (this.voxelWorld.bridge) this.voxelWorld.bridge.hitSphere(slamPos, 14.0);
+      if (this.voxelWorld.cars) this.voxelWorld.cars.bladeHit(slamPos, 16.0);
+      if (this.voxelWorld.npcs) this.voxelWorld.npcs.hitSphere(slamPos, 18.0);
+    }
+
+    if (this.particleSystem) {
+      this.particleSystem.createExplosion(slamPos, 12, 0xff3b00);
+      this.particleSystem.createExplosion(slamPos.clone().add(new THREE.Vector3(0, 2.5, 0)), 10, 0xffea00);
+    }
+
+    if (this.onShake) this.onShake(1.5);
+    sound.playExplosion(2.5);
+    if (sound.playTNTExplosion) sound.playTNTExplosion();
+    if (sound.playImplosion) sound.playImplosion();
+
+    if (this.elemental && this.elemental.spawnSeismicShockwave) {
+      this.elemental.spawnSeismicShockwave(slamPos);
+    }
+
+    // Karakteri hafifçe yukarı zıplat (yere gömülüp kalmasın, W basılı olsa bile anında tepki versin)
+    this.vel.set(0, 18, 0);
   }
 
   // Patlama dalgası oyuncuyu iter (Uçuş modundayken oyuncu sarsılmaz/hasar almaz)

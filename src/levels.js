@@ -246,11 +246,11 @@ export class LevelManager {
     this.buildTower(-22, 1, -30, -14, 20, -8, { ...CC, side: 'x1' });
     this.buildOutdoorFashionStore(-22, 1, 34, -14, 12, 52);          // AVM dışı bağımsız MODA & GİYİM mağazası
     this.buildTower(-22, 1, -52, -14, 12, -34, { ...BR, side: 'x1' });
-    // ── KOCAMAN 2 KATLI HİPER SÜPERMARKET (MEGA GROSS MARKET) ──
-    // Çelik kafes açık tavan, Teardown tarzı metal raflar, yürüyen rampa, 8 reyon,
-    // 4 adet bantlı kasa, yükleme deposu, tekerlekli arabayla koli taşıyan işçi,
+    // ── KOCAMAN 2 KATLI HİPER SÜPERMARKET (MEGA GROSS MARKET - GENİŞLETİLMİŞ & BÜYÜTÜLMÜŞ) ──
+    // Çelik kafes açık yüksek tavan, Teardown tarzı metal raflar, yürüyen rampa, 8 geniş reyon,
+    // fırın, manav, şarküteri, 6 adet bantlı kasa, genişletilmiş yükleme deposu, tekerlekli arabayla koli taşıyan işçi,
     // hunici işçi ve alışveriş arabası süren anne & çocuk!
-    this.buildMegaSupermarket(-46, 1, 72, -12, 18, 126);
+    this.buildMegaSupermarket(-54, 1, 68, -8, 20, 130);
     this.buildTower(-22, 1, -96, -14, 18, -76, { ...CR, side: 'x1' });
     this.buildTower(-22, 1, -124, -14, 14, -102, { ...TR, side: 'x1' });
     // Batı genişlemesi (x -154..-80): yeni mahalleler
@@ -277,13 +277,32 @@ export class LevelManager {
     this.buildHome(-150, 1, 8, -134, 13, 40);                       // Oyuncunun iki katlı evi: üst kat TV odasında başlar, alt katta mutfak
     this.buildGarage(-150, 1, 44, -134, 8, 59);                     // Yanındaki garaj: cadde66'dan tamamen arındırıldı
 
-    // Uzatılan kuzey/güney mahalleleri (yeni caddeler z=±134 boyunca)
-    [[1, 142, 164, 'z1'], [-1, -164, -142, 'z2']].forEach(([sg, za, zb, door]) => {
-      this.buildTower(-150, 1, za, -134, 10, zb, { ...CC, side: 'x2' });
-      this.buildTower(-120, 1, za, -96, 16, zb, { ...CR, side: door });
-      this.buildTower(-42, 1, za, -32, 14, zb, { ...BR, side: door });
-      this.buildTower(-22, 1, za, -14, 12, zb, { ...TR, side: door });
-    });
+    // ── GENİŞLETİLMİŞ KUZEY & GÜNEY ŞEHİR MAHALLELERİ VE YENİ BİNALAR ──
+    // Kullanıcı İsteği: "Oyunda hala boş alanlar var, o boş alanlara binalar koy lütfen. Oyuna bir otel ekle, çalışanları olsun kırmızı sarı giysili. Bazıları servis götürsün, bazıları odalara gitsin."
+    // 1. GRAND LUXURY RESORT & HOTEL (5 Yıldızlı Lüks Otel, Lobi, Odalar, Teras, Kırmızı-Sarı Üniformalı Çalışanlar)
+    this.buildGrandLuxuryHotel(-80, 1, 142, -36, 30, 188);
+
+    // 2. OTEL YANI SAHİL KORDONU, DENİZ TERASI VE KAFE
+    this.buildSeasidePromenadePark(-32, 1, 142, -14, 8, 188);
+
+    // 3. ŞEHİR ADLİYESİ VE BELEDİYE SARAYI (Courthouse & City Hall - Klasik mermer sütunlu anıtsal mimari)
+    this.buildCityCourthouse(-126, 1, 142, -88, 22, 188);
+
+    // 4. ŞEHİR KÜLTÜR VE ÇAĞDAŞ SANAT MERKEZİ (Modern Cultural & Art Center)
+    this.buildCulturalArtCenter(-164, 1, 142, -132, 20, 188);
+
+    // 5. KUZEY BLOKLARI: MODERN SİNEMA VE EĞLENCE KOMPLEKSİ (Grand Cineplex & Bowling)
+    this.buildGrandCineplex(-78, 1, -190, -36, 22, -144);
+
+    // 6. KUZEY BLOKLARI: FİNANS VE ULUSLARARASI TİCARET GÖKDELENİ (Skyline Plaza Tower - 38 metre cam kule)
+    this.buildSkylinePlazaTower(-124, 1, -190, -88, 38, -144);
+
+    // 7. KUZEY BLOKLARI: ŞEHİR SPOR VE FİTNESS ARENA KOMPLEKSİ (Sports Arena & Gym)
+    this.buildSportsArenaComplex(-164, 1, -190, -132, 18, -144);
+
+    // 8. DOĞU SAHİL REZİDANS VE İŞ BLOKLARI
+    this.buildTower(-150, 1, -164, -134, 14, -142, { ...CC, side: 'x2' });
+    this.buildTower(-150, 1, 142, -134, 14, 164, { ...CC, side: 'x2' });
 
     // ── MAHALLE ÇOCUK PARKI (Salıncaklar, kaydırak, kum havuzu, tahterevalli, karusel, banklar ve oynayan çocuklar) ──
     this.buildNeighborhoodPlayground(-72, 76, -54, 102);
@@ -1326,10 +1345,10 @@ export class LevelManager {
       }
     }
 
-    // 7. Kasa Hattı (5 Adet Bantlı Kasa Tezgâhı & Kasiyerler)
+    // 7. Kasa Hattı (6 Adet Bantlı Geniş Kasa Tezgâhı & Kasiyerler)
     const checkoutX = x1 + 10;
-    for (let i = 0; i < 4; i++) {
-      const cz = z1 + 16 + i * 5;
+    for (let i = 0; i < 6; i++) {
+      const cz = z1 + 14 + i * 5;
       w.fillBox(checkoutX - 2, y1, cz - 1, checkoutX + 2, y1 + 2, cz + 1, PALETTE.WHITE);
       w.fillBox(checkoutX - 1, y1 + 2, cz, checkoutX + 1, y1 + 2, cz, PALETTE.BLACK);
       vw.propSpawns.push({
@@ -1363,8 +1382,8 @@ export class LevelManager {
 
     // ── REYON A: Abur Cubur, Cips & İçecekler ──
     const rAx = x1 + 18;
-    makeSteelShelf(rAx, y1, z1 + 6, rAx + 2, y1 + 5, z1 + 22);
-    for (let z = z1 + 7; z <= z1 + 21; z += 2) {
+    makeSteelShelf(rAx, y1, z1 + 6, rAx + 2, y1 + 5, z1 + 26);
+    for (let z = z1 + 7; z <= z1 + 25; z += 2) {
       vw.propSpawns.push({ kind: 'chips', x: (rAx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'cola', x: (rAx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'iced_tea', x: (rAx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
@@ -1373,9 +1392,9 @@ export class LevelManager {
 
     // ── REYON B: Bayram Şekeri & Çikolata Özel Reyonu ──
     const rBx = x1 + 24;
-    w.fillBox(rBx - 1, y1, z1 + 8, rBx + 3, y1 + 2, z1 + 18, PALETTE.GOLD);
-    kit.sign('BAYRAM ŞEKERLERİ & ÇİKOLATA', { neon: false, bg: 0x991b1b, fg: 0xfef08a, w: 5.5, h: 0.9 }, (rBx + 1) * 0.75, (y1 + 4) * 0.5, (z1 + 13) * 0.75, 0);
-    for (let z = z1 + 9; z <= z1 + 17; z += 2) {
+    w.fillBox(rBx - 1, y1, z1 + 8, rBx + 3, y1 + 2, z1 + 22, PALETTE.GOLD);
+    kit.sign('BAYRAM ŞEKERLERİ & ÇİKOLATA', { neon: false, bg: 0x991b1b, fg: 0xfef08a, w: 5.5, h: 0.9 }, (rBx + 1) * 0.75, (y1 + 4) * 0.5, (z1 + 15) * 0.75, 0);
+    for (let z = z1 + 9; z <= z1 + 21; z += 2) {
       vw.propSpawns.push({ kind: 'candy_box', x: (rBx) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'candy_box', x: (rBx + 2) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'sweets', x: (rBx + 1) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
@@ -1383,23 +1402,42 @@ export class LevelManager {
 
     // ── REYON C: Deterjan, Spreyler, Saç Spreyi, Şampuan ──
     const rCx = x1 + 30;
-    makeSteelShelf(rCx, y1, z1 + 6, rCx + 2, y1 + 5, z1 + 24);
-    for (let z = z1 + 7; z <= z1 + 23; z += 2) {
+    makeSteelShelf(rCx, y1, z1 + 6, rCx + 2, y1 + 5, z1 + 26);
+    for (let z = z1 + 7; z <= z1 + 25; z += 2) {
       vw.propSpawns.push({ kind: 'detergent', x: (rCx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'shampoo', x: (rCx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'spray', x: (rCx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
     }
 
     // ── REYON D: Okula Dönüş & Kırtasiye Reyonu ──
-    const rDx = x2 - 8;
-    makeSteelShelf(rDx, y1, z1 + 6, rDx + 2, y1 + 5, z1 + 24);
-    kit.sign('OKULA DÖNÜŞ KIRTASİYE', { neon: false, bg: 0x1d4ed8, fg: 0xffffff, w: 6.0, h: 0.9 }, (rDx + 1) * 0.75, (y1 + 6.5) * 0.5, (z1 + 15) * 0.75, 0);
-    for (let z = z1 + 7; z <= z1 + 23; z += 2) {
+    const rDx = x1 + 36;
+    makeSteelShelf(rDx, y1, z1 + 6, rDx + 2, y1 + 5, z1 + 26);
+    kit.sign('OKULA DÖNÜŞ KIRTASİYE', { neon: false, bg: 0x1d4ed8, fg: 0xffffff, w: 6.0, h: 0.9 }, (rDx + 1) * 0.75, (y1 + 6.5) * 0.5, (z1 + 16) * 0.75, 0);
+    for (let z = z1 + 7; z <= z1 + 25; z += 2) {
       vw.propSpawns.push({ kind: 'crayons', x: (rDx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'notebook', x: (rDx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'pencil_case', x: (rDx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'book', x: (rDx + 1.6) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
     }
+
+    // ── YENİ REYON E: TAZE FIRIN & UNLU MAMULLER (Bakery & Pastry) ──
+    const rEx = x2 - 6;
+    w.fillBox(rEx - 2, y1, z1 + 6, rEx + 2, y1 + 2, z1 + 20, PALETTE.WOOD);
+    kit.sign('TAZE EKMEK & FIRIN', { neon: true, color: 0xd97706, fg: 0xfef3c7, w: 5.5, h: 0.9 }, (rEx) * 0.75, (y1 + 4.5) * 0.5, (z1 + 13) * 0.75, -Math.PI / 2);
+    for (let z = z1 + 8; z <= z1 + 18; z += 2) {
+      vw.propSpawns.push({ kind: 'box', x: (rEx) * 0.75, y: (y1 + 2.5) * 0.5, z: z * 0.75 });
+    }
+
+    // ── YENİ REYON F: MANAV & TAZE MEYVE SEBZE (Fresh Produce) ──
+    const rFx = x1 + 20;
+    w.fillBox(rFx - 1, y1, z1 + 30, rFx + 7, y1 + 1, z1 + 36, PALETTE.DGREEN);
+    kit.sign('TAZE MANAV & ORGANİK', { neon: true, color: 0x16a34a, fg: 0xffffff, w: 6.0, h: 0.9 }, (rFx + 3) * 0.75, (y1 + 3.5) * 0.5, (z1 + 30) * 0.75, 0);
+
+    // ── YENİ REYON G: KASAP & ŞARKÜTERİ SOĞUTUCULARI (Deli & Meat) ──
+    const rGx = x1 + 30;
+    w.fillBox(rGx - 1, y1, z1 + 30, rGx + 7, y1 + 2, z1 + 36, PALETTE.WHITE);
+    w.fillBox(rGx - 1, y1 + 2, z1 + 30, rGx + 7, y1 + 3, z1 + 36, PALETTE.GLASS);
+    kit.sign('KASAP & ŞARKÜTERİ', { neon: false, bg: 0x991b1b, fg: 0xffffff, w: 5.5, h: 0.9 }, (rGx + 3) * 0.75, (y1 + 4.5) * 0.5, (z1 + 30) * 0.75, 0);
 
     // ── 9. ARKA BÜYÜK DEPO (Warehouse & Delivery Storage) ──
     const depZ1 = z2 - 16, depZ2 = z2 - 1;
@@ -1482,6 +1520,302 @@ export class LevelManager {
       checkoutPos: { x: (checkoutX) * 0.75, y: 0.5, z: (z1 + 18) * 0.75 },
       exitPos: { x: (x1 - 2) * 0.75, y: 0.5, z: (z1 + 14) * 0.75 }
     });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 5 YILDIZLI LÜKS GRAND HOTEL & RESORT
+  // Kullanıcı İsteği: "Oyuna bir otel ekle, çalışanları olsun kırmızı sarı giysili.
+  // Bazıları servis götürsün, bazıları odalara gitsin."
+  // Lobi, resepsiyon deski, kırmızı halı, kristal avizeler, bavul arabası, servis barı,
+  // katlarda kırmızı halılı koridorlar, numaralı lüks süit odalar (yatak, komodin, TV, minibar, banyo),
+  // çatı terası ve kırmızı-sarı üniformalı otel personelleri (oda servisi, kat görevlileri, resepsiyonist, bellboy)!
+  // ═══════════════════════════════════════════════════════════════════════════
+  buildGrandLuxuryHotel(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+
+    // 1. Dış İskelet (Krem / Fildişi taş, mermer zemin, terakota ve altın bordürler)
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CREAM, PALETTE.WHITE);
+
+    // Kat Döşemeleri (Lobi, 1. Kat Odalar, 2. Kat Odalar, Çatı Terası)
+    w.fillBox(x1 + 1, y1 + 7, z1 + 1, x2 - 1, y1 + 7, z2 - 1, PALETTE.CONCRETE);
+    w.fillBox(x1 + 1, y1 + 15, z1 + 1, x2 - 1, y1 + 15, z2 - 1, PALETTE.CONCRETE);
+    w.fillBox(x1 + 1, y1 + 23, z1 + 1, x2 - 1, y1 + 23, z2 - 1, PALETTE.CONCRETE);
+
+    // Giriş Cephesi (x1 batı caddeye bakar)
+    const zMid = Math.round((z1 + z2) / 2);
+    // Boydan boya cam vitrin ve altın kolonlar
+    w.fillBox(x1, y1 + 1, z1 + 4, x1, y1 + 6, z2 - 4, PALETTE.GLASS);
+    for (let z = z1 + 6; z <= z2 - 6; z += 8) {
+      w.fillBox(x1, y1, z, x1, y1 + 6, z, PALETTE.GOLD);
+    }
+
+    // Lüks Sürgülü Giriş Kapısı
+    w.clearBox(x1, y1, zMid - 3, x1, y1 + 5, zMid + 3);
+    vw.doors.addSliding({
+      sx: x1 * 0.75, sz: zMid * 0.75,
+      ax: 0, az: 1, width: 4.5, height: 3.5, y: 0.5
+    });
+
+    // Otel Giriş Sundurması / Kanopi (Canopy)
+    w.fillBox(x1 - 4, y1 + 6, zMid - 4, x1, y1 + 6, zMid + 4, PALETTE.SLATE);
+    w.fillBox(x1 - 4, y1 + 7, zMid - 4, x1 - 4, y1 + 7, zMid + 4, PALETTE.GOLD);
+
+    // Devasa Otel Neon Tabelası
+    const kit = new Kit(vw);
+    kit.sign('GRAND ROYAL HOTEL & RESORT', { neon: true, color: 0xdc2626, fg: 0xfef08a, w: 14.0, h: 2.0 }, (x1 - 0.3) * 0.75, (y1 + 8.5) * 0.5, zMid * 0.75, Math.PI / 2);
+    kit.sign('★ ★ ★ ★ ★  5 YILDIZLI LÜKS KONAKLAMA', { neon: false, bg: 0x1e1b4b, fg: 0xfacc15, w: 11.0, h: 1.0 }, (x1 - 0.25) * 0.75, (y1 + 6.8) * 0.5, zMid * 0.75, Math.PI / 2);
+
+    // ── LOBİ İÇ DEKORASYONU (Zemin Kat) ──
+    // Kırmızı protokol halısı
+    w.fillBox(x1 + 1, y1, zMid - 2, x2 - 8, y1, zMid + 2, PALETTE.BRICK);
+
+    // Resepsiyon Deski
+    const recX = x1 + 14;
+    w.fillBox(recX, y1, zMid - 4, recX + 2, y1 + 2, zMid + 4, PALETTE.WOOD);
+    w.fillBox(recX, y1 + 2, zMid - 4, recX + 2, y1 + 2, zMid + 4, PALETTE.GOLD);
+    w.fillBox(recX + 4, y1 + 1, zMid - 4, recX + 4, y1 + 5, zMid + 4, PALETTE.WOOD);
+    kit.sign('RESEPSİYON / CHECK-IN', { neon: false, bg: 0x0f172a, fg: 0xfacc15, w: 5.0, h: 0.8 }, (recX + 4.1) * 0.75, (y1 + 4) * 0.5, zMid * 0.75, -Math.PI / 2);
+
+    // Lobi Avizeleri
+    w.fillBox(x1 + 8, y1 + 6, zMid, x1 + 8, y1 + 6, zMid, PALETTE.LAMP);
+    w.fillBox(x1 + 16, y1 + 6, zMid, x1 + 16, y1 + 6, zMid, PALETTE.LAMP);
+
+    // Lobi Koltukları & Dinlenme Alanı
+    w.fillBox(x1 + 4, y1, z1 + 6, x1 + 10, y1 + 1, z1 + 8, PALETTE.BEIGE);
+    w.fillBox(x1 + 4, y1, z1 + 12, x1 + 10, y1 + 1, z1 + 14, PALETTE.BEIGE);
+    w.fillBox(x1 + 6, y1, z1 + 9, x1 + 8, y1 + 1, z1 + 11, PALETTE.WOOD);
+
+    // Oda Servisi Hazırlık Mutfağı & Barı
+    const barZ = z2 - 8;
+    w.fillBox(x1 + 4, y1, barZ - 4, x1 + 12, y1 + 2, barZ + 2, PALETTE.WHITE);
+    w.fillBox(x1 + 4, y1 + 2, barZ - 4, x1 + 12, y1 + 2, barZ + 2, PALETTE.BLACK);
+    kit.sign('ODA SERVİSİ & BAR', { neon: true, color: 0x0284c7, fg: 0xffffff, w: 4.5, h: 0.8 }, (x1 + 8) * 0.75, (y1 + 4.5) * 0.5, (barZ - 4) * 0.75, 0);
+
+    // Kat Merdivenleri
+    const stairX = x2 - 6;
+    for (let st = 0; st <= 7; st++) {
+      w.fillBox(stairX - 2, y1 + st, zMid - 4 + st, stairX + 2, y1 + st, zMid - 4 + st, PALETTE.BRICK);
+      w.fillBox(stairX - 3, y1 + st + 1, zMid - 4 + st, stairX - 3, y1 + st + 2, zMid - 4 + st, PALETTE.GOLD);
+    }
+
+    // ── 1. KAT: LÜKS OTEL ODALARI ──
+    const fy1 = y1 + 8;
+    w.fillBox(x1 + 2, fy1, zMid - 2, x2 - 2, fy1, zMid + 2, PALETTE.BRICK);
+    for (let x = x1 + 6; x <= x2 - 6; x += 8) {
+      w.fillBox(x, fy1 + 5, zMid, x, fy1 + 5, zMid, PALETTE.LAMP);
+    }
+
+    const furnishRoom = (rx1, rz1, rx2, rz2, roomNo) => {
+      w.fillHollowBox(rx1, fy1, rz1, rx2, fy1 + 6, rz2, PALETTE.WARM_GRAY, PALETTE.WOOD);
+      const doorZ = rz1 < zMid ? rz2 : rz1;
+      const doorX = Math.round((rx1 + rx2) / 2);
+      w.clearBox(doorX - 1, fy1, doorZ, doorX + 1, fy1 + 4, doorZ);
+      kit.sign(`ODA ${roomNo}`, { neon: false, bg: 0x1e1b4b, fg: 0xfef08a, w: 1.6, h: 0.6 }, doorX * 0.75, (fy1 + 3.5) * 0.5, doorZ * 0.75, rz1 < zMid ? 0 : Math.PI);
+
+      const bedX = rx1 + 3, bedZ = rz1 < zMid ? rz1 + 2 : rz2 - 4;
+      w.fillBox(bedX, fy1, bedZ, bedX + 4, fy1 + 1, bedZ + 3, PALETTE.WHITE);
+      w.fillBox(bedX + 2, fy1 + 1, bedZ, bedX + 4, fy1 + 1, bedZ + 3, PALETTE.BRICK);
+      w.fillBox(bedX, fy1 + 1, bedZ, bedX + 1, fy1 + 1.5, bedZ + 3, PALETTE.WHITE);
+
+      w.fillBox(bedX - 1, fy1, bedZ, bedX - 1, fy1 + 1, bedZ + 1, PALETTE.WOOD);
+      w.fillBox(bedX - 1, fy1 + 2, bedZ, bedX - 1, fy1 + 2, bedZ, PALETTE.LAMP);
+      w.fillBox(bedX + 5, fy1, bedZ, bedX + 5, fy1 + 1, bedZ + 1, PALETTE.WOOD);
+      w.fillBox(bedX + 5, fy1 + 2, bedZ, bedX + 5, fy1 + 2, bedZ, PALETTE.LAMP);
+
+      const deskX = rx2 - 3, deskZ = rz1 < zMid ? rz1 + 2 : rz2 - 4;
+      w.fillBox(deskX, fy1, deskZ, deskX + 2, fy1 + 1, deskZ + 2, PALETTE.WOOD);
+      w.fillBox(deskX, fy1 + 2, deskZ, deskX, fy1 + 4, deskZ + 2, PALETTE.BLACK);
+      w.fillBox(deskX, fy1, deskZ + 3, deskX + 1, fy1 + 2, deskZ + 4, PALETTE.WHITE);
+
+      const winX = rx1 === x1 + 1 ? rx1 : rx2 === x2 - 1 ? rx2 : null;
+      if (winX !== null) {
+        w.fillBox(winX, fy1 + 2, Math.round((rz1 + rz2) / 2) - 2, winX, fy1 + 5, Math.round((rz1 + rz2) / 2) + 2, PALETTE.GLASS);
+      }
+    };
+
+    const midX = Math.round((x1 + x2) / 2);
+    furnishRoom(x1 + 2, z1 + 2, midX - 2, zMid - 3, '101');
+    furnishRoom(midX + 2, z1 + 2, x2 - 8, zMid - 3, '102');
+    furnishRoom(x1 + 2, zMid + 3, midX - 2, z2 - 2, '103');
+    furnishRoom(midX + 2, zMid + 3, x2 - 8, z2 - 2, '104');
+
+    // ── 2. KAT: PREMİUM PENTHOUSE ODALAR ──
+    const fy2 = y1 + 16;
+    w.fillBox(x1 + 2, fy2, zMid - 2, x2 - 2, fy2, zMid + 2, PALETTE.BRICK);
+    furnishRoom(x1 + 2, z1 + 2, midX - 2, zMid - 3, '201');
+    furnishRoom(midX + 2, z1 + 2, x2 - 8, zMid - 3, '202');
+    furnishRoom(x1 + 2, zMid + 3, midX - 2, z2 - 2, '203');
+    furnishRoom(midX + 2, zMid + 3, x2 - 8, z2 - 2, '204');
+
+    // ── ÇATISINDA SKY LOUNGE ──
+    const ty = y1 + 24;
+    w.fillBox(x1 + 1, ty, z1 + 1, x2 - 1, ty + 1, z1 + 1, PALETTE.GOLD);
+    w.fillBox(x1 + 1, ty, z2 - 1, x2 - 1, ty + 1, z2 - 1, PALETTE.GOLD);
+    w.fillBox(x1 + 1, ty, z1 + 1, x1 + 1, ty + 1, z2 - 1, PALETTE.GOLD);
+    w.fillBox(x2 - 1, ty, z1 + 1, x2 - 1, ty + 1, z2 - 1, PALETTE.GOLD);
+    kit.sign('ROOFTOP SKY LOUNGE & SUITES', { neon: true, color: 0x38bdf8, fg: 0xffffff, w: 9.0, h: 1.2 }, (midX) * 0.75, (ty + 3) * 0.5, (zMid) * 0.75, 0);
+
+    // ── KIRMIZI SARI GİYSİLİ ÇALIŞANLAR ──
+    vw.hotelStaff = vw.hotelStaff || [];
+
+    // 1. Resepsiyonist
+    vw.hotelStaff.push({
+      type: 'receptionist',
+      x: (recX + 2.5) * 0.75,
+      y: 0.5,
+      z: (zMid) * 0.75,
+      yaw: -Math.PI / 2,
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
+
+    // 2. Servis Görevlisi 1 (Lobi Lounge Servisi)
+    vw.hotelStaff.push({
+      type: 'room_service',
+      serviceId: 1,
+      kitchenPos: { x: (x1 + 8) * 0.75, y: 0.5, z: (barZ) * 0.75 },
+      targetPos: { x: (x1 + 6) * 0.75, y: 0.5, z: (z1 + 9) * 0.75 },
+      secondaryPos: { x: (midX - 2) * 0.75, y: 0.5, z: (zMid) * 0.75 },
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
+
+    // 3. Servis Görevlisi 2 (Oda Servisi)
+    vw.hotelStaff.push({
+      type: 'room_service',
+      serviceId: 2,
+      kitchenPos: { x: (x1 + 10) * 0.75, y: 0.5, z: (barZ + 2) * 0.75 },
+      targetPos: { x: (midX) * 0.75, y: 0.5, z: (zMid - 4) * 0.75 },
+      secondaryPos: { x: (midX) * 0.75, y: 0.5, z: (zMid + 4) * 0.75 },
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
+
+    // 4. Odalara Giden Kat Görevlisi 1
+    vw.hotelStaff.push({
+      type: 'room_attendant',
+      workerId: 1,
+      startPos: { x: (x1 + 12) * 0.75, y: 0.5, z: (zMid) * 0.75 },
+      roomPositions: [
+        { x: (x1 + 6) * 0.75, y: 0.5, z: (zMid - 6) * 0.75 },
+        { x: (x1 + 12) * 0.75, y: 0.5, z: (zMid) * 0.75 },
+        { x: (x1 + 6) * 0.75, y: 0.5, z: (zMid + 6) * 0.75 },
+        { x: (midX) * 0.75, y: 0.5, z: (zMid) * 0.75 }
+      ],
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
+
+    // 5. Odalara Giden Kat Görevlisi 2
+    vw.hotelStaff.push({
+      type: 'room_attendant',
+      workerId: 2,
+      startPos: { x: (midX + 4) * 0.75, y: 0.5, z: (zMid) * 0.75 },
+      roomPositions: [
+        { x: (midX + 6) * 0.75, y: 0.5, z: (zMid - 6) * 0.75 },
+        { x: (midX + 4) * 0.75, y: 0.5, z: (zMid) * 0.75 },
+        { x: (midX + 6) * 0.75, y: 0.5, z: (zMid + 6) * 0.75 },
+        { x: (midX) * 0.75, y: 0.5, z: (zMid) * 0.75 }
+      ],
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
+
+    // 6. Bellboy (Valiz Taşıyan Görevli)
+    vw.hotelStaff.push({
+      type: 'bellboy_luggage',
+      entrancePos: { x: (x1 + 3) * 0.75, y: 0.5, z: (zMid) * 0.75 },
+      lobbyPos: { x: (recX - 2) * 0.75, y: 0.5, z: (zMid - 3) * 0.75 },
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
+  }
+
+  // ── ŞEHİR ADLİYESİ VE BELEDİYE SARAYI (Courthouse & City Hall) ──
+  buildCityCourthouse(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.STONE, PALETTE.WHITE);
+    const zMid = Math.round((z1 + z2) / 2);
+    // Geniş mermer merdivenler
+    for (let st = 0; st <= 4; st++) {
+      w.fillBox(x1 - st, y1 + st, zMid - 8, x1 - st, y1 + st, zMid + 8, PALETTE.WHITE);
+    }
+    // Anıtsal beyaz sütunlar
+    for (let z = zMid - 7; z <= zMid + 7; z += 3.5) {
+      w.fillBox(x1 + 1, y1 + 5, Math.round(z), x1 + 2, y2 - 2, Math.round(z), PALETTE.WHITE);
+    }
+    w.clearBox(x1, y1 + 5, zMid - 2, x1, y1 + 9, zMid + 2);
+    vw.doors.addSliding({ sx: x1 * 0.75, sz: zMid * 0.75, ax: 0, az: 1, width: 4.0, height: 3.5, y: 2.5 });
+    const kit = new Kit(vw);
+    kit.sign('ŞEHİR ADLİYESİ & BELEDİYE SARAYI', { neon: false, bg: 0x1e293b, fg: 0xf8fafc, w: 12.0, h: 1.5 }, (x1 - 0.2) * 0.75, (y2 - 2) * 0.5, zMid * 0.75, Math.PI / 2);
+  }
+
+  // ── ÇAĞDAŞ SANAT VE KÜLTÜR MERKEZİ (Cultural & Art Center) ──
+  buildCulturalArtCenter(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.WARM_GRAY, PALETTE.WOOD);
+    const zMid = Math.round((z1 + z2) / 2);
+    w.fillBox(x1, y1 + 1, z1 + 4, x1, y2 - 2, z2 - 4, PALETTE.GLASS);
+    w.clearBox(x1, y1, zMid - 2, x1, y1 + 4, zMid + 2);
+    vw.doors.addSliding({ sx: x1 * 0.75, sz: zMid * 0.75, ax: 0, az: 1, width: 3.5, height: 3.0, y: 0.5 });
+    const kit = new Kit(vw);
+    kit.sign('ÇAĞDAŞ SANAT & KÜLTÜR MERKEZİ', { neon: true, color: 0x8b5cf6, fg: 0xffffff, w: 11.0, h: 1.4 }, (x1 - 0.2) * 0.75, (y1 + 8) * 0.5, zMid * 0.75, Math.PI / 2);
+  }
+
+  // ── ŞEHİR SPOR VE FİTNESS ARENA KOMPLEKSİ ──
+  buildSportsArenaComplex(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.CONCRETE, PALETTE.WOOD);
+    const zMid = Math.round((z1 + z2) / 2);
+    w.clearBox(x1, y1, zMid - 2, x1, y1 + 4, zMid + 2);
+    vw.doors.addSliding({ sx: x1 * 0.75, sz: zMid * 0.75, ax: 0, az: 1, width: 3.5, height: 3.0, y: 0.5 });
+    const kit = new Kit(vw);
+    kit.sign('OLYMPIC SPORTS ARENA & GYM', { neon: true, color: 0xea580c, fg: 0xffffff, w: 10.5, h: 1.4 }, (x1 - 0.2) * 0.75, (y1 + 7.5) * 0.5, zMid * 0.75, Math.PI / 2);
+  }
+
+  // ── GRAND CINEPLEX SİNEMA & EĞLENCE KOMPLEKSİ ──
+  buildGrandCineplex(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.SLATE, PALETTE.WOOD);
+    const zMid = Math.round((z1 + z2) / 2);
+    w.clearBox(x1, y1, zMid - 3, x1, y1 + 5, zMid + 3);
+    vw.doors.addSliding({ sx: x1 * 0.75, sz: zMid * 0.75, ax: 0, az: 1, width: 4.5, height: 3.5, y: 0.5 });
+    const kit = new Kit(vw);
+    kit.sign('MEGA CINEPLEX & BOWLING', { neon: true, color: 0xef4444, fg: 0xfef08a, w: 12.0, h: 1.8 }, (x1 - 0.2) * 0.75, (y1 + 8) * 0.5, zMid * 0.75, Math.PI / 2);
+  }
+
+  // ── SKYLINE PLAZA FİNANS GÖKDELENİ ──
+  buildSkylinePlazaTower(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.GLASS, PALETTE.CONCRETE);
+    const zMid = Math.round((z1 + z2) / 2);
+    w.clearBox(x1, y1, zMid - 2, x1, y1 + 5, zMid + 2);
+    vw.doors.addSliding({ sx: x1 * 0.75, sz: zMid * 0.75, ax: 0, az: 1, width: 3.8, height: 3.5, y: 0.5 });
+    const kit = new Kit(vw);
+    kit.sign('SKYLINE PLAZA INTERNATIONAL', { neon: true, color: 0x0ea5e9, fg: 0xffffff, w: 11.5, h: 1.5 }, (x1 - 0.2) * 0.75, (y1 + 12) * 0.5, zMid * 0.75, Math.PI / 2);
+  }
+
+  // ── GRAND HOTEL SAHİL KORDONU VE DENİZ TERASI ──
+  buildSeasidePromenadePark(x1, y1, z1, x2, y2, z2) {
+    const w = this.b;
+    w.fillBox(x1, y1, z1, x2, y1, z2, PALETTE.WOOD); // Ahşap kordon deck
+    for (let z = z1 + 4; z <= z2 - 4; z += 8) {
+      this.tree(Math.round((x1 + x2) / 2), z, 6);
+      this.bench((x1 + 2) * 0.75, z * 0.75, Math.PI / 2);
+      this.lamp(x1 - 1, z, 0, 1);
+    }
   }
 
   // TEKNO MARKET (AVM dışı bağımsız teknoloji mağazası):
