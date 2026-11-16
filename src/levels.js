@@ -236,21 +236,24 @@ export class LevelManager {
     buildSpecialty(this);                                        // bankalar, fast-food restoranlar, silindir şirket kuleleri (çalışanlar + patron)
     this.buildCityApartment(-72, 1, 8, -54, 32, 26, PALETTE.BEIGE);
     this.buildCityBank(-72, 1, -26, -54, 20, -8);
-    this.buildBeachCafe(-70, 1, 28, -56, 9, 52);
+    // KAFECİ & KAHVE EVİ (Kullanıcı İsteği: ahşap cepheli, espresso barlı, barista çalışanlı, tatlı reyonlu kahveci)
+    this.buildCoffeeShop(-72, 1, 28, -54, 10, 52);
     this.buildTower(-70, 1, -50, -58, 34, -36, { ...CR, side: 'x2', interior: 'hotel' });
-    this.buildCityWarehouse(-41, 1, 10, -33, 14, 26);
+    // GAYRİMENKULCÜ & ANAHTARCI (Kullanıcı İsteği: ev anahtarları panolu, emlakçı masalı, çilingirli ofis)
+    this.buildRealEstateAndLocksmith(-42, 1, 10, -32, 12, 28);
     this.buildTower(-42, 1, -30, -32, 26, -8, { ...CC, side: 'x1' });
-    this.buildOutdoorTeknoMarket(-42, 1, 32, -32, 12, 52);           // AVM dışı bağımsız TEKNO MARKET (bilgisayar, telefon, konsol, kasa, havalandırma)
+    // ELEKTRONİK EŞYALAR MAĞAZASI (Kullanıcı İsteği: gaming bilgisayarları, telefonlar, konsollar ve teknoloji personeli)
+    this.buildElectronicsStore(-42, 1, 32, -32, 12, 54);
     this.buildTower(-42, 1, -52, -32, 26, -34, { ...TR, side: 'x1' });
     this.buildTower(-22, 1, 8, -14, 30, 30, { ...GR, side: 'x1' });
     this.buildTower(-22, 1, -30, -14, 20, -8, { ...CC, side: 'x1' });
     this.buildOutdoorFashionStore(-22, 1, 34, -14, 12, 52);          // AVM dışı bağımsız MODA & GİYİM mağazası
     this.buildTower(-22, 1, -52, -14, 12, -34, { ...BR, side: 'x1' });
-    // ── KOCAMAN 2 KATLI HİPER SÜPERMARKET (MEGA GROSS MARKET - GENİŞLETİLMİŞ & BÜYÜTÜLMÜŞ) ──
-    // Çelik kafes açık yüksek tavan, Teardown tarzı metal raflar, yürüyen rampa, 8 geniş reyon,
-    // fırın, manav, şarküteri, 6 adet bantlı kasa, genişletilmiş yükleme deposu, tekerlekli arabayla koli taşıyan işçi,
-    // hunici işçi ve alışveriş arabası süren anne & çocuk!
-    this.buildMegaSupermarket(-54, 1, 68, -8, 20, 130);
+    // ── KOCAMAN 2 KATLI HİPER SÜPERMARKET (AVM KADAR GENİŞLETİLMİŞ & BÜYÜTÜLMÜŞ) ──
+    // Kullanıcı İsteği: "Bizim AVM kadar bir geniş yap. Bayağı bir genişlet onu ve rafların arasındaki boşluk çok küçük. Oraları birazcık aç böyle. Oyundaki eşyaları daha gerçekçi yap lütfen."
+    // 46x60 birim (34.5 m x 45 m), açık tavan, Teardown çelik kafes kirişleri, yürüyen rampa, ultra geniş reyon aralıkları (9 birim = 6.75 m ferah geçiş),
+    // fırın, manav, şarküteri, 6 adet bantlı kasa ve büyütülmüş çikolatalar/cipsler!
+    this.buildMegaSupermarket(-80, 1, 72, -34, 22, 128);
     this.buildTower(-22, 1, -96, -14, 18, -76, { ...CR, side: 'x1' });
     this.buildTower(-22, 1, -124, -14, 14, -102, { ...TR, side: 'x1' });
     // Batı genişlemesi (x -154..-80): yeni mahalleler
@@ -278,24 +281,23 @@ export class LevelManager {
     this.buildGarage(-150, 1, 44, -134, 8, 59);                     // Yanındaki garaj: cadde66'dan tamamen arındırıldı
 
     // ── GENİŞLETİLMİŞ KUZEY & GÜNEY ŞEHİR MAHALLELERİ VE YENİ BİNALAR ──
-    // Kullanıcı İsteği: "Oyunda hala boş alanlar var, o boş alanlara binalar koy lütfen. Oyuna bir otel ekle, çalışanları olsun kırmızı sarı giysili. Bazıları servis götürsün, bazıları odalara gitsin."
-    // 1. GRAND LUXURY RESORT & HOTEL (5 Yıldızlı Lüks Otel, Lobi, Odalar, Teras, Kırmızı-Sarı Üniformalı Çalışanlar)
-    this.buildGrandLuxuryHotel(-80, 1, 142, -36, 30, 188);
+    // 1. GRAND LUXURY RESORT & HOTEL (5 Yıldızlı Lüks Otel, Girişte Sağda & Solda Nöbetçi Kapı Görevlileri, Lobi, Odalar, Teras)
+    this.buildGrandLuxuryHotel(-80, 1, 142, -34, 30, 188);
 
     // 2. OTEL YANI SAHİL KORDONU, DENİZ TERASI VE KAFE
     this.buildSeasidePromenadePark(-32, 1, 142, -14, 8, 188);
 
-    // 3. ŞEHİR ADLİYESİ VE BELEDİYE SARAYI (Courthouse & City Hall - Klasik mermer sütunlu anıtsal mimari)
-    this.buildCityCourthouse(-126, 1, 142, -88, 22, 188);
+    // 3. ŞEHİR ADLİYESİ VE BELEDİYE SARAYI (Courthouse & City Hall - Yoldan tamamen arındırılmış blok)
+    this.buildCityCourthouse(-121, 1, 142, -93, 22, 188);
 
     // 4. ŞEHİR KÜLTÜR VE ÇAĞDAŞ SANAT MERKEZİ (Modern Cultural & Art Center)
     this.buildCulturalArtCenter(-164, 1, 142, -132, 20, 188);
 
     // 5. KUZEY BLOKLARI: MODERN SİNEMA VE EĞLENCE KOMPLEKSİ (Grand Cineplex & Bowling)
-    this.buildGrandCineplex(-78, 1, -190, -36, 22, -144);
+    this.buildGrandCineplex(-80, 1, -190, -34, 22, -144);
 
     // 6. KUZEY BLOKLARI: FİNANS VE ULUSLARARASI TİCARET GÖKDELENİ (Skyline Plaza Tower - 38 metre cam kule)
-    this.buildSkylinePlazaTower(-124, 1, -190, -88, 38, -144);
+    this.buildSkylinePlazaTower(-121, 1, -190, -93, 38, -144);
 
     // 7. KUZEY BLOKLARI: ŞEHİR SPOR VE FİTNESS ARENA KOMPLEKSİ (Sports Arena & Gym)
     this.buildSportsArenaComplex(-164, 1, -190, -132, 18, -144);
@@ -354,8 +356,8 @@ export class LevelManager {
 
     // 3. Güney Doğu Ada Şehir Blokları (Teknoloji Merkezi, Kütüphane, Tenis Kulübü, Butik Kafe)
     this.buildTower(324, 1, 275, 358, 26, 318, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'z2' }); // Doğu Ada İnovasyon & Ar-Ge Kulesi
-    this.buildTower(324, 1, 328, 358, 18, 368, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'z2' });    // Üniversite Araştırma Kütüphanesi
-    this.buildTower(270, 1, 325, 288, 14, 365, { wall: PALETTE.TERRACOTTA, floor: PALETTE.WOOD, side: 'z1' }); // Ada Tenis & Spor Kulübü
+    this.buildTower(324, 1, 328, 358, 18, 344, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'z2' });    // Üniversite Araştırma Kütüphanesi
+    this.buildTower(270, 1, 325, 288, 14, 344, { wall: PALETTE.TERRACOTTA, floor: PALETTE.WOOD, side: 'z1' }); // Ada Tenis & Spor Kulübü
     this.buildOutdoorFashionStore(270, 1, 275, 288, 12, 315);                              // Sahil Kafe & Butik Mağaza
 
     // 4. Köprü Girişi & Sahil Yolu Binaları
@@ -601,7 +603,7 @@ export class LevelManager {
       if (isOccupied(minX, maxX, minZ, maxZ)) return;
       if (onRoadFast((minX + maxX) / 2, (minZ + maxZ) / 2, 1.5)) return;
 
-      const bType = Math.floor(rnd() * 8);
+      const bType = Math.floor(rnd() * 11);
       const st = ARCH_STYLES[Math.floor(rnd() * ARCH_STYLES.length)];
 
       if (bType === 0) {
@@ -616,6 +618,12 @@ export class LevelManager {
       } else if (bType === 5) {
         this.buildOutdoorFashionStore(minX, 1, minZ, maxX, 12, maxZ);
       } else if (bType === 6) {
+        this.buildCoffeeShop(minX, 1, minZ, maxX, 10, maxZ);
+      } else if (bType === 7) {
+        this.buildElectronicsStore(minX, 1, minZ, maxX, 12, maxZ);
+      } else if (bType === 8) {
+        this.buildRealEstateAndLocksmith(minX, 1, minZ, maxX, 11, maxZ);
+      } else if (bType === 9) {
         this.buildCityWarehouse(minX, 1, minZ, maxX, 12, maxZ);
       } else {
         const h = 16 + Math.floor(rnd() * 16);
@@ -623,64 +631,85 @@ export class LevelManager {
       }
     };
 
-    // Dikey bulvar ve caddeler (Batı ada ve arka bölgeler: x: -750 .. -27)
-    const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -47, -27];
+    // Dikey bulvar ve caddeler (s7 kaldırıldı; bloklar birleştirildi: x: -750 .. -27)
+    const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -27];
     // Yatay ana caddeler: Normal şehri dengeli ve akıcı 60 FPS olarak genişlet (z: -480 .. 480)
     const Z_ROADS = [-480, -420, -380, -320, -266, -134, -66, 0, 66, 134, 266, 320, 380, 420, 480];
 
-    // Dört yolun çevrelediği tüm kare şehir bloklarını dolaş:
-    // Karenin ortası KESİNLİKLE BOŞ (avlu) bırakılır; binalar 4 yola bakan kenarlara dizilir.
+    // Dört yolun çevrelediği tüm dikdörtgen şehir bloklarını dolaş:
+    // Kullanıcı İsteği: "Dikdörtgen düşün. Dikdörtgenin köşeleri zaten yol. Dikdörtgenin içi boş olmasın, oraya bina koy.
+    // Öyle düşün yani ve bunu bütün boş alanlar için yap. Boş alan dediğim de işte dikdörtgenin içi.
+    // Bazı binaların girişlerinin önünde başka bir bina var. Ona değmiyor ama kötü duruyor.
+    // O yüzden binaların girişlerini önünde yola bakacak şekilde koy. Bina olmasın yani önünde."
     for (let i = 0; i < X_ROADS.length - 1; i++) {
       const rx0 = X_ROADS[i], rx1 = X_ROADS[i + 1];
-      const bx0 = rx0 + 8, bx1 = rx1 - 8;
+      const bx0 = rx0 + 6, bx1 = rx1 - 6;
       const bWidth = bx1 - bx0;
       if (bWidth < 14) continue;
 
       for (let j = 0; j < Z_ROADS.length - 1; j++) {
         const rz0 = Z_ROADS[j], rz1 = Z_ROADS[j + 1];
-        const bz0 = rz0 + 8, bz1 = rz1 - 8;
+        const bz0 = rz0 + 6, bz1 = rz1 - 6;
         const bDepth = bz1 - bz0;
         if (bDepth < 14) continue;
 
         if (inAirport(bx0, bx1, bz0, bz1) || near(bx0, bx1, bz0, bz1)) continue;
 
-        // Binaların derinliği: bloğun %32'sini geçmez, karenin ortası (avlu) açık kalır
-        const edgeW = Math.min(18, Math.floor(bWidth * 0.32));
-        const edgeD = Math.min(18, Math.floor(bDepth * 0.32));
+        const midX = Math.round((bx0 + bx1) / 2);
+        const midZ = Math.round((bz0 + bz1) / 2);
 
-        // 1. BATI KENAR (rx0 yoluna bakan binalar, kapı: x1)
-        const westX0 = bx0, westX1 = bx0 + edgeW;
-        if (bDepth <= 40) {
-          placeBuilding(westX0, westX1, bz0 + 2, bz1 - 2, 'x1');
+        if (bWidth <= 38) {
+          // Kompakt blok: Batı ve Doğu sıraları sırt sırta verir, tüm bloğu doldurur.
+          // Batı binalarının kapısı batı yoluna (x1), Doğu binalarının kapısı doğu yoluna (x2) bakar.
+          // Önlerinde hiçbir bina yoktur; doğrudan kendi caddelerine bakarlar!
+          const westX0 = bx0, westX1 = midX - 1;
+          const eastX0 = midX + 1, eastX1 = bx1;
+
+          if (bDepth <= 36) {
+            placeBuilding(westX0, westX1, bz0 + 1, bz1 - 1, 'x1');
+            placeBuilding(eastX0, eastX1, bz0 + 1, bz1 - 1, 'x2');
+          } else {
+            const zStep = Math.floor(bDepth / 2);
+            placeBuilding(westX0, westX1, bz0 + 1, bz0 + zStep - 1, 'x1');
+            placeBuilding(westX0, westX1, bz0 + zStep + 1, bz1 - 1, 'x1');
+            placeBuilding(eastX0, eastX1, bz0 + 1, bz0 + zStep - 1, 'x2');
+            placeBuilding(eastX0, eastX1, bz0 + zStep + 1, bz1 - 1, 'x2');
+          }
         } else {
-          const half = Math.floor((bDepth - 8) / 2);
-          placeBuilding(westX0, westX1, bz0 + 2, bz0 + half, 'x1');
-          placeBuilding(westX0, westX1, bz1 - half, bz1 - 2, 'x1');
-        }
+          // Geniş blok (bWidth > 38):
+          // Kenar binalar batı ve doğu caddelerine bakar.
+          const edgeW = Math.min(18, Math.floor(bWidth * 0.38));
+          const westX0 = bx0, westX1 = bx0 + edgeW;
+          const eastX0 = bx1 - edgeW, eastX1 = bx1;
 
-        // 2. DOĞU KENAR (rx1 yoluna bakan binalar, kapı: x2)
-        const eastX0 = bx1 - edgeW, eastX1 = bx1;
-        if (bDepth <= 40) {
-          placeBuilding(eastX0, eastX1, bz0 + 2, bz1 - 2, 'x2');
-        } else {
-          const half = Math.floor((bDepth - 8) / 2);
-          placeBuilding(eastX0, eastX1, bz0 + 2, bz0 + half, 'x2');
-          placeBuilding(eastX0, eastX1, bz1 - half, bz1 - 2, 'x2');
-        }
+          if (bDepth <= 36) {
+            placeBuilding(westX0, westX1, bz0 + 1, bz1 - 1, 'x1');
+            placeBuilding(eastX0, eastX1, bz0 + 1, bz1 - 1, 'x2');
+          } else {
+            const zStep = Math.floor(bDepth / 2);
+            placeBuilding(westX0, westX1, bz0 + 1, bz0 + zStep - 1, 'x1');
+            placeBuilding(westX0, westX1, bz0 + zStep + 1, bz1 - 1, 'x1');
+            placeBuilding(eastX0, eastX1, bz0 + 1, bz0 + zStep - 1, 'x2');
+            placeBuilding(eastX0, eastX1, bz0 + zStep + 1, bz1 - 1, 'x2');
+          }
 
-        // 3. GÜNEY KENAR (rz0 caddesine bakan binalar, kapı: z1)
-        const midX0 = westX1 + 4, midX1 = eastX0 - 4;
-        if (midX1 - midX0 >= 14 && edgeD >= 9) {
-          placeBuilding(midX0, midX1, bz0, bz0 + edgeD, 'z1');
+          // DİKDÖRTGENİN İÇİ: Boş alan bırakılmaz!
+          // Ortadaki binalar güney (z1) ve kuzey (z2) caddelerine bakar; böylece önleri yola bakar ve açıktır!
+          const inX0 = westX1 + 2, inX1 = eastX0 - 2;
+          if (inX1 - inX0 >= 12) {
+            if (bDepth <= 40) {
+              placeBuilding(inX0, inX1, bz0 + 1, midZ - 1, 'z1');
+              placeBuilding(inX0, inX1, midZ + 1, bz1 - 1, 'z2');
+            } else {
+              const inD = Math.min(16, Math.floor(bDepth * 0.36));
+              placeBuilding(inX0, inX1, bz0 + 1, bz0 + inD, 'z1');
+              placeBuilding(inX0, inX1, bz1 - inD, bz1 - 1, 'z2');
+              if (bz1 - inD - (bz0 + inD) >= 12) {
+                placeBuilding(inX0, inX1, bz0 + inD + 2, bz1 - inD - 2, 'z1');
+              }
+            }
+          }
         }
-
-        // 4. KUZEY KENAR (rz1 caddesine bakan binalar, kapı: z2)
-        if (midX1 - midX0 >= 14 && edgeD >= 9) {
-          placeBuilding(midX0, midX1, bz1 - edgeD, bz1, 'z2');
-        }
-
-        // KARENİN ORTASI (westX1 .. eastX0, bz0 + edgeD .. bz1 - edgeD):
-        // KESİNLİKLE BİNA OLMAYAN AÇIK İÇ AVLU ALANIDIR ("Karenin ortasında bina olmamalı, hepsi öyle")
       }
     }
 
@@ -714,14 +743,21 @@ export class LevelManager {
 
         if (inEastParkOrVilla(bx0, bx1, bz0, bz1)) continue;
 
-        const edgeW = Math.min(16, Math.floor(bWidth * 0.35));
-        const edgeD = Math.min(16, Math.floor(bDepth * 0.35));
+        const midX = Math.round((bx0 + bx1) / 2);
+        const midZ = Math.round((bz0 + bz1) / 2);
 
-        placeBuilding(bx0, bx0 + edgeW, bz0 + 2, bz1 - 2, 'x1');
-        placeBuilding(bx1 - edgeW, bx1, bz0 + 2, bz1 - 2, 'x2');
-        if (bWidth >= 24 && edgeD >= 8) {
-          placeBuilding(bx0 + edgeW + 2, bx1 - edgeW - 2, bz0, bz0 + edgeD, 'z1');
-          placeBuilding(bx0 + edgeW + 2, bx1 - edgeW - 2, bz1 - edgeD, bz1, 'z2');
+        if (bWidth <= 32) {
+          placeBuilding(bx0, midX - 1, bz0 + 1, bz1 - 1, 'x1');
+          placeBuilding(midX + 1, bx1, bz0 + 1, bz1 - 1, 'x2');
+        } else {
+          const edgeW = Math.min(16, Math.floor(bWidth * 0.38));
+          placeBuilding(bx0, bx0 + edgeW, bz0 + 1, bz1 - 1, 'x1');
+          placeBuilding(bx1 - edgeW, bx1, bz0 + 1, bz1 - 1, 'x2');
+          const inX0 = bx0 + edgeW + 2, inX1 = bx1 - edgeW - 2;
+          if (inX1 - inX0 >= 10) {
+            placeBuilding(inX0, inX1, bz0 + 1, midZ - 1, 'z1');
+            placeBuilding(inX0, inX1, midZ + 1, bz1 - 1, 'z2');
+          }
         }
       }
     }
@@ -1380,37 +1416,38 @@ export class LevelManager {
       }
     };
 
-    // ── REYON A: Abur Cubur, Cips & İçecekler ──
-    const rAx = x1 + 18;
+    // ── REYON A: Abur Cubur, Büyütülmüş Cips & İçecekler (Genişletilmiş Koridor) ──
+    const rAx = x1 + 16;
     makeSteelShelf(rAx, y1, z1 + 6, rAx + 2, y1 + 5, z1 + 26);
-    for (let z = z1 + 7; z <= z1 + 25; z += 2) {
-      vw.propSpawns.push({ kind: 'chips', x: (rAx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
+    for (let z = z1 + 7; z <= z1 + 25; z += 2.5) {
+      vw.propSpawns.push({ kind: 'chips', x: (rAx + 1) * 0.75, y: (y1 + 3.8) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'cola', x: (rAx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'iced_tea', x: (rAx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'can', x: (rAx + 1.6) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
     }
 
-    // ── REYON B: Bayram Şekeri & Çikolata Özel Reyonu ──
-    const rBx = x1 + 24;
+    // ── REYON B: Bayram Şekeri, Tablet Çikolata & Lüks Tatlılar (Ferah 9 Birim Açık Ara Koridor) ──
+    const rBx = x1 + 25;
     w.fillBox(rBx - 1, y1, z1 + 8, rBx + 3, y1 + 2, z1 + 22, PALETTE.GOLD);
     kit.sign('BAYRAM ŞEKERLERİ & ÇİKOLATA', { neon: false, bg: 0x991b1b, fg: 0xfef08a, w: 5.5, h: 0.9 }, (rBx + 1) * 0.75, (y1 + 4) * 0.5, (z1 + 15) * 0.75, 0);
-    for (let z = z1 + 9; z <= z1 + 21; z += 2) {
-      vw.propSpawns.push({ kind: 'candy_box', x: (rBx) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
-      vw.propSpawns.push({ kind: 'candy_box', x: (rBx + 2) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
+    for (let z = z1 + 9; z <= z1 + 21; z += 2.5) {
+      vw.propSpawns.push({ kind: 'chocolate', x: (rBx) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'candy_box', x: (rBx + 2) * 0.75, y: (y1 + 2.8) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'sweets', x: (rBx + 1) * 0.75, y: (y1 + 2.6) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'brownie', x: (rBx + 1) * 0.75, y: (y1 + 3.8) * 0.5, z: (z + 0.8) * 0.75 });
     }
 
-    // ── REYON C: Deterjan, Spreyler, Saç Spreyi, Şampuan ──
-    const rCx = x1 + 30;
+    // ── REYON C: Deterjan, Spreyler, Saç Spreyi, Şampuan (Geniş Koridor) ──
+    const rCx = x1 + 34;
     makeSteelShelf(rCx, y1, z1 + 6, rCx + 2, y1 + 5, z1 + 26);
-    for (let z = z1 + 7; z <= z1 + 25; z += 2) {
+    for (let z = z1 + 7; z <= z1 + 25; z += 2.5) {
       vw.propSpawns.push({ kind: 'detergent', x: (rCx + 1) * 0.75, y: (y1 + 1.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'shampoo', x: (rCx + 1) * 0.75, y: (y1 + 3.6) * 0.5, z: z * 0.75 });
       vw.propSpawns.push({ kind: 'spray', x: (rCx + 1) * 0.75, y: (y1 + 5.6) * 0.5, z: z * 0.75 });
     }
 
     // ── REYON D: Okula Dönüş & Kırtasiye Reyonu ──
-    const rDx = x1 + 36;
+    const rDx = x1 + 42;
     makeSteelShelf(rDx, y1, z1 + 6, rDx + 2, y1 + 5, z1 + 26);
     kit.sign('OKULA DÖNÜŞ KIRTASİYE', { neon: false, bg: 0x1d4ed8, fg: 0xffffff, w: 6.0, h: 0.9 }, (rDx + 1) * 0.75, (y1 + 6.5) * 0.5, (z1 + 16) * 0.75, 0);
     for (let z = z1 + 7; z <= z1 + 25; z += 2) {
@@ -1658,6 +1695,31 @@ export class LevelManager {
 
     // ── KIRMIZI SARI GİYSİLİ ÇALIŞANLAR ──
     vw.hotelStaff = vw.hotelStaff || [];
+
+    // 0. OTEL GİRİŞİ NÖBETÇİ / KARŞILAMA ÇALIŞANLARI (DOORMEN)
+    // Kullanıcı İsteği: "girişe çalışanlar ekle. Çalışanlar kapının sağında ve solunda öne bakacak şekilde dursun. Sanki bir görev beklermiş gibi dursunlar."
+    vw.hotelStaff.push({
+      type: 'doorman_entrance',
+      side: 'left',
+      x: (x1 - 1.5) * 0.75,
+      y: 0.5,
+      z: (zMid - 2.8) * 0.75,
+      yaw: -Math.PI / 2, // Dışarıya, caddeye ve gelen misafire bakar
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
+    vw.hotelStaff.push({
+      type: 'doorman_entrance',
+      side: 'right',
+      x: (x1 - 1.5) * 0.75,
+      y: 0.5,
+      z: (zMid + 2.8) * 0.75,
+      yaw: -Math.PI / 2, // Dışarıya, caddeye ve gelen misafire bakar
+      shirt: 0xdc2626,
+      vest: 0xfacc15,
+      pants: 0x18181b
+    });
 
     // 1. Resepsiyonist
     vw.hotelStaff.push({
@@ -2637,6 +2699,28 @@ export class LevelManager {
     this._addHangingBulb(grp, midX, 5.0, seatZ);
     this._addHangingBulb(grp, 0.5 * (ev - 4.5), 5.0, 0.5 * (zv2 - 6));       // tuvalet ampulü
 
+    // ── EVİN IŞIK ANAHTARLARI & GERÇEK AYDINLATMA (Kullanıcı İsteği) ──
+    // "bu evlerin içine lambalar koy. O lambalarda böyle ışık yansın. Hatta bir tane anahtar olsun... sağ tıka basılı tutup elimizle aç kapa yapabilelim."
+    if (vw.switches) {
+      // 1. Üst Kat (TV & Yatak Odası) Işık Anahtarı (Merdiven ve TV odası duvarında)
+      vw.switches.addSwitch(0.5 * (wv + 3) + 0.15, 6.8, 0.5 * zr0 - 0.2, 0, {
+        name: 'Üst Kat Işık Anahtarı',
+        lamps: [
+          { x: midX, y: 9.2, z: seatZ, rodLen: 0.6, shadeColor: 0x334155 },
+          { x: midX, y: 9.2, z: 0.5 * (bz0 + bz1) / 2, rodLen: 0.6, shadeColor: 0x1e3a8a }
+        ]
+      });
+
+      // 2. Alt Kat (Giriş & Mutfak) Işık Anahtarı (Giriş kapısı yanında duvarda)
+      vw.switches.addSwitch(0.5 * (wv + 3) + 0.15, 1.8, 0.5 * (zv1 + 2), 0, {
+        name: 'Giriş Kat Işık Anahtarı',
+        lamps: [
+          { x: midX, y: 4.8, z: seatZ, rodLen: 0.45, shadeColor: 0x0f172a },
+          { x: 0.5 * (ev - 4.5), y: 4.8, z: 0.5 * (zv2 - 6), rodLen: 0.4, shadeColor: 0xf8fafc }
+        ]
+      });
+    }
+
     // Alt kat Tuvalet donanımı: detaylı Klozet (oturma yeri, kapak, rezervuar, sifon), Tuvalet Kağıdı, Lavabo, Musluk ve Ayna
     {
       const bmesh = (w, h, d, x, y, z, col) => {
@@ -3416,6 +3500,16 @@ export class LevelManager {
     // Çatı katına TNT sandıkları
     const topFloor = y1 + 6 * Math.floor((y2 - 3 - y1) / 6);
     w.fillBox(doorX - 1, topFloor + 1, midZ, doorX + 1, topFloor + 2, midZ + 2, PALETTE.TNT);
+
+    // Ev içi tavan lambası ve ışık anahtarı (Kullanıcı İsteği)
+    if (this.world.switches) {
+      this.world.switches.addSwitch(doorX * 0.75, 1.8, (doorZ + 1) * 0.75, 0, {
+        name: 'Apartman Salon Işık Anahtarı',
+        lamps: [
+          { x: doorX * 0.75, y: 3.5, z: midZ * 0.75, rodLen: 0.4, shadeColor: 0x334155 }
+        ]
+      });
+    }
   }
 
   // MAHALLE ÇOCUK PARKI (Salıncaklar, kaydırak ve oyun kulesi, tahterevalli, kum havuzu, karusel, banklar ve çocuklar)
@@ -3540,6 +3634,176 @@ export class LevelManager {
     w.clearBox(x1 + 5, y1, z1 + 8, x1 + 6, y1 + 3, z1 + 8);
     w.fillBox(x1 + 3, y1, z1 + 3, x1 + 5, y1 + 1, z1 + 5, PALETTE.GOLD);
     w.fillBox(x1 + 6, y1, z1 + 3, x1 + 7, y1 + 2, z1 + 4, PALETTE.TNT);
+  }
+
+  // ── KAFECİ & KAHVE EVİ (COFFEE SHOP) ──
+  // Kullanıcı İsteği: "Oyunun bazı yerlerine kafeci, elektronik eşyalar, anahtarcı... koy"
+  // Ahşap ve terakota cepheli, cam vitrinli, espresso tezgahlı, pasta/tatlı reyonlu, barista çalışanlı kahveci
+  buildCoffeeShop(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.TERRACOTTA, PALETTE.WOOD);
+
+    const zc = Math.round((z1 + z2) / 2);
+    // Caddeye bakan geniş cam vitrin
+    w.fillBox(x1, y1 + 1, z1 + 2, x1, y2 - 2, zc - 3, PALETTE.GLASS);
+    w.fillBox(x1, y1 + 1, zc + 3, x1, y2 - 2, z2 - 2, PALETTE.GLASS);
+
+    // Çift cam sürgülü kapı
+    w.clearBox(x1, y1, zc - 2, x1, y1 + 4, zc + 2);
+    vw.doors.addSliding({
+      sx: x1 * 0.75, sz: zc * 0.75,
+      ax: 0, az: 1, width: 3.2, height: 2.8, y: 0.5
+    });
+
+    // Tabela: KAHVE DÜNYASI & CAFE
+    const kit = new Kit(vw);
+    kit.sign('KAHVE DÜNYASI & CAFE', { neon: true, color: 0xd97706, fg: 0xfef3c7, w: 7.2, h: 1.2 }, (x1 - 0.25) * 0.75, (y1 + 6.5) * 0.5, zc * 0.75, Math.PI / 2);
+
+    // Kahve Bar Tezgâhı
+    const barX = x2 - 5;
+    w.fillBox(barX, y1, z1 + 3, barX + 2, y1 + 2, z2 - 3, PALETTE.WOOD);
+    w.fillBox(barX, y1 + 2, z1 + 3, barX + 2, y1 + 2, z2 - 3, PALETTE.BLACK);
+    // Espresso makinesi
+    w.fillBox(barX + 1, y1 + 2, zc - 1, barX + 2, y1 + 4, zc + 1, PALETTE.IRON);
+
+    // Dükkan İçi Kahve & Tatlı Eşyaları (Coffee, Donut, Cake, Brownie)
+    for (let z = z1 + 5; z <= z2 - 5; z += 3.0) {
+      vw.propSpawns.push({ kind: 'coffee', x: (barX + 0.5) * 0.75, y: (y1 + 2.5) * 0.5, z: z * 0.75 });
+      vw.propSpawns.push({ kind: 'donut', x: (barX + 1.2) * 0.75, y: (y1 + 2.5) * 0.5, z: (z + 0.8) * 0.75 });
+      vw.propSpawns.push({ kind: 'brownie', x: (barX + 0.8) * 0.75, y: (y1 + 2.5) * 0.5, z: (z - 0.8) * 0.75 });
+    }
+
+    // Müşteri Masaları ve Sandalyeler
+    for (let mz = z1 + 4; mz <= z2 - 6; mz += 6) {
+      w.fillBox(x1 + 3, y1, mz, x1 + 5, y1 + 1, mz + 2, PALETTE.WOOD);
+      vw.propSpawns.push({ kind: 'chair', x: (x1 + 4) * 0.75, y: 0.5, z: (mz - 1) * 0.75, yaw: 0, color: 0x3f2a1d });
+      vw.propSpawns.push({ kind: 'chair', x: (x1 + 4) * 0.75, y: 0.5, z: (mz + 3) * 0.75, yaw: Math.PI, color: 0x3f2a1d });
+      vw.propSpawns.push({ kind: 'coffee', x: (x1 + 4) * 0.75, y: 1.1, z: (mz + 1) * 0.75 });
+    }
+
+    // Barista / Kafeci Çalışan NPC
+    vw.workers.push({
+      x: (barX + 2.8) * 0.75,
+      y: 0.5,
+      z: zc * 0.75,
+      yaw: -Math.PI / 2,
+      pose: 'stand',
+      style: 'coffee',
+      shirt: 0x3f2a1d
+    });
+  }
+
+  // ── ELEKTRONİK EŞYALAR MAĞAZASI (TEKNOMARKET) ──
+  // Bilgisayarlar, kavisli gaming ekranları, konsollar, telefonlar, TV kutuları ve çalışanlar
+  buildElectronicsStore(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.SLATE, PALETTE.WHITE);
+
+    const zc = Math.round((z1 + z2) / 2);
+    // Cam vitrin
+    w.fillBox(x1, y1 + 1, z1 + 2, x1, y2 - 2, zc - 3, PALETTE.GLASS);
+    w.fillBox(x1, y1 + 1, zc + 3, x1, y2 - 2, z2 - 2, PALETTE.GLASS);
+
+    // Giriş sürgülü kapısı
+    w.clearBox(x1, y1, zc - 2, x1, y1 + 4, zc + 2);
+    vw.doors.addSliding({
+      sx: x1 * 0.75, sz: zc * 0.75,
+      ax: 0, az: 1, width: 3.4, height: 2.8, y: 0.5
+    });
+
+    // Neon Tabela: ELEKTRONİK & TEKNOLOJİ
+    const kit = new Kit(vw);
+    kit.sign('ELEKTRONİK & TEKNOLOJİ', { neon: true, color: 0x0ea5e9, fg: 0xffffff, w: 7.8, h: 1.2 }, (x1 - 0.25) * 0.75, (y1 + 6.5) * 0.5, zc * 0.75, Math.PI / 2);
+
+    // Orta Demo Tezgâhları (Ada masaları)
+    const midX = Math.round((x1 + x2) / 2);
+    w.fillBox(midX - 2, y1, z1 + 4, midX + 2, y1 + 1, zc - 3, PALETTE.WHITE);
+    w.fillBox(midX - 2, y1, zc + 3, midX + 2, y1 + 1, z2 - 4, PALETTE.WHITE);
+
+    // Elektronik Eşyalar: Gaming PC, Laptop, Konsol, Telefon
+    for (let z = z1 + 5; z <= zc - 4; z += 2.6) {
+      vw.propSpawns.push({ kind: 'desktop_pc', x: (midX - 0.8) * 0.75, y: 1.1, z: z * 0.75, yaw: Math.PI / 2 });
+      vw.propSpawns.push({ kind: 'laptop', x: (midX + 0.8) * 0.75, y: 1.1, z: z * 0.75, yaw: -Math.PI / 2 });
+    }
+    for (let z = zc + 4; z <= z2 - 5; z += 2.6) {
+      vw.propSpawns.push({ kind: 'game_console', x: (midX - 0.8) * 0.75, y: 1.1, z: z * 0.75, yaw: Math.PI / 2 });
+      vw.propSpawns.push({ kind: 'phone', x: (midX + 0.8) * 0.75, y: 1.1, z: z * 0.75, yaw: -Math.PI / 2 });
+      vw.propSpawns.push({ kind: 'tv_box', x: (midX) * 0.75, y: 1.1, z: (z + 0.5) * 0.75 });
+    }
+
+    // Kasa ve Teknoloji Danışmanı NPC
+    w.fillBox(x2 - 4, y1, zc - 2, x2 - 2, y1 + 2, zc + 2, PALETTE.BLACK);
+    vw.propSpawns.push({ kind: 'cash_register', x: (x2 - 3) * 0.75, y: (y1 + 2.5) * 0.5, z: zc * 0.75, yaw: -Math.PI / 2 });
+    vw.workers.push({
+      x: (x2 - 1.5) * 0.75,
+      y: 0.5,
+      z: zc * 0.75,
+      yaw: -Math.PI / 2,
+      pose: 'stand',
+      style: 'tech',
+      shirt: 0x0284c7
+    });
+  }
+
+  // ── GAYRİMENKULCÜ & ANAHTARCI (REAL ESTATE & LOCKSMITH) ──
+  // Kullanıcı İsteği: "Oyunun bazı yerlerine kafeci, elektronik eşyalar, anahtarcı mesela anahtarcı dediğim de ev anahtarlarını falan veriyor ya, bir gayrimenkulcü..."
+  buildRealEstateAndLocksmith(x1, y1, z1, x2, y2, z2) {
+    const w = this.b, vw = this.world;
+    w.beginBuilding();
+    w.fillHollowBox(x1, y1, z1, x2, y2, z2, PALETTE.BEIGE, PALETTE.WOOD);
+
+    const zc = Math.round((z1 + z2) / 2);
+    // Vitrin camı
+    w.fillBox(x1, y1 + 1, z1 + 2, x1, y2 - 2, zc - 3, PALETTE.GLASS);
+    w.fillBox(x1, y1 + 1, zc + 3, x1, y2 - 2, z2 - 2, PALETTE.GLASS);
+
+    // Giriş kapısı
+    w.clearBox(x1, y1, zc - 2, x1, y1 + 4, zc + 2);
+    vw.doors.addSliding({
+      sx: x1 * 0.75, sz: zc * 0.75,
+      ax: 0, az: 1, width: 3.2, height: 2.8, y: 0.5
+    });
+
+    // Tabela: GAYRİMENKUL & ANAHTARCI
+    const kit = new Kit(vw);
+    kit.sign('GAYRİMENKUL & ANAHTARCI', { neon: false, bg: 0x1e3a8a, fg: 0xfacc15, w: 7.8, h: 1.2 }, (x1 - 0.25) * 0.75, (y1 + 6.5) * 0.5, zc * 0.75, Math.PI / 2);
+
+    // 1. GAYRİMENKUL BÖLÜMÜ (Masa, bilgisayar, ev planları, maketler)
+    const deskX = x2 - 5, deskZ = z1 + 6;
+    w.fillBox(deskX - 1, y1, deskZ - 2, deskX + 2, y1 + 2, deskZ + 3, PALETTE.WOOD);
+    vw.propSpawns.push({ kind: 'desktop_pc', x: (deskX) * 0.75, y: 1.6, z: deskZ * 0.75, yaw: -Math.PI / 2 });
+    vw.propSpawns.push({ kind: 'phone', x: (deskX + 0.8) * 0.75, y: 1.6, z: (deskZ + 1.2) * 0.75 });
+    vw.propSpawns.push({ kind: 'chair', x: (deskX + 2.5) * 0.75, y: 0.5, z: deskZ * 0.75, yaw: -Math.PI / 2, color: 0x1e293b });
+    vw.propSpawns.push({ kind: 'chair', x: (deskX - 2.4) * 0.75, y: 0.5, z: (deskZ - 1) * 0.75, yaw: Math.PI / 2, color: 0x3b82f6 });
+    vw.propSpawns.push({ kind: 'chair', x: (deskX - 2.4) * 0.75, y: 0.5, z: (deskZ + 1) * 0.75, yaw: Math.PI / 2, color: 0x3b82f6 });
+
+    // Duvarda asılı mimari ev çizimleri / kat planları
+    w.fillBox(x2 - 1, y1 + 3, deskZ - 3, x2 - 1, y1 + 5, deskZ + 4, PALETTE.WHITE);
+    w.fillBox(x2 - 1, y1 + 3.5, deskZ - 2, x2 - 1, y1 + 4.5, deskZ + 3, PALETTE.BLUE);
+
+    // 2. ANAHTARCI BÖLÜMÜ (Key Racks, Anahtarlık Panosu, Çilingir Tezgâhı)
+    const keyZ = z2 - 6;
+    w.fillBox(deskX - 1, y1, keyZ - 2, deskX + 2, y1 + 2, keyZ + 3, PALETTE.IRON);
+    // Duvarda yüzlerce evin anahtarlarının asılı olduğu büyük sarı-altın anahtar panosu
+    w.fillBox(x2 - 1, y1 + 2, keyZ - 4, x2 - 1, y1 + 6, keyZ + 4, PALETTE.GOLD);
+    for (let ky = y1 + 3; ky <= y1 + 5; ky++) {
+      for (let kz = keyZ - 3; kz <= keyZ + 3; kz += 1.5) {
+        w.fillBox(x2 - 1, ky, Math.round(kz), x2 - 1, ky, Math.round(kz), PALETTE.BLACK);
+      }
+    }
+
+    // Anahtarcı / Gayrimenkul Emlakçı NPC (Mehmet Bey)
+    vw.workers.push({
+      x: (deskX + 2.0) * 0.75,
+      y: 0.5,
+      z: deskZ * 0.75,
+      yaw: -Math.PI / 2,
+      pose: 'sit',
+      style: 'office',
+      shirt: 0x1e3a8a
+    });
   }
 
   // BİNA 3: SAHİL KAFESİ

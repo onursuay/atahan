@@ -15,6 +15,7 @@ import { CarManager } from './cars.js';
 import { DayNight } from './daynight.js';
 import { TrafficLights } from './traffic.js';
 import { PropManager } from './props.js';
+import { LightSwitchManager } from './switches.js';
 import { sound } from './audio.js';
 import { getGrassTopTexture } from './textures.js';
 import { MapSystem } from './map.js';
@@ -184,6 +185,8 @@ function init() {
   });
   props = new PropManager(scene, voxelWorld);
   voxelWorld.props = props;
+  const switches = new LightSwitchManager(scene, voxelWorld);
+  voxelWorld.switches = switches;
 
   character = new Character(scene, physicsWorld, particleSystem, voxelWorld);
   setFirstPerson(true);
@@ -1003,6 +1006,17 @@ function grabDoor() {
   if (document.getElementById('weapon-selector').classList.contains('menu-open')) return;
   // Sağ tık HER ZAMAN el olur (zarar vermez, ateş etmez): açık dolap/çekmece/fırın içindeki eşya daha yakınsa eşyayı, değilse kapağı tutar
   rightHeld = true;
+
+  // Işık Anahtarı Kontrolü (Sağ tık ile evin lambalarını aç/kapa yapma)
+  if (voxelWorld.switches) {
+    const sp = voxelWorld.switches.pick(camera);
+    if (sp) {
+      voxelWorld.switches.toggle(sp.switch);
+      setCrosshair('grab');
+      return;
+    }
+  }
+
   const dp = voxelWorld.doors.pick(camera);
   const pp = props.pick(camera);
   let grabbed = false;
@@ -1021,7 +1035,8 @@ function releaseHand() {
 // Her karede: kapıya veya eşyaya bakıyor muyuz?
 function updateCrosshair() {
   if (rightHeld) return;
-  setCrosshair(!inCar && (voxelWorld.doors.aim(camera) || props.aim(camera)) ? 'hand' : null);
+  const switchAim = voxelWorld.switches && voxelWorld.switches.aim(camera);
+  setCrosshair(!inCar && (switchAim || voxelWorld.doors.aim(camera) || props.aim(camera)) ? 'hand' : null);
 }
 
 function fireWeapon() {

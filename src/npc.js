@@ -1302,12 +1302,14 @@ export class NPCManager {
     body.g.scale.setScalar(SCALE);
 
     // Bellboy şapkası / kepi (Kırmızı silindir kep, altın sarısı şerit)
+    // Kullanıcı İsteği: "Çalışanların şapkaları kafalarıyla birleştiği noktaya gelsin lütfen."
     const cap = new THREE.Group();
-    const capBase = new THREE.Mesh(boxGeo(0.24, 0.12, 0.24), mat(spec.shirt || 0xdc2626));
-    const capStripe = new THREE.Mesh(boxGeo(0.25, 0.04, 0.25), mat(spec.vest || 0xfacc15));
-    capStripe.position.y = -0.02;
+    const capBase = new THREE.Mesh(boxGeo(0.22, 0.09, 0.22), mat(spec.shirt || 0xdc2626));
+    const capStripe = new THREE.Mesh(boxGeo(0.23, 0.03, 0.23), mat(spec.vest || 0xfacc15));
+    capStripe.position.y = -0.025;
     cap.add(capBase, capStripe);
-    cap.position.set(0, 1.76, 0.02);
+    // Kafa tepe noktasıyla tam birleşen kusursuz yükseklik (1.51 m)
+    cap.position.set(0, 1.51, 0.01);
     body.g.add(cap);
 
     // Altın sarısı yelek / apolet detayları
@@ -1315,7 +1317,25 @@ export class NPCManager {
     vestMesh.position.set(0, 0.96, 0.02);
     body.g.add(vestMesh);
 
-    if (spec.type === 'room_service') {
+    if (spec.type === 'doorman_entrance') {
+      // 0. GİRİŞ KAPISI NÖBETÇİ / KARŞILAMA GÖREVLİSİ (DOORMAN):
+      // Kapının sağında ve solunda öne bakacak şekilde, görev bekler vaziyette durur
+      body.g.position.set(spec.x, spec.y, spec.z);
+      body.g.rotation.y = spec.yaw;
+      // Resmi saygılı duruş: kollar muntazam yanlarda, dik duruş
+      body.lArm.rotation.x = -0.12;
+      body.rArm.rotation.x = -0.12;
+      body.lArm.rotation.z = 0.04;
+      body.rArm.rotation.z = -0.04;
+      this.scene.add(body.g);
+
+      this.hotelStaffNPCs.push({
+        type: 'doorman_entrance',
+        ...body, group: body.g, spec,
+        x: spec.x, y: spec.y, z: spec.z,
+        timer: 0, cycle: Math.random() * 5
+      });
+    } else if (spec.type === 'room_service') {
       // 1. ODA SERVİSİ: Elinde gümüş servis tepsisi ve kubbeli servis kapağı (cloche)
       const trayGroup = new THREE.Group();
       const tray = new THREE.Mesh(boxGeo(0.38, 0.03, 0.38), mat(0xe2e8f0));
@@ -1395,6 +1415,14 @@ export class NPCManager {
     if (!this.hotelStaffNPCs || this.hotelStaffNPCs.length === 0) return;
     for (const h of this.hotelStaffNPCs) {
       h.cycle += dt * 6.0;
+
+      if (h.type === 'doorman_entrance') {
+        // Kapı görevlisi: kapının yanında hazır görev bekler, hafif çevreye bakar ve nefes alır
+        const time = Date.now() * 0.002 + h.cycle;
+        h.head.rotation.y = Math.sin(time * 0.7) * 0.14;
+        h.head.rotation.x = Math.sin(time * 1.4) * 0.03;
+        continue;
+      }
 
       const walk = () => {
         h.lLeg.rotation.x = Math.sin(h.cycle) * 0.55;

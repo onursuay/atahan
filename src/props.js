@@ -228,11 +228,27 @@ const KINDS = {
     [0.04, 0.035, 0.04, 0.0, 0.072, 0.06, 0xef4444],
     [0.04, 0.035, 0.04, 0.0, 0.072, -0.01, 0x78350f]
   ]) },
-  chips: { half: [0.12, 0.16, 0.06], tint: false, mass: 0.15, geo: () => parts([
-    [0.22, 0.3, 0.1, 0, 0, 0, 0xdc2626],
-    [0.23, 0.02, 0.105, 0, 0.14, 0, 0xfacc15],
-    [0.23, 0.02, 0.105, 0, -0.14, 0, 0xfacc15],
-    [0.14, 0.08, 0.105, 0, 0.01, 0, 0xfef08a]
+  // Büyük & Gerçekçi Cips Paketi (Kullanıcı İsteği: normalinden 2-3 kat büyütülmüş, detaylı çıtır ambalaj)
+  chips: { half: [0.28, 0.38, 0.14], tint: false, mass: 0.35, shatterColor: 0xfacc15, geo: () => parts([
+    [0.52, 0.72, 0.24, 0, 0, 0, 0xdc2626],                  // Parlak kırmızı ana paket
+    [0.54, 0.05, 0.25, 0, 0.34, 0, 0xfacc15],               // Üst altın tırtıklı mühür şeridi
+    [0.54, 0.05, 0.25, 0, -0.34, 0, 0xfacc15],              // Alt altın tırtıklı mühür şeridi
+    [0.34, 0.22, 0.255, 0, 0.04, 0, 0xfef08a],              // Ön logo & lezzet patlaması rozeti
+    [0.24, 0.12, 0.26, 0, -0.12, 0, 0xeab308],              // Baharatlı altın patates cipsi görseli
+    [0.44, 0.64, 0.02, 0, 0, 0.125, 0xef4444],              // Ambalaj parlama yansıması
+    [0.44, 0.64, 0.02, 0, 0, -0.125, 0xb91c1c]
+  ]) },
+  // Büyük & Gerçekçi Tablet Çikolata (Kullanıcı İsteği: altın folyolu, parçalanabilir kareli, marka sargılı çikolata)
+  chocolate: { half: [0.26, 0.06, 0.16], tint: false, mass: 0.4, shatterColor: 0x3f1d0b, geo: () => parts([
+    [0.50, 0.07, 0.30, 0, 0, 0, 0x3f1d0b],                  // Zengin bitter / sütlü çikolata gövdesi
+    [0.51, 0.072, 0.26, -0.04, 0, 0, 0xfacc15],             // İç altın folyo ambalaj
+    [0.36, 0.076, 0.31, 0.04, 0, 0, 0x991b1b],              // Kırmızı kaliteli marka dış kağıt sargısı
+    [0.22, 0.08, 0.315, 0.04, 0, 0, 0xfef08a],              // Çikolata marka logosu altın şerit
+    // Çikolata kare tablet dilimleri (açık uçta kabartmalı dilimler)
+    [0.10, 0.02, 0.08, -0.18, 0.04, -0.08, 0x451a03],
+    [0.10, 0.02, 0.08, -0.18, 0.04, 0.08, 0x451a03],
+    [0.08, 0.02, 0.08, -0.07, 0.04, -0.08, 0x451a03],
+    [0.08, 0.02, 0.08, -0.07, 0.04, 0.08, 0x451a03]
   ]) },
   iced_tea: { half: [0.07, 0.14, 0.07], tint: false, mass: 0.35, geo: () => parts([
     [0.12, 0.25, 0.12, 0, 0, 0, 0xf59e0b],
@@ -240,11 +256,14 @@ const KINDS = {
     [0.11, 0.02, 0.11, 0, 0.13, 0, 0xd1d5db],
     [0.05, 0.04, 0.01, 0.04, 0.02, 0.065, 0x16a34a]
   ]) },
-  brownie: { half: [0.08, 0.05, 0.08], tint: false, mass: 0.15, geo: () => parts([
-    [0.16, 0.08, 0.16, 0, 0, 0, 0x3f1d0b],
-    [0.14, 0.015, 0.14, 0, 0.045, 0, 0x78350f],
-    [0.04, 0.01, 0.04, 0.03, 0.052, 0.02, 0xfafafa],
-    [0.04, 0.01, 0.04, -0.04, 0.052, -0.03, 0xfafafa]
+  // Büyük & Gerçekçi Çikolatalı Brownie (2.5 kat büyütülmüş, fındıklı çikolatalı ıslak kek)
+  brownie: { half: [0.20, 0.12, 0.20], tint: false, mass: 0.35, shatterColor: 0x3f1d0b, geo: () => parts([
+    [0.38, 0.18, 0.38, 0, 0, 0, 0x3f1d0b],                  // Yoğun nemli çikolatalı kek gövdesi
+    [0.34, 0.03, 0.34, 0, 0.10, 0, 0x78350f],               // Sıcak çikolata sosu / ganaj kaplama
+    [0.09, 0.03, 0.09, 0.08, 0.12, 0.06, 0xfde047],         // İri ceviz / fındık parçaları
+    [0.08, 0.03, 0.08, -0.09, 0.12, -0.07, 0xfde047],
+    [0.07, 0.025, 0.07, -0.05, 0.12, 0.09, 0xfafafa],       // Pudra şekeri serpintisi
+    [0.07, 0.025, 0.07, 0.07, 0.12, -0.08, 0xfafafa]
   ]) },
   pasta: { half: [0.08, 0.16, 0.05], tint: false, mass: 0.45, geo: () => parts([
     [0.14, 0.3, 0.09, 0, 0, 0, 0x1e3a8a],
@@ -395,18 +414,26 @@ const KINDS = {
     [0.03, 0.02, 0.02, 0.10, 0.038, 0, 0xfacc15]
   ]) },
 
-  candy_box: { half: [0.13, 0.07, 0.13], tint: true, mass: 0.38, shatterColor: 0xdc2626, geo: () => parts([
-    [0.24, 0.10, 0.24, 0, 0, 0, 0xffffff],
-    [0.05, 0.105, 0.245, 0, 0, 0, 0xfacc15],
-    [0.245, 0.105, 0.05, 0, 0, 0, 0xfacc15],
-    [0.07, 0.04, 0.07, 0, 0.065, 0, 0xfacc15]
+  // Büyük & Gerçekçi Lüks Hediye Şeker & Çikolata Kutusu (2.5 kat büyütülmüş, kurdeleli ve altın yaldızlı)
+  candy_box: { half: [0.28, 0.16, 0.28], tint: true, mass: 0.65, shatterColor: 0xdc2626, geo: () => parts([
+    [0.54, 0.22, 0.54, 0, 0, 0, 0xffffff],                  // Beyaz saten parlak kutu gövdesi
+    [0.10, 0.23, 0.55, 0, 0, 0, 0xfacc15],                  // Boyuna altın lüks hediye kurdelesi
+    [0.55, 0.23, 0.10, 0, 0, 0, 0xfacc15],                  // Enine altın lüks hediye kurdelesi
+    [0.16, 0.08, 0.16, 0, 0.14, 0, 0xfacc15],               // Üst büyük hediye fiyonku
+    [0.22, 0.04, 0.08, 0.08, 0.13, 0, 0xeab308],            // Fiyonk kıvrımı sağ
+    [0.22, 0.04, 0.08, -0.08, 0.13, 0, 0xeab308]            // Fiyonk kıvrımı sol
   ]) },
 
-  sweets: { half: [0.10, 0.05, 0.10], tint: false, mass: 0.25, shatterColor: 0x38bdf8, geo: () => parts([
-    [0.18, 0.04, 0.18, 0, -0.025, 0, 0x38bdf8],
-    [0.05, 0.035, 0.07, -0.04, 0.015, 0.02, 0xef4444],
-    [0.05, 0.035, 0.07, 0.04, 0.015, -0.03, 0x22c55e],
-    [0.05, 0.035, 0.07, 0, 0.025, 0, 0xfacc15]
+  // Büyük & Gerçekçi Renkli Bayram Şekerleri & Bonbon Tabağı (2.4 kat büyütülmüş)
+  sweets: { half: [0.24, 0.12, 0.24], tint: false, mass: 0.5, shatterColor: 0x38bdf8, geo: () => parts([
+    [0.44, 0.08, 0.44, 0, -0.04, 0, 0x38bdf8],              // Parlak kristal cam sunum kasesi
+    [0.40, 0.02, 0.40, 0, -0.08, 0, 0x0284c7],              // Kase taban halkası
+    // Renkli burgulu ambalajlı lezzetli bayram şekerleri
+    [0.12, 0.08, 0.16, -0.09, 0.04, 0.05, 0xef4444],       // Kırmızı çilekli bonbon
+    [0.12, 0.08, 0.16, 0.09, 0.04, -0.07, 0x22c55e],       // Yeşil elmalı bonbon
+    [0.12, 0.08, 0.16, 0, 0.06, 0, 0xfacc15],               // Altın sarısı limonlu bonbon
+    [0.10, 0.07, 0.14, -0.04, 0.08, -0.08, 0xec4899],      // Pembe ahududulu bonbon
+    [0.10, 0.07, 0.14, 0.08, 0.08, 0.06, 0x8b5cf6]        // Mor böğürtlenli bonbon
   ]) },
 
   tv_box: { half: [0.42, 0.26, 0.08], tint: false, mass: 3.2, shatterColor: 0xd4a373, geo: () => parts([

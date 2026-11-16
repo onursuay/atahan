@@ -358,10 +358,13 @@ export function buildTraffic(lm) {
   const texMap = getSignTextures();
   const signKinds = ['dur', 'park', 'hiz50', 'yaya', 'dikkat', 'yon'];
 
-  // Paylaşımlı Arka Panel ve Metal Kenarlık Materyalleri
+  // Paylaşımlı Arka Panel, Metal Kenarlık ve Teardown Tarzı Mini Voxel Direk Materyalleri
   const sharedRimMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.5, metalness: 0.6 });
   const sharedBackMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6, metalness: 0.5 });
   const sharedBracketMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7, metalness: 0.6 });
+  // Teardown tarzı 1/4 küpler için metalik direk materyali
+  const sharedPoleMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.45, metalness: 0.75 });
+  const poleCubeGeo = new THREE.BoxGeometry(0.125, 0.125, 0.125); // Normal 0.5m küpün tam 1/4'ü!
 
   // Tabelanın Ön Yüzey Materyalleri
   const frontMaterials = {};
@@ -394,11 +397,22 @@ export function buildTraffic(lm) {
         const ix = Math.round(px * U / S), iz = Math.round(pz * U / S);
         const kind = signKinds[n % signKinds.length];
 
-        // 1. Sağlam Metal Direk (6 voxel = 3.0 m yükseklik)
-        for (let iy = 1; iy <= 6; iy++) vput(ix, iy, iz, IRON);
+        // 1. TEARDOWN TARZI 1/4 BOYUTUNDA SEVİMLİ MİNİ VOXEL DİREK
+        // Kullanıcı İsteği: "Tear Down'daki gibi tabelalar yap. Tabelaların küplerini normalinden dörtte biri kadar küçült ama sadece onları."
+        // Normal 0.5 m'lik kalın küpler yerine tam 1/4 (0.125 m) Teardown voxel küpleri dizilir!
+        const signGroup = new THREE.Group();
+        const poleGroup = new THREE.Group();
+        const poleCubesCount = 26; // Y = 0'dan 3.25 m yüksekliğe kadar
+        for (let py = 0; py < poleCubesCount; py++) {
+          const miniCube = new THREE.Mesh(poleCubeGeo, sharedPoleMat);
+          miniCube.position.set(0, py * 0.125 - 3.25, 0);
+          miniCube.castShadow = true;
+          miniCube.receiveShadow = true;
+          poleGroup.add(miniCube);
+        }
+        signGroup.add(poleGroup);
 
         // 2. Gerçekçi Kompakt Tabela Grubu
-        const signGroup = new THREE.Group();
         const geo = (kind === 'dur') ? octGeo : circGeo;
         const signMesh = new THREE.Mesh(geo, [sharedRimMat, frontMaterials[kind], sharedBackMat]);
         signMesh.castShadow = true;
@@ -420,7 +434,8 @@ export function buildTraffic(lm) {
         // Yıkım takibi için nesneyi kaydet
         world.signObjects.push({
           group: signGroup,
-          poleKey: `${ix},5,${iz}`,
+          x: ix * S,
+          z: iz * S,
           dead: false,
           falling: false,
           vel: new THREE.Vector3(0, 0, 0),
@@ -487,8 +502,20 @@ export class TrafficLights {
       for (const s of this.world.signObjects) {
         if (s.dead) continue;
         if (!s.falling) {
-          const v = this.world.voxels.get(s.poleKey);
-          if (!v || !v.active) {
+          let knocked = false;
+          if (s.poleKey) {
+            const v = this.world.voxels.get(s.poleKey);
+            if (!v || !v.active) knocked = true;
+          }
+          if (s.x != null && this.world.cars) {
+            for (const c of this.world.cars.cars || []) {
+              if (c && c.pos && Math.hypot(c.pos.x - s.x, c.pos.z - s.z) < 1.6 && Math.abs(c.speed) > 2) {
+                knocked = true;
+                break;
+              }
+            }
+          }
+          if (knocked) {
             s.falling = true;
             s.vel.set((Math.random() - 0.5) * 3, 2.0, (Math.random() - 0.5) * 3);
             s.rotVel.set((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);

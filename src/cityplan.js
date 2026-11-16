@@ -44,7 +44,7 @@ const RN = ROUNDABOUTS[0], RS = ROUNDABOUTS[1];
 add('s6-kuzey', -87, -480, -87, RN.cz - RC, 9, { paint: [[-480, RN.cz - 22]] });                  // kuzey göbeğin kuzeyi
 add('s6-orta', -87, RN.cz + RC, -87, RS.cz - RC, 9, { paint: [[RN.cz + 22, RS.cz - 22]] });       // iki göbek arası
 add('s6-guney', -87, RS.cz + RC, -87, 480, 9, { paint: [[RS.cz + 22, 480]] });                    // güney göbeğin güneyi
-add('s7', -47, -480, -47, 480, 9);
+// s7 ve site yolları binaların, otelin, süpermarketin ve evlerin içinden geçtiği için kaldırıldı; bloklar birleştirildi.
 add('s8', -27, -480, -27, 480, 9);                                        // doğu sahil yolu
 add('cadde-0', -750, 0, 366, 0, 11, { noMerge: true, paint: [[-750, -12], [258, 366]] });         // ana omurga cadde: tüm batı ada + köprü + doğu ada
 
@@ -64,7 +64,7 @@ for (const g of ROUNDABOUTS) {
   add(`cadde${g.cz}-bati`, -750, g.cz, g.cx - RC, g.cz, 11, { paint: [[-750, g.cx - 22]] });
   add(`cadde${g.cz}-dogu`, g.cx + RC, g.cz, -27, g.cz, 11, { paint: [[g.cx + 22, -27]] });
 }
-add('site', -67, -134, -67, -66, 7, { off: 1.3 });                         // konut sitesi iç yolu: iki caddeyi birleştirir
+// konut sitesi iç yolu evlerin içinden geçtiği için kaldırıldı
 
 // ── DOĞU ADA (ZENGİN & SAĞLIK & OKUL BÖLGESİ OTOYOL VE CADDE AĞI) ──
 // Okul kampüsü z: 146..258 arasında yer alır. Otoyol okulun içinden GEÇMEZ!
