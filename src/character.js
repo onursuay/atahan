@@ -25,9 +25,14 @@ const EPS = 1e-4;
 const GRAVITY = 25;
 const MAX_FALL = 40;
 const WATER_LEVEL = -0.15;   // main.js içindeki deniz yüzeyi (waterMesh.position.y) ile aynı olmalı
-const WATER_BOUND = 4500;    // 5x genişletilmiş harita sınırları
-const SEA_WALL_WEST = -1060; // Görünmez deniz duvarı (okyanusta boşluğa düşmeyi engelleyen fiziksel bariyer)
-const SEA_WALL_Z_BOUND = 1400;
+// ── Görünmez Okyanus Duvarı & Dünya Sınırları ──
+// Kullanıcı İsteği: "Okyanusu biraz küçültelim. Okyanustan biraz gittikten sonra artık bir görünmez duvar olsun. Görünmez duvardan sonrası su olmasın. Oyun daha az kassın istiyorum"
+export const WORLD_BOUNDS = {
+  minX: -700, // Batı okyanus sınırı (Havalimanı bitiminden ~125m sonra görünmez duvar)
+  maxX: 660,  // Doğu okyanus sınırı (Dağ/Villa bitiminden ~120m sonra görünmez duvar)
+  minZ: -630, // Kuzey okyanus sınırı (Pist kuzeyinden ~120m sonra görünmez duvar)
+  maxZ: 480   // Güney okyanus sınırı (Sahil yolundan ~120m sonra görünmez duvar)
+};
 const WATER_ENTER_DEPTH = 1.25;  // sığ sularda ayak yere basarken yürünür, göğüs hizasını geçip taban desteği kesilince yüzülür
 const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)
 const FLOAT_DEPTH_UP = 0.45; // Space basılıyken daha yüksekte yüzer
@@ -638,7 +643,10 @@ export class Character {
   }
 
   _overlaps(x, feetY, z) {
-    if (x <= SEA_WALL_WEST || Math.abs(z) >= SEA_WALL_Z_BOUND) return true; // Görünmez deniz duvarı (okyanus aşılmaz)
+    // 4 Taraflı Görünmez Okyanus Duvarı (Okyanustan biraz gittikten sonra başlayan fiziksel sınır)
+    if (x <= WORLD_BOUNDS.minX || x >= WORLD_BOUNDS.maxX || z <= WORLD_BOUNDS.minZ || z >= WORLD_BOUNDS.maxZ) {
+      return true;
+    }
     const S = VOXEL_SIZE;
     // Zemin iki katmandır. Alt katman (taban kayası) her yerde katıdır ve kırılamaz;
     // üst katman yalnız sağlam olduğu hücrelerde katıdır (kırılan yerde çukurun tabanında yürünür).
@@ -673,12 +681,13 @@ export class Character {
     const nx = axis === 'x' ? pos.x + delta : pos.x;
     const nz = axis === 'z' ? pos.z + delta : pos.z;
 
-    // Görünmez okyanus duvarı engeli
-    if (nx <= SEA_WALL_WEST || Math.abs(nz) >= SEA_WALL_Z_BOUND) {
-      if (axis === 'x') pos.x = Math.max(SEA_WALL_WEST + 0.05, pos.x);
-      else pos.z = THREE.MathUtils.clamp(pos.z, -SEA_WALL_Z_BOUND + 0.05, SEA_WALL_Z_BOUND - 0.05);
+    // Görünmez okyanus duvarı engeli (4 yönlü sınır)
+    if (nx <= WORLD_BOUNDS.minX || nx >= WORLD_BOUNDS.maxX || nz <= WORLD_BOUNDS.minZ || nz >= WORLD_BOUNDS.maxZ) {
+      if (axis === 'x') pos.x = THREE.MathUtils.clamp(pos.x, WORLD_BOUNDS.minX + 0.1, WORLD_BOUNDS.maxX - 0.1);
+      else pos.z = THREE.MathUtils.clamp(pos.z, WORLD_BOUNDS.minZ + 0.1, WORLD_BOUNDS.maxZ - 0.1);
       this.vel[axis] = 0;
       this.blockedHoriz = true;
+      this.blockedWorldWall = true;
       return feet;
     }
 
@@ -730,7 +739,8 @@ export class Character {
       const terY = this.voxelWorld && this.voxelWorld.terrain ? this.voxelWorld.terrain.heightAt(pos.x, pos.z) : -Infinity;
       const depth = WATER_LEVEL - feet;
       const wasInWater = this.inWater;
-      const inWaterZone = (pos.x < -815 && pos.x > SEA_WALL_WEST && Math.abs(pos.z) < SEA_WALL_Z_BOUND) || (terY < WATER_LEVEL - 0.2);
+      const inWaterZone = (pos.x >= WORLD_BOUNDS.minX && pos.x <= WORLD_BOUNDS.maxX && pos.z >= WORLD_BOUNDS.minZ && pos.z <= WORLD_BOUNDS.maxZ) &&
+        (terY < WATER_LEVEL - 0.2 || pos.x < -430 || pos.x > 530);
       this.inWater = inWaterZone && depth > 0.65;
 
       if (this.inWater && !wasInWater && this.vel.y < -2.5) {
@@ -777,11 +787,12 @@ export class Character {
       feet = this._moveAxis('x', (this.vel.x + this.knock.x) * h, pos, feet);
       feet = this._moveAxis('z', (this.vel.z + this.knock.z) * h, pos, feet);
       this.lastBlocked = this.blockedHoriz;
-      if (this.elementalFlight && this.blockedHoriz && this.voxelWorld) {
+      if (this.elementalFlight && this.blockedHoriz && !this.blockedWorldWall && this.voxelWorld) {
         this.voxelWorld.explode(this.body.position, 3.6, 320);
         this.voxelWorld.sweepCut(this.body.position, 4.0, null);
         this.blockedHoriz = false;
       }
+      this.blockedWorldWall = false;
 
       // İnişte zemine yapış: yokuş aşağı yürürken havada sekmesin (en fazla 0.3 m aşağıda zemin varsa oraya in)
       if (this.isGrounded && this.vel.y <= 0 && !this.inWater && !this.jetting && !inputState.jump && this._overlaps(pos.x, feet - 0.3, pos.z)) {
@@ -818,9 +829,9 @@ export class Character {
       }
     }
 
-    // Deniz sınırından fazla açılmasın (batıda -1060 m görünmez deniz duvarı)
-    pos.x = THREE.MathUtils.clamp(pos.x, SEA_WALL_WEST + 0.05, WATER_BOUND);
-    pos.z = THREE.MathUtils.clamp(pos.z, -SEA_WALL_Z_BOUND + 0.05, SEA_WALL_Z_BOUND - 0.05);
+    // Deniz sınırından fazla açılmasın: 4 yönlü görünmez okyanus duvarı
+    pos.x = THREE.MathUtils.clamp(pos.x, WORLD_BOUNDS.minX + 0.1, WORLD_BOUNDS.maxX - 0.1);
+    pos.z = THREE.MathUtils.clamp(pos.z, WORLD_BOUNDS.minZ + 0.1, WORLD_BOUNDS.maxZ - 0.1);
     pos.y = feet + BODY_H / 2;
 
     // Kinematik gövdeyi Cannon'un kendi başına kaydırmasını engelle

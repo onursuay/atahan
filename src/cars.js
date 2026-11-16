@@ -3,6 +3,7 @@ import { sound } from './audio.js';
 import { VOXEL_SIZE } from './config.js';
 import { TYPES, SPAWN_WEIGHTS, ZONE_NAMES, buildCar, glassMat, zoneOfLocal, randomLivery } from './carmodels.js';
 import { graphRoads, ringNodes, ROUNDABOUTS } from './cityplan.js';
+import { WORLD_BOUNDS } from './character.js';
 const BRIDGE_Y = 0.5; // köprü tabliyesi artık zeminle aynı hizada (üst yüz 0.5 m)
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -669,6 +670,12 @@ export class CarManager {
     const px = nx + car.fwd.x * half * dir, pz = nz + car.fwd.z * half * dir;
     const side = [-car.fwd.z, car.fwd.x];
     let blocked = false, hitVox = null, hitDoor = null;
+
+    // Görünmez okyanus duvarı sınır kontrolü (araç denizin dışına çıkamaz)
+    if (nx <= WORLD_BOUNDS.minX + 2.0 || nx >= WORLD_BOUNDS.maxX - 2.0 || nz <= WORLD_BOUNDS.minZ + 2.0 || nz >= WORLD_BOUNDS.maxZ - 2.0) {
+      blocked = true;
+      car.speed = -car.speed * 0.35;
+    }
     for (const so of [-1, 0, 1]) {
       const qx = px + side[0] * so * (T.wid / 2 - 0.1), qz = pz + side[1] * so * (T.wid / 2 - 0.1);
       // Engel taraması zemine göre: rampada/tabliye başında ön köşe zeminin 0.4 ve 1.0 m üstünden bakar
@@ -720,6 +727,9 @@ export class CarManager {
     } else {
       car.pos.x = nx; car.pos.z = nz;
     }
+
+    car.pos.x = THREE.MathUtils.clamp(car.pos.x, WORLD_BOUNDS.minX + 2.0, WORLD_BOUNDS.maxX - 2.0);
+    car.pos.z = THREE.MathUtils.clamp(car.pos.z, WORLD_BOUNDS.minZ + 2.0, WORLD_BOUNDS.maxZ - 2.0);
 
     // Yaya ezme
     if (Math.abs(car.speed) > 4 && this.vw.npcs) this.vw.npcs.hitSphere(car.pos.clone().addScaledVector(car.fwd, half * dir), 1.1);

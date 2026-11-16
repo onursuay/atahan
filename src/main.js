@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import confetti from 'canvas-confetti';
-import { Character } from './character.js';
+import { Character, WORLD_BOUNDS } from './character.js';
 import { WeaponSystem } from './weapons.js';
 import { LevelManager } from './levels.js';
 import { ParticleSystem } from './particles.js';
@@ -300,8 +300,14 @@ function init() {
 function createWorldArena() {
   // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
-  // Deniz / Okyanus Suyu Düzlemi (Kıyı denizi ölçeğinde daraltılmış, 60 FPS garantili)
-  waterGeo = new THREE.PlaneGeometry(2800, 2800, 24, 24);
+  // ── Okyanus Suyu Düzlemi (Kullanıcı İsteği: Okyanus küçültüldü, görünmez duvardan sonrası su olmasın) ──
+  // Görünmez duvar sınırlarına tam oturan (1360m x 1110m) optimize su düzlemi; duvardan sonra su çizilmez, FPS yükselir.
+  const waterW = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX; // 1360 m
+  const waterD = WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ; // 1110 m
+  const waterCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2; // -20 m
+  const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2; // -75 m
+
+  waterGeo = new THREE.PlaneGeometry(waterW, waterD, 24, 24);
   waterMat = new THREE.MeshLambertMaterial({
     color: 0x0369a1,
     transparent: true,
@@ -309,26 +315,26 @@ function createWorldArena() {
   });
   const waterMesh = new THREE.Mesh(waterGeo, waterMat);
   waterMesh.rotation.x = -Math.PI / 2;
-  waterMesh.position.set(-450, -0.15, 0);
+  waterMesh.position.set(waterCX, -0.15, waterCZ);
   waterMesh.receiveShadow = false; // Dev okyanus yüzeyinde ağır gölge fragment hesaplamasını kapat (GPU tasarrufu)
   scene.add(waterMesh);
 
-  // Yüzen Voxel Bulutlar (10 Kat Dünya Gökyüzü)
+  // Yüzen Voxel Bulutlar (Dünya sınırları içinde hafif süzülüş)
   const cloudMat = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
     opacity: 0.8
   });
 
-  for (let i = 0; i < 32; i++) {
+  for (let i = 0; i < 28; i++) {
     const w = 24 + Math.random() * 32;
     const d = 20 + Math.random() * 28;
     const cloudGeo = new THREE.BoxGeometry(w, 2.0, d);
     const cloudMesh = new THREE.Mesh(cloudGeo, cloudMat);
     cloudMesh.position.set(
-      (Math.random() - 0.5) * 2800,
+      WORLD_BOUNDS.minX + Math.random() * waterW,
       45 + Math.random() * 15,
-      (Math.random() - 0.5) * 2800
+      WORLD_BOUNDS.minZ + Math.random() * waterD
     );
     scene.add(cloudMesh);
     clouds.push({ mesh: cloudMesh, speed: 2.0 + Math.random() * 3.5 });
@@ -387,7 +393,7 @@ function updateWaves(dt) {
   if (!waterGeo) return;
   const cp = camera ? camera.position : null;
   // Şehir merkezindeyken okyanus vertex güncellemesini atla (GPU bus darboğazını önler)
-  if (cp && cp.x < 260 && Math.abs(cp.z) < 700) return;
+  if (cp && cp.x > -420 && cp.x < 240 && Math.abs(cp.z) < 380) return;
   waveTime += dt;
   if ((waveFrame++ % 3) !== 0) return;
   const pos = waterGeo.attributes.position;
@@ -528,10 +534,10 @@ function updateGame(dt) {
   });
   particleSystem.update(dt);
 
-  // Bulutlar (10 kat geniş gökyüzünde süzülür)
+  // Bulutlar (Görünmez sınır içinde süzülür ve baştan sarar)
   clouds.forEach(c => {
     c.mesh.position.x += c.speed * dt;
-    if (c.mesh.position.x > 1400) c.mesh.position.x = -1400;
+    if (c.mesh.position.x > WORLD_BOUNDS.maxX + 40) c.mesh.position.x = WORLD_BOUNDS.minX - 40;
   });
 
   // Harita (Minimap ve Büyük Dünya Haritası)

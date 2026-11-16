@@ -7,6 +7,8 @@
 //  • Aktif görev hedefini (Waypoint) parlak altın yıldızla hem minimap'te hem büyük haritada gösterir.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import { WORLD_BOUNDS } from './character.js';
+
 export class MapSystem {
   constructor() {
     this.isOpen = false;
@@ -15,12 +17,12 @@ export class MapSystem {
     this.playerYaw = 0;
     this.pulse = 0;
 
-    // Gerçek dünya sınırları: Batıda Uluslararası Havalimanı (-760m), Doğuda Zengin Villası (520m)
+    // Dünya sınırları ve Görünmez Okyanus Duvarı
     this.worldBounds = {
-      minX: -760,
-      maxX: 520,
-      minZ: -800,
-      maxZ: 800
+      minX: WORLD_BOUNDS.minX,
+      maxX: WORLD_BOUNDS.maxX,
+      minZ: WORLD_BOUNDS.minZ,
+      maxZ: WORLD_BOUNDS.maxZ
     };
 
     // Büyük harita kamera konumu ve yakınlaşması (etkileşimli pan & zoom)
@@ -569,13 +571,24 @@ export class MapSystem {
       ctx.fillRect(Math.min(p0x, p1x), Math.min(p0z, p1z), Math.abs(p1x - p0x), Math.abs(p1z - p0z));
     };
 
-    // 1. Okyanus Arka Planı
-    ctx.fillStyle = '#0284c7';
+    // 1. Okyanus ve Harita Sınırı (Kullanıcı İsteği: Görünmez duvardan sonrası su olmasın)
+    ctx.fillStyle = '#090d16'; // Görünmez duvarın dışı (boşluk / harita dışı)
     ctx.fillRect(0, 0, width, height);
 
+    // Okyanus Suyu (Yalnızca görünmez duvar sınırları içinde çizilir)
+    rect(this.worldBounds.minX, this.worldBounds.minZ, this.worldBounds.maxX, this.worldBounds.maxZ, '#0284c7');
+
     // Kıyı sığ su parıltısı
-    ctx.fillStyle = 'rgba(56, 189, 248, 0.12)';
-    ctx.fillRect(0, 0, width, height);
+    rect(this.worldBounds.minX, this.worldBounds.minZ, this.worldBounds.maxX, this.worldBounds.maxZ, 'rgba(56, 189, 248, 0.12)');
+
+    // Görünmez Duvar Sınır Çizgisi (Kesik çizgili neon sınır hattı)
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = Math.max(1, 2 * zoom);
+    ctx.setLineDash([8, 4]);
+    const [w0x, w0z] = pt(this.worldBounds.minX, this.worldBounds.minZ);
+    const [w1x, w1z] = pt(this.worldBounds.maxX, this.worldBounds.maxZ);
+    ctx.strokeRect(Math.min(w0x, w1x), Math.min(w0z, w1z), Math.abs(w1x - w0x), Math.abs(w1z - w0z));
+    ctx.setLineDash([]);
 
     // 2. Batı Şehir Adası (Devasa Metropol & Sahil Kordonu)
     rect(-420, -800, 20, 800, '#334155');  // Metropol taban alanı
