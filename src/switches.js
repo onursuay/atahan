@@ -156,34 +156,8 @@ export class LightSwitchManager {
     }
   }
 
-  // Mekanik ışık anahtarı tıklama sesi üret
-  _playClickSound() {
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      if (!this._audioCtx) this._audioCtx = new AudioCtx();
-      if (this._audioCtx.state === 'suspended') this._audioCtx.resume();
-
-      const t = this._audioCtx.currentTime;
-      const osc = this._audioCtx.createOscillator();
-      const gain = this._audioCtx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1400, t);
-      osc.frequency.exponentialRampToValueAtTime(180, t + 0.04);
-
-      gain.gain.setValueAtTime(0.35, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.045);
-
-      osc.connect(gain);
-      gain.connect(this._audioCtx.destination);
-
-      osc.start(t);
-      osc.stop(t + 0.05);
-    } catch (e) {
-      // Audio fallback
-    }
-  }
+  // Mekanik ışık anahtarı tıklama sesi (Kullanıcı talebiyle kaldırıldı)
+  _playClickSound() {}
 
   _rayAabb(o, d, p, h) {
     let tmin = 0, tmax = 1e9;
