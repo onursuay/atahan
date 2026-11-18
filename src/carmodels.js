@@ -9,17 +9,17 @@ import * as THREE from 'three';
 // mass: göreli kütle (çarpışmada momentum). zhp: bölge panel canı. wr: tekerlek yarıçapı.
 // seatX/seatY: sürücünün kabindeki yeri.
 export const TYPES = {
-  sport:     { len: 4.5, wid: 1.9,  h: 1.05, speed: [25, 33], mass: 1.15, zhp: 12, wr: 0.33, seatX: -0.1, seatY: 0.96 },
-  bvm:       { len: 4.65, wid: 1.88, h: 1.28, speed: [23, 31], mass: 1.35, zhp: 13, wr: 0.35, seatX: -0.15, seatY: 1.05 },
-  merzedes:  { len: 4.90, wid: 1.92, h: 1.32, speed: [21, 28], mass: 1.55, zhp: 15, wr: 0.36, seatX: -0.18, seatY: 1.10 },
-  mini:      { len: 2.7, wid: 1.45, h: 1.35, speed: [8, 11],  mass: 0.8, zhp: 8,  wr: 0.32, seatX: -0.1, seatY: 1.28 },
-  sedan:     { len: 4.3, wid: 1.8,  h: 1.35, speed: [12, 16], mass: 1.2, zhp: 10, wr: 0.32, seatX: -0.1, seatY: 1.28 },
-  suv:       { len: 4.7, wid: 1.95, h: 1.85, speed: [11, 15], mass: 1.7, zhp: 14, wr: 0.42, seatX: 0.1,  seatY: 1.5 },
-  pickup:    { len: 5.2, wid: 1.95, h: 1.85, speed: [10, 14], mass: 1.8, zhp: 14, wr: 0.42, seatX: 0.9,  seatY: 1.4 },
-  van:       { len: 5.0, wid: 2.0,  h: 2.1,  speed: [9, 13],  mass: 2.1, zhp: 16, wr: 0.38, seatX: 1.5,  seatY: 1.7 },
-  truck:     { len: 7.2, wid: 2.4,  h: 3.4,  speed: [7, 10],  mass: 4.2, zhp: 24, wr: 0.55, seatX: 2.5,  seatY: 2.1 },
-  police:    { len: 4.4, wid: 1.85, h: 1.65, speed: [15, 20], mass: 1.3, zhp: 11, wr: 0.34, seatX: -0.2, seatY: 1.28 },
-  ambulance: { len: 5.4, wid: 2.05, h: 2.45, speed: [12, 16], mass: 2.4, zhp: 17, wr: 0.42, seatX: 1.8,  seatY: 1.75 }
+  sport:     { len: 4.5, wid: 1.9,  h: 1.05, speed: [30, 38], mass: 1.15, zhp: 12, wr: 0.33, seatX: -0.1, seatY: 0.96 },
+  bvm:       { len: 4.65, wid: 1.88, h: 1.28, speed: [28, 35], mass: 1.35, zhp: 13, wr: 0.35, seatX: -0.15, seatY: 1.05 },
+  merzedes:  { len: 4.90, wid: 1.92, h: 1.32, speed: [26, 33], mass: 1.55, zhp: 15, wr: 0.36, seatX: -0.18, seatY: 1.10 },
+  mini:      { len: 2.7, wid: 1.45, h: 1.35, speed: [14, 18],  mass: 0.8, zhp: 8,  wr: 0.32, seatX: -0.1, seatY: 1.28 },
+  sedan:     { len: 4.3, wid: 1.8,  h: 1.35, speed: [18, 24], mass: 1.2, zhp: 10, wr: 0.32, seatX: -0.1, seatY: 1.28 },
+  suv:       { len: 4.7, wid: 1.95, h: 1.85, speed: [17, 23], mass: 1.7, zhp: 14, wr: 0.42, seatX: 0.1,  seatY: 1.5 },
+  pickup:    { len: 5.2, wid: 1.95, h: 1.85, speed: [16, 22], mass: 1.8, zhp: 14, wr: 0.42, seatX: 0.9,  seatY: 1.4 },
+  van:       { len: 5.0, wid: 2.0,  h: 2.1,  speed: [15, 20],  mass: 2.1, zhp: 16, wr: 0.38, seatX: 1.5,  seatY: 1.7 },
+  truck:     { len: 7.2, wid: 2.4,  h: 3.4,  speed: [12, 16],  mass: 4.2, zhp: 24, wr: 0.55, seatX: 2.5,  seatY: 2.1 },
+  police:    { len: 4.4, wid: 1.85, h: 1.65, speed: [22, 30], mass: 1.3, zhp: 11, wr: 0.34, seatX: -0.2, seatY: 1.28 },
+  ambulance: { len: 5.4, wid: 2.05, h: 2.45, speed: [18, 25], mass: 2.4, zhp: 17, wr: 0.42, seatX: 1.8,  seatY: 1.75 }
 };
 
 // Trafikte görülme olasılığı (toplam 1)

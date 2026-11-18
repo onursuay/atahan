@@ -638,11 +638,6 @@ export class StoryManager {
       this.character.hammer.visible = false;
     }
 
-    // Şehirdeki ve malikanedeki tüm rastgele yayaları/çalışanları gizle
-    if (this.voxelWorld && this.voxelWorld.npcs && this.voxelWorld.npcs.npcs) {
-      this.voxelWorld.npcs.npcs.forEach(n => { if (n.group) n.group.visible = false; });
-    }
-
     this.startPhaseBoardroomMeeting();
   }
 
@@ -986,11 +981,6 @@ export class StoryManager {
     // Çekiç kesinlikle gizlenir
     if (this.character && this.character.hammer) {
       this.character.hammer.visible = false;
-    }
-
-    // Şehirdeki ve dünyadaki tüm rastgele insanları gizli tut (kesinlikle görünmesinler)
-    if (this.voxelWorld && this.voxelWorld.npcs && this.voxelWorld.npcs.npcs) {
-      this.voxelWorld.npcs.npcs.forEach(n => { if (n.group) n.group.visible = false; });
     }
 
     // Limuzini caddede beklemede başlat
