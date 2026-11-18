@@ -128,7 +128,8 @@ export class VoxelWorld {
 
     // Dinamik Fırlayan Fizik Parçacık Küpleri (Teardown döküntüleri)
     this.dynamicDebris = [];
-    this.maxDynamicDebris = 180; // Patlamalarda 60 FPS akıcılığı korumak için optimize sınır
+    this.maxDynamicDebris = 90; // Patlamalarda kesintisiz 60 FPS akıcılığı korumak için optimize sınır
+    this.debrisMaterials = {};
 
     this.cubeGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
     this.cubeShape = new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 4, VOXEL_SIZE / 4, VOXEL_SIZE / 4));
@@ -859,12 +860,16 @@ export class VoxelWorld {
 
   // scale (isteğe bağlı): döküntü küpünün büyüklük çarpanı (1 = 0.25 m; araç parçaları için daha büyük)
   spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce, push = null, scale = 1) {
-    // Görsel Küp
-    const mat = new THREE.MeshLambertMaterial({ color: matType.color });
+    // Görsel Küp (Materyalleri önbellekten alarak GPU bellek sızıntısını ve shader derleme takılmalarını engelle)
+    const mid = matType?.id ?? 0;
+    if (!this.debrisMaterials[mid]) {
+      this.debrisMaterials[mid] = new THREE.MeshLambertMaterial({ color: matType?.color ?? 0xcccccc });
+    }
+    const mat = this.debrisMaterials[mid];
     const mesh = new THREE.Mesh(this.debrisGeo, mat);
     if (scale !== 1) mesh.scale.setScalar(scale);
     mesh.position.set(x, y, z);
-    mesh.castShadow = true;
+    mesh.castShadow = scale >= 1.4; // Yalnızca büyük parçalar gölge bıraksın; binlerce küçük küp gölge çizimini tıkamasın
     this.scene.add(mesh);
 
     // Fizik Gövdesi
@@ -973,11 +978,9 @@ export class VoxelWorld {
       d.mesh.position.copy(d.body.position);
       d.mesh.quaternion.copy(d.body.quaternion);
 
-      // Yerin altına düştüyse veya süresi bittiyse sil
+      // Yerin altına düştüyse veya süresi bittiyse sil (ortak debrisGeo ve paylaşılan materyalleri imha etmeden)
       if (d.life <= 0 || d.body.position.y < -5) {
         this.scene.remove(d.mesh);
-        d.mesh.geometry.dispose();
-        d.mesh.material.dispose();
         this.physicsWorld.removeBody(d.body);
         this.dynamicDebris.splice(i, 1);
       }
@@ -998,8 +1001,6 @@ export class VoxelWorld {
     // Uçuşan döküntüleri sil
     this.dynamicDebris.forEach(d => {
       this.scene.remove(d.mesh);
-      d.mesh.geometry.dispose();
-      d.mesh.material.dispose();
       this.physicsWorld.removeBody(d.body);
     });
     this.dynamicDebris = [];

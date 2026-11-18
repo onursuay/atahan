@@ -2649,17 +2649,11 @@ export class LevelManager {
 
     const grp = new THREE.Group();
 
-    // Tavandan sarkan ampuller (üst kat televizyon odası, alt kat mutfak ve alt kat tuvalet)
-    const midX = 0.5 * (wv + ev) / 2;
-    this._addHangingBulb(grp, midX, 9.5, seatZ);
-    this._addHangingBulb(grp, midX, 5.0, seatZ);
-    this._addHangingBulb(grp, 0.5 * (ev - 4.5), 5.0, 0.5 * (zv2 - 6));       // tuvalet ampulü
-
     // ── EVİN IŞIK ANAHTARLARI & GERÇEK AYDINLATMA (Kullanıcı İsteği) ──
     // "bu evlerin içine lambalar koy. O lambalarda böyle ışık yansın. Hatta bir tane anahtar olsun... sağ tıka basılı tutup elimizle aç kapa yapabilelim."
     if (vw.switches) {
-      // 1. Üst Kat (TV & Yatak Odası) Işık Anahtarı (Merdiven ve TV odası duvarında)
-      vw.switches.addSwitch(0.5 * (wv + 3) + 0.15, 6.8, 0.5 * zr0 - 0.2, 0, {
+      // 1. Üst Kat (TV & Yatak Odası) Işık Anahtarı - Batı duvarında tam düz monte (rotY: Math.PI / 2)
+      vw.switches.addSwitch(wv * 0.5 + 0.25, 6.9, 0.5 * zr0, Math.PI / 2, {
         name: 'Üst Kat Işık Anahtarı',
         lamps: [
           { x: midX, y: 9.2, z: seatZ, rodLen: 0.6, shadeColor: 0x334155 },
@@ -2667,8 +2661,8 @@ export class LevelManager {
         ]
       });
 
-      // 2. Alt Kat (Giriş & Mutfak) Işık Anahtarı (Giriş kapısı yanında duvarda)
-      vw.switches.addSwitch(0.5 * (wv + 3) + 0.15, 1.8, 0.5 * (zv1 + 2), 0, {
+      // 2. Alt Kat (Giriş & Mutfak) Işık Anahtarı - Giriş kapısının hemen sağında kuzey duvarına tam düz monte (rotY: 0)
+      vw.switches.addSwitch((cx + 2.5) * 0.75, 1.45, zv1 * 0.5 + 0.25, 0, {
         name: 'Giriş Kat Işık Anahtarı',
         lamps: [
           { x: midX, y: 4.8, z: seatZ, rodLen: 0.45, shadeColor: 0x0f172a },
@@ -3457,9 +3451,27 @@ export class LevelManager {
     const topFloor = y1 + 6 * Math.floor((y2 - 3 - y1) / 6);
     w.fillBox(doorX - 1, topFloor + 1, midZ, doorX + 1, topFloor + 2, midZ + 2, PALETTE.TNT);
 
-    // Ev içi tavan lambası ve ışık anahtarı (Kullanıcı İsteği)
+    // Ev içi tavan lambası ve ışık anahtarı - Kapı yanındaki duvara tam düz monte
     if (this.world.switches) {
-      this.world.switches.addSwitch(doorX * 0.75, 1.8, (doorZ + 1) * 0.75, 0, {
+      let swX = doorX * 0.75, swZ = doorZ * 0.75, swRot = 0;
+      if (side === 'z1') {
+        swX = (doorX + 2) * 0.75;
+        swZ = z1 * 0.75 + 0.25;
+        swRot = 0;
+      } else if (side === 'z2') {
+        swX = (doorX + 2) * 0.75;
+        swZ = z2 * 0.75 - 0.25;
+        swRot = Math.PI;
+      } else if (side === 'x1') {
+        swX = x1 * 0.75 + 0.25;
+        swZ = (doorZ + 2) * 0.75;
+        swRot = Math.PI / 2;
+      } else if (side === 'x2') {
+        swX = x2 * 0.75 - 0.25;
+        swZ = (doorZ + 2) * 0.75;
+        swRot = -Math.PI / 2;
+      }
+      this.world.switches.addSwitch(swX, 1.45, swZ, swRot, {
         name: 'Apartman Salon Işık Anahtarı',
         lamps: [
           { x: doorX * 0.75, y: 3.5, z: midZ * 0.75, rodLen: 0.4, shadeColor: 0x334155 }

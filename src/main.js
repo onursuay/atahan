@@ -364,12 +364,30 @@ function respawnPlayer() {
   requestAnimationFrame(() => requestAnimationFrame(() => { f.style.transition = 'opacity 1.4s ease-out'; f.style.opacity = '0'; }));
 }
 
+let _hpBarEl = null, _hpTextEl = null, _jetBarEl = null;
+let _lastHp = -1, _lastJet = -1, _lastJetting = null;
 function updateVitals(dt) {
   if (hp < 100 && performance.now() - lastHitT > 5000) hp = Math.min(100, hp + 8 * dt); // yavaş iyileşme
-  document.getElementById('hp-bar').style.width = `${Math.max(0, hp)}%`;
-  document.getElementById('hp-text').innerText = Math.max(0, Math.round(hp));
-  document.getElementById('jet-bar').style.width = `${Math.round(character.fuel * 100)}%`;
-  document.getElementById('jet-bar').style.background = character.jetting ? '#fde047' : '#38bdf8';
+  if (!_hpBarEl) {
+    _hpBarEl = document.getElementById('hp-bar');
+    _hpTextEl = document.getElementById('hp-text');
+    _jetBarEl = document.getElementById('jet-bar');
+  }
+  const curHp = Math.max(0, Math.round(hp));
+  if (curHp !== _lastHp) {
+    _lastHp = curHp;
+    if (_hpBarEl) _hpBarEl.style.width = `${curHp}%`;
+    if (_hpTextEl) _hpTextEl.innerText = curHp;
+  }
+  const curJet = Math.round(character.fuel * 100);
+  if (curJet !== _lastJet && _jetBarEl) {
+    _lastJet = curJet;
+    _jetBarEl.style.width = `${curJet}%`;
+  }
+  if (character.jetting !== _lastJetting && _jetBarEl) {
+    _lastJetting = character.jetting;
+    _jetBarEl.style.background = character.jetting ? '#fde047' : '#38bdf8';
+  }
 }
 
 let fountainTimer = 0;
@@ -405,6 +423,7 @@ function updateWaves(dt) {
 }
 
 const doorActors = [];
+const doorActorPool = [];
 let sunLight = null, ambientLight = null, sunMesh = null, waterMat = null, dayNight = null, clockT = 0;
 function updateGame(dt) {
   if (introActive && introWaiting) {
@@ -514,11 +533,28 @@ function updateGame(dt) {
   } else if (!introActive) {
     if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
   }
-  // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik
+  // Otomatik (sürgülü) kapıları açan hareketliler: oyuncu (ya da sürdüğü araç), yayalar ve trafik (Havuzlanmış nesnelerle 0 GC takılması)
   doorActors.length = 0;
-  doorActors.push({ x: character.mesh.position.x, y: character.mesh.position.y, z: character.mesh.position.z });
-  for (const n of npcs.npcs) doorActors.push({ x: n.x, y: n.y, z: n.z, npc: true });
-  for (const c of cars.cars) if (c.state === 'drive') doorActors.push({ x: c.pos.x, y: c.pos.y, z: c.pos.z });
+  let daIdx = 0;
+  const addActor = (x, y, z, npc = false) => {
+    let a;
+    if (daIdx < doorActorPool.length) {
+      a = doorActorPool[daIdx++];
+      a.x = x; a.y = y; a.z = z; a.npc = npc;
+    } else {
+      a = { x, y, z, npc };
+      doorActorPool.push(a);
+      daIdx++;
+    }
+    doorActors.push(a);
+  };
+  addActor(character.mesh.position.x, character.mesh.position.y, character.mesh.position.z, false);
+  for (const n of npcs.npcs) {
+    if (n && n.group && n.group.visible) addActor(n.x, n.y, n.z, true);
+  }
+  for (const c of cars.cars) {
+    if (c.state === 'drive') addActor(c.pos.x, c.pos.y, c.pos.z, false);
+  }
   voxelWorld.doors.update(dt, doorActors);
   updateCrosshair();
   updateFountains(dt);
@@ -869,7 +905,10 @@ function loadLevel(index) {
   } catch (e) {}
 }
 
+let _lastDestructionPct = -1;
 function updateDestructionUI(percent) {
+  if (percent === _lastDestructionPct) return;
+  _lastDestructionPct = percent;
   destructionPercentEl.innerText = `${percent}%`;
   destructionBarEl.style.width = `${percent}%`;
 

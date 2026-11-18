@@ -421,13 +421,60 @@ export function buildVilla(world) {
   // Laboratuvar: kuzey duvarında dört ekran (iç yüz z≈-95.75, +z'ye bakar)
   [['reactor', 58], ['chart', 67], ['map', 76], ['reactor', 85]].forEach(([k, u]) => screen(Xc(u), Yb(9) + 2.3, Ze(36) + 0.03, 4.4, 2.0, 0, k));
   // Renkli noktasal ışıklar: havuz, salon, laboratuvar, konsol altı
-  const pl = (color, intensity, dist, x, y, z) => { const l = new THREE.PointLight(color, intensity, dist, 2); l.position.set(x, y, z); g.add(l); };
+  const villaLights = [];
+  const pl = (color, intensity, dist, x, y, z) => {
+    const l = new THREE.PointLight(color, intensity, dist, 2);
+    l.position.set(x, y, z);
+    l.userData = { baseIntensity: intensity };
+    g.add(l);
+    villaLights.push(l);
+  };
   pl(0x22d3ee, 40, 26, Xc(46), Yb(1) + 1.2, Zc(14));
   pl(0xffd9a0, 28, 20, Xc(24), Yb(6), Zc(54));
   pl(0x38bdf8, 30, 20, Xc(72), Yb(13), Zc(52));
   pl(0xf472b6, 30, 22, Xc(86), Yb(6), Zc(54));
   world.scene.add(g);
   world.decor.push(g);
+
+  // ── 7.1 ZENGİN ABİMİZİN EVİNE ÖZEL ŞIK IŞIK ANAHTARI (Kullanıcı İsteği) ──
+  // Zengin abinin villası için duvara sıfır düz monte edilmiş, fırçalanmış şampanya altını ve obsidyen camlı lüks akıllı anahtar
+  if (world.switches) {
+    const ceilingLampVoxels = [];
+    for (let u = 10; u <= 74; u += 8) {
+      for (let w = 38; w <= 72; w += 8) {
+        const [ua, ub] = rng(u, u), [wa, wb] = rng(w, w);
+        for (let ux = ua; ux <= ub; ux++) {
+          for (let wz = wa; wz <= wb; wz++) {
+            ceilingLampVoxels.push([vx(ux), YB + 7, vz(wz)]);
+          }
+        }
+      }
+    }
+
+    world.switches.addSwitch(Xc(42.5), Yb(1) + 1.45, Zs(75), Math.PI, {
+      name: 'David Sterling Villa Akıllı Aydınlatma Anahtarı',
+      style: 'luxury',
+      luxury: true,
+      pointLights: villaLights,
+      lamps: [
+        {
+          x: Xc(24),
+          y: Yb(7) + 0.1,
+          z: Zc(54),
+          rodLen: 0.75,
+          shadeColor: 0xd4af37,
+          voxelCoords: ceilingLampVoxels
+        },
+        {
+          x: Xc(60),
+          y: Yb(7) + 0.1,
+          z: Zc(59),
+          rodLen: 0.75,
+          shadeColor: 0xf59e0b
+        }
+      ]
+    });
+  }
 
   // ── 8. SAKİN: tek bir çok zengin adam ──
   world.residents = world.residents || [];

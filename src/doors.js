@@ -478,7 +478,13 @@ export class DoorSystem {
         const cx = d.sx + d.ax * d.width / 2, cz = d.sz + d.az * d.width / 2;
         let near = false;
         const reach = d.width * 0.5 + (d.gate ? 9 : 3.2);                // araç kapısı uzaktan açılır (araç hızlı gelir)
-        for (const a of actors) if (!(d.gate && a.npc) && Math.abs(a.y - d.y) < 3.5 && Math.hypot(a.x - cx, a.z - cz) < reach) { near = true; break; }
+        const reachSq = reach * reach;
+        for (const a of actors) {
+          if (d.gate && a.npc) continue;
+          if (Math.abs(a.y - d.y) >= 3.5) continue;
+          const dx = a.x - cx, dz = a.z - cz;
+          if (dx * dx + dz * dz < reachSq) { near = true; break; }
+        }
         d.hold = near ? (d.gate ? 2.5 : 1.4) : Math.max(0, d.hold - dt);                  // yaklaşan yoksa 1.4 sn sonra kapanır
         d.target = d.hold > 0 ? 1 : 0;
         const prev = d.open;
