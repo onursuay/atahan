@@ -12,46 +12,48 @@ export class LightSwitchManager {
   // Duvara monte elektrik ışık anahtarı ekler
   // x, y, z: anahtar konumu (metre)
   // rotY: yönü
-  // opts: { name, lamps: [{ x, y, z, rodLen, voxelCoords }], initialOn }
+  // opts: { name, lamps: [{ x, y, z, rodLen, voxelCoords }], initialOn, luxury, style }
   addSwitch(x, y, z, rotY = 0, opts = {}) {
     const group = new THREE.Group();
+    const isLuxury = !!(opts.luxury || opts.style === 'luxury');
 
-    // 1. Anahtar Ön Çerçevesi (Standart duvara monte beyaz parlak çerçeve)
-    const plateGeo = new THREE.BoxGeometry(0.12, 0.16, 0.02);
+    // 1. Anahtar Ön Çerçevesi (Lüks için fırçalanmış şampanya altını, standart için beyaz)
+    const plateGeo = new THREE.BoxGeometry(0.12, 0.16, 0.016);
     const plateMat = new THREE.MeshStandardMaterial({
-      color: 0xf8fafc,
-      roughness: 0.25,
-      metalness: 0.05
+      color: isLuxury ? 0xd4af37 : 0xf8fafc,
+      roughness: isLuxury ? 0.2 : 0.25,
+      metalness: isLuxury ? 0.85 : 0.05
     });
     const plate = new THREE.Mesh(plateGeo, plateMat);
     plate.castShadow = true;
     group.add(plate);
 
-    // 2. İç Yuva / Çerçeve Çıtası
-    const slotGeo = new THREE.BoxGeometry(0.06, 0.09, 0.022);
+    // 2. İç Yuva / Çerçeve Çıtası (Lüks için obsidyen cam, standart için açık antrasit)
+    const slotGeo = new THREE.BoxGeometry(0.064, 0.096, 0.018);
     const slotMat = new THREE.MeshStandardMaterial({
-      color: 0x94a3b8,
-      roughness: 0.4
+      color: isLuxury ? 0x0f172a : 0x94a3b8,
+      roughness: isLuxury ? 0.1 : 0.4,
+      metalness: isLuxury ? 0.9 : 0.1
     });
     const slot = new THREE.Mesh(slotGeo, slotMat);
     group.add(slot);
 
-    // 3. Aç / Kapa Butonu (Rocker / Toggle Tuşu)
-    const rockerGeo = new THREE.BoxGeometry(0.048, 0.076, 0.028);
+    // 3. Aç / Kapa Butonu (Lüks için altın dokunmatik tuş, standart için beyaz rocker)
+    const rockerGeo = new THREE.BoxGeometry(0.048, 0.076, 0.022);
     const rockerMat = new THREE.MeshStandardMaterial({
-      color: 0xffffff,
-      roughness: 0.2,
-      metalness: 0.1
+      color: isLuxury ? 0xfacc15 : 0xffffff,
+      roughness: isLuxury ? 0.15 : 0.2,
+      metalness: isLuxury ? 0.8 : 0.1
     });
     const rocker = new THREE.Mesh(rockerGeo, rockerMat);
-    rocker.position.set(0, 0, 0.012);
+    rocker.position.set(0, 0, 0.008);
     group.add(rocker);
 
-    // Küçük durum göstergesi (açıkken minik fosforlu yeşil/turuncu nokta)
-    const indGeo = new THREE.BoxGeometry(0.012, 0.012, 0.03);
-    const indMat = new THREE.MeshBasicMaterial({ color: 0x22c55e });
+    // Küçük durum göstergesi (açıkken lüks için şık buz mavisi LED, standart için yeşil LED)
+    const indGeo = new THREE.BoxGeometry(0.012, 0.012, 0.024);
+    const indMat = new THREE.MeshBasicMaterial({ color: isLuxury ? 0x38bdf8 : 0x22c55e });
     const indicator = new THREE.Mesh(indGeo, indMat);
-    indicator.position.set(0, 0.024, 0.016);
+    indicator.position.set(0, 0.024, 0.012);
     group.add(indicator);
 
     group.position.set(x, y, z);
@@ -61,6 +63,10 @@ export class LightSwitchManager {
     // Bağlı tavan lambaları ve dinamik ışıklar (PointLight)
     const pointLights = [];
     const lampMeshes = [];
+
+    if (opts.pointLights && Array.isArray(opts.pointLights)) {
+      pointLights.push(...opts.pointLights);
+    }
 
     const lampPositions = opts.lamps || [];
     for (const lp of lampPositions) {

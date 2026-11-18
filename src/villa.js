@@ -246,15 +246,14 @@ export function buildVilla(world) {
   // Yemek masası ve sandalyeler, avize
   put(55, 2, 57, 66, 2, 61, WOOD); for (const [u, w] of [[55, 57], [66, 57], [55, 61], [66, 61]]) put(u, 1, w, u, 1, w, BLACK);
   for (const u of [57, 60, 63]) { put(u, 1, 55, u, 2, 55, BLACK); put(u, 1, 63, u, 2, 63, BLACK); }
-  put(60, 6, 59, 61, 7, 59, GOLD); put(59, 5, 58, 62, 5, 60, LAMP);
+  put(60, 6, 59, 61, 7, 59, GOLD);
   // Giriş: bank, bitki
   put(34, 1, 70, 38, 1, 71, WOOD); put(46, 1, 72, 48, 1, 74, WOOD); put(46, 2, 72, 48, 4, 74, GRASS);
   // Konsol altı açık salon: duvar önü bank, ateş çukuru, tabureler
   put(77, 1, 40, 78, 1, 48, WHITE); put(76, 1, 40, 76, 3, 48, WHITE); put(77, 1, 62, 78, 1, 70, WHITE); put(76, 1, 62, 76, 3, 70, WHITE);
   ring(86, 50, 90, 54, 1, 1, BLACK); put(87, 1, 51, 89, 1, 53, LAMP_ORANGE);
   for (const [u, w] of [[84, 52], [92, 52], [88, 48], [88, 56]]) put(u, 1, w, u, 1, w, WHITE);
-  // Tavan ışıkları: alçak sıra spot + renkli kuşak
-  for (let u = 10; u <= 74; u += 8) for (let w = 38; w <= 72; w += 8) put(u, 7, w, u, 7, w, LAMP);
+  // Tavan ışıkları: renkli kuşak (eski sarı tavan küpleri kaldırıldı)
   put(5, 7, 34, 5, 7, 42, LAMP_PURPLE); put(5, 7, 66, 5, 7, 74, LAMP_PURPLE);                    // ekran duvarı kuşağı (ekranların yanında)
 
   // ── 5. İÇ MEKAN: ÜST KAT ──
@@ -428,6 +427,32 @@ export function buildVilla(world) {
   pl(0xf472b6, 30, 22, Xc(86), Yb(6), Zc(54));
   world.scene.add(g);
   world.decor.push(g);
+
+  // ── 7.1 ZENGİN ABİMİZİN EVİNE ÖZEL ŞIK IŞIK ANAHTARI (Kullanıcı İsteği) ──
+  // Zengin abinin villası için duvara sıfır düz monte edilmiş, fırçalanmış şampanya altını ve obsidyen camlı lüks akıllı anahtar
+  if (world.switches) {
+    world.switches.addSwitch(Xc(42.5), Yb(1) + 1.45, Zs(75), Math.PI, {
+      name: 'David Sterling Villa Akıllı Aydınlatma Anahtarı',
+      style: 'luxury',
+      luxury: true,
+      lamps: [
+        {
+          x: Xc(24),
+          y: Yb(7) + 0.1,
+          z: Zc(54),
+          rodLen: 0.75,
+          shadeColor: 0xd4af37
+        },
+        {
+          x: Xc(60),
+          y: Yb(7) + 0.1,
+          z: Zc(59),
+          rodLen: 0.75,
+          shadeColor: 0xf59e0b
+        }
+      ]
+    });
+  }
 
   // ── 8. SAKİN: tek bir çok zengin adam ──
   world.residents = world.residents || [];

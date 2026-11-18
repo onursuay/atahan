@@ -2321,31 +2321,14 @@ export class LevelManager {
     this.addCeilingLights(x1, y1, z1, x2, y2, z2, fromFloor);
   }
 
-  // Bina içi aydınlatma: her katın tavanına (üst kat döşemesinin hemen altına) 0.75 m'lik parlayan LAMBA plakaları.
-  // Tavan lambaları 7 birim (5.25 m) aralıkla, duvar ve merdiven boşluğundan uzak dizilir.
+  // Bina içi aydınlatma: Gerçekçi 3D asılı lamba sistemine geçildiği için eski sarı tavan küpleri kaldırıldı.
   addCeilingLights(x1, y1, z1, x2, y2, z2, fromFloor = 1) {
-    const w = this.b;
-    const put = (x, z, yc) => { const sx = Math.round(K * x), sz = Math.round(K * z); w.raw(sx - 1, yc, sz - 1, sx + 1, yc, sz + 1, PALETTE.LAMP); };
-    const levels = [];
-    for (let k = fromFloor; k <= MAX_FLOORS && y1 + 6 * k < y2 - 2; k++) levels.push(w._y0(y1 + 6 * k) - 1);   // üst kat döşemesinin altı
-    levels.push(w._y1(y2) - 1);                                                                                  // çatının altı
-    for (const yc of levels) for (let x = x1 + 4; x <= x2 - 4; x += 7) for (let z = z1 + 4; z <= z2 - 4; z += 7) put(x, z, yc);
+    // Eski sarı küp lambalar komple kaldırıldı
   }
 
-  // AVM aydınlatması: her kat ve çatı; atrium boşluğunun üstüne balkon lambası konmaz
+  // AVM aydınlatması
   addMallLights(x1, y1, z1, x2, y2, z2) {
-    const w = this.b, zc = Math.round((z1 + z2) / 2);
-    const put = (x, z, yc) => { const sx = Math.round(K * x), sz = Math.round(K * z); w.raw(sx - 1, yc, sz - 1, sx + 1, yc, sz + 1, PALETTE.LAMP); };
-    for (let k = 1; y1 + MALL_FLOOR * k < y2 - 2; k++) {
-      const r = y1 + MALL_FLOOR * k;
-      const yc = w._y0(r) - 1;
-      for (let x = x1 + 4; x <= x2 - 4; x += 6) for (let z = z1 + 4; z <= z2 - 4; z += 6) if (Math.abs(z - zc) >= 10) put(x, z, yc);
-    }
-    const yr = w._y1(y2) - 1;           // çatı: camlı ışıklığın (atrium üstü) altı hariç her yer
-    for (let x = x1 + 4; x <= x2 - 4; x += 6) for (let z = z1 + 4; z <= z2 - 4; z += 6) {
-      if (Math.abs(z - zc) < 8 && x >= x1 + 7 && x <= x2 - 7) continue;
-      put(x, z, yr);
-    }
+    // Eski sarı küp lambalar komple kaldırıldı
   }
 
   // Yüzeye sığan yatay şerit pencereler: her katta
@@ -2571,17 +2554,9 @@ export class LevelManager {
     vw.propSpawns.push({ kind: 'chair', x: islX + islD * 0.5 + 0.45, y: floorY + 0.46, z: islZ + 1.65, yaw: -Math.PI / 2 });
   }
 
-  // Tavandan sarkan Teardown tarzı sarı ampul (kablo + duy + parlayan ampul + sıcak nokta ışığı)
+  // Tavandan sarkan Teardown tarzı sarı ampul (Gerçekçi 3D lamba sistemine geçildi, eski sarı küpler kaldırıldı)
   _addHangingBulb(grp, x, ceilY, z) {
-    const cord = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.72, 0.035), new THREE.MeshLambertMaterial({ color: 0x1e293b }));
-    cord.position.set(x, ceilY - 0.36, z);
-    const socket = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.10, 0.11), new THREE.MeshLambertMaterial({ color: 0xb45309 }));
-    socket.position.set(x, ceilY - 0.74, z);
-    const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.22), new THREE.MeshBasicMaterial({ color: 0xffe57f }));
-    bulb.position.set(x, ceilY - 0.90, z);
-    const pt = new THREE.PointLight(0xffd27d, 9, 13, 1.8);
-    pt.position.set(x, ceilY - 1.05, z);
-    grp.add(cord, socket, bulb, pt);
+    // Eski sarı küp ampul komple kaldırıldı
   }
 
   // OYUNCUNUN EVİ (başlangıç): İki katlı Teardown tarzı müstakil ev!
@@ -2675,17 +2650,13 @@ export class LevelManager {
 
     const grp = new THREE.Group();
 
-    // Tavandan sarkan ampuller (üst kat televizyon odası, alt kat mutfak ve alt kat tuvalet)
     const midX = 0.5 * (wv + ev) / 2;
-    this._addHangingBulb(grp, midX, 9.5, seatZ);
-    this._addHangingBulb(grp, midX, 5.0, seatZ);
-    this._addHangingBulb(grp, 0.5 * (ev - 4.5), 5.0, 0.5 * (zv2 - 6));       // tuvalet ampulü
 
     // ── EVİN IŞIK ANAHTARLARI & GERÇEK AYDINLATMA (Kullanıcı İsteği) ──
     // "bu evlerin içine lambalar koy. O lambalarda böyle ışık yansın. Hatta bir tane anahtar olsun... sağ tıka basılı tutup elimizle aç kapa yapabilelim."
     if (vw.switches) {
-      // 1. Üst Kat (TV & Yatak Odası) Işık Anahtarı (Merdiven ve TV odası duvarında)
-      vw.switches.addSwitch(0.5 * (wv + 3) + 0.15, 6.8, 0.5 * zr0 - 0.2, 0, {
+      // 1. Üst Kat (TV & Yatak Odası) Işık Anahtarı - Batı duvarında tam düz monte (rotY: Math.PI / 2)
+      vw.switches.addSwitch(wv * 0.5 + 0.25, 6.8, 0.5 * zr0, Math.PI / 2, {
         name: 'Üst Kat Işık Anahtarı',
         lamps: [
           { x: midX, y: 9.2, z: seatZ, rodLen: 0.6, shadeColor: 0x334155 },
@@ -2693,8 +2664,8 @@ export class LevelManager {
         ]
       });
 
-      // 2. Alt Kat (Giriş & Mutfak) Işık Anahtarı (Giriş kapısı yanında duvarda)
-      vw.switches.addSwitch(0.5 * (wv + 3) + 0.15, 1.8, 0.5 * (zv1 + 2), 0, {
+      // 2. Alt Kat (Giriş & Mutfak) Işık Anahtarı - Giriş kapısının hemen sağında kuzey duvarına tam düz monte (rotY: 0)
+      vw.switches.addSwitch((cx + 2.5) * 0.75, 1.45, zv1 * 0.5 + 0.25, 0, {
         name: 'Giriş Kat Işık Anahtarı',
         lamps: [
           { x: midX, y: 4.8, z: seatZ, rodLen: 0.45, shadeColor: 0x0f172a },
@@ -3074,13 +3045,17 @@ export class LevelManager {
     w.fillBox(x1 - 1, y2, z1 - 1, x2 + 1, y2, z1 - 1, PALETTE.ROOF);
     w.fillBox(x1 - 1, y2, z2 + 1, x2 + 1, y2, z2 + 1, PALETTE.ROOF);
 
-    // Tavan aydınlatması
-    const grp = new THREE.Group();
-    const midX = (x1 + x2) * 0.75 / 2;
-    const midZ = (z1 + z2) * 0.75 / 2;
-    this._addHangingBulb(grp, midX, (y2 - 1) * 0.5, midZ);
-    this.world.scene.add(grp);
-    this.world.decor.push(grp);
+    // Tavan aydınlatması ve ışık anahtarı
+    if (this.world.switches) {
+      const midX = (x1 + x2) * 0.75 / 2;
+      const midZ = (z1 + z2) * 0.75 / 2;
+      this.world.switches.addSwitch(x1 * 0.75 + 0.25, 1.45, (z1 + 2) * 0.75, Math.PI / 2, {
+        name: 'Garaj Işık Anahtarı',
+        lamps: [
+          { x: midX, y: (y2 - 1) * 0.5 - 0.2, z: midZ, rodLen: 0.5, shadeColor: 0x334155 }
+        ]
+      });
+    }
 
     // Garaj içi arka tezgahı ve tamir takımları (arka doğu duvarı x = x2)
     w.fillBox(x2 - 2, y1, z1 + 1, x2 - 1, y1 + 1, z2 - 1, PALETTE.WOOD);
@@ -3483,9 +3458,27 @@ export class LevelManager {
     const topFloor = y1 + 6 * Math.floor((y2 - 3 - y1) / 6);
     w.fillBox(doorX - 1, topFloor + 1, midZ, doorX + 1, topFloor + 2, midZ + 2, PALETTE.TNT);
 
-    // Ev içi tavan lambası ve ışık anahtarı (Kullanıcı İsteği)
+    // Ev içi tavan lambası ve ışık anahtarı - Kapı yanındaki duvara tam düz monte
     if (this.world.switches) {
-      this.world.switches.addSwitch(doorX * 0.75, 1.8, (doorZ + 1) * 0.75, 0, {
+      let swX = doorX * 0.75, swZ = doorZ * 0.75, swRot = 0;
+      if (side === 'z1') {
+        swX = (doorX + 2) * 0.75;
+        swZ = z1 * 0.75 + 0.25;
+        swRot = 0;
+      } else if (side === 'z2') {
+        swX = (doorX + 2) * 0.75;
+        swZ = z2 * 0.75 - 0.25;
+        swRot = Math.PI;
+      } else if (side === 'x1') {
+        swX = x1 * 0.75 + 0.25;
+        swZ = (doorZ + 2) * 0.75;
+        swRot = Math.PI / 2;
+      } else if (side === 'x2') {
+        swX = x2 * 0.75 - 0.25;
+        swZ = (doorZ + 2) * 0.75;
+        swRot = -Math.PI / 2;
+      }
+      this.world.switches.addSwitch(swX, 1.45, swZ, swRot, {
         name: 'Apartman Salon Işık Anahtarı',
         lamps: [
           { x: doorX * 0.75, y: 3.5, z: midZ * 0.75, rodLen: 0.4, shadeColor: 0x334155 }
