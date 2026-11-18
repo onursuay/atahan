@@ -25,13 +25,14 @@ const EPS = 1e-4;
 const GRAVITY = 25;
 const MAX_FALL = 40;
 const WATER_LEVEL = -0.15;   // main.js içindeki deniz yüzeyi (waterMesh.position.y) ile aynı olmalı
-// ── Görünmez Okyanus Duvarı & Dünya Sınırları ──
-// Kullanıcı İsteği: "Okyanusu biraz küçültelim. Okyanustan biraz gittikten sonra artık bir görünmez duvar olsun. Görünmez duvardan sonrası su olmasın. Oyun daha az kassın istiyorum"
+// ── Görünmez Okyanus Duvarı, Gökyüzü Tavanı & Dünya Sınırları ──
+// Kullanıcı İsteği: "Çok fazla havaya gidemeyelim. Sanki şehirde bir tüpün içindeymiş gibi, çok fazla yukarı çıktığımızda bir yerden sonra çıkamayalım."
 export const WORLD_BOUNDS = {
   minX: -700, // Batı okyanus sınırı (Havalimanı bitiminden ~125m sonra görünmez duvar)
   maxX: 660,  // Doğu okyanus sınırı (Dağ/Villa bitiminden ~120m sonra görünmez duvar)
   minZ: -630, // Kuzey okyanus sınırı (Pist kuzeyinden ~120m sonra görünmez duvar)
-  maxZ: 480   // Güney okyanus sınırı (Sahil yolundan ~120m sonra görünmez duvar)
+  maxZ: 480,  // Güney okyanus sınırı (Sahil yolundan ~120m sonra görünmez duvar)
+  maxY: 68    // Gökyüzü tüp tavan sınırı (Şehirde tüp kubbe tavanı: aşırı yükselmeyi ve kasılmayı engeller)
 };
 const WATER_ENTER_DEPTH = 1.25;  // sığ sularda ayak yere basarken yürünür, göğüs hizasını geçip taban desteği kesilince yüzülür
 const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)
@@ -418,6 +419,10 @@ export class Character {
 
       if (moveVec.lengthSq() > 0.001) {
         moveVec.normalize().multiplyScalar(FLIGHT_SPEED);
+        // Gökyüzü tüp tavan sınırı: Çok fazla havaya çıkmayı engelle, tavan sınırında yatay akıcı kalsın
+        if (this.body.position.y >= WORLD_BOUNDS.maxY - 1.0 && moveVec.y > 0) {
+          moveVec.y = 0;
+        }
         this.vel.copy(moveVec);
         this.mesh.rotation.y = lerpAngle(this.mesh.rotation.y, cameraEulerY + Math.PI, 14 * dt);
 
@@ -643,8 +648,11 @@ export class Character {
   }
 
   _overlaps(x, feetY, z) {
-    // 4 Taraflı Görünmez Okyanus Duvarı (Okyanustan biraz gittikten sonra başlayan fiziksel sınır)
+    // 4 Taraflı Görünmez Okyanus Duvarı ve Gökyüzü Tavanı (Şehir tüp sınırı: aşırı yükselmeyi engeller)
     if (x <= WORLD_BOUNDS.minX || x >= WORLD_BOUNDS.maxX || z <= WORLD_BOUNDS.minZ || z >= WORLD_BOUNDS.maxZ) {
+      return true;
+    }
+    if (feetY + BODY_H >= WORLD_BOUNDS.maxY) {
       return true;
     }
     const S = VOXEL_SIZE;
@@ -761,9 +769,13 @@ export class Character {
         this.vel.y = Math.max(-MAX_FALL, this.vel.y - GRAVITY * h);
       }
 
-      // Jetpack itkisi ve bırakınca hava direnci
+      // Jetpack itkisi ve bırakınca hava direnci (Tüp tavan sınırında dikey itki durur)
       if (this.jetting) {
-        this.vel.y = Math.min(JET_MAX_UP, this.vel.y + JET_ACC * h);
+        if (pos.y < WORLD_BOUNDS.maxY - 1.0) {
+          this.vel.y = Math.min(JET_MAX_UP, this.vel.y + JET_ACC * h);
+        } else {
+          if (this.vel.y > 0) this.vel.y = 0;
+        }
         this.fuel = Math.max(0, this.fuel - h / JET_SECONDS);
         this.usedJet = true;
       } else if (this.usedJet && !this.isGrounded && !this.inWater) {
@@ -829,9 +841,14 @@ export class Character {
       }
     }
 
-    // Deniz sınırından fazla açılmasın: 4 yönlü görünmez okyanus duvarı
+    // Deniz sınırından fazla açılmasın: 4 yönlü görünmez okyanus duvarı ve gökyüzü tüp tavanı
     pos.x = THREE.MathUtils.clamp(pos.x, WORLD_BOUNDS.minX + 0.1, WORLD_BOUNDS.maxX - 0.1);
     pos.z = THREE.MathUtils.clamp(pos.z, WORLD_BOUNDS.minZ + 0.1, WORLD_BOUNDS.maxZ - 0.1);
+    const maxFeet = WORLD_BOUNDS.maxY - BODY_H / 2;
+    if (feet > maxFeet) {
+      feet = maxFeet;
+      if (this.vel.y > 0) this.vel.y = 0;
+    }
     pos.y = feet + BODY_H / 2;
 
     // Kinematik gövdeyi Cannon'un kendi başına kaydırmasını engelle

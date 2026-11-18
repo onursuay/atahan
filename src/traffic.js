@@ -509,9 +509,12 @@ export class TrafficLights {
           }
           if (s.x != null && this.world.cars) {
             for (const c of this.world.cars.cars || []) {
-              if (c && c.pos && Math.hypot(c.pos.x - s.x, c.pos.z - s.z) < 1.6 && Math.abs(c.speed) > 2) {
-                knocked = true;
-                break;
+              if (c && c.pos) {
+                const dx = c.pos.x - s.x, dz = c.pos.z - s.z;
+                if (dx * dx + dz * dz < 2.56 && Math.abs(c.speed) > 2) {
+                  knocked = true;
+                  break;
+                }
               }
             }
           }

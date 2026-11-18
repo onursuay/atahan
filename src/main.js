@@ -120,8 +120,8 @@ function init() {
   scene.background = new THREE.Color(0x78a7ff);
   scene.fog = new THREE.Fog(0x78a7ff, 210, 310);
 
-  // 2. Kamera: 950 m görüş mesafesi (optimize edilmiş derinlik ve yüksek FPS)
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 950);
+  // 2. Kamera: 340 m görüş mesafesi (sis sınırıyla tam uyumlu, gereksiz uzak poligonları eleyerek yüksek FPS sağlar)
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 340);
 
   // 3. Renderer (Performans için optimize edildi: 60 FPS akıcı voxel deneyimi)
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
