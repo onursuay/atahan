@@ -11,6 +11,21 @@ const geoExplosionSmoke = new THREE.BoxGeometry(0.6, 0.6, 0.6);
 const geoExplosionBlast = new THREE.BoxGeometry(1.2, 1.2, 1.2);
 const geoShard = new THREE.BoxGeometry(0.07, 0.07, 0.07);
 const geoDustPuff = new THREE.BoxGeometry(0.14, 0.14, 0.14);
+const geoLeaf = new THREE.BoxGeometry(0.12, 0.02, 0.12); // Teardown tarzı minik yassı yaprak pikseli
+
+const leafColors = [
+  0x22c55e, // taze yeşil
+  0x16a34a, // canlı orman yeşili
+  0x15803d, // zümrüt koyu yeşil
+  0x84cc16, // açık fıstık yeşili
+  0xd97706, // tatlı kehribar / altın sarısı
+  0xb45309  // sıcak kızıl / sonbahar yaprağı
+];
+const leafMats = leafColors.map(c => {
+  const m = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.95 });
+  m.userData = { shared: true };
+  return m;
+});
 
 const matDust = new THREE.MeshBasicMaterial({ color: 0x866043 });
 const matSpark1 = new THREE.MeshBasicMaterial({ color: 0xffe08a });
@@ -318,14 +333,42 @@ export class ParticleSystem {
     });
   }
 
+  // Ağaçlardan yavaşça süzülüp dökülen organik yaprak partikülleri
+  createFallingLeaf(x, y, z) {
+    if (this.particles.length > this.maxParticles) return;
+    const mat = leafMats[Math.floor(Math.random() * leafMats.length)];
+    const mesh = new THREE.Mesh(geoLeaf, mat);
+    mesh.position.set(
+      x + (Math.random() - 0.5) * 2.6,
+      y + (Math.random() - 0.5) * 0.6,
+      z + (Math.random() - 0.5) * 2.6
+    );
+    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+
+    this.scene.add(mesh);
+    this.particles.push({
+      mesh,
+      velocity: new THREE.Vector3((Math.random() - 0.5) * 0.3, -0.65 - Math.random() * 0.45, (Math.random() - 0.5) * 0.3),
+      gravity: -0.25,
+      life: 5.5 + Math.random() * 2.0,
+      maxLife: 7.0,
+      rotSpeed: 0.6 + Math.random() * 1.2,
+      isLeaf: true,
+      swaySpeed: 1.8 + Math.random() * 1.4,
+      swayAmp: 0.4 + Math.random() * 0.3,
+      phase: Math.random() * Math.PI * 2,
+      fade: true
+    });
+  }
+
   update(dt) {
+    this.time = (this.time || 0) + dt;
     for (let i = this.particles.length - 1; i >= 0; i--) {
       const p = this.particles[i];
       p.life -= dt;
 
       if (p.life <= 0) {
         this.scene.remove(p.mesh);
-        // Paylaşılan geometri dispose edilmez, yalnızca özel malzeme varsa temizlenir
         if (p.mesh.material && !p.mesh.material.userData?.shared) {
           p.mesh.material.dispose();
         }
@@ -336,6 +379,17 @@ export class ParticleSystem {
       // Hız ve yerçekimi
       p.velocity.y += p.gravity * dt;
       p.mesh.position.addScaledVector(p.velocity, dt);
+
+      // Yaprak rüzgar salınımı (hafif süzülme ve havada dans)
+      if (p.isLeaf) {
+        p.mesh.position.x += Math.sin(this.time * p.swaySpeed + p.phase) * p.swayAmp * dt;
+        p.mesh.position.z += Math.cos(this.time * p.swaySpeed * 0.8 + p.phase) * (p.swayAmp * 0.6) * dt;
+        if (p.mesh.position.y <= 0.25) {
+          p.velocity.set(0, 0, 0);
+          p.gravity = 0;
+          p.life -= dt * 1.6; // Yere inince yavaşça kaybolsun
+        }
+      }
 
       // Küp dönüşü (Voxel tumble)
       if (p.rotSpeed) {

@@ -16,8 +16,8 @@ import { buildCentralPark } from './park.js';
 // Duvarlar ve döşemeler tek küp (0.25 m) kalınlığındadır; bu hem gerçekçidir hem de
 // küp sayısını makul tutar.
 // ─────────────────────────────────────────────────────────────────────────────
-const K = 3;          // 1 eski birim = 3 küçük küp (0.75 m)
-const UNIT_M = 0.75;  // 1 eski birimin metre karşılığı
+const K = 2;          // 1 eski birim = 2 küçük küp (0.50 m) - Hızlı yükleme ve dengeli bellek
+const UNIT_M = 0.50;  // 1 eski birimin metre karşılığı
 const WALL_T = 1;     // duvar/döşeme kalınlığı (küp)
 const MAX_FLOORS = 2;
 const MALL_FLOOR = 8;  // AVM'de kat yüksekliği (satır): 6 m; diğer binalarda 6 satır = 4.5 m  // iç döşemesi yapılan en üst kat
@@ -677,8 +677,9 @@ export class LevelManager {
     // ══════════════════════════════════════════════════════════
     // 1. BATI ADASI: TÜM BOŞ DİKDÖRTGEN YOL ALANLARINI DOLDURMA
     // ══════════════════════════════════════════════════════════
-    const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -27];
-    const Z_ROADS = [-480, -420, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 420, 480];
+    // Şehir merkezini ve ana caddeleri dolduran odaksal yol ızgarası (Aşırı bellek yükünü ve donmayı engeller)
+    const X_ROADS = [-260, -210, -170, -127, -87, -27];
+    const Z_ROADS = [-200, -134, -66, 0, 66, 134, 200];
 
     for (let i = 0; i < X_ROADS.length - 1; i++) {
       const rx0 = X_ROADS[i], rx1 = X_ROADS[i + 1];
@@ -727,7 +728,7 @@ export class LevelManager {
       [324, 360],  // otoyol ile ei-dogu arası
       [374, 418]   // ei-dogu doğusu (villa ve tepe parseli)
     ];
-    const EAST_Z_ROADS = [-350, -250, -180, -134, -88, -44, 0, 44, 88, 134, 270, 350];
+    const EAST_Z_ROADS = [-134, -88, -44, 0, 44, 88, 134];
 
     for (const [bx0, bx1] of EAST_X_COLS) {
       const bW = bx1 - bx0;
@@ -4534,45 +4535,101 @@ export class LevelManager {
     addStreetLamp(CX - 6.0, CZ + 25, 1, 0);
     addStreetLamp(CX + 6.0, CZ + 25, -1, 0);
 
-    // ── GERÇEKÇİ VE ORGANİK TEARDOWN AĞAÇLARI ──
-    // Doğadaki gerçek ağaçlar gibi: Toprağa kök salan, kalınlaşan gövde, 3 boyutlu çatallanan dallar
-    // ve her dalın ucunda küremsi, yuvarlatılmış, çok tonlu yaprak öbekleri (bulutları).
-    const makeDetailedTree = (tx, tz, type = 'oak') => {
-      // 1. Toprağa yayılan organik kök ayakları
+    // ── GERÇEKÇİ, ÇEŞİTLİ VE ORGANİK TEARDOWN AĞAÇLARI ──
+    // Kullanıcı İsteği:
+    // 1) DALLARI BELİRGİN AĞAÇLAR: Ahşap kalın dalları yaprakların arasından ve dışından açıkça görünen ağaçlar
+    // 2) POFUDUK HACİMLİ AĞAÇLAR: Çok katmanlı, dolgun, yumuşak yaprak bulutları
+    // 3) DESTEKLİ PARK FİDANLARI: Şehir parklarındaki gibi kazıklarla desteklenmiş taze minik ağaçlar
+    // 4) DAĞ ÇAMLARI: Katmanlı sarkan piramit iğneler
+    this.world.trees = [];
+
+    const makeDetailedTree = (tx, tz, type = 'puffy') => {
+      this.world.trees.push({ x: tx, y: 1.0, z: tz, type });
+
+      if (type === 'stake_sapling') {
+        // ── 3. DESTEKLİ MİNİK PARK FİDANI ──
+        // Park ve kaldırım kenarlarında dikilen, 3 adet dikey ahşap destek kazığı ve bağlama çıtaları olan taze fidan
+        // 1. İnce fidan gövdesi
+        boxV(tx - 0.1, 0.5, tz - 0.1, tx + 0.1, 3.2, tz + 0.1, PALETTE.WOOD);
+
+        // 2. Etrafındaki 3 destek kazığı (Zemine çakılı dikey kazıklar)
+        boxV(tx - 0.5, 0.5, tz - 0.3, tx - 0.4, 2.2, tz - 0.2, PALETTE.SLATE);
+        boxV(tx + 0.4, 0.5, tz - 0.3, tx + 0.5, 2.2, tz - 0.2, PALETTE.SLATE);
+        boxV(tx, 0.5, tz + 0.5, tx + 0.1, 2.2, tz + 0.6, PALETTE.SLATE);
+
+        // 3. Kazıkları fidana bağlayan yatay ahşap destek çıtaları (Kuşaklar)
+        boxV(tx - 0.45, 1.2, tz - 0.25, tx + 0.45, 1.3, tz - 0.25, PALETTE.WOOD);
+        boxV(tx - 0.45, 1.2, tz - 0.25, tx, 1.3, tz + 0.55, PALETTE.WOOD);
+        boxV(tx + 0.45, 1.2, tz - 0.25, tx, 1.3, tz + 0.55, PALETTE.WOOD);
+
+        boxV(tx - 0.45, 1.9, tz - 0.25, tx + 0.45, 2.0, tz - 0.25, PALETTE.WOOD);
+        boxV(tx - 0.45, 1.9, tz - 0.25, tx, 2.0, tz + 0.55, PALETTE.WOOD);
+        boxV(tx + 0.45, 1.9, tz - 0.25, tx, 2.0, tz + 0.55, PALETTE.WOOD);
+
+        // 4. Genç fidan taçı (Taze canlı yapraklar)
+        boxV(tx - 0.6, 2.6, tz - 0.6, tx + 0.6, 3.6, tz + 0.6, PALETTE.GRASS);
+        boxV(tx - 0.4, 3.6, tz - 0.4, tx + 0.4, 4.3, tz + 0.4, PALETTE.CACTUS_GREEN);
+        return;
+      }
+
+      // Kök ayakları
       boxV(tx - 0.75, 0.5, tz - 0.25, tx + 0.75, 0.85, tz + 0.25, PALETTE.WOOD);
       boxV(tx - 0.25, 0.5, tz - 0.75, tx + 0.25, 0.85, tz + 0.75, PALETTE.WOOD);
       boxV(tx - 0.5, 0.5, tz - 0.5, tx + 0.5, 0.95, tz + 0.5, PALETTE.WOOD);
 
-      if (type === 'oak') {
-        // Geniş Meşe Ağacı:
-        // Alt gövde kalın (0.5m x 0.5m)
+      if (type === 'branchy') {
+        // ── 1. DALLARI BELİRGİN GÖRÜNEN AĞAÇ ──
+        // Kalın ana gövde, dışa doğru heybetli uzanan çıplak ahşap çatallar ve uçlarında yeşil kümeler
+        boxV(tx - 0.35, 0.8, tz - 0.35, tx + 0.35, 2.8, tz + 0.35, PALETTE.WOOD);
+        boxV(tx - 0.25, 2.8, tz - 0.25, tx + 0.25, 4.5, tz + 0.25, PALETTE.WOOD);
+        // Uzun, belirgin açık dallar
+        // Doğuya uzanan kalın dal
+        boxV(tx + 0.2, 3.0, tz - 0.2, tx + 1.8, 3.4, tz + 0.2, PALETTE.WOOD);
+        boxV(tx + 1.6, 3.4, tz + 0.1, tx + 2.3, 4.2, tz + 0.7, PALETTE.WOOD);
+        // Batıya uzanan dal
+        boxV(tx - 1.8, 3.2, tz - 0.2, tx - 0.2, 3.6, tz + 0.2, PALETTE.WOOD);
+        boxV(tx - 2.4, 3.6, tz - 0.7, tx - 1.7, 4.4, tz - 0.1, PALETTE.WOOD);
+        // Kuzeye ve güneye çatallanan kollar
+        boxV(tx - 0.2, 3.6, tz - 1.7, tx + 0.2, 4.2, tz - 0.2, PALETTE.WOOD);
+        boxV(tx - 0.2, 3.8, tz + 0.2, tx + 0.2, 4.3, tz + 1.7, PALETTE.WOOD);
+        // Tepeye kıvrılan ana gövde dalı
+        boxV(tx - 0.2, 4.5, tz - 0.2, tx + 0.2, 5.8, tz + 0.2, PALETTE.WOOD);
+
+        // Dallar belirgin olsun diye yapraklar sadece dal uçlarında organik öbekler halinde yer alır
+        const leafPuff = (cx, cy, cz, r, mat = PALETTE.GRASS) => {
+          for (let x = cx - r; x <= cx + r + 1e-4; x += S) {
+            for (let y = cy - r * 0.75; y <= cy + r * 0.75 + 1e-4; y += S) {
+              for (let z = cz - r; z <= cz + r + 1e-4; z += S) {
+                const dx = (x - cx) / r, dy = (y - cy) / (r * 0.75), dz = (z - cz) / r;
+                if (dx * dx + dy * dy + dz * dz <= 1.05) setV(x, y, z, mat);
+              }
+            }
+          }
+        };
+
+        leafPuff(tx + 2.2, 4.2, tz + 0.7, 0.9, PALETTE.GRASS);
+        leafPuff(tx - 2.2, 4.4, tz - 0.7, 0.95, PALETTE.DGREEN);
+        leafPuff(tx, 4.2, tz - 1.8, 0.85, PALETTE.CACTUS_GREEN);
+        leafPuff(tx, 4.3, tz + 1.8, 0.85, PALETTE.GRASS);
+        leafPuff(tx, 5.8, tz, 1.2, PALETTE.CACTUS_GREEN);
+      } else if (type === 'puffy' || type === 'oak') {
+        // ── 2. POFUDUK VE ÇOK KATMANLI MEŞE AĞACI ──
         boxV(tx - 0.35, 0.8, tz - 0.35, tx + 0.35, 2.4, tz + 0.35, PALETTE.WOOD);
-        // Orta gövde hafif incelen (0.25m)
         boxV(tx - 0.25, 2.4, tz - 0.25, tx + 0.25, 3.8, tz + 0.25, PALETTE.WOOD);
 
-        // 3D Çatallanan ana dallar (Kuzey, Güney, Doğu, Batı yönlerinde yukarı ve dışa doğru uzanır)
-        // Doğu-Güney dalı
         boxV(tx + 0.25, 3.0, tz + 0.1, tx + 1.25, 3.6, tz + 0.85, PALETTE.WOOD);
-        // Batı-Kuzey dalı
         boxV(tx - 1.25, 3.2, tz - 0.85, tx - 0.25, 3.8, tz - 0.1, PALETTE.WOOD);
-        // Kuzey-Doğu dalı
         boxV(tx + 0.1, 3.6, tz - 1.25, tx + 0.85, 4.4, tz - 0.25, PALETTE.WOOD);
-        // Güney-Batı dalı
         boxV(tx - 0.85, 3.4, tz + 0.25, tx - 0.1, 4.2, tz + 1.25, PALETTE.WOOD);
-        // Tepe ana gövde uzantısı
         boxV(tx - 0.2, 3.8, tz - 0.2, tx + 0.2, 5.2, tz + 0.2, PALETTE.WOOD);
 
-        // Organik Küremsi Yaprak Öbeği / Bulutu (Foliage Clump) Fonksiyonu
         const leafClump = (cx, cy, cz, rx, ry, rz) => {
           for (let x = cx - rx; x <= cx + rx + 1e-4; x += S) {
             for (let y = cy - ry; y <= cy + ry + 1e-4; y += S) {
               for (let z = cz - rz; z <= cz + rz + 1e-4; z += S) {
-                const dx = (x - cx) / rx;
-                const dy = (y - cy) / ry;
-                const dz = (z - cz) / rz;
+                const dx = (x - cx) / rx, dy = (y - cy) / ry, dz = (z - cz) / rz;
                 const d2 = dx * dx + dy * dy + dz * dz;
                 if (d2 <= 1.05) {
-                  // Alt/gölge kısım koyu yeşil, orta kısım canlı yeşil, üst/güneş alan yerler açık fıstık yeşili
                   let mat = PALETTE.GRASS;
                   if (dy < -0.3) mat = PALETTE.DGREEN;
                   else if (dy > 0.45 && d2 > 0.4) mat = PALETTE.CACTUS_GREEN;
@@ -4583,17 +4640,14 @@ export class LevelManager {
           }
         };
 
-        // Dallar üzerine oturan doğal yaprak kümeleri (Ağacın içinden gökyüzü ve dallar görünür!)
         leafClump(tx + 1.4, 4.0, tz + 0.9, 1.25, 0.9, 1.25);
         leafClump(tx - 1.4, 4.2, tz - 0.9, 1.3, 0.95, 1.3);
         leafClump(tx + 0.9, 4.8, tz - 1.3, 1.15, 0.85, 1.15);
         leafClump(tx - 0.9, 4.6, tz + 1.3, 1.2, 0.9, 1.2);
-        // Ağacın tepesini taçlandıran tepe kubbe yaprakları
         leafClump(tx, 5.8, tz, 1.6, 1.2, 1.6);
         leafClump(tx, 6.7, tz, 0.9, 0.7, 0.9);
       } else {
-        // İğne Yapraklı / Dağ Çamı (Organik Katmanlı Piramit Çam)
-        // Gövde yukarı doğru incelerek yükselir
+        // ── 4. DAĞ ÇAMI (PİRAMİT KATMANLI İĞNE YAPRAKLI) ──
         boxV(tx - 0.35, 0.8, tz - 0.35, tx + 0.35, 2.2, tz + 0.35, PALETTE.WOOD);
         boxV(tx - 0.25, 2.2, tz - 0.25, tx + 0.25, 5.0, tz + 0.25, PALETTE.WOOD);
         boxV(tx - 0.15, 5.0, tz - 0.15, tx + 0.15, 7.5, tz + 0.15, PALETTE.WOOD);
@@ -4601,8 +4655,7 @@ export class LevelManager {
         const pineTier = (cy, r, h, mat) => {
           for (let x = tx - r; x <= tx + r + 1e-4; x += S) {
             for (let z = tz - r; z <= tz + r + 1e-4; z += S) {
-              const dx = (x - tx) / r;
-              const dz = (z - tz) / r;
+              const dx = (x - tx) / r, dz = (z - tz) / r;
               if (dx * dx + dz * dz <= 1.05) {
                 for (let y = cy; y <= cy + h; y += S) {
                   const frac = (y - cy) / Math.max(0.01, h);
@@ -4615,7 +4668,6 @@ export class LevelManager {
           }
         };
 
-        // 5 Kademeli sarkan çam iğnesi etekleri
         pineTier(2.8, 2.2, 1.2, PALETTE.DGREEN);
         pineTier(4.0, 1.8, 1.1, PALETTE.DGREEN);
         pineTier(5.1, 1.35, 1.0, PALETTE.GRASS);
@@ -4624,15 +4676,17 @@ export class LevelManager {
       }
     };
 
-    // Kasabaya zengin detaylı meşe ve çam ağaçları serpiştir
-    makeDetailedTree(CX - 10, CZ - 12, 'oak');
-    makeDetailedTree(CX + 10, CZ - 12, 'pine');
+    // Kasabaya zengin detaylı meşe, dalları belirgin, destek kazıklı fidan ve çam ağaçları serpiştir
+    makeDetailedTree(CX - 10, CZ - 12, 'puffy');
+    makeDetailedTree(CX + 10, CZ - 12, 'branchy');
     makeDetailedTree(CX - 32, CZ + 8, 'pine');
-    makeDetailedTree(CX + 32, CZ + 8, 'oak');
-    makeDetailedTree(CX - 8, CZ + 32, 'oak');
-    makeDetailedTree(CX + 8, CZ + 32, 'pine');
+    makeDetailedTree(CX + 32, CZ + 8, 'puffy');
+    makeDetailedTree(CX - 8, CZ + 32, 'branchy');
+    makeDetailedTree(CX + 8, CZ + 32, 'stake_sapling');
+    makeDetailedTree(CX - 18, CZ - 6, 'stake_sapling');
+    makeDetailedTree(CX + 18, CZ - 6, 'stake_sapling');
     makeDetailedTree(CX - 34, CZ - 34, 'pine');
-    makeDetailedTree(CX + 34, CZ - 34, 'oak');
+    makeDetailedTree(CX + 34, CZ - 34, 'branchy');
 
     // Küp Silme ve Boşluk Açma Fonksiyonları
     const removeV = (x, y, z) => {

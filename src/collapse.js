@@ -110,7 +110,8 @@ export class CollapseSystem {
       if (cut > 0) this.recentBreaks.splice(0, cut);
     }
     this._processSeeds();
-    this._stabilityTick();
+    // NOT: Kullanıcı isteği - Köşeye vurulduğunda binanın yapay olarak devrilmesi kaldırıldı!
+    // this._stabilityTick();
     for (let i = this.chunks.length - 1; i >= 0; i--) {
       if (this._stepChunk(this.chunks[i], dt)) this.chunks.splice(i, 1);
     }
@@ -216,30 +217,12 @@ export class CollapseSystem {
     return { dx: dirX / dl, dz: dirZ / dl, strength: clamp(dl / 2.2, 0.2, 1.0) };
   }
 
-  // ── TEARDOWN TARZI DEVRİLME KONTROLÜ: Kalan taban kolonlarının zarfı ağırlık merkezini taşımıyorsa bina o yöne devrilir ──
+  // ── KULLANICI İSTEĞİ: Köşeye vurulduğunda binanın yapay olarak o yöne devrilmesi KALDIRILDI! ──
+  // Gerçek hayatta ve Teardown'da sadece bağlantısı tamamen kopan parçalar yerçekimiyle düşer.
   _stabilityTick() {
-    if (this.stab) { this._stabilityStep(); return; }
-    if (this.chunks.length >= MAX_CHUNKS) return;
-    for (const [bk, d] of this.dirty) {
-      if (this.time - d.t < 0.45) continue;
-      this.dirty.delete(bk);
-      if (d.baseN < 18) continue;                     // küçük delikler binayı devirmez
-      const cd = this.cool.get(bk);
-      if (cd !== undefined && this.time - cd < 1.2) continue;
-      this.cool.set(bk, this.time);
-      const seed = this._findSeed(d);
-      if (!seed) continue;
-      const visited = new Map(); visited.set(key(seed.ix, seed.iy, seed.iz), seed);
-      this.stab = {
-        stack: [seed], visited,
-        sx: 0, sy: 0, sz: 0,
-        cols: new Map(),       // zemine değen kolonlar
-        upperCols: new Map(),  // binanın üst gövde izdüşümü
-        lowCounts: new Map(),  // alt taşıyıcı banttaki (0.3..3.2m) sağlam küp sayısı
-        seedX: seed.x, seedZ: seed.z
-      };
-      break;
-    }
+    this.stab = null;
+    this.dirty.clear();
+    return;
   }
 
   _findSeed(d) {

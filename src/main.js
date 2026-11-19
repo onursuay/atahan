@@ -60,6 +60,7 @@ let eyeOffset = 1.8;                          // kamera göz yüksekliği (ayakt
 let seated = false;                           // koltukta oturuyor (ilk hareketle kalkar)
 let introFadeEl = null, remoteModel = null, introMenuEl = null;
 let mouseSens = 1;                            // ayarlar menüsünden: fare hassasiyeti çarpanı
+let leafSpawnTimer = 0;                       // dökülen yaprak partikülü sayacı
 const smoothstep01 = (t) => { t = Math.max(0, Math.min(1, t)); return t * t * (3 - 2 * t); };
 
 const inputState = {
@@ -540,6 +541,23 @@ function updateGame(dt) {
     onScreenShake: (s) => { screenShake = Math.max(screenShake, s); }
   });
   particleSystem.update(dt);
+
+  // Ağaçlardan hafif hafif süzülen Teardown yaprak partikülleri
+  leafSpawnTimer = (leafSpawnTimer || 0) + dt;
+  if (leafSpawnTimer >= 0.22 && voxelWorld && voxelWorld.trees && voxelWorld.trees.length > 0) {
+    leafSpawnTimer = 0;
+    const charPos = character.mesh ? character.mesh.position : null;
+    if (charPos) {
+      for (let i = 0; i < voxelWorld.trees.length; i++) {
+        const tree = voxelWorld.trees[i];
+        if (Math.hypot(tree.x - charPos.x, tree.z - charPos.z) < 48) {
+          if (Math.random() < 0.45) {
+            particleSystem.createFallingLeaf(tree.x, (tree.y || 1) + 4.2 + Math.random() * 1.8, tree.z);
+          }
+        }
+      }
+    }
+  }
 
   // Bulutlar (Görünmez sınır içinde süzülür ve baştan sarar)
   clouds.forEach(c => {
