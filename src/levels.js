@@ -4603,15 +4603,15 @@ export class LevelManager {
       // Parlayan lamba küpü (PALETTE.LAMP_ORANGE veya LAMP)
       boxV(lx, ly, lz, lx, ly + 0.5, lz, PALETTE.LAMP_ORANGE);
 
-      // Gerçekçi Teardown Işıltısı: Three.js PointLight ekle (Sıcak amber ışıltı)
-      const light = new THREE.PointLight(0xffbe66, 2.2, 14, 2);
+      // Gerçekçi Teardown Işıltısı: Three.js PointLight ekle (Sıcak akkor Teardown turuncusu)
+      const light = new THREE.PointLight(0xff9e3d, 3.2, 16, 2);
       light.position.set(lx, ly + 0.25, lz);
       light.castShadow = true;
       light.shadow.bias = -0.002;
       this.world.scene.add(light);
       this.world.decor.push(light);
 
-      this.world.lamps.push({ x: lx, y: ly + 0.25, z: lz, gy: ly + 0.25 });
+      this.world.lamps.push({ x: lx, y: ly + 0.25, z: lz, gy: ly + 0.25, light, color: 0xff9e3d });
     };
 
     // Küp Lamba 1: Salon / Atölye Tavan Lambası

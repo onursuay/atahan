@@ -50,6 +50,11 @@ const SPIN_CUT_BUDGET = 600;      // kare başına en çok kesilecek küp
 const SPIN_SAMPLES = 9;           // bıçak başına örnek nokta
 
 const lerp = THREE.MathUtils.lerp;
+const pbrMat = (color, roughness = 0.38, metalness = 0.28) => new THREE.MeshStandardMaterial({
+  color,
+  roughness,
+  metalness
+});
 
 export class HandWeapons {
   constructor(mainScene, camera, voxelWorld, particleSystem, onScore) {
@@ -91,10 +96,19 @@ export class HandWeapons {
     // ── Silah modeli sahnesi (ana sahneden ayrı çizilir) ──
     this.viewScene = new THREE.Scene();
     this.viewCam = new THREE.PerspectiveCamera(60, camera.aspect, 0.01, 20);
-    this.viewScene.add(new THREE.AmbientLight(0xffffff, 0.85));
-    const dl = new THREE.DirectionalLight(0xffffff, 0.9);
-    dl.position.set(0.5, 1, 0.8);
-    this.viewScene.add(dl);
+    this.viewAmbient = new THREE.AmbientLight(0xffffff, 0.9);
+    this.viewScene.add(this.viewAmbient);
+    this.viewDirLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    this.viewDirLight.position.set(0.5, 1.5, 1.0);
+    this.viewScene.add(this.viewDirLight);
+    this.viewFillLight = new THREE.DirectionalLight(0x93c5fd, 0.5);
+    this.viewFillLight.position.set(-1, -0.5, 0.5);
+    this.viewScene.add(this.viewFillLight);
+
+    // Gerçek Fiziksel Oda Işığı: Evdeki turuncu küp lambaların silaha vuran dinamik ışığı ve yansıması
+    this.weaponRoomLight = new THREE.PointLight(0xff9e3d, 0, 8);
+    this.weaponRoomLight.position.set(0.1, 0.2, -0.3);
+    this.viewScene.add(this.weaponRoomLight);
 
     this.root = new THREE.Group();
     this.viewScene.add(this.root);
@@ -129,9 +143,9 @@ export class HandWeapons {
   // ───────────────────────── Modeller ─────────────────────────
   _buildRocket() {
     const g = new THREE.Group();
-    const olive = new THREE.MeshStandardMaterial({ color: 0x4b5a3e, roughness: 0.45, metalness: 0.35 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.35, metalness: 0.70 });
-    const red = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.30, metalness: 0.50 });
+    const olive = pbrMat(0x4b5a3e, 0.42, 0.18);
+    const dark = pbrMat(0x22272e, 0.38, 0.25);
+    const red = pbrMat(0xdc2626, 0.32, 0.20);
 
     const tube = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.95), olive);
     const ring1 = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.21, 0.07), dark);
@@ -154,9 +168,9 @@ export class HandWeapons {
   // Tek minigun modeli: { g, barrels, flash }
   _makeMinigun() {
     const g = new THREE.Group();
-    const steel = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.20, metalness: 0.88 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.35, metalness: 0.70 });
-    const brass = new THREE.MeshStandardMaterial({ color: 0xb08a2e, roughness: 0.18, metalness: 0.90 });
+    const steel = pbrMat(0x525c6c, 0.30, 0.45);
+    const dark = pbrMat(0x242a35, 0.40, 0.25);
+    const brass = pbrMat(0xc49b38, 0.25, 0.60);
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.5), dark);
     body.position.z = 0.05;
@@ -230,8 +244,8 @@ export class HandWeapons {
     saber.rotation.z = -0.5;
     this.saberBody = saber;
 
-    const metal = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.22, metalness: 0.85 });
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.35, metalness: 0.70 });
+    const metal = pbrMat(0x9ca3af, 0.28, 0.50);
+    const dark = pbrMat(0x22272e, 0.40, 0.25);
     const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.05, SABER_HILT_HALF * 2, 0.05), metal);
     const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.13, 0.06), dark);
     saber.add(hilt, grip);
@@ -268,10 +282,10 @@ export class HandWeapons {
 
   _buildBomb() {
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.35, metalness: 0.65 }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), pbrMat(0x3a3f47, 0.42, 0.22));
     this.bombLamp = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.09), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
     this.bombLamp.position.y = 0.13;
-    const wire = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.02), new THREE.MeshStandardMaterial({ color: 0xd4a017, roughness: 0.25, metalness: 0.85 }));
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.02), pbrMat(0xd4a017, 0.30, 0.50));
     wire.position.set(0.08, 0.15, 0);
     g.add(body, this.bombLamp, wire);
     g.position.set(0.3, -0.28, -0.55);
@@ -281,8 +295,8 @@ export class HandWeapons {
   }
 
   _buildGuns() {
-    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.32, metalness: 0.75 }), steel = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.20, metalness: 0.88 });
-    const wood = new THREE.MeshStandardMaterial({ color: 0x7c4a1e, roughness: 0.55, metalness: 0.05 }), black = new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 0.30, metalness: 0.80 });
+    const dark = pbrMat(0x242a35, 0.40, 0.25), steel = pbrMat(0x556070, 0.30, 0.45);
+    const wood = pbrMat(0x824e23, 0.52, 0.05), black = pbrMat(0x15181f, 0.40, 0.25);
     const B = (w, h, d, m, x, y, z) => { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mesh.position.set(x, y, z); return mesh; };
     const mk = (parts, pos) => { const g = new THREE.Group(); parts.forEach(p => g.add(p)); g.position.set(...pos); g.visible = false; this.root.add(g); return g; };
     this.gunModels = {
@@ -367,6 +381,42 @@ export class HandWeapons {
     const cam = this.camera;
     this.viewCam.aspect = cam.aspect;
     this.viewCam.updateProjectionMatrix();
+
+    // ── Fiziksel Gerçekçi Oda Işığı (Teardown Ambient & Cube Lamp Specular) ──
+    // Oyuncu eve veya turuncu küp lambalara yaklaştığında elindeki silaha ışık ve sıcak ton yansır
+    if (this.voxelWorld && this.voxelWorld.lamps && this.voxelWorld.lamps.length > 0) {
+      let nearestDistSq = Infinity;
+      let nearestColor = 0xff9e3d;
+      const cp = cam.position;
+      for (const lamp of this.voxelWorld.lamps) {
+        const dx = lamp.x - cp.x;
+        const dy = lamp.y - cp.y;
+        const dz = lamp.z - cp.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < nearestDistSq) {
+          nearestDistSq = d2;
+          if (lamp.color) nearestColor = lamp.color;
+        }
+      }
+
+      const dist = Math.sqrt(nearestDistSq);
+      if (dist < 12) {
+        const factor = Math.max(0, 1 - dist / 12);
+        // Ters kare prensibi: yaklaştıkça daha yoğun sıcak akkor ışıltı
+        const lampIntensity = factor * factor * 3.0;
+        this.weaponRoomLight.color.setHex(nearestColor);
+        this.weaponRoomLight.intensity = THREE.MathUtils.lerp(this.weaponRoomLight.intensity, lampIntensity, Math.min(1, dt * 10));
+
+        // Ortam ışığı da evin sıcak turuncu ışığıyla karışarak silahın gölgedeki rengini canlandırır
+        const targetColor = new THREE.Color(0xffffff).lerp(new THREE.Color(nearestColor), factor * 0.75);
+        this.viewAmbient.color.lerp(targetColor, Math.min(1, dt * 8));
+        this.viewAmbient.intensity = THREE.MathUtils.lerp(this.viewAmbient.intensity, 0.9 + factor * 0.55, Math.min(1, dt * 8));
+      } else {
+        this.weaponRoomLight.intensity = THREE.MathUtils.lerp(this.weaponRoomLight.intensity, 0, Math.min(1, dt * 6));
+        this.viewAmbient.color.lerp(new THREE.Color(0xffffff), Math.min(1, dt * 6));
+        this.viewAmbient.intensity = THREE.MathUtils.lerp(this.viewAmbient.intensity, 0.9, Math.min(1, dt * 6));
+      }
+    }
 
     if (this.reloading) {
       this.reloading.t += dt;

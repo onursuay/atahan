@@ -145,7 +145,8 @@ export class NPCManager {
     this.hotelStaffNPCs = [];
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (const m of this.voxelWorld.marketCats || []) this.cats.addMarketCats(m.x, m.y, m.z); // market kedileri
-    for (let i = 0; i < NPC_COUNT; i++) this._spawn();
+    const isExperimentMap = (this.playerPos && this.playerPos.x > 5000) || (this.voxelWorld.terrain?.bounds?.minX > 5000);
+    for (let i = 0; i < (isExperimentMap ? 3 : NPC_COUNT); i++) this._spawn();
     for (const r of this.voxelWorld.residents || []) this._spawnResident(r);
     for (const w of this.voxelWorld.workers || []) this._spawnWorker(w);     // şirket kuleleri, banka, restoran çalışanları
     for (const d of this.voxelWorld.doctors || []) this._spawnWorker(d);     // hastanedeki doktorlar ve hemşireler
@@ -155,10 +156,12 @@ export class NPCManager {
     for (const bk of this.voxelWorld.bakkalKids || []) this._spawnBakkalKid(bk);
     for (const ms of this.voxelWorld.marketShoppers || []) this._spawnMarketShopper(ms);
     for (const co of this.voxelWorld.carOwners || []) this._spawnCarOwner(co);
-    this._spawnBeachLife();                                                  // SAHİL YAŞAMI: Güneşlenenler, yüzenler, sörfçüler, İzmir bombacısı, simitçi, pamuk şekerci!
-    this._spawnStrollers();                                                  // BEBEK ARABASI VE ANNE: Tekerlekli arabada oturan bebek ve gezdiren annesi
-    this._spawnChatGroups();                                                 // PARKTA SOHBET EDENLER: Bankta ikililer ve çemberde konuşan 4-5 kişilik gruplar
-    this._spawnPlaygroundKids();                                             // OYUN PARKI: Salıncakta sallanan ve kaydıraktan kayan çocuklar
+    if (!isExperimentMap) {
+      this._spawnBeachLife();                                                  // SAHİL YAŞAMI: Güneşlenenler, yüzenler, sörfçüler, İzmir bombacısı, simitçi, pamuk şekerci!
+      this._spawnStrollers();                                                  // BEBEK ARABASI VE ANNE: Tekerlekli arabada oturan bebek ve gezdiren annesi
+      this._spawnChatGroups();                                                 // PARKTA SOHBET EDENLER: Bankta ikililer ve çemberde konuşan 4-5 kişilik gruplar
+      this._spawnPlaygroundKids();                                             // OYUN PARKI: Salıncakta sallanan ve kaydıraktan kayan çocuklar
+    }
     for (const sm of this.voxelWorld.supermarketSpecialNPCs || []) this._spawnSupermarketSpecialNPC(sm);
     for (const hs of this.voxelWorld.hotelStaff || []) this._spawnHotelStaffNPC(hs);
   }
@@ -769,7 +772,14 @@ export class NPCManager {
     }
     for (let i = this.respawnQueue.length - 1; i >= 0; i--) {
       this.respawnQueue[i] -= dt;
-      if (this.respawnQueue[i] <= 0) { this.respawnQueue.splice(i, 1); this._spawn(); }
+      if (this.respawnQueue[i] <= 0) {
+        this.respawnQueue.splice(i, 1);
+        const isExp = (playerPos && playerPos.x > 5000) || (this.voxelWorld.terrain?.bounds?.minX > 5000);
+        const maxN = isExp ? 3 : NPC_COUNT;
+        if (this.npcs.length < maxN) {
+          this._spawn();
+        }
+      }
     }
 
     const cullSq = CULL_DIST * CULL_DIST;

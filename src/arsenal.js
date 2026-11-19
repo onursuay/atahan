@@ -18,7 +18,7 @@ const lerp = THREE.MathUtils.lerp, clamp = THREE.MathUtils.clamp;
 const rnd = (a, b) => a + Math.random() * (b - a);
 
 const B = (w, h, d, mat, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat); m.position.set(x, y, z); return m; };
-const lam = (c) => new THREE.MeshLambertMaterial({ color: c });
+const lam = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.38, metalness: 0.28 });
 const glow = (c, op = 1, add = false) => new THREE.MeshBasicMaterial({ color: c, transparent: op < 1 || add, opacity: op, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: !add });
 
 const HINTS = {
