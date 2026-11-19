@@ -587,12 +587,9 @@ function startIntro() {
     if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
     if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
 
-    // OYNA: Oyun Modu Seçim ekranını açar (Hikaye Modu veya Serbest Mod)
+    // OYNA: Deney Haritasında oyunu anında başlatır (0 bekleme, 0 kasma)
     if (pBtn) pBtn.onclick = () => {
-      $('mm-home').style.display = 'none';
-      const mPanel = $('mm-mode');
-      if (mPanel) mPanel.style.display = 'flex';
-      else startStoryMode();
+      startFreeRoamMode();
     };
 
     if (modeBackBtn) modeBackBtn.onclick = () => {
@@ -602,32 +599,7 @@ function startIntro() {
     };
 
     const startStoryMode = () => {
-      try {
-        menu.style.display = 'none';
-        introWaiting = false; introT = 0;
-        try { sound.init(); } catch (e) {}
-        document.body.classList.remove('intro');
-        if (introFadeEl) introFadeEl.style.display = 'none';
-        introActive = false;
-        window._gameMode = 'story';
-        if (storyManager) {
-          if (remoteModel) remoteModel.visible = false;
-          document.body.classList.add('story-cinematic');
-          storyManager.startStory();
-        } else {
-          const cfg = (levelManager && levelManager.levelConfigs) ? levelManager.levelConfigs[levelManager.currentLevelIndex || 0] : null;
-          if (cfg && cfg.spawn) character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z);
-          seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
-          cameraYaw = INTRO_BASE_YAW + INTRO_TURN; cameraPitch = INTRO_PITCH0;
-        }
-        if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
-      } catch (err) {
-        console.warn('Hikaye modu baslatma hatasi:', err);
-        menu.style.display = 'none';
-        document.body.classList.remove('intro');
-        if (introFadeEl) introFadeEl.style.display = 'none';
-        introActive = false;
-      }
+      startFreeRoamMode();
     };
 
     const startFreeRoamMode = () => {
@@ -652,17 +624,18 @@ function startIntro() {
           storyManager.showDialog(false);
           storyManager.showSkipButton(false);
           storyManager.setFade(0, 300);
-          storyManager.setMission('💣 SERBEST MOD', 'Şehir tamamen senin! Bütün silahlar ve Mekanik Ahtapot emrinde. İstediğin gibi yık, arabalara bin ve eğlen!');
+          storyManager.setMission('🔬 DENEY VE BAKIM HARİTASI', 'Teardown tarzı test evi! Tüm bloklar ve eşyalar sergileniyor. Çekiç ve silahlarınla test et!');
         }
 
-        // Serbest modda oyuncu evin önünde, geniş caddede ayakta başlar
-        character.resetPosition(-105.0, 1.5, 4.2);
+        // Oyuncu test evinin içinde/terasında ayakta başlar
+        character.resetPosition(10000, 1.6, 10003);
         seated = false; eyeOffset = 1.8;
+        cameraYaw = 0; cameraPitch = 0;
         setFirstPerson(false);
 
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
-        console.warn('Serbest mod baslatma hatasi:', err);
+        console.warn('Mod baslatma hatasi:', err);
         menu.style.display = 'none';
         document.body.classList.remove('intro');
         if (introFadeEl) introFadeEl.style.display = 'none';
@@ -853,37 +826,21 @@ function loadLevel(index) {
     window.__bakim = () => loadLevel(1);
   } catch(e){ console.warn('DayNight warn:', e); }
 
-  if (index === 1) {
-    // Bakım Haritası: Ana şehirden 10.000 metre uzakta izole test alanı
-    WORLD_BOUNDS.minX = 9940;
-    WORLD_BOUNDS.maxX = 10060;
-    WORLD_BOUNDS.minZ = 9940;
-    WORLD_BOUNDS.maxZ = 10060;
-    WORLD_BOUNDS.maxY = 60;
-    if (waterMesh) waterMesh.position.set(10000, -0.35, 10000);
-    seated = false;
-    eyeOffset = 1.8;
-    eyeY = null;
-    introActive = false;
-    introWaiting = false;
-    cameraYaw = 0;
-    cameraPitch = 0;
-  } else {
-    // Ana Şehir Haritası Sınırları
-    WORLD_BOUNDS.minX = -700;
-    WORLD_BOUNDS.maxX = 660;
-    WORLD_BOUNDS.minZ = -630;
-    WORLD_BOUNDS.maxZ = 480;
-    WORLD_BOUNDS.maxY = 68;
-    const waterCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2;
-    const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2;
-    if (waterMesh) waterMesh.position.set(waterCX, -0.15, waterCZ);
-    cameraYaw = -Math.PI / 2; // Evdeki koltuktan doğuya, televizyona doğru baksın
-    seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
-  }
+  // Deney ve Bakım Haritası Koordinatları (Ana şehirden 10.000 metre uzakta izole test alanı)
+  WORLD_BOUNDS.minX = 9930;
+  WORLD_BOUNDS.maxX = 10070;
+  WORLD_BOUNDS.minZ = 9930;
+  WORLD_BOUNDS.maxZ = 10070;
+  WORLD_BOUNDS.maxY = 65;
+  if (waterMesh) waterMesh.position.set(10000, -0.35, 10000);
+  seated = false;
+  eyeOffset = 1.8;
+  eyeY = null;
+  cameraYaw = 0;
+  cameraPitch = 0;
 
   try {
-    if (index === 0 && !introPlayed) startIntro();   // açılış jeneriği yalnız ana şehir ilk açıldığında
+    if (!introPlayed) startIntro();
     else cameraPitch = 0.0;
   } catch (e) {
     console.warn('Intro warn:', e);

@@ -160,17 +160,9 @@ export class LevelManager {
     this.levelConfigs = [
       {
         id: 0,
-        title: 'DEVASA 25X ŞEHİR, SAHİL & ZENGİN ADA',
-        desc: 'Evindeki salonda televizyon izleyerek başla, garajındaki sedan arabayla yola çık, 25 kat büyüyen şehirleri ve kesintisiz yol ağını keşfet!',
-        targetPercent: 35,
-        spawn: { x: -110.25, y: 7.05, z: 19.75 },   // Şehirdeki evimizin 2. katındaki televizyon odasında koltuğun üstü
-        builder: this.buildFullCityWorld.bind(this)
-      },
-      {
-        id: 1,
-        title: 'BAKIM HARİTASI (TEARDOWN TEST EVİ)',
-        desc: 'Teardown tarzı yansımalı PBR bloklar, tüm mobilya ve eşyalarla donatılmış özel test evi.',
-        targetPercent: 40,
+        title: 'DENEY VE BAKIM HARİTASI (TEARDOWN TEST EVİ)',
+        desc: 'Teardown tarzı yansımalı PBR bloklar, tüm mobilya ve eşyalarla donatılmış özel deney evi.',
+        targetPercent: 50,
         spawn: { x: 10000, y: 1.6, z: 10003 },
         builder: this.buildMaintenanceMap.bind(this)
       }
@@ -4657,12 +4649,11 @@ export class LevelManager {
 
   loadLevel(index) {
     this.world.clear();
-    this.currentLevelIndex = index;
+    this.currentLevelIndex = 0;
 
-    const cfg = this.levelConfigs[index] || this.levelConfigs[0];
+    const cfg = this.levelConfigs[0];
     cfg.builder();
     this.world.buildMeshBuffers();
-    if (this.world.bridge && index === 0) this.world.bridge.attach();     // köprü tabliyesi yalnız şehir haritasında
     return cfg;
   }
 }
