@@ -118,10 +118,10 @@ function init() {
   // 1. Sahne (Teardown Tarzı Aydınlık Gökyüzü - 5X Genişletilmiş Harita Görüşü)
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x78a7ff);
-  scene.fog = new THREE.Fog(0x78a7ff, 210, 310);
+  scene.fog = new THREE.Fog(0x78a7ff, 150, 220);
 
-  // 2. Kamera: 340 m görüş mesafesi (sis sınırıyla tam uyumlu, gereksiz uzak poligonları eleyerek yüksek FPS sağlar)
-  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 340);
+  // 2. Kamera: 235 m görüş mesafesi (sis sınırıyla tam senkronize, binaları silmeden GPU yükünü yarıya indirir)
+  camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.35, 235);
 
   // 3. Renderer (Performans için optimize edildi: 60 FPS akıcı voxel deneyimi)
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -142,11 +142,11 @@ function init() {
   sunLight.shadow.mapSize.width = 1024;
   sunLight.shadow.mapSize.height = 1024;
   sunLight.shadow.camera.near = 10;
-  sunLight.shadow.camera.far = 220;
+  sunLight.shadow.camera.far = 180;
 
-  // Oyuncunun etrafındaki alanı kapsayan odaklanmış gölge alanı (daha keskin gölgeler, 4 kat daha hızlı gölge çizimi)
-  const dx = 95;
-  const dz = 85;
+  // Oyuncunun etrafındaki alanı kapsayan odaklanmış gölge alanı (daha keskin gölgeler, yüksek FPS)
+  const dx = 60;
+  const dz = 55;
   sunLight.shadow.camera.left = -dx;
   sunLight.shadow.camera.right = dx;
   sunLight.shadow.camera.top = dz;

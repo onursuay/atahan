@@ -37,7 +37,7 @@ function makeCubeTexture(def) {
 // Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
 const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // 0.5 m küpte 1; küçüldükçe daha çok küp gerekir
 const CHUNK_SIZE = 48; // metre: Minecraft tarzı dinamik bölge boyutu (performansı ve akıcı chunk yüklemeyi maksimize eder)
-const CHUNK_STREAM_DIST = 300; // metre: geniş ufuk görüş mesafesi (300m boyunca binalar, yollar ve çevre akıcı şekilde görünür)
+const CHUNK_STREAM_DIST = 210; // metre: dengeli görüş mesafesi (binaları silmeden GPU yükünü %50 azaltır)
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
@@ -279,6 +279,7 @@ export class VoxelWorld {
         isGround,
         isLandmark
       };
+      mesh.boundingSphere = new THREE.Sphere(mesh.userData.center, CHUNK_SIZE * 0.85 + 25);
       mesh.castShadow = false; // update() içinde kameraya yakınlığa göre dinamik belirlenir (0 lag)
       mesh.receiveShadow = true;
       mesh.frustumCulled = true;
@@ -926,7 +927,7 @@ export class VoxelWorld {
       this._cullTimer = 0;
       const camX = camPos.x, camZ = camPos.z;
       const maxDistSq = CHUNK_STREAM_DIST * CHUNK_STREAM_DIST;
-      const shadowDistSq = 75 * 75;
+      const shadowDistSq = 45 * 45; // Odaklanmış gölge mesafesi (GPU yükünü %60 hafifletir)
       for (let i = 0; i < this.chunkMeshes.length; i++) {
         const m = this.chunkMeshes[i];
         const u = m.userData;

@@ -719,7 +719,7 @@ export class Character {
     // Duvara çarptı: yarıya bölerek temas noktasına kadar yaklaş (yüzeyle arada boşluk kalmasın)
     let lo = 0;
     let hi = delta;
-    for (let k = 0; k < 8; k++) {
+    for (let k = 0; k < 5; k++) {
       const mid = (lo + hi) / 2;
       const mx = axis === 'x' ? pos.x + mid : pos.x;
       const mz = axis === 'z' ? pos.z + mid : pos.z;
@@ -736,7 +736,7 @@ export class Character {
     let feet = pos.y - BODY_H / 2;
     const S = VOXEL_SIZE;
 
-    const n = Math.max(1, Math.ceil(dt / (1 / 120)));
+    const n = Math.min(2, Math.max(1, Math.round(dt * 60)));
     const h = dt / n;
 
     for (let i = 0; i < n; i++) {
