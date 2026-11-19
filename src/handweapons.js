@@ -129,9 +129,9 @@ export class HandWeapons {
   // ───────────────────────── Modeller ─────────────────────────
   _buildRocket() {
     const g = new THREE.Group();
-    const olive = new THREE.MeshLambertMaterial({ color: 0x4b5a3e });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x22272e });
-    const red = new THREE.MeshLambertMaterial({ color: 0xdc2626 });
+    const olive = new THREE.MeshStandardMaterial({ color: 0x4b5a3e, roughness: 0.45, metalness: 0.35 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.35, metalness: 0.70 });
+    const red = new THREE.MeshStandardMaterial({ color: 0xdc2626, roughness: 0.30, metalness: 0.50 });
 
     const tube = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.95), olive);
     const ring1 = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.21, 0.07), dark);
@@ -154,9 +154,9 @@ export class HandWeapons {
   // Tek minigun modeli: { g, barrels, flash }
   _makeMinigun() {
     const g = new THREE.Group();
-    const steel = new THREE.MeshLambertMaterial({ color: 0x4b5563 });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
-    const brass = new THREE.MeshLambertMaterial({ color: 0xb08a2e });
+    const steel = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.20, metalness: 0.88 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.35, metalness: 0.70 });
+    const brass = new THREE.MeshStandardMaterial({ color: 0xb08a2e, roughness: 0.18, metalness: 0.90 });
 
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.5), dark);
     body.position.z = 0.05;
@@ -230,8 +230,8 @@ export class HandWeapons {
     saber.rotation.z = -0.5;
     this.saberBody = saber;
 
-    const metal = new THREE.MeshLambertMaterial({ color: 0x9ca3af });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 });
+    const metal = new THREE.MeshStandardMaterial({ color: 0x9ca3af, roughness: 0.22, metalness: 0.85 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.35, metalness: 0.70 });
     const hilt = new THREE.Mesh(new THREE.BoxGeometry(0.05, SABER_HILT_HALF * 2, 0.05), metal);
     const grip = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.13, 0.06), dark);
     saber.add(hilt, grip);
@@ -268,10 +268,10 @@ export class HandWeapons {
 
   _buildBomb() {
     const g = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshLambertMaterial({ color: 0x3a3f47 }));
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x3a3f47, roughness: 0.35, metalness: 0.65 }));
     this.bombLamp = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.06, 0.09), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
     this.bombLamp.position.y = 0.13;
-    const wire = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.02), new THREE.MeshLambertMaterial({ color: 0xd4a017 }));
+    const wire = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.1, 0.02), new THREE.MeshStandardMaterial({ color: 0xd4a017, roughness: 0.25, metalness: 0.85 }));
     wire.position.set(0.08, 0.15, 0);
     g.add(body, this.bombLamp, wire);
     g.position.set(0.3, -0.28, -0.55);
@@ -281,8 +281,8 @@ export class HandWeapons {
   }
 
   _buildGuns() {
-    const dark = new THREE.MeshLambertMaterial({ color: 0x1f2937 }), steel = new THREE.MeshLambertMaterial({ color: 0x4b5563 });
-    const wood = new THREE.MeshLambertMaterial({ color: 0x7c4a1e }), black = new THREE.MeshLambertMaterial({ color: 0x0b0f14 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.32, metalness: 0.75 }), steel = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.20, metalness: 0.88 });
+    const wood = new THREE.MeshStandardMaterial({ color: 0x7c4a1e, roughness: 0.55, metalness: 0.05 }), black = new THREE.MeshStandardMaterial({ color: 0x0b0f14, roughness: 0.30, metalness: 0.80 });
     const B = (w, h, d, m, x, y, z) => { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mesh.position.set(x, y, z); return mesh; };
     const mk = (parts, pos) => { const g = new THREE.Group(); parts.forEach(p => g.add(p)); g.position.set(...pos); g.visible = false; this.root.add(g); return g; };
     this.gunModels = {

@@ -150,15 +150,19 @@ export class VoxelWorld {
       const isWood = matDef.isWood || matDef.id === PALETTE.WOOD.id;
       const isRoof = matDef.id === PALETTE.ROOF.id;
       const isAsphalt = matDef.id === PALETTE.ASPHALT.id;
+      const isBrick = matDef.id === PALETTE.BRICK.id;
+      const isStone = matDef.id === PALETTE.STONE.id || matDef.id === PALETTE.SLATE?.id;
 
-      let roughness = 0.75;
-      let metalness = 0.04;
-      if (isIron) { roughness = 0.26; metalness = 0.85; }
-      else if (isGold) { roughness = 0.20; metalness = 0.90; }
-      else if (isGlass) { roughness = 0.08; metalness = 0.12; }
-      else if (isRoof) { roughness = 0.38; metalness = 0.08; }
-      else if (isWood) { roughness = 0.65; metalness = 0.02; }
-      else if (isAsphalt) { roughness = 0.60; metalness = 0.06; }
+      let roughness = 0.68;
+      let metalness = 0.05;
+      if (isIron) { roughness = 0.20; metalness = 0.88; }
+      else if (isGold) { roughness = 0.18; metalness = 0.92; }
+      else if (isGlass) { roughness = 0.05; metalness = 0.15; }
+      else if (isRoof) { roughness = 0.35; metalness = 0.08; }
+      else if (isWood) { roughness = 0.58; metalness = 0.03; }
+      else if (isAsphalt) { roughness = 0.55; metalness = 0.06; }
+      else if (isBrick) { roughness = 0.62; metalness = 0.04; }
+      else if (isStone) { roughness = 0.52; metalness = 0.08; }
 
       // Teardown PBR Malzeme Sistemi (Yansımalı, gerçekçi ışık ve pürüzlülük tepkisi)
       this.materials[matDef.id] = new THREE.MeshStandardMaterial({
@@ -168,8 +172,8 @@ export class VoxelWorld {
         metalness,
         transparent: isGlass,
         opacity: isGlass ? 0.65 : 1.0,
-        // Lamba küpleri kendi ışığıyla parlar (gece/gölgede de görünür)
-        ...(matDef.isLamp ? { emissive: new THREE.Color(matDef.emissive || 0xffe9a0), emissiveIntensity: 1.2, roughness: 0.2 } : {})
+        // Lamba küpleri Teardown tarzı güçlü kendi ışığıyla parlar
+        ...(matDef.isLamp ? { emissive: new THREE.Color(matDef.emissive || 0xffc066), emissiveIntensity: 2.2, roughness: 0.1 } : {})
       });
     });
   }

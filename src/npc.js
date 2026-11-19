@@ -48,7 +48,17 @@ const GEO = {
 };
 const matCache = new Map();
 const mat = (color) => {
-  if (!matCache.has(color)) matCache.set(color, new THREE.MeshLambertMaterial({ color }));
+  if (!matCache.has(color)) {
+    // Teardown PBR Yansımalı ve Parlak İnsan/Kıyafet/Ten Malzemesi
+    const isSkin = [0xb98561, 0xd4a373, 0xf3c69d, 0x8d5524, 0xc68642, 0xe0ac69, 0xffdbac].includes(color);
+    const isHair = [0x4a2f13, 0x1f2937, 0x78350f, 0xd97706, 0x000000, 0x334155].includes(color);
+    const isMetal = [0xd4af37, 0xfacc15, 0x94a3b8, 0x64748b, 0xcbd5e1].includes(color);
+    matCache.set(color, new THREE.MeshStandardMaterial({
+      color,
+      roughness: isMetal ? 0.20 : isHair ? 0.35 : isSkin ? 0.50 : 0.60,
+      metalness: isMetal ? 0.85 : isHair ? 0.15 : isSkin ? 0.10 : 0.10
+    }));
+  }
   return matCache.get(color);
 };
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];

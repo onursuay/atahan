@@ -140,18 +140,18 @@ export class Character {
     const stoneTex = getStoneTexture();
     const tntTex = getTNTSideTexture();
 
-    // Normal mod malzemeleri
-    this._skinMat  = new THREE.MeshLambertMaterial({ color: 0xb98561 });
-    this._hairMat  = new THREE.MeshLambertMaterial({ color: 0x4a2f13 });
-    this._shirtMat = new THREE.MeshLambertMaterial({ map: shirtTex });
-    this._pantsMat = new THREE.MeshLambertMaterial({ map: pantsTex });
-    this._faceMat  = new THREE.MeshLambertMaterial({ map: faceTex });
+    // Normal mod malzemeleri (Teardown PBR Yansımalı ve Parlak)
+    this._skinMat  = new THREE.MeshStandardMaterial({ color: 0xb98561, roughness: 0.50, metalness: 0.10 });
+    this._hairMat  = new THREE.MeshStandardMaterial({ color: 0x4a2f13, roughness: 0.35, metalness: 0.15 });
+    this._shirtMat = new THREE.MeshStandardMaterial({ map: shirtTex, roughness: 0.60, metalness: 0.08 });
+    this._pantsMat = new THREE.MeshStandardMaterial({ map: pantsTex, roughness: 0.65, metalness: 0.08 });
+    this._faceMat  = new THREE.MeshStandardMaterial({ map: faceTex, roughness: 0.50, metalness: 0.10 });
 
-    // Cyborg mod malzemeleri
-    this._cyMetalMat  = new THREE.MeshLambertMaterial({ color: 0x334155 }); // koyu metalik gövde
-    this._cyArmorMat  = new THREE.MeshLambertMaterial({ color: 0x1e3a5f }); // zırh mavisi
-    this._eyeMatLeft  = new THREE.MeshBasicMaterial({ color: 0xef4444 });   // kırmızı göz sol
-    this._eyeMatRight = new THREE.MeshBasicMaterial({ color: 0xef4444 });   // kırmızı göz sağ
+    // Cyborg mod malzemeleri (Yüksek Yansımalı Titanyum & Parlayan Neon Gözler)
+    this._cyMetalMat  = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.20, metalness: 0.88 }); // parlak metalik gövde
+    this._cyArmorMat  = new THREE.MeshStandardMaterial({ color: 0x1e40af, roughness: 0.22, metalness: 0.85 }); // zırh mavisi
+    this._eyeMatLeft  = new THREE.MeshStandardMaterial({ color: 0xff1e1e, emissive: 0xff1e1e, emissiveIntensity: 2.5, roughness: 0.1 });   // parlayan kırmızı göz sol
+    this._eyeMatRight = new THREE.MeshStandardMaterial({ color: 0xff1e1e, emissive: 0xff1e1e, emissiveIntensity: 2.5, roughness: 0.1 });   // parlayan kırmızı göz sağ
 
     // ── KAFA ──
     const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
@@ -194,7 +194,7 @@ export class Character {
     this.faceDetails.forEach(m => m.visible = false);
 
     // ── GÖVDE ──
-    this._bodyMat = new THREE.MeshLambertMaterial({ map: shirtTex });
+    this._bodyMat = new THREE.MeshStandardMaterial({ map: shirtTex, roughness: 0.60, metalness: 0.08 });
     this.torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.0, 0.4), this._bodyMat);
     this.torso.position.y = 0.9;
     this.torso.castShadow = true;
@@ -210,19 +210,19 @@ export class Character {
     this._leftArmMesh.castShadow = true;
     this.leftArm.add(this._leftArmMesh);
 
-    // Çekiç
+    // Çekiç (Teardown Yansımalı Çelik Balyoz)
     this.hammer = new THREE.Group();
     this.hammer.position.set(0, -0.85, 0.2);
     const handleMesh = new THREE.Mesh(
       new THREE.BoxGeometry(0.1, 1.2, 0.1),
-      new THREE.MeshLambertMaterial({ color: 0x854d0e })
+      new THREE.MeshStandardMaterial({ color: 0x854d0e, roughness: 0.45, metalness: 0.05 })
     );
     handleMesh.rotation.x = Math.PI / 4;
     handleMesh.castShadow = true;
     this.hammer.add(handleMesh);
     const hammerHead = new THREE.Mesh(
       new THREE.BoxGeometry(0.35, 0.35, 0.65),
-      new THREE.MeshLambertMaterial({ color: 0x334155 })
+      new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.18, metalness: 0.88 })
     );
     hammerHead.position.set(0, 0.42, 0.42);
     hammerHead.castShadow = true;

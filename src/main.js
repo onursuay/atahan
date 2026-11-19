@@ -312,8 +312,10 @@ function createWorldArena() {
   const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2; // -75 m
 
   waterGeo = new THREE.PlaneGeometry(waterW, waterD, 24, 24);
-  waterMat = new THREE.MeshLambertMaterial({
-    color: 0x0369a1,
+  waterMat = new THREE.MeshStandardMaterial({
+    color: 0x0284c7,
+    roughness: 0.12,
+    metalness: 0.35,
     transparent: true,
     opacity: 0.85
   });
