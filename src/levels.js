@@ -160,10 +160,10 @@ export class LevelManager {
     this.levelConfigs = [
       {
         id: 0,
-        title: 'DENEY VE BAKIM HARİTASI (TEARDOWN TEST EVİ)',
-        desc: 'Teardown tarzı yansımalı PBR bloklar, tüm mobilya ve eşyalarla donatılmış özel deney evi.',
+        title: '🔬 DENEY HARİTASI',
+        desc: 'Bir ev ve bir arazi. Teardown tarzı tam yıkım ve fizik testi.',
         targetPercent: 50,
-        spawn: { x: 10000, y: 1.6, z: 10003 },
+        spawn: { x: 10000, y: 1.2, z: 10014 },
         builder: this.buildMaintenanceMap.bind(this)
       }
     ];
@@ -4399,8 +4399,11 @@ export class LevelManager {
     const CX = 10000;
     const CZ = 10000;
 
-    // 1. ZEMİN VE ÇEVRE (Suda yüzmeyen, sağlam ada ve ön bahçe)
-    this.world.terrain.addRect(CX - 40, CZ - 35, CX + 40, CZ + 40, PALETTE.GRASS);
+    // 1. GENİŞ ÇİMENLİK ARAZİ (Sadece bir ev ve bir arazi)
+    this.world.terrain.addRect(CX - 80, CZ - 80, CX + 80, CZ + 80, PALETTE.GRASS);
+    // Evin etrafında taş teras ve giriş patikası
+    this.world.terrain.addRect(CX - 14, CZ - 12, CX + 14, CZ + 14, PALETTE.STONE);
+    this.world.terrain.addRect(CX - 2.5, CZ + 14, CX + 2.5, CZ + 28, PALETTE.STONE);
 
     const setV = (x, y, z, mat) => {
       const ix = Math.round(x / 0.5);
@@ -4440,211 +4443,102 @@ export class LevelManager {
       }
     };
 
-    // Ada Zemin Kaplamaları:
-    // Yeşil çim bahçe (geniş)
-    boxV(CX - 35, 0.5, CZ - 30, CX + 35, 0.5, CZ + 35, PALETTE.GRASS);
-    // Ön avlu taş teras ve patika
-    boxV(CX - 14, 0.5, CZ + 6, CX + 14, 0.5, CZ + 14, PALETTE.STONE);
-    // Asfalt otopark alanı (ön bahçe)
-    boxV(CX - 18, 0.5, CZ + 14, CX + 18, 0.5, CZ + 30, PALETTE.ASPHALT);
-
-    // Çitler (Bahçe çevresi ahşap çit)
-    for (let x = CX - 32; x <= CX + 32; x += 2) {
-      boxV(x, 0.5, CZ + 32, x, 1.5, CZ + 32, PALETTE.WOOD);
-      boxV(x, 0.5, CZ - 28, x, 1.5, CZ - 28, PALETTE.WOOD);
-    }
-    for (let z = CZ - 28; z <= CZ + 32; z += 2) {
-      boxV(CX - 32, 0.5, z, CX - 32, 1.5, z, PALETTE.WOOD);
-      boxV(CX + 32, 0.5, z, CX + 32, 1.5, z, PALETTE.WOOD);
-    }
-    // Yatay çit kirişi
-    boxV(CX - 32, 1.5, CZ + 32, CX + 32, 1.5, CZ + 32, PALETTE.WOOD);
-    boxV(CX - 32, 1.5, CZ - 28, CX + 32, 1.5, CZ - 28, PALETTE.WOOD);
-
     // 2. TEARDOWN MİMARİSİNDE LÜKS MÜSTAKİL TEST EVİ
-    // Ev sınırları: X: CX - 12 .. CX + 12 (24m), Z: CZ - 12 .. CZ + 6 (18m)
-    // 1. Kat (Giriş & Salon & Mutfak & Blok Galerisi): Y = 0.5 .. 4.5
-    hollowBoxV(CX - 12, 0.5, CZ - 12, CX + 12, 4.5, CZ + 6, PALETTE.BEIGE, PALETTE.WOOD, PALETTE.WHITE);
-    // Ön kapı girişi (ortada ferah cam sürgülü kapı açıklığı: CX-2.5 .. CX+2.5)
-    for (let x = CX - 2.5; x <= CX + 2.5; x += 0.5) {
+    // Ev sınırları: X: CX - 10 .. CX + 10 (20m genişlik), Z: CZ - 10 .. CZ + 6 (16m derinlik)
+
+    // 1. KAT: Giriş, Salon & İç Mekan (Y = 0.5 .. 4.5)
+    hollowBoxV(CX - 10, 0.5, CZ - 10, CX + 10, 4.5, CZ + 6, PALETTE.BEIGE, PALETTE.WOOD, PALETTE.WHITE);
+
+    // Ön kapı geniş açıklığı (Giriş)
+    for (let x = CX - 2.0; x <= CX + 2.0; x += 0.5) {
       for (let y = 0.5; y <= 3.5; y += 0.5) {
         this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((CZ + 6) / 0.5)}`);
       }
     }
-    // Ön cephe sol ve sağ pencereler
-    boxV(CX - 11, 1.0, CZ + 6, CX - 4, 3.5, CZ + 6, PALETTE.GLASS);
-    boxV(CX + 4, 1.0, CZ + 6, CX + 11, 3.5, CZ + 6, PALETTE.GLASS);
-    // Çelik kolonlar ve kirişler (Teardown demir kirişleri)
-    boxV(CX - 12, 0.5, CZ + 6, CX - 12, 4.5, CZ + 6, PALETTE.IRON);
-    boxV(CX + 12, 0.5, CZ + 6, CX + 12, 4.5, CZ + 6, PALETTE.IRON);
-    boxV(CX - 3, 0.5, CZ + 6, CX - 3, 4.5, CZ + 6, PALETTE.IRON);
-    boxV(CX + 3, 0.5, CZ + 6, CX + 3, 4.5, CZ + 6, PALETTE.IRON);
+    // Giriş kapısı ahşap çerçeve
+    boxV(CX - 2.5, 0.5, CZ + 6, CX - 2.0, 3.5, CZ + 6, PALETTE.WOOD);
+    boxV(CX + 2.0, 0.5, CZ + 6, CX + 2.5, 3.5, CZ + 6, PALETTE.WOOD);
+    boxV(CX - 2.5, 3.5, CZ + 6, CX + 2.5, 4.0, CZ + 6, PALETTE.WOOD);
 
-    // İç Duvarlar:
-    boxV(CX + 3.5, 0.5, CZ - 12, CX + 3.5, 4.5, CZ + 1, PALETTE.BRICK);
-    boxV(CX - 3.5, 0.5, CZ - 12, CX - 3.5, 4.5, CZ + 1, PALETTE.TERRACOTTA);
+    // Ön cephe geniş pencereleri
+    boxV(CX - 9.0, 1.5, CZ + 6, CX - 4.0, 3.5, CZ + 6, PALETTE.GLASS);
+    boxV(CX + 4.0, 1.5, CZ + 6, CX + 9.0, 3.5, CZ + 6, PALETTE.GLASS);
 
-    // 2. Kat ve Ön Güneş Terası: Y = 4.5 .. 8.5
-    // Arka oda: Z: CZ - 12 .. CZ
-    hollowBoxV(CX - 12, 4.5, CZ - 12, CX + 12, 8.5, CZ, PALETTE.STONE, PALETTE.WOOD, PALETTE.WHITE);
-    // 2. Kat pencereleri
-    boxV(CX - 10, 5.5, CZ, CX - 5, 7.5, CZ, PALETTE.GLASS);
-    boxV(CX + 5, 5.5, CZ, CX + 10, 7.5, CZ, PALETTE.GLASS);
-    // Balkon kapısı boşluğu
-    for (let x = CX - 1.5; x <= CX + 1.5; x += 0.5) {
+    // Yan cephe pencereleri
+    boxV(CX - 10, 1.5, CZ - 6.0, CX - 10, 3.5, CZ - 2.0, PALETTE.GLASS);
+    boxV(CX + 10, 1.5, CZ - 6.0, CX + 10, 3.5, CZ + 2.0, PALETTE.GLASS);
+
+    // Arka bahçe penceresi
+    boxV(CX - 5.0, 1.5, CZ - 10, CX + 5.0, 3.5, CZ - 10, PALETTE.GLASS);
+
+    // Çelik Taşıyıcı Köşe Kolonları (Teardown demir kirişleri)
+    boxV(CX - 10, 0.5, CZ + 6, CX - 10, 4.5, CZ + 6, PALETTE.IRON);
+    boxV(CX + 10, 0.5, CZ + 6, CX + 10, 4.5, CZ + 6, PALETTE.IRON);
+    boxV(CX - 10, 0.5, CZ - 10, CX - 10, 4.5, CZ - 10, PALETTE.IRON);
+    boxV(CX + 10, 0.5, CZ - 10, CX + 10, 4.5, CZ - 10, PALETTE.IRON);
+
+    // İç Oda Bölmesi (Tuğla duvar)
+    boxV(CX + 2.0, 0.5, CZ - 10, CX + 2.0, 4.5, CZ, PALETTE.BRICK);
+    // İç kapı geçişi
+    for (let z = CZ - 5.0; z <= CZ - 3.0; z += 0.5) {
+      for (let y = 0.5; y <= 3.5; y += 0.5) {
+        this.world.voxels.delete(`${Math.round((CX + 2.0) / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round(z / 0.5)}`);
+      }
+    }
+
+    // 2. KAT: Yatak Odası ve Geniş Ön Teras (Y = 4.5 .. 8.5)
+    // 2. Kat Odası: Z = CZ - 10 .. CZ + 1
+    hollowBoxV(CX - 10, 4.5, CZ - 10, CX + 10, 8.5, CZ + 1, PALETTE.STONE, PALETTE.WOOD, PALETTE.WHITE);
+
+    // Terasa açılan sürgülü cam kapı açıklığı
+    for (let x = CX - 2.0; x <= CX + 2.0; x += 0.5) {
       for (let y = 4.5; y <= 7.5; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round(CZ / 0.5)}`);
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((CZ + 1) / 0.5)}`);
       }
     }
-    // Ön Teras: Z: CZ .. CZ + 6
-    boxV(CX - 12, 4.5, CZ, CX + 12, 4.5, CZ + 6, PALETTE.SLATE);
-    boxV(CX - 12, 5.0, CZ + 6, CX + 12, 5.5, CZ + 6, PALETTE.IRON);
-    boxV(CX - 12, 5.0, CZ, CX - 12, 5.5, CZ + 6, PALETTE.IRON);
-    boxV(CX + 12, 5.0, CZ, CX + 12, 5.5, CZ + 6, PALETTE.IRON);
+    // 2. Kat ön pencereleri
+    boxV(CX - 8.0, 5.5, CZ + 1, CX - 4.0, 7.5, CZ + 1, PALETTE.GLASS);
+    boxV(CX + 4.0, 5.5, CZ + 1, CX + 8.0, 7.5, CZ + 1, PALETTE.GLASS);
 
-    // Çatı: Kiremit eğimli çatı
-    for (let h = 0; h <= 6; h++) {
+    // Ön Teras Zemin ve Demir Korkuluklar (Z = CZ + 1 .. CZ + 6)
+    boxV(CX - 10, 4.5, CZ + 1, CX + 10, 4.5, CZ + 6, PALETTE.SLATE);
+    boxV(CX - 10, 5.0, CZ + 6, CX + 10, 5.5, CZ + 6, PALETTE.IRON);
+    boxV(CX - 10, 5.0, CZ + 1, CX - 10, 5.5, CZ + 6, PALETTE.IRON);
+    boxV(CX + 10, 5.0, CZ + 1, CX + 10, 5.5, CZ + 6, PALETTE.IRON);
+
+    // 2. Kat Üzeri Kiremit Çatı
+    for (let h = 0; h <= 5; h++) {
       const y = 8.5 + h * 0.5;
-      const offZ = h * 0.8;
-      boxV(CX - 12.5, y, CZ - 12 + offZ, CX + 12.5, y, CZ - offZ, PALETTE.ROOF);
+      const offZ = h * 0.9;
+      boxV(CX - 10.5, y, CZ - 10 + offZ, CX + 10.5, y, CZ + 1 - offZ, PALETTE.ROOF);
     }
 
-    // 3. OYUNDAKİ TÜM BLOKLARIN TEARDOWN PBR SERGİSİ (Doğu Odası)
-    const allMaterials = [
-      PALETTE.CONCRETE, PALETTE.BRICK, PALETTE.WOOD, PALETTE.IRON, PALETTE.GLASS,
-      PALETTE.ROOF, PALETTE.TNT, PALETTE.GOLD, PALETTE.SAND, PALETTE.ASPHALT,
-      PALETTE.WHITE, PALETTE.GRASS, PALETTE.LAMP, PALETTE.BLACK, PALETTE.LAMP_BLUE,
-      PALETTE.LAMP_PINK, PALETTE.LAMP_GREEN, PALETTE.LAMP_PURPLE, PALETTE.LAMP_ORANGE,
-      PALETTE.LAMP_RED, PALETTE.BLUE, PALETTE.NAVY, PALETTE.ORANGE, PALETTE.DGREEN,
-      PALETTE.RED, PALETTE.YELLOW, PALETTE.CACTUS_GREEN, PALETTE.CACTUS_PURPLE,
-      PALETTE.BEIGE, PALETTE.CREAM, PALETTE.STONE, PALETTE.TERRACOTTA, PALETTE.SLATE,
-      PALETTE.WARM_GRAY, PALETTE.PEACH
-    ];
-
-    let matIdx = 0;
-    for (let r = 0; r < 5; r++) {
-      for (let c = 0; c < 7; c++) {
-        if (matIdx >= allMaterials.length) break;
-        const mat = allMaterials[matIdx++];
-        const sx = CX + 5.0 + c * 0.9;
-        const sz = CZ - 10.0 + r * 2.2;
-        boxV(sx - 0.25, 0.5, sz - 0.25, sx + 0.25, 1.0, sz + 0.25, PALETTE.STONE);
-        boxV(sx - 0.25, 1.5, sz - 0.25, sx + 0.25, 2.0, sz + 0.25, mat);
+    // Katlar Arası Ahşap Merdiven
+    for (let step = 0; step < 8; step++) {
+      const sx = CX - 8.0 + step * 0.5;
+      const sy = 0.5 + step * 0.5;
+      boxV(sx, 0.5, CZ - 9.0, sx + 0.5, sy, CZ - 7.5, PALETTE.WOOD);
+      if (step >= 4) {
+        this.world.voxels.delete(`${Math.round(sx / 0.5)},${Math.round(4.5 / 0.5)},${Math.round((CZ - 8.5) / 0.5)}`);
+        this.world.voxels.delete(`${Math.round(sx / 0.5)},${Math.round(4.5 / 0.5)},${Math.round((CZ - 8.0) / 0.5)}`);
       }
     }
 
-    // 4. OYUNDAKİ TÜM EŞYALAR (PROPS)
-    boxV(CX - 2, 0.5, CZ + 2, CX + 2, 1.0, CZ + 3, PALETTE.WOOD);
-    boxV(CX - 3, 0.5, CZ - 1.5, CX + 3, 0.9, CZ - 0.5, PALETTE.SLATE);
-    boxV(CX - 10, 0.5, CZ - 8, CX - 5, 1.0, CZ - 6, PALETTE.CREAM);
-    boxV(CX - 10, 0.5, CZ - 3, CX - 5, 1.0, CZ - 1, PALETTE.WOOD);
-    boxV(CX + 5, 0.5, CZ + 2, CX + 10, 1.0, CZ + 4, PALETTE.STONE);
+    // 3. EV İÇİ MOBİLYALARI
+    // Salon: Ahşap TV sehpası, geniş ekran TV, rahat oturma koltuğu
+    boxV(CX - 2.0, 0.5, CZ + 2.0, CX + 2.0, 1.0, CZ + 3.0, PALETTE.WOOD);
+    boxV(CX - 1.5, 1.0, CZ + 2.5, CX + 1.5, 2.5, CZ + 2.5, PALETTE.BLACK);
+    boxV(CX - 2.5, 0.5, CZ - 2.0, CX + 2.5, 1.2, CZ - 0.5, PALETTE.BEIGE);
 
-    const P = (kind, x, y, z, extra = {}) => {
-      this.world.propSpawns.push({ kind, x, y, z, yaw: extra.yaw || 0, color: extra.color || null, hung: !!extra.hung });
-    };
+    // 2. Kat Yatak Odası: Yatak ve yastık
+    boxV(CX - 7.0, 4.5, CZ - 8.0, CX - 3.0, 5.5, CZ - 4.0, PALETTE.WHITE);
+    boxV(CX - 7.0, 5.0, CZ - 8.0, CX - 3.0, 5.5, CZ - 7.0, PALETTE.BLUE);
 
-    // Salon & Teknoloji:
-    P('desktop_pc', CX - 1.5, 1.25, CZ - 1.0);
-    P('laptop', CX, 1.25, CZ + 2.5);
-    P('phone', CX + 0.8, 1.15, CZ + 2.5);
-    P('remote', CX - 0.6, 1.15, CZ + 2.5);
-    P('game_console', CX + 1.2, 1.2, CZ - 1.0);
-    P('tv_box', CX, 1.2, CZ - 1.0);
-    P('cash_register', CX + 6.0, 1.25, CZ + 3.0);
-
-    // Mutfak & Yiyecek / İçecekler:
-    P('burger', CX - 9.2, 1.2, CZ - 7.5);
-    P('pizzaslice', CX - 8.5, 1.15, CZ - 7.5);
-    P('pizzabox', CX - 7.8, 1.2, CZ - 7.5);
-    P('donut', CX - 7.0, 1.15, CZ - 7.5);
-    P('coffee', CX - 6.2, 1.25, CZ - 7.5);
-    P('icecream', CX - 5.5, 1.2, CZ - 7.5);
-    P('doner_plate', CX - 9.2, 1.2, CZ - 6.5);
-    P('doner_wrap', CX - 8.5, 1.15, CZ - 6.5);
-    P('kebap_plate', CX - 7.8, 1.2, CZ - 6.5);
-    P('lahmacun', CX - 7.0, 1.15, CZ - 6.5);
-    P('wrap', CX - 6.2, 1.15, CZ - 6.5);
-    P('bucket', CX - 5.5, 1.25, CZ - 6.5);
-
-    P('sushi', CX - 9.2, 1.2, CZ - 2.5);
-    P('sweet', CX - 8.5, 1.15, CZ - 2.5);
-    P('cake', CX - 7.8, 1.2, CZ - 2.5);
-    P('chips', CX - 7.0, 1.25, CZ - 2.5);
-    P('chocolate', CX - 6.2, 1.15, CZ - 2.5);
-    P('brownie', CX - 5.5, 1.2, CZ - 2.5);
-    P('cola', CX - 9.2, 1.2, CZ - 1.5);
-    P('ayran', CX - 8.5, 1.2, CZ - 1.5);
-    P('iced_tea', CX - 7.8, 1.2, CZ - 1.5);
-    P('water_bottle', CX - 7.0, 1.25, CZ - 1.5);
-    P('canned_food', CX - 6.2, 1.2, CZ - 1.5);
-    P('cat_food', CX - 5.5, 1.2, CZ - 1.5);
-
-    P('pasta', CX - 9.0, 1.2, CZ - 5.0);
-    P('rice', CX - 8.2, 1.2, CZ - 5.0);
-    P('bread', CX - 7.4, 1.2, CZ - 5.0);
-    P('plate', CX - 6.6, 1.15, CZ - 5.0);
-    P('baking_tray', CX - 5.8, 1.15, CZ - 5.0);
-    P('spoon', CX - 6.8, 1.15, CZ - 4.5);
-    P('fork', CX - 6.4, 1.15, CZ - 4.5);
-    P('knife', CX - 6.0, 1.15, CZ - 4.5);
-    P('mug', CX - 5.4, 1.2, CZ - 4.5);
-    P('table_menu', CX - 9.2, 1.2, CZ - 0.5);
-    P('table_reserved', CX - 8.5, 1.15, CZ - 0.5);
-
-    // Ev Eşyaları & Kıyafetler:
-    P('chair', CX - 1.5, 0.75, CZ + 4.0);
-    P('chair', CX + 1.5, 0.75, CZ + 4.0);
-    P('cushion', CX - 1.5, 1.1, CZ + 4.0);
-    P('cushion', CX + 1.5, 1.1, CZ + 4.0);
-    P('plant', CX - 3.5, 0.75, CZ + 5.0);
-    P('plant', CX + 3.5, 0.75, CZ + 5.0);
-    P('teddy', CX + 5.5, 1.25, CZ + 3.5);
-    P('book', CX + 6.2, 1.2, CZ + 3.5);
-    P('shoe', CX + 7.0, 1.2, CZ + 3.5);
-    P('box', CX + 7.8, 1.3, CZ + 3.5);
-    P('bottle', CX + 8.5, 1.25, CZ + 3.5);
-    P('tray', CX + 9.2, 1.2, CZ + 3.5);
-
-    P('shirt', CX + 5.5, 1.2, CZ + 2.5);
-    P('jacket', CX + 6.3, 1.2, CZ + 2.5);
-    P('pants', CX + 7.1, 1.2, CZ + 2.5);
-    P('bag', CX + 7.9, 1.25, CZ + 2.5);
-    P('gift', CX + 8.7, 1.2, CZ + 2.5);
-    P('can', CX + 9.3, 1.2, CZ + 2.5);
-
-    P('dumbbell', CX + 5.5, 1.2, CZ + 1.5);
-    P('ball', CX + 6.3, 1.2, CZ + 1.5);
-    P('toycar', CX + 7.1, 1.2, CZ + 1.5);
-    P('crayons', CX + 7.9, 1.15, CZ + 1.5);
-    P('notebook', CX + 8.6, 1.15, CZ + 1.5);
-    P('pencil_case', CX + 9.3, 1.15, CZ + 1.5);
-
-    P('candy_box', CX + 5.5, 1.25, CZ + 0.5);
-    P('sweets', CX + 6.3, 1.2, CZ + 0.5);
-    P('shampoo', CX + 7.1, 1.2, CZ + 0.5);
-    P('spray', CX + 7.8, 1.2, CZ + 0.5);
-    P('detergent', CX + 8.6, 1.25, CZ + 0.5);
-
-    // Dış Mekan & Bahçe Eşyaları:
-    P('camping_tent_bag', CX - 8.0, 4.8, CZ + 3.0);
-    P('camping_lantern', CX - 6.5, 4.8, CZ + 3.0);
-    P('cooler_box', CX - 5.0, 4.8, CZ + 3.0);
-
-    P('traffic_cone', CX + 2.0, 0.8, CZ + 16.0);
-    P('traffic_cone', CX + 10.0, 0.8, CZ + 16.0);
-    P('shopping_cart', CX - 5.0, 0.8, CZ + 18.0);
-    P('pallet_box', CX - 8.0, 0.8, CZ + 18.0);
-    P('luggage', CX - 10.0, 0.8, CZ + 18.0);
-    P('produce_crate', CX - 12.0, 0.8, CZ + 18.0);
-
-    // Ön avluda test aracı
-    this.world.parkedCars = [{ x: CX + 6.0, z: CZ + 18.0, yaw: 0 }];
-
-    // Lambalar
-    this.world.lamps.push({ x: CX, y: 4.2, z: CZ + 2, gy: 4.2 });
-    this.world.lamps.push({ x: CX + 7, y: 4.2, z: CZ - 3, gy: 4.2 });
-    this.world.lamps.push({ x: CX - 7, y: 4.2, z: CZ - 3, gy: 4.2 });
+    // Aydınlatma lambaları
+    this.world.lamps = [
+      { x: CX, y: 4.2, z: CZ + 2, gy: 4.2 },
+      { x: CX, y: 8.2, z: CZ - 4, gy: 8.2 }
+    ];
   }
 
   loadLevel(index) {

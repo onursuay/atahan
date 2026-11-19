@@ -28,6 +28,7 @@ let scene, camera, renderer;
 let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
+let waterMesh = null;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
 let props, mapSystem, metro, seaLife, busManager, storyManager;
 
@@ -316,7 +317,7 @@ function createWorldArena() {
     transparent: true,
     opacity: 0.85
   });
-  const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+  waterMesh = new THREE.Mesh(waterGeo, waterMat);
   waterMesh.rotation.x = -Math.PI / 2;
   waterMesh.position.set(waterCX, -0.15, waterCZ);
   waterMesh.receiveShadow = false; // Dev okyanus yüzeyinde ağır gölge fragment hesaplamasını kapat (GPU tasarrufu)
@@ -580,36 +581,40 @@ function startIntro() {
     const menu = document.getElementById('main-menu') || document.createElement('div');
     const $ = (id) => menu.querySelector('#' + id);
     const sBtn = $('mm-settings'), bBtn = $('mm-back'), sndBtn = $('mm-sound'), sensInp = $('mm-sens'), pBtn = $('mm-play');
-    const modeStoryBtn = $('mm-mode-story'), modeFreeBtn = $('mm-mode-free'), modeBackBtn = $('mm-mode-back');
+    const mapsPanel = $('mm-maps'), mapExpBtn = $('mm-map-experiment'), mapsBackBtn = $('mm-maps-back');
 
     if (sBtn) sBtn.onclick = () => { $('mm-home').style.display = 'none'; $('mm-set').style.display = 'flex'; };
     if (bBtn) bBtn.onclick = () => { $('mm-set').style.display = 'none'; $('mm-home').style.display = 'flex'; };
     if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
     if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
 
-    // OYNA: Deney Haritasında oyunu anında başlatır (0 bekleme, 0 kasma)
+    // OYNA: Harita seçim menüsünü açar (Sadece Deney Haritası bulunur)
     if (pBtn) pBtn.onclick = () => {
-      startFreeRoamMode();
+      $('mm-home').style.display = 'none';
+      if (mapsPanel) mapsPanel.style.display = 'flex';
+      else startExperimentMap();
     };
 
-    if (modeBackBtn) modeBackBtn.onclick = () => {
-      const mPanel = $('mm-mode');
-      if (mPanel) mPanel.style.display = 'none';
+    if (mapsBackBtn) mapsBackBtn.onclick = () => {
+      if (mapsPanel) mapsPanel.style.display = 'none';
       $('mm-home').style.display = 'flex';
     };
 
-    const startStoryMode = () => {
-      startFreeRoamMode();
+    if (mapExpBtn) mapExpBtn.onclick = () => {
+      startExperimentMap();
     };
 
-    const startFreeRoamMode = () => {
+    const startExperimentMap = () => {
       try {
-        menu.style.display = 'none';
-        introWaiting = false; introT = 0;
+        if (introMenuEl) introMenuEl.style.display = 'none';
+        const mm = document.getElementById('main-menu');
+        if (mm) mm.style.display = 'none';
+        introWaiting = false;
+        introActive = false;
+        introT = 0;
         try { sound.init(); } catch (e) {}
         document.body.classList.remove('intro');
         if (introFadeEl) introFadeEl.style.display = 'none';
-        introActive = false;
         window._gameMode = 'freeroam';
         window._octopusUnlocked = true;
         window._onlyOctopusMode = false;
@@ -624,27 +629,31 @@ function startIntro() {
           storyManager.showDialog(false);
           storyManager.showSkipButton(false);
           storyManager.setFade(0, 300);
-          storyManager.setMission('🔬 DENEY VE BAKIM HARİTASI', 'Teardown tarzı test evi! Tüm bloklar ve eşyalar sergileniyor. Çekiç ve silahlarınla test et!');
+          storyManager.setMission('🔬 DENEY HARİTASI', 'Bir ev ve bir arazi. Çekiç ve silahlarınla dilediğince test et ve yık!');
         }
 
-        // Oyuncu test evinin içinde/terasında ayakta başlar
-        character.resetPosition(10000, 1.6, 10003);
-        seated = false; eyeOffset = 1.8;
-        cameraYaw = 0; cameraPitch = 0;
+        // Oyuncu test evinin hemen önünde geniş arazide ayakta başlar ve eve bakar
+        character.resetPosition(10000, 1.2, 10014);
+        seated = false;
+        eyeOffset = 1.8;
+        cameraYaw = Math.PI; // Eve doğru (kuzey yönüne) bakar
+        cameraPitch = 0.05;
         setFirstPerson(false);
 
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
-        console.warn('Mod baslatma hatasi:', err);
-        menu.style.display = 'none';
+        console.warn('Deney haritası başlatma hatası:', err);
+        if (introMenuEl) introMenuEl.style.display = 'none';
+        const mm = document.getElementById('main-menu');
+        if (mm) mm.style.display = 'none';
         document.body.classList.remove('intro');
         if (introFadeEl) introFadeEl.style.display = 'none';
         introActive = false;
+        introWaiting = false;
       }
     };
 
-    if (modeStoryBtn) modeStoryBtn.onclick = startStoryMode;
-    if (modeFreeBtn) modeFreeBtn.onclick = startFreeRoamMode;
+    window.__startExperiment = startExperimentMap;
     introMenuEl = menu;
   }
   // Oyun ana menüyle başlar: OYNA'ya basılana kadar ekran siyah, jenerik bekler
@@ -1192,6 +1201,11 @@ function setupEventListeners() {
         if (home && home.style.display !== 'none') {
           const pBtn = document.getElementById('mm-play');
           if (pBtn) pBtn.click();
+        } else {
+          const expBtn = document.getElementById('mm-map-experiment');
+          if (expBtn && expBtn.offsetParent !== null) {
+            expBtn.click();
+          }
         }
       }
       return;
