@@ -530,12 +530,12 @@ export class PropManager {
       this.kinds[name] = { mesh, half: new THREE.Vector3(...k.half), tint: k.tint, mass: k.mass, shatterColor: k.shatterColor || 0xd6b98a };
     }
     this.props = [];
-    this.held = null; this.holdDist = 2.2; this.cam = null;
+    this.held = null; this.heldDebris = null; this.holdDist = 2.2; this.cam = null;
     this.tmpQ = new THREE.Quaternion(); this.tmpE = new THREE.Euler(); this.tmpM = new THREE.Matrix4(); this.one = new THREE.Vector3(1, 1, 1);
   }
 
   clear() {
-    this.held = null; this.props = [];
+    this.held = null; this.heldDebris = null; this.props = [];
     for (const k of Object.values(this.kinds)) k.mesh.count = 0;
   }
 
@@ -678,8 +678,27 @@ export class PropManager {
     for (const p of this.props) {
       if (p.broken) continue;
       const t = this._rayAabb(o, d, p, p.half);
-      if (t >= 0 && t <= reach && (!best || t < best.dist)) best = { prop: p, dist: t };
+      if (t >= 0 && t <= reach && (!best || t < best.dist)) best = { prop: p, dist: t, isDebris: false };
     }
+
+    // Yere düşen bina döküntüleri (dynamicDebris) de yerden alınabilir
+    if (this.vw.dynamicDebris) {
+      for (const deb of this.vw.dynamicDebris) {
+        if (!deb.mesh || !deb.body) continue;
+        const debPos = deb.mesh.position;
+        const toDeb = debPos.clone().sub(o);
+        const proj = toDeb.dot(d);
+        if (proj > 0.25 && proj <= reach) {
+          const perpSq = toDeb.lengthSq() - proj * proj;
+          if (perpSq <= (VOXEL_SIZE * 1.1) * (VOXEL_SIZE * 1.1)) {
+            if (!best || proj < best.dist) {
+              best = { prop: deb, dist: proj, isDebris: true };
+            }
+          }
+        }
+      }
+    }
+
     if (!best) return null;
     // arada duvar/zemin var mı?
     for (let s = 0.28; s < best.dist - 0.18; s += 0.22) {
@@ -695,12 +714,31 @@ export class PropManager {
     return best;
   }
 
-  aim(camera) { return !this.held && !!this.pick(camera); }
+  aim(camera) { return !this.held && !this.heldDebris && !!this.pick(camera); }
 
   beginGrab(camera) {
     const r = this.pick(camera);
     if (!r) return false;
+
+    // Yere düşen bina küpü / parçası tutulduğunda
+    if (r.isDebris) {
+      const deb = r.prop;
+      const mass = deb.body?.mass || 1.2;
+      if (mass > 80) return false; // Çok ağırsa kaldırılamaz
+      this.heldDebris = deb;
+      this.cam = camera;
+      this.holdDist = THREE.MathUtils.clamp(r.dist, 0.9, 2.4);
+      deb.held = true;
+      deb.body.velocity.set(0, 0, 0);
+      deb.body.angularVelocity.set(0, 0, 0);
+      sound.playWoodHit && sound.playWoodHit();
+      return true;
+    }
+
     const p = r.prop;
+    const mass = p.k?.mass || 1.0;
+    if (mass > 80) return false; // Çok ağırsa tutamayız
+
     p.held = true; p.hung = false; p.sleep = false; p.still = 0; p.tipped = false; p.thrown = false; p.steadyDrop = false;
     p.half.copy(p.baseHalf);
     this.held = p; this.cam = camera; this.holdDist = THREE.MathUtils.clamp(r.dist, 1.0, 3.4);
@@ -709,9 +747,14 @@ export class PropManager {
     return true;
   }
 
-  // Eşya bırakıldığında (sağ tık bırakma): fare kaydırılmadıysa döndürmeden sabit ve düz bir şekilde bırakır;
-  // sadece fare hızla kaydırılıp bırakıldıysa döne döne fırlatır.
+  // Eşya bırakıldığında (sağ tık bırakma)
   endGrab() {
+    if (this.heldDebris) {
+      const deb = this.heldDebris;
+      deb.held = false;
+      deb.body.velocity.set(0, -1.0, 0);
+      this.heldDebris = null;
+    }
     if (!this.held) return;
     const p = this.held;
     p.held = false; p.sleep = false; p.still = 0;
@@ -737,8 +780,17 @@ export class PropManager {
     this.held = null;
   }
 
-  // Sol tıkla eldeki eşyayı ileri fırlat: sadece fare kaydırıldıysa döne döne gider, sabit atıldıysa dönmeden gider
+  // Sol tıkla eldeki eşyayı veya döküntüyü fırlat
   throwHeld(camera) {
+    if (this.heldDebris) {
+      const deb = this.heldDebris;
+      deb.held = false;
+      const d = new THREE.Vector3(); camera.getWorldDirection(d);
+      const throwSpeed = 15 / Math.max(0.55, Math.sqrt(deb.body?.mass || 1.2));
+      deb.body.velocity.set(d.x * throwSpeed, d.y * throwSpeed + 1.8, d.z * throwSpeed);
+      this.heldDebris = null;
+      return true;
+    }
     if (!this.held) return false;
     const p = this.held;
     const d = new THREE.Vector3(); camera.getWorldDirection(d);
@@ -827,6 +879,15 @@ export class PropManager {
         p.wx = (Math.random() - 0.5) * 6; p.wz = (Math.random() - 0.5) * 6;
         this._assignFallRestAngles(p, true);
       }
+    }
+    if (this.heldDebris && this.cam) {
+      const d = new THREE.Vector3(); this.cam.getWorldDirection(d);
+      const target = this.cam.position.clone().addScaledVector(d, this.holdDist);
+      target.y -= 0.12;
+      this.heldDebris.body.position.set(target.x, target.y, target.z);
+      this.heldDebris.mesh.position.copy(target);
+      this.heldDebris.body.velocity.set(0, 0, 0);
+      this.heldDebris.body.angularVelocity.set(0, 0, 0);
     }
     for (const p of this.props) {
       if (p.broken) continue;

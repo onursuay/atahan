@@ -13,8 +13,8 @@ import { VOXEL_SIZE } from './teardown.js';
 // ─────────────────────────────────────────────────────────────────────────────
 const S = VOXEL_SIZE;
 const MAX_COMPONENT = 65000;   // şirket binaları dahil yapısal bağlantı sınırı
-const BUDGET_MS = 4.5;         // kare başına bağlantı kontrolü bütçesi (akıcı FPS için)
-const MAX_CHUNKS = 8;
+const BUDGET_MS = 12.0;        // bağlantısı kopan parçaların anında tespit edilip yıkılması için bütçe
+const MAX_CHUNKS = 12;
 const GRAVITY = 19.6;
 const TIP_G = 9.2;             // Teardown tarzı doğal devrilme ivmesi
 const WATER_Y = -0.15;         // deniz yüzeyi (main.js waterMesh.position.y ile aynı)
@@ -159,7 +159,7 @@ export class CollapseSystem {
     const asymDir = this._computeAsymmetricCutDir(list);
     this.spawnChunk(list, {
       asymDir,
-      creak: list.length >= 300 ? 0.14 + 0.25 * Math.min(1, list.length / 8000) : 0
+      creak: 0 // Teardown tarzı: bağlantısı kopan parça beklemeden anında aşağı çöker
     });
   }
 

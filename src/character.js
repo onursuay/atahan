@@ -494,7 +494,18 @@ export class Character {
       const worldX = moveX * cos + moveZ * sin;
       const worldZ = -moveX * sin + moveZ * cos;
 
-      const speedMul = this.inWater ? WATER_SPEED_MUL : 1;
+      let carryMul = 1.0;
+      if (this.props) {
+        if (this.props.held) {
+          const m = this.props.held.k?.mass || 1.0;
+          carryMul = Math.max(0.35, 1.0 - (m / 80) * 0.65);
+        } else if (this.props.heldDebris) {
+          const m = this.props.heldDebris.body?.mass || 2.0;
+          carryMul = Math.max(0.35, 1.0 - (m / 80) * 0.65);
+        }
+      }
+
+      const speedMul = (this.inWater ? WATER_SPEED_MUL : 1) * carryMul;
       this.vel.x = worldX * this.moveSpeed * speedMul;
       this.vel.z = worldZ * this.moveSpeed * speedMul;
 

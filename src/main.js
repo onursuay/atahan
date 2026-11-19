@@ -193,6 +193,7 @@ function init() {
   voxelWorld.switches = switches;
 
   character = new Character(scene, physicsWorld, particleSystem, voxelWorld);
+  character.props = props;
   setFirstPerson(true);
 
   weaponSystem = new WeaponSystem(scene, physicsWorld, particleSystem, voxelWorld, (points, text) => {

@@ -132,8 +132,8 @@ export class VoxelWorld {
     this.debrisMaterials = {};
 
     this.cubeGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE);
-    this.cubeShape = new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 4, VOXEL_SIZE / 4, VOXEL_SIZE / 4));
-    this.debrisGeo = new THREE.BoxGeometry(VOXEL_SIZE / 2, VOXEL_SIZE / 2, VOXEL_SIZE / 2); // döküntü: yarım boy küpler
+    this.cubeShape = new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 2, VOXEL_SIZE / 2, VOXEL_SIZE / 2));
+    this.debrisGeo = new THREE.BoxGeometry(VOXEL_SIZE, VOXEL_SIZE, VOXEL_SIZE); // Düşen parçalar bina küpleriyle birebir aynı boyutta (0.25 m)
 
     this.initInstancedMeshes();
   }
@@ -903,7 +903,7 @@ export class VoxelWorld {
     // Fizik Gövdesi
     const body = new CANNON.Body({
       mass: 1.2 * scale,
-      shape: scale === 1 ? this.cubeShape : new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 4 * scale, VOXEL_SIZE / 4 * scale, VOXEL_SIZE / 4 * scale)),
+      shape: scale === 1 ? this.cubeShape : new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 2 * scale, VOXEL_SIZE / 2 * scale, VOXEL_SIZE / 2 * scale)),
       position: new CANNON.Vec3(x, y, z),
       linearDamping: 0.15,
       angularDamping: 0.2
