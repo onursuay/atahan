@@ -3046,9 +3046,9 @@ export class LevelManager {
     w.fillBox(x1 - 1, y2, z2 + 1, x2 + 1, y2, z2 + 1, PALETTE.ROOF);
 
     // Tavan aydınlatması ve ışık anahtarı
+    const midX = (x1 + x2) * 0.75 / 2;
+    const midZ = (z1 + z2) * 0.75 / 2;
     if (this.world.switches) {
-      const midX = (x1 + x2) * 0.75 / 2;
-      const midZ = (z1 + z2) * 0.75 / 2;
       this.world.switches.addSwitch(x1 * 0.75 + 0.25, 1.45, (z1 + 2) * 0.75, Math.PI / 2, {
         name: 'Garaj Işık Anahtarı',
         lamps: [
