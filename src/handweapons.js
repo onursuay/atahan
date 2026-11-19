@@ -17,6 +17,7 @@ const MINIGUN_RANGE = 90;
 // Hitscan silah özellikleri: saçılma, voxel gücü/yarıçapı, araç/uçak hasarı, menzil
 const GUNS = {
   minigun: { kind: 'minigun', iron: true, spread: 0.012, power: 0.45, radius: 0.45, carDmg: 1, planeDmg: 1, range: 90, sound: 'every' },
+  dualMinigun: { kind: 'minigun', iron: true, spread: 0.014, power: 0.72, radius: 0.58, carDmg: 2, planeDmg: 2, range: 110, sound: 'every' },
   pistol:  { kind: 'pistol', spread: 0.004, power: 0.9,  radius: 0.4,  carDmg: 3, planeDmg: 3, range: 120, sound: 'every', kick: 0.6 },
   shotgun: { kind: 'shotgun', iron: true, spread: 0.07,  power: 0.5,  radius: 0.35, carDmg: 2, planeDmg: 1, range: 40, pellets: 9, sound: 'every', kick: 1.0 },
   ak47:    { kind: 'ak47', spread: 0.016, power: 0.6,  radius: 0.45, carDmg: 2, planeDmg: 2, range: 140, sound: 'every', kick: 0.45 },
@@ -400,10 +401,12 @@ export class HandWeapons {
       }
 
       const dist = Math.sqrt(nearestDistSq);
-      if (dist < 12) {
-        const factor = Math.max(0, 1 - dist / 12);
-        // Ters kare prensibi: yaklaştıkça daha yoğun sıcak akkor ışıltı
-        const lampIntensity = factor * factor * 3.0;
+      // Oyuncu lambaya yaklaşık 4-6 küp (2.0m - 3.5m) mesafeye geldiğinde gerçekçi yansıma aktifleşir
+      const maxProximity = 3.5;
+      if (dist < maxProximity) {
+        const factor = Math.max(0, 1 - dist / maxProximity);
+        // Yaklaştıkça daha yoğun sıcak akkor ışıltı
+        const lampIntensity = factor * factor * 3.2;
         this.weaponRoomLight.color.setHex(nearestColor);
         this.weaponRoomLight.intensity = THREE.MathUtils.lerp(this.weaponRoomLight.intensity, lampIntensity, Math.min(1, dt * 10));
 
@@ -471,10 +474,11 @@ export class HandWeapons {
     if (mgOn && this.fireHeld && this.spin > 0.85) {
       this.shotTimer -= dt;
       let guard = 0;
+      const gunSpec = dual ? GUNS.dualMinigun : GUNS.minigun;
       while (this.shotTimer <= 0 && guard++ < 4) {
         this.shotTimer += 1 / MINIGUN_RATE;
-        this._fireMinigunBullet(ctx, GUNS.minigun, { x: dual ? 0.34 : 0.26, y: -0.27, z: -1.0 });
-        if (dual) this._fireMinigunBullet(ctx, GUNS.minigun, { x: -0.34, y: -0.27, z: -1.0 });   // sol el
+        this._fireMinigunBullet(ctx, gunSpec, { x: dual ? 0.34 : 0.26, y: -0.27, z: -1.0 });
+        if (dual) this._fireMinigunBullet(ctx, gunSpec, { x: -0.34, y: -0.27, z: -1.0 });   // sol el (daha yüksek hasarlı)
       }
     } else {
       this.shotTimer = Math.min(this.shotTimer, 0);

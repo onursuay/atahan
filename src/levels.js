@@ -4399,11 +4399,20 @@ export class LevelManager {
     const CX = 10000;
     const CZ = 10000;
 
-    // 1. KÜÇÜK, SEVİMLİ TEARDOWN ARAZİSİ (Ada bahçesi: 44m x 44m)
-    this.world.terrain.addRect(CX - 22, CZ - 22, CX + 22, CZ + 22, PALETTE.GRASS);
-    // Eve giden taş ve çakıl patika
-    this.world.terrain.addRect(CX - 1.5, CZ + 5, CX + 1.5, CZ + 18, PALETTE.STONE);
-    this.world.terrain.addRect(CX - 8, CZ - 8, CX + 8, CZ + 6, PALETTE.SAND); // Evin taban altı toprağı
+    // 1. GENİŞLETİLMİŞ TEARDOWN DENEY ŞEHRİ (110m x 110m Ada - Normalinin ~6 Katı!)
+    this.world.terrain.addRect(CX - 55, CZ - 55, CX + 55, CZ + 55, PALETTE.GRASS);
+
+    // Ana Caddeler (Asfalt + Beyaz Yol Şeritleri)
+    // Doğu - Batı Caddesi
+    this.world.terrain.addRect(CX - 53, CZ - 3.5, CX + 53, CZ + 3.5, PALETTE.ASPHALT);
+    // Kuzey - Güney Caddesi
+    this.world.terrain.addRect(CX - 3.5, CZ - 53, CX + 3.5, CZ + 53, PALETTE.ASPHALT);
+
+    // Kaldırımlar (Doğal Taş)
+    this.world.terrain.addRect(CX - 53, CZ - 5.5, CX + 53, CZ - 3.5, PALETTE.STONE);
+    this.world.terrain.addRect(CX - 53, CZ + 3.5, CX + 53, CZ + 5.5, PALETTE.STONE);
+    this.world.terrain.addRect(CX - 5.5, CZ - 53, CX - 3.5, CZ + 53, PALETTE.STONE);
+    this.world.terrain.addRect(CX + 3.5, CZ - 53, CX + 5.5, CZ + 53, PALETTE.STONE);
 
     const setV = (x, y, z, mat) => {
       const ix = Math.round(x / 0.5);
@@ -4443,195 +4452,221 @@ export class LevelManager {
       }
     };
 
-    // Bahçe Çiti (Ahşap çitler - Teardown tarzı)
-    for (let x = CX - 19; x <= CX + 19; x += 2) {
-      if (Math.abs(x - CX) > 2.5) {
-        boxV(x, 0.5, CZ + 18, x, 1.5, CZ + 18, PALETTE.WOOD); // Ön çit
-      }
-      boxV(x, 0.5, CZ - 18, x, 1.5, CZ - 18, PALETTE.WOOD);   // Arka çit
-    }
-    for (let z = CZ - 18; z <= CZ + 18; z += 2) {
-      boxV(CX - 19, 0.5, z, CX - 19, 1.5, z, PALETTE.WOOD);   // Sol çit
-      boxV(CX + 19, 0.5, z, CX + 19, 1.5, z, PALETTE.WOOD);   // Sağ çit
-    }
-    boxV(CX - 19, 1.5, CZ - 18, CX - 2.5, 1.5, CZ + 18, PALETTE.WOOD);
-    boxV(CX + 2.5, 1.5, CZ - 18, CX + 19, 1.5, CZ + 18, PALETTE.WOOD);
-
-    // Bahçede 2 adet Voxel Ağaç
-    const makeTree = (tx, tz) => {
-      boxV(tx - 0.5, 0.5, tz - 0.5, tx + 0.5, 4.5, tz + 0.5, PALETTE.WOOD); // Gövde
-      boxV(tx - 2.0, 3.5, tz - 2.0, tx + 2.0, 5.5, tz + 2.0, PALETTE.DGREEN); // Yapraklar
-      boxV(tx - 1.5, 5.5, tz - 1.5, tx + 1.5, 6.5, tz + 1.5, PALETTE.DGREEN); // Tepe yapraklar
-    };
-    makeTree(CX - 14, CZ + 10);
-    makeTree(CX + 14, CZ - 10);
-
-    // 2. TEARDOWN MİMARİSİNDE YIKIK/ESKİTİLMİŞ TEST EVİ
-    // Ev boyutları: X: CX - 7 .. CX + 7 (14m genişlik), Z: CZ - 7 .. CZ + 5 (12m derinlik)
-
-    // 1. KAT (Y = 0.5 .. 4.5): Kırmızı Tuğla ve Taş Temel
-    hollowBoxV(CX - 7, 0.5, CZ - 7, CX + 7, 4.5, CZ + 5, PALETTE.BRICK, PALETTE.WOOD, PALETTE.WOOD);
-
-    // Ön kapı geniş açıklığı (Giriş)
-    for (let x = CX - 1.5; x <= CX + 1.5; x += 0.5) {
-      for (let y = 0.5; y <= 3.5; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((CZ + 5) / 0.5)}`);
-      }
-    }
-    // Giriş üstü ahşap sundurma ve kapı sövesi
-    boxV(CX - 2.0, 0.5, CZ + 5, CX - 1.5, 3.5, CZ + 5, PALETTE.WOOD);
-    boxV(CX + 1.5, 0.5, CZ + 5, CX + 2.0, 3.5, CZ + 5, PALETTE.WOOD);
-    boxV(CX - 2.5, 3.5, CZ + 4.5, CX + 2.5, 4.0, CZ + 6.0, PALETTE.WOOD);
-
-    // EVDE YIKILMIŞ / DELİNMİŞ DUVAR BÖLÜMÜ ("sanki yıkılmış gibi"):
-    // Ön-sol duvarda (CX - 6.5 .. CX - 4.5, CZ + 5) büyük bir yıkım yarığı ve yere saçılmış tuğlalar!
-    for (let x = CX - 6.5; x <= CX - 4.5; x += 0.5) {
-      for (let y = 0.5; y <= 3.0; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((CZ + 5) / 0.5)}`);
-      }
-    }
-    // Yıkılan yerdeki ahşap taşıyıcı direkler (iç karkas görünüyor)
-    boxV(CX - 5.5, 0.5, CZ + 5, CX - 5.5, 4.0, CZ + 5, PALETTE.WOOD);
-    // Yere dökülmüş moloz tuğlalar
-    boxV(CX - 6.5, 0.5, CZ + 5.5, CX - 5.0, 0.8, CZ + 6.5, PALETTE.BRICK);
-    boxV(CX - 4.5, 0.5, CZ + 5.5, CX - 3.5, 0.7, CZ + 6.0, PALETTE.STONE);
-
-    // Ön-sağ pencere
-    boxV(CX + 3.0, 1.5, CZ + 5, CX + 6.0, 3.0, CZ + 5, PALETTE.GLASS);
-    // Yan pencereler
-    boxV(CX - 7, 1.5, CZ - 4.0, CX - 7, 3.0, CZ - 1.0, PALETTE.GLASS);
-    boxV(CX + 7, 1.5, CZ - 4.0, CX + 7, 3.0, CZ - 1.0, PALETTE.GLASS);
-    // Arka pencere
-    boxV(CX - 3.0, 1.5, CZ - 7, CX + 3.0, 3.0, CZ - 7, PALETTE.GLASS);
-
-    // Tavan ahşap kirişleri (Teardown stili açık tavan kirişleri)
-    for (let z = CZ - 6; z <= CZ + 4; z += 2.0) {
-      boxV(CX - 6.5, 4.0, z, CX + 6.5, 4.5, z + 0.5, PALETTE.WOOD);
-    }
-
-    // İç Oda Bölmesi (Tuğla duvar)
-    boxV(CX + 1.5, 0.5, CZ - 7, CX + 1.5, 4.5, CZ + 1, PALETTE.BRICK);
-    // İç kapı geçişi
-    for (let z = CZ - 4.0; z <= CZ - 2.0; z += 0.5) {
-      for (let y = 0.5; y <= 3.5; y += 0.5) {
-        this.world.voxels.delete(`${Math.round((CX + 1.5) / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round(z / 0.5)}`);
-      }
-    }
-
-    // 2. KAT (Y = 4.5 .. 8.0): Ahşap & Taş Çatı Katı ve Ön Teras
-    hollowBoxV(CX - 7, 4.5, CZ - 7, CX + 7, 8.0, CZ + 1, PALETTE.WOOD, PALETTE.WOOD, PALETTE.WHITE);
-    // 2. Kat pencereleri
-    boxV(CX - 5.5, 5.5, CZ + 1, CX - 2.5, 7.0, CZ + 1, PALETTE.GLASS);
-    boxV(CX + 2.5, 5.5, CZ + 1, CX + 5.5, 7.0, CZ + 1, PALETTE.GLASS);
-    // Terasa çıkış kapısı
-    for (let x = CX - 1.0; x <= CX + 1.0; x += 0.5) {
-      for (let y = 4.5; y <= 7.0; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((CZ + 1) / 0.5)}`);
-      }
-    }
-    // Ön Teras (CZ + 1 .. CZ + 5)
-    boxV(CX - 7, 4.5, CZ + 1, CX + 7, 4.5, CZ + 5, PALETTE.WOOD);
-    boxV(CX - 7, 5.0, CZ + 5, CX + 7, 5.5, CZ + 5, PALETTE.WOOD); // Teras ahşap korkuluğu
-    boxV(CX - 7, 5.0, CZ + 1, CX - 7, 5.5, CZ + 5, PALETTE.WOOD);
-    boxV(CX + 7, 5.0, CZ + 1, CX + 7, 5.5, CZ + 5, PALETTE.WOOD);
-
-    // Kiremit Çatı (Eğimli çatı, CZ - 7 .. CZ + 1)
-    for (let h = 0; h <= 5; h++) {
-      const y = 8.0 + h * 0.5;
-      const offZ = h * 0.8;
-      boxV(CX - 7.5, y, CZ - 7 + offZ, CX + 7.5, y, CZ + 1 - offZ, PALETTE.ROOF);
-    }
-    // ÇATIDA YIKIK/KIRIK BÖLÜM ("sanki yıkılmış gibi"):
-    // Çatının bir kısmında açık delik var, içeriye güneş ışığı süzülüyor!
-    for (let x = CX + 1.0; x <= CX + 5.0; x += 0.5) {
-      for (let y = 8.0; y <= 10.5; y += 0.5) {
-        for (let z = CZ - 5.0; z <= CZ - 2.0; z += 0.5) {
-          this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round(z / 0.5)}`);
-        }
-      }
-    }
-
-    // Katlar Arası Ahşap Merdiven
-    for (let step = 0; step < 8; step++) {
-      const sx = CX - 6.0 + step * 0.5;
-      const sy = 0.5 + step * 0.5;
-      boxV(sx, 0.5, CZ - 6.5, sx + 0.5, sy, CZ - 5.0, PALETTE.WOOD);
-      if (step >= 4) {
-        this.world.voxels.delete(`${Math.round(sx / 0.5)},${Math.round(4.5 / 0.5)},${Math.round((CZ - 6.0) / 0.5)}`);
-        this.world.voxels.delete(`${Math.round(sx / 0.5)},${Math.round(4.5 / 0.5)},${Math.round((CZ - 5.5) / 0.5)}`);
-      }
-    }
-
-    // Kırmızı Tuğla Şömine ve Baca
-    boxV(CX + 5.0, 0.5, CZ - 6.5, CX + 6.5, 11.5, CZ - 4.5, PALETTE.BRICK);
-
-    // 3. İÇ MEKANDA TEARDOWN POSTERLERİ VE TABLOLARI
-    // Poster 1: Mavi Plan / Blueprint Posteri (Salonda tuğla duvarda: CZ - 6.8)
-    boxV(CX - 1.5, 1.5, CZ - 6.8, CX + 1.5, 3.2, CZ - 6.8, PALETTE.BLACK); // Çerçeve
-    boxV(CX - 1.2, 1.7, CZ - 6.7, CX + 1.2, 3.0, CZ - 6.7, PALETTE.NAVY);  // Blueprint zemini
-    // Blueprint çizim çizgileri
-    boxV(CX - 1.0, 2.3, CZ - 6.6, CX + 1.0, 2.4, CZ - 6.6, PALETTE.BLUE);
-    boxV(CX - 0.8, 1.9, CZ - 6.6, CX - 0.7, 2.8, CZ - 6.6, PALETTE.WHITE);
-    boxV(CX + 0.5, 1.9, CZ - 6.6, CX + 0.6, 2.8, CZ - 6.6, PALETTE.WHITE);
-    boxV(CX - 0.3, 2.6, CZ - 6.6, CX + 0.8, 2.7, CZ - 6.6, PALETTE.BLUE);
-
-    // Poster 2: Teardown Tehlike / Hedef Posteri (Sağ oda duvarında: CX + 1.7)
-    boxV(CX + 1.7, 1.8, CZ - 1.5, CX + 1.7, 3.2, CZ + 0.5, PALETTE.WOOD);   // Ahşap çerçeve
-    boxV(CX + 1.8, 2.0, CZ - 1.3, CX + 1.8, 3.0, CZ + 0.3, PALETTE.YELLOW); // Sarı arka plan
-    // Siyah ve kırmızı hedef sembolü
-    boxV(CX + 1.9, 2.3, CZ - 0.8, CX + 1.9, 2.7, CZ - 0.2, PALETTE.BLACK);
-    boxV(CX + 1.9, 2.4, CZ - 0.6, CX + 1.9, 2.6, CZ - 0.4, PALETTE.RED);
-
-    // Poster 3: Dağ ve Günbatımı Tablosu (2. Kat yatak odası duvarında: CZ - 6.8)
-    boxV(CX - 4.5, 5.5, CZ - 6.8, CX - 1.5, 7.0, CZ - 6.8, PALETTE.WOOD);   // Çerçeve
-    boxV(CX - 4.2, 5.7, CZ - 6.7, CX - 1.8, 6.8, CZ - 6.7, PALETTE.ORANGE); // Günbatımı gökyüzü
-    boxV(CX - 3.2, 6.3, CZ - 6.6, CX - 2.8, 6.7, CZ - 6.6, PALETTE.GOLD);   // Güneş
-    boxV(CX - 4.2, 5.7, CZ - 6.6, CX - 3.0, 6.2, CZ - 6.6, PALETTE.STONE);  // Dağ zirvesi
-    boxV(CX - 3.0, 5.7, CZ - 6.6, CX - 1.8, 6.0, CZ - 6.6, PALETTE.DGREEN); // Çam ağaçları
-
-    // Poster 4: Mantar Pano ve Hedef İpuçları (Atölye masası üstü: CX + 6.8)
-    boxV(CX + 6.8, 1.8, CZ - 6.0, CX + 6.8, 3.2, CZ - 4.0, PALETTE.SAND);  // Mantar pano
-    boxV(CX + 6.7, 2.4, CZ - 5.6, CX + 6.7, 2.9, CZ - 5.1, PALETTE.WHITE); // Beyaz kağıt
-    boxV(CX + 6.7, 2.0, CZ - 4.8, CX + 6.7, 2.5, CZ - 4.3, PALETTE.WHITE); // İkinci kağıt
-    boxV(CX + 6.6, 2.6, CZ - 5.3, CX + 6.6, 2.7, CZ - 4.6, PALETTE.RED);   // Kırmızı bağlantı ipi
-
-    // 4. TEARDOWN KÜP LAMBALAR (Voxel Cube Lamps & Sıcak Teardown Işıltısı)
-    // "Lambalar gerçekçi olmasın, onları Teardown'daki gibi küp şeklinde yap."
+    // Teardown Voxel Küp Lamba Ekleme Fonksiyonu
     const addVoxelCubeLamp = (lx, ly, lz, rodLen = 1.0) => {
-      // Tavandan inen demir çubuk
       boxV(lx, ly + 0.5, lz, lx, ly + rodLen, lz, PALETTE.IRON);
-      // Parlayan lamba küpü (PALETTE.LAMP_ORANGE veya LAMP)
       boxV(lx, ly, lz, lx, ly + 0.5, lz, PALETTE.LAMP_ORANGE);
-
-      // Gerçekçi Teardown Işıltısı: Three.js PointLight ekle (Sıcak akkor Teardown turuncusu)
       const light = new THREE.PointLight(0xff9e3d, 3.2, 16, 2);
       light.position.set(lx, ly + 0.25, lz);
       light.castShadow = true;
       light.shadow.bias = -0.002;
       this.world.scene.add(light);
       this.world.decor.push(light);
-
       this.world.lamps.push({ x: lx, y: ly + 0.25, z: lz, gy: ly + 0.25, light, color: 0xff9e3d });
     };
 
-    // Küp Lamba 1: Salon / Atölye Tavan Lambası
-    addVoxelCubeLamp(CX - 2.0, 3.0, CZ - 1.5, 1.0);
-    // Küp Lamba 2: Sağ Oda / Plan Panosu Tavan Lambası
-    addVoxelCubeLamp(CX + 4.0, 3.0, CZ - 3.0, 1.0);
-    // Küp Lamba 3: 2. Kat Yatak Odası / Çatı Katı Küp Lambası
-    addVoxelCubeLamp(CX - 1.5, 6.5, CZ - 2.5, 1.0);
-    // Küp Lamba 4: Ön Giriş Sundurması Küp Lambası
-    addVoxelCubeLamp(CX, 3.0, CZ + 5.5, 0.5);
+    // Sokak Küp Lambaları (Kaldırım Kenarları)
+    const addStreetLamp = (sx, sz) => {
+      boxV(sx, 0.5, sz, sx, 3.5, sz, PALETTE.IRON); // Demir lamba direği
+      boxV(sx, 3.5, sz, sx + 0.5, 3.5, sz, PALETTE.IRON);
+      boxV(sx + 0.5, 3.0, sz, sx + 0.5, 3.5, sz, PALETTE.LAMP_ORANGE);
+      const light = new THREE.PointLight(0xffa244, 2.8, 14, 2);
+      light.position.set(sx + 0.5, 3.2, sz);
+      this.world.scene.add(light);
+      this.world.decor.push(light);
+      this.world.lamps.push({ x: sx + 0.5, y: 3.2, z: sz, gy: 3.2, light, color: 0xffa244 });
+    };
 
-    // 5. İÇ MEKAN MOBİLYALARI
+    addStreetLamp(CX - 12, CZ - 6.5);
+    addStreetLamp(CX + 12, CZ - 6.5);
+    addStreetLamp(CX - 12, CZ + 6.5);
+    addStreetLamp(CX + 12, CZ + 6.5);
+    addStreetLamp(CX - 6.5, CZ - 25);
+    addStreetLamp(CX + 6.5, CZ - 25);
+    addStreetLamp(CX - 6.5, CZ + 25);
+    addStreetLamp(CX + 6.5, CZ + 25);
+
+    // Voxel Ağaç Fonksiyonu
+    const makeTree = (tx, tz) => {
+      boxV(tx - 0.5, 0.5, tz - 0.5, tx + 0.5, 4.5, tz + 0.5, PALETTE.WOOD);
+      boxV(tx - 2.0, 3.5, tz - 2.0, tx + 2.0, 5.5, tz + 2.0, PALETTE.DGREEN);
+      boxV(tx - 1.5, 5.5, tz - 1.5, tx + 1.5, 6.5, tz + 1.5, PALETTE.DGREEN);
+    };
+    makeTree(CX - 10, CZ - 12);
+    makeTree(CX + 10, CZ - 12);
+    makeTree(CX - 32, CZ + 8);
+    makeTree(CX + 32, CZ + 8);
+    makeTree(CX - 8, CZ + 32);
+    makeTree(CX + 8, CZ + 32);
+
+    // ─────────────────────────────────────────────────────────────
+    // 9 ADET ÇEŞİTLİ, RENKLİ TEARDOWN BİNASI
+    // ─────────────────────────────────────────────────────────────
+
+    // ── BİNA 1: ORİJİNAL YIKIK TEARDOWN ATÖLYESİ (Kırmızı Tuğla & Ahşap) ──
+    const B1X = CX - 22, B1Z = CZ - 22;
+    hollowBoxV(B1X - 6, 0.5, B1Z - 6, B1X + 6, 4.5, B1Z + 6, PALETTE.BRICK, PALETTE.WOOD, PALETTE.WOOD);
+    // Kapı açıklığı
+    for (let x = B1X - 1.5; x <= B1X + 1.5; x += 0.5) {
+      for (let y = 0.5; y <= 3.0; y += 0.5) {
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B1Z + 6) / 0.5)}`);
+      }
+    }
+    // Teardown tarzı yıkık gedik (sol duvarda kırık boşluk)
+    for (let z = B1Z - 2; z <= B1Z + 2; z += 0.5) {
+      for (let y = 0.5; y <= 3.0; y += 0.5) {
+        if (Math.abs(z - B1Z) + Math.abs(y - 2.0) < 2.5) {
+          this.world.voxels.delete(`${Math.round((B1X - 6) / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round(z / 0.5)}`);
+        }
+      }
+    }
+    // 2. Kat ahşap yatak odası & çatı
+    hollowBoxV(B1X - 6, 4.5, B1Z - 6, B1X + 6, 7.5, B1Z + 6, PALETTE.WOOD, PALETTE.WOOD, PALETTE.ROOF);
+    addVoxelCubeLamp(B1X, 3.2, B1Z, 0.8);
+    addVoxelCubeLamp(B1X, 6.2, B1Z, 0.8);
+
+    // ── BİNA 2: MAVİ 2 KATLI SAHİL VİLLASI (Mavi Ahşap Cephe & Balkon) ──
+    const B2X = CX + 22, B2Z = CZ - 22;
+    hollowBoxV(B2X - 6, 0.5, B2Z - 6, B2X + 6, 4.0, B2Z + 6, PALETTE.BLUE, PALETTE.WOOD, PALETTE.WOOD);
+    // 2. Kat
+    hollowBoxV(B2X - 6, 4.0, B2Z - 6, B2X + 6, 7.5, B2Z + 6, PALETTE.BLUE, PALETTE.WOOD, PALETTE.ROOF);
+    // Giriş kapısı
+    for (let x = B2X - 1.0; x <= B2X + 1.0; x += 0.5) {
+      for (let y = 0.5; y <= 2.5; y += 0.5) {
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B2Z + 6) / 0.5)}`);
+      }
+    }
+    // Balkon korkuluğu
+    boxV(B2X - 4, 4.0, B2Z + 6.5, B2X + 4, 4.8, B2Z + 6.5, PALETTE.WHITE);
+    addVoxelCubeLamp(B2X, 3.0, B2Z, 0.7);
+    addVoxelCubeLamp(B2X, 6.2, B2Z, 0.7);
+
+    // ── BİNA 3: KIRMIZI AMERİKAN HANGAR & OTO TAMİRHANESİ ──
+    const B3X = CX - 22, B3Z = CZ + 22;
+    hollowBoxV(B3X - 7, 0.5, B3Z - 6, B3X + 7, 5.0, B3Z + 6, PALETTE.RED, PALETTE.CONCRETE, PALETTE.SLATE);
+    // Geniş garaj kapısı açıklığı
+    for (let x = B3X - 4; x <= B3X + 4; x += 0.5) {
+      for (let y = 0.5; y <= 3.5; y += 0.5) {
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B3Z - 6) / 0.5)}`);
+      }
+    }
+    // İçeride alet rafı ve tezgah
+    boxV(B3X + 4, 0.5, B3Z + 4, B3X + 6.5, 2.0, B3Z + 5.5, PALETTE.IRON);
+    addVoxelCubeLamp(B3X - 2.5, 4.0, B3Z, 0.8);
+    addVoxelCubeLamp(B3X + 2.5, 4.0, B3Z, 0.8);
+
+    // ── BİNA 4: SARI KÖŞE FIRINI & CAFE (Sarı & Krem Cephe + Vitrin) ──
+    const B4X = CX + 22, B4Z = CZ + 22;
+    hollowBoxV(B4X - 6, 0.5, B4Z - 6, B4X + 6, 4.5, B4Z + 6, PALETTE.YELLOW, PALETTE.CREAM, PALETTE.WOOD);
+    // Geniş vitrin camı açıklıkları
+    for (let x = B4X - 4; x <= B4X - 1; x += 0.5) {
+      for (let y = 1.0; y <= 3.0; y += 0.5) {
+        boxV(x, y, B4Z - 6, x, y, B4Z - 6, PALETTE.GLASS);
+      }
+    }
+    // Kapı
+    for (let x = B4X + 1.5; x <= B4X + 3.0; x += 0.5) {
+      for (let y = 0.5; y <= 3.0; y += 0.5) {
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B4Z - 6) / 0.5)}`);
+      }
+    }
+    // Kırmızı-Beyaz tenteli ön gölgelik
+    for (let x = B4X - 5; x <= B4X + 5; x += 0.5) {
+      const isRed = Math.floor(x * 2) % 2 === 0;
+      boxV(x, 3.5, B4Z - 7.5, x, 3.7, B4Z - 6.0, isRed ? PALETTE.RED : PALETTE.WHITE);
+    }
+    addVoxelCubeLamp(B4X, 3.5, B4Z, 0.7);
+
+    // ── BİNA 5: ZÜMRÜT YEŞİLİ DAĞ KULÜBESİ (Koyu Yeşil Ahşap & Taş Şömine) ──
+    const B5X = CX - 40, B5Z = CZ - 20;
+    hollowBoxV(B5X - 5, 0.5, B5Z - 5, B5X + 5, 4.2, B5Z + 5, PALETTE.DGREEN, PALETTE.WOOD, PALETTE.ROOF);
+    // Kapı
+    for (let x = B5X - 1.0; x <= B5X + 1.0; x += 0.5) {
+      for (let y = 0.5; y <= 2.5; y += 0.5) {
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B5Z + 5) / 0.5)}`);
+      }
+    }
+    // Taş Baca (Dış duvardan çatıya uzanır)
+    boxV(B5X + 4.5, 0.5, B5Z - 2, B5X + 5.5, 6.5, B5Z, PALETTE.STONE);
+    addVoxelCubeLamp(B5X, 3.2, B5Z, 0.8);
+
+    // ── BİNA 6: MODERN BEYAZ MİMARLIK STÜDYOSU (Beyaz Panel & Cam Duvarlar) ──
+    const B6X = CX + 40, B6Z = CZ - 20;
+    hollowBoxV(B6X - 5, 0.5, B6Z - 5, B6X + 5, 4.5, B6Z + 5, PALETTE.WHITE, PALETTE.CONCRETE, PALETTE.SLATE);
+    // Ön cephe komple cam
+    for (let x = B6X - 3.5; x <= B6X + 3.5; x += 0.5) {
+      for (let y = 1.0; y <= 3.5; y += 0.5) {
+        boxV(x, y, B6Z + 5, x, y, B6Z + 5, PALETTE.GLASS);
+      }
+    }
+    // Çatıda havalandırma / AC ünitesi
+    boxV(B6X - 1.5, 4.5, B6Z - 1.5, B6X + 1.5, 5.5, B6Z + 1.5, PALETTE.SLATE);
+    addVoxelCubeLamp(B6X, 3.5, B6Z, 0.8);
+
+    // ── BİNA 7: TURUNCU KİREMİT HIRDAVAT DEPOSU ──
+    const B7X = CX - 20, B7Z = CZ - 40;
+    hollowBoxV(B7X - 6, 0.5, B7Z - 5, B7X + 6, 4.5, B7Z + 5, PALETTE.ORANGE, PALETTE.CONCRETE, PALETTE.SLATE);
+    // Çift kanat depo kapısı açıklığı
+    for (let x = B7X - 2.5; x <= B7X + 2.5; x += 0.5) {
+      for (let y = 0.5; y <= 3.2; y += 0.5) {
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B7Z + 5) / 0.5)}`);
+      }
+    }
+    // Ahşap kargo kasaları
+    boxV(B7X + 3, 0.5, B7Z - 3, B7X + 4.5, 2.0, B7Z - 1.5, PALETTE.WOOD);
+    boxV(B7X - 4.5, 0.5, B7Z - 3, B7X - 3, 1.8, B7Z - 1.5, PALETTE.WOOD);
+    addVoxelCubeLamp(B7X, 3.4, B7Z, 0.8);
+
+    // ── BİNA 8: MOR VINTAGE BUTİK & PLAK DÜKKANI ──
+    const B8X = CX + 20, B8Z = CZ + 40;
+    hollowBoxV(B8X - 5, 0.5, B8Z - 5, B8X + 5, 4.2, B8Z + 5, PALETTE.CACTUS_PURPLE, PALETTE.BEIGE, PALETTE.WOOD);
+    // Vitrin penceresi
+    for (let x = B8X - 3.5; x <= B8X - 0.5; x += 0.5) {
+      for (let y = 1.2; y <= 2.8; y += 0.5) {
+        boxV(x, y, B8Z - 5, x, y, B8Z - 5, PALETTE.GLASS);
+      }
+    }
+    // Giriş kapısı
+    for (let x = B8X + 1.0; x <= B8X + 2.5; x += 0.5) {
+      for (let y = 0.5; y <= 2.8; y += 0.5) {
+        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B8Z - 5) / 0.5)}`);
+      }
+    }
+    addVoxelCubeLamp(B8X, 3.2, B8Z, 0.7);
+
+    // ── BİNA 9: BETON & ÇELİK SU KULESİ / GÖZETLEME PLATFORMU ──
+    const B9X = CX + 40, B9Z = CZ + 40;
+    // 4 Kalın Beton Ayak
+    boxV(B9X - 3, 0.5, B9Z - 3, B9X - 2, 7.0, B9Z - 2, PALETTE.CONCRETE);
+    boxV(B9X + 2, 0.5, B9Z - 3, B9X + 3, 7.0, B9Z - 2, PALETTE.CONCRETE);
+    boxV(B9X - 3, 0.5, B9Z + 2, B9X - 2, 7.0, B9Z + 3, PALETTE.CONCRETE);
+    boxV(B9X + 2, 0.5, B9Z + 2, B9X + 3, 7.0, B9Z + 3, PALETTE.CONCRETE);
+    // Çapraz Demir Destek Kirişleri
+    boxV(B9X - 3, 3.5, B9Z - 3, B9X + 3, 4.0, B9Z - 3, PALETTE.IRON);
+    boxV(B9X - 3, 3.5, B9Z + 3, B9X + 3, 4.0, B9Z + 3, PALETTE.IRON);
+    // Üst Platform ve Su Deposu
+    boxV(B9X - 4, 7.0, B9Z - 4, B9X + 4, 7.5, B9Z + 4, PALETTE.IRON);
+    hollowBoxV(B9X - 3, 7.5, B9Z - 3, B9X + 3, 10.5, B9Z + 3, PALETTE.SLATE, PALETTE.IRON, PALETTE.IRON);
+    // Kule Üstü Parlayan Voxel Feneri
+    boxV(B9X, 10.5, B9Z, B9X, 11.2, B9Z, PALETTE.LAMP_ORANGE);
+    const towerLight = new THREE.PointLight(0xffa238, 3.5, 20, 2);
+    towerLight.position.set(B9X, 11.5, B9Z);
+    this.world.scene.add(towerLight);
+    this.world.decor.push(towerLight);
+    this.world.lamps.push({ x: B9X, y: 11.5, z: B9Z, gy: 11.5, light: towerLight, color: 0xffa238 });
+    // ── BİNA 1 İÇ DETAYLARI: TEARDOWN POSTERLERİ VE MOBİLYALAR ──
+    // Poster 1: Blueprint
+    boxV(B1X - 2.0, 1.5, B1Z - 5.8, B1X + 2.0, 3.2, B1Z - 5.8, PALETTE.BLACK);
+    boxV(B1X - 1.8, 1.7, B1Z - 5.7, B1X + 1.8, 3.0, B1Z - 5.7, PALETTE.NAVY);
+    boxV(B1X - 1.5, 2.3, B1Z - 5.6, B1X + 1.5, 2.4, B1Z - 5.6, PALETTE.BLUE);
+    // Poster 2: Mantar Pano
+    boxV(B1X + 5.8, 1.8, B1Z - 3.0, B1X + 5.8, 3.2, B1Z - 0.5, PALETTE.SAND);
+    boxV(B1X + 5.7, 2.2, B1Z - 2.5, B1X + 5.7, 2.8, B1Z - 1.8, PALETTE.WHITE);
     // Çalışma tezgahı ve alet masası
-    boxV(CX + 4.0, 0.5, CZ - 6.5, CX + 6.5, 1.2, CZ - 4.5, PALETTE.WOOD);
-    // Salon koltuğu ve sehpa
-    boxV(CX - 5.0, 0.5, CZ + 1.0, CX - 2.5, 1.2, CZ + 2.5, PALETTE.BEIGE);
-    boxV(CX - 4.5, 0.5, CZ - 0.5, CX - 3.0, 0.9, CZ + 0.5, PALETTE.WOOD);
-    // 2. Kat Yatak
-    boxV(CX - 6.0, 4.5, CZ - 6.5, CX - 2.5, 5.2, CZ - 3.5, PALETTE.WHITE);
-    boxV(CX - 6.0, 5.0, CZ - 6.5, CX - 2.5, 5.4, CZ - 5.5, PALETTE.BLUE);
+    boxV(B1X + 2.0, 0.5, B1Z - 5.5, B1X + 5.5, 1.2, B1Z - 3.5, PALETTE.WOOD);
+    // Koltuk ve sehpa
+    boxV(B1X - 5.0, 0.5, B1Z + 1.0, B1X - 2.5, 1.2, B1Z + 2.5, PALETTE.BEIGE);
+    boxV(B1X - 4.5, 0.5, B1Z - 0.5, B1X - 3.0, 0.9, B1Z + 0.5, PALETTE.WOOD);
   }
 
   loadLevel(index) {

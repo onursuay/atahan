@@ -146,7 +146,7 @@ export class NPCManager {
     for (const d of this.voxelWorld.dogs || []) this.dogs.addFree(d.x, d.y, d.z, d.bounds);   // köpek parkındaki serbest köpekler
     for (const m of this.voxelWorld.marketCats || []) this.cats.addMarketCats(m.x, m.y, m.z); // market kedileri
     const isExperimentMap = (this.playerPos && this.playerPos.x > 5000) || (this.voxelWorld.terrain?.bounds?.minX > 5000);
-    for (let i = 0; i < (isExperimentMap ? 3 : NPC_COUNT); i++) this._spawn();
+    for (let i = 0; i < (isExperimentMap ? 4 : NPC_COUNT); i++) this._spawn();
     for (const r of this.voxelWorld.residents || []) this._spawnResident(r);
     for (const w of this.voxelWorld.workers || []) this._spawnWorker(w);     // şirket kuleleri, banka, restoran çalışanları
     for (const d of this.voxelWorld.doctors || []) this._spawnWorker(d);     // hastanedeki doktorlar ve hemşireler
@@ -775,7 +775,7 @@ export class NPCManager {
       if (this.respawnQueue[i] <= 0) {
         this.respawnQueue.splice(i, 1);
         const isExp = (playerPos && playerPos.x > 5000) || (this.voxelWorld.terrain?.bounds?.minX > 5000);
-        const maxN = isExp ? 3 : NPC_COUNT;
+        const maxN = isExp ? 4 : NPC_COUNT;
         if (this.npcs.length < maxN) {
           this._spawn();
         }
