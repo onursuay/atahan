@@ -44,97 +44,72 @@ class SoundEngine {
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(220, now);
-    osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+    osc.frequency.setValueAtTime(240, now);
+    osc.frequency.exponentialRampToValueAtTime(75, now + 0.16);
 
-    gain.gain.setValueAtTime(0.18, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+    gain.gain.setValueAtTime(0.24, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.16);
 
     osc.connect(gain);
     gain.connect(this.ctx.destination);
 
     osc.start(now);
-    osc.stop(now + 0.15);
-    this.playNoise(0.1, 0.15, 600);
+    osc.stop(now + 0.16);
+    this._burst(now, 0.14, 0.28, 'bandpass', 700, 260, 1.2);
   }
 
-  // Çekiç Vuruş Sesi (Sert çarpma / Tok darbe)
+  // TEARDOWN ÇEKİÇ VURUŞ SESİ (Gerçekçi Teardown Sledgehammer Impact)
   playHammerHit() {
     if (this.muted || !this.ctx) return;
     const now = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
 
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(180, now);
-    osc.frequency.exponentialRampToValueAtTime(45, now + 0.12);
+    // 1. Ağır Çelik Balyoz Gövde Darbesi (Sub-bass tok darbe: 140Hz -> 32Hz)
+    this._thump(now, 0.16, 0.85, 140, 32, 'triangle');
+    this._thump(now, 0.08, 0.65, 95, 24, 'sine');
 
-    gain.gain.setValueAtTime(0.35, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+    // 2. Çelik Kafa & Taş/Beton Yüzey Çatlama Transiti (Keskin "THWACK" / "CRACK")
+    this._burst(now, 0.035, 0.75, 'highpass', 3200, 1100, 1.2);
+    this._burst(now, 0.06, 0.65, 'bandpass', 1800, 650, 2.0);
 
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
+    // 3. Kırılan Voxel Moloz ve Çatırtı Gürültüsü (Rubble / Debris Crunch)
+    this._burst(now + 0.015, 0.18, 0.55, 'lowpass', 1200, 280, 0.8);
+    this._burst(now + 0.025, 0.14, 0.40, 'bandpass', 950, 420, 1.5);
 
-    osc.start(now);
-    osc.stop(now + 0.12);
-    this.playNoise(0.14, 0.4, 1200);
+    // 4. Balyoz Çelik Kafasının Hafif Metalik Çınlaması (Steel Head Ping)
+    this._thump(now, 0.09, 0.22, 540, 420, 'sine');
   }
 
-  // 2. Madde: Demir Çekiç Çarpma Sesi (Metalik Tınlama / Clang Sesi)
+  // TEARDOWN DEMİR ÇEKİÇ VURUŞ SESİ (Ağır Metal Çınlaması & Clang)
   playIronHit() {
     if (this.muted || !this.ctx) return;
     const now = this.ctx.currentTime;
 
-    // Metalik çift osilatör (Demir rezonansı)
-    const osc1 = this.ctx.createOscillator();
-    const osc2 = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    // 1. Tok gövde darbesi
+    this._thump(now, 0.12, 0.70, 190, 55, 'sine');
 
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(980, now);
-    osc1.frequency.exponentialRampToValueAtTime(650, now + 0.35);
+    // 2. Çelik çekiç ile demir yüzey çarpışması (Metalik keskin şaklama)
+    this._burst(now, 0.03, 0.80, 'highpass', 4500, 2200, 1.5);
 
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(1850, now);
-    osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.25);
-
-    gain.gain.setValueAtTime(0.45, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc1.start(now);
-    osc2.start(now);
-    osc1.stop(now + 0.35);
-    osc2.stop(now + 0.35);
-
-    // Kısa metalik kıvılcım gürültüsü
-    this.playNoise(0.06, 0.2, 2800);
+    // 3. İki katmanlı rezonanslı demir çınlaması (Anvil / Girder Clang)
+    this._thump(now, 0.45, 0.55, 960, 720, 'sine');
+    this._thump(now, 0.38, 0.40, 1720, 1350, 'triangle');
+    this._thump(now + 0.01, 0.28, 0.25, 2400, 1900, 'sine');
   }
 
-  // 1. Madde: Tahta Kırılma Sesi (Çıtırtılı ahşap darbesi)
+  // TEARDOWN TAHTA ÇEKİÇ VURUŞ SESİ (Ahşap Parçalanma ve Tok Darbe)
   playWoodHit() {
     if (this.muted || !this.ctx) return;
     const now = this.ctx.currentTime;
 
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
+    // 1. Ağır tahta gövde darbesi
+    this._thump(now, 0.14, 0.75, 170, 45, 'triangle');
 
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(260, now);
-    osc.frequency.exponentialRampToValueAtTime(70, now + 0.12);
+    // 2. Çatlayan lifli ahşap kırılma sesi (Sharp wood crack)
+    this._burst(now, 0.04, 0.70, 'bandpass', 2400, 800, 2.2);
+    this._burst(now + 0.01, 0.16, 0.60, 'bandpass', 1100, 350, 1.4);
 
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
-
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
-
-    osc.start(now);
-    osc.stop(now + 0.12);
-    this.playNoise(0.12, 0.35, 750);
+    // 3. Tahta kıymıkları ve döküntü
+    this._burst(now + 0.02, 0.12, 0.35, 'lowpass', 850, 180, 0.7);
   }
 
   // Devasa Patlama Sesi (Sub-bass + Gürültü Filtresi)

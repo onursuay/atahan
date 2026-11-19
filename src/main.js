@@ -629,7 +629,7 @@ function startIntro() {
           storyManager.showDialog(false);
           storyManager.showSkipButton(false);
           storyManager.setFade(0, 300);
-          storyManager.setMission('🔬 DENEY HARİTASI', 'Bir ev ve bir arazi. Çekiç ve silahlarınla dilediğince test et ve yık!');
+          storyManager.setMission('🔬 DENEY HARİTASI', 'Teardown tarzı test evi, küp lambalar ve posterler! Çekiç ve silahlarınla dilediğince test et ve yık!');
         }
 
         // Oyuncu test evinin hemen önünde geniş arazide ayakta başlar ve eve bakar
