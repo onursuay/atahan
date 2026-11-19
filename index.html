@@ -719,8 +719,12 @@
     <div class="panel" id="mm-maps" style="display:none;gap:14px">
       <div style="font-size:16px; letter-spacing:2px; color:#93c5fd; font-weight:bold; margin-bottom:4px;">HARİTA SEÇİN</div>
       <button id="mm-map-experiment" style="background:linear-gradient(180deg, #16a34a, #15803d); border:3px solid #4ade80; box-shadow:0 0 22px rgba(74,222,128,0.6); font-size:18px; padding:16px 28px; width:340px; text-align:center;">
-        🔬 DENEY HARİTASI
-        <div style="font-size:12px; font-weight:normal; color:#dcfce7; margin-top:4px;">Teardown Tarzı Ev, Küp Lambalar & Arazi</div>
+        🔬 DENEY HARİTASI (TAVSİYE EDİLEN)
+        <div style="font-size:12px; font-weight:normal; color:#dcfce7; margin-top:4px;">Organik Ağaçlar, Döküm Gri Lambalar, 60 FPS Akıcı</div>
+      </button>
+      <button id="mm-map-city" style="background:linear-gradient(180deg, #1e3a8a, #1e293b); border:2px solid #3b82f6; font-size:16px; padding:14px 24px; width:340px; text-align:center; color:#e2e8f0;">
+        🏙️ BÜYÜK ŞEHİR (DENEYSEL)
+        <div style="font-size:11px; font-weight:normal; color:#93c5fd; margin-top:4px;">Gökdelenler & Metropol (Ağır Yük / Kasabilir)</div>
       </button>
       <button id="mm-maps-back" style="width:200px; padding:10px 0; font-size:15px; background:#1e293b; border-color:#64748b; margin-top:4px;">GERİ</button>
     </div>
@@ -751,6 +755,7 @@
       var mapsPanel = document.getElementById('mm-maps');
       var homePanel = document.getElementById('mm-home');
       var expBtn = document.getElementById('mm-map-experiment');
+      var cityBtn = document.getElementById('mm-map-city');
       var backBtn = document.getElementById('mm-maps-back');
 
       if (pBtn) {
@@ -775,6 +780,15 @@
             document.body.classList.remove('intro');
             var fade = document.getElementById('intro-fade');
             if (fade) fade.style.display = 'none';
+          }
+        });
+      }
+      if (cityBtn) {
+        cityBtn.addEventListener('click', function() {
+          if (typeof window.__startCity === 'function') {
+            window.__startCity();
+          } else if (typeof window.loadLevel === 'function') {
+            window.loadLevel(1);
           }
         });
       }

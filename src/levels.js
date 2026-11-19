@@ -160,11 +160,19 @@ export class LevelManager {
     this.levelConfigs = [
       {
         id: 0,
-        title: '🔬 DENEY HARİTASI',
-        desc: 'Bir ev ve bir arazi. Teardown tarzı tam yıkım ve fizik testi.',
+        title: '🔬 DENEY HARİTASI (ÖNERİLEN)',
+        desc: 'Teardown tarzı tam yıkım, organik ağaçlar, döküm gri lambalar ve 60 FPS akıcılık.',
         targetPercent: 50,
         spawn: { x: 10000, y: 1.2, z: 10014 },
         builder: this.buildMaintenanceMap.bind(this)
+      },
+      {
+        id: 1,
+        title: '🏙️ BÜYÜK ŞEHİR (DENEYSEL)',
+        desc: 'Gökdelenler, asma köprü, metro, sahil ve sokaklar (Ağır yük & kasabilir).',
+        targetPercent: 70,
+        spawn: { x: -110.25, y: 7.05, z: 19.75 },
+        builder: this.buildFullCityWorld.bind(this)
       }
     ];
   }
@@ -766,26 +774,30 @@ export class LevelManager {
     this.lampSub(Math.round(K * x), Math.round(K * z), GROUND_ROW_SUB, dx, dz, both);
   }
 
-  // Detaylı sokak lambası: kaide, süslü pervaz, direk, halka, yola uzanan kol, lamba muhafazası ve ışık camı
+  // Detaylı sokak lambası: kaide, döküm gri gövde, direk, yola uzanan kol, lamba muhafazası ve sıcak akkor ışık
   lampSub(sx, sz, base, dx = 0, dz = 0, both = false) {
     const w = this.b;
-    const F = 0.25, head = (hx, hz, hy) => this.world.lamps.push({ x: hx * F, y: hy * F, z: hz * F, gy: base * F });
+    const F = 0.25, head = (hx, hz, hy) => this.world.lamps.push({ x: hx * F, y: hy * F, z: hz * F, gy: base * F, color: 0xffa840 });
     if (dx !== 0 || dz !== 0) { head(sx + dx * 7, sz + dz * 7, base + 19); if (both) head(sx - dx * 7, sz - dz * 7, base + 19); } else head(sx, sz, base + 22);
-    w.raw(sx - 1, base, sz - 1, sx + 1, base + 1, sz + 1, PALETTE.CONCRETE);
+    // Sağlam döküm gri kaide
+    w.raw(sx - 1, base, sz - 1, sx + 1, base + 1, sz + 1, PALETTE.SLATE);
     w.raw(sx - 1, base + 2, sz - 1, sx + 1, base + 2, sz + 1, PALETTE.IRON);
+    // İnce döküm gri dikey direk
     w.raw(sx, base + 3, sz, sx, base + 19, sz, PALETTE.IRON);
-    w.raw(sx - 1, base + 12, sz, sx + 1, base + 12, sz, PALETTE.GOLD);
-    w.raw(sx, base + 12, sz - 1, sx, base + 12, sz + 1, PALETTE.GOLD);
+    w.raw(sx - 1, base + 12, sz, sx + 1, base + 12, sz, PALETTE.SLATE);
+    w.raw(sx, base + 12, sz - 1, sx, base + 12, sz + 1, PALETTE.SLATE);
     const arm = (ddx, ddz) => {
       const ex = sx + ddx * 7, ez = sz + ddz * 7, y = base + 19;
-      w.raw(Math.min(sx, ex), y, Math.min(sz, ez), Math.max(sx, ex), y, Math.max(sz, ez), PALETTE.IRON);
-      w.raw(ex - 1, y, ez - 1, ex + 1, y, ez + 1, PALETTE.LAMP);
-      w.raw(ex - 1, y - 1, ez - 1, ex + 1, y - 1, ez + 1, PALETTE.GLASS);
+      w.raw(Math.min(sx, ex), y, Math.min(sz, ez), Math.max(sx, ex), y, Math.max(sz, ez), PALETTE.SLATE);
+      // Çan armatür ve akkor tungsten lamba
+      w.raw(ex - 1, y, ez - 1, ex + 1, y, ez + 1, PALETTE.IRON);
+      w.raw(ex - 1, y - 1, ez - 1, ex + 1, y - 1, ez + 1, PALETTE.LAMP_ORANGE);
+      w.raw(ex, y - 2, ez, ex, y - 2, ez, PALETTE.GLASS);
     };
     if (dx !== 0 || dz !== 0) { arm(dx, dz); if (both) arm(-dx, -dz); }
     else {
-      w.raw(sx - 1, base + 20, sz - 1, sx + 1, base + 21, sz + 1, PALETTE.GLASS);
-      w.raw(sx - 1, base + 22, sz - 1, sx + 1, base + 22, sz + 1, PALETTE.LAMP);
+      w.raw(sx - 1, base + 20, sz - 1, sx + 1, base + 21, sz + 1, PALETTE.IRON);
+      w.raw(sx - 1, base + 22, sz - 1, sx + 1, base + 22, sz + 1, PALETTE.LAMP_ORANGE);
     }
   }
 
@@ -793,16 +805,29 @@ export class LevelManager {
     if (!this._isOnLand(x, z)) return; // Okyanusa çöp kutusu konmaz
     if (this.b.blocked(x, z, 0) || onRoadFast(x, z, 0) || this._nearDoor(x, z)) return;   // çöp kutusu yolun üstüne konmaz
     const w = this.b, sx = Math.round(K * x), sz = Math.round(K * z);
-    w.raw(sx, GROUND_ROW_SUB, sz, sx + 1, GROUND_ROW_SUB + 3, sz + 1, PALETTE.IRON);
+    w.raw(sx, GROUND_ROW_SUB, sz, sx + 1, GROUND_ROW_SUB + 3, sz + 1, PALETTE.SLATE);
     w.raw(sx, GROUND_ROW_SUB + 4, sz, sx + 1, GROUND_ROW_SUB + 4, sz + 1, PALETTE.WOOD);
   }
 
+  // Gerçekçi ve Organik Şehir Ağaçları (Kökler, dallar ve yuvarlatılmış çok tonlu yaprak kümeleri)
   tree(x, z, h) {
     if (!this._isOnLand(x, z)) return; // Okyanus üstüne ağaç dikilmez
     if (this.b.blocked(x, z, 1) || onRoadFast(x, z, 2) || this._nearDoor(x, z, 3)) return;   // ağaç taçı yola taşmasın (2 birim pay)
     const w = this.b;
+    // 1. Kök yayılımı
+    w.fillBox(x - 1, 0, z, x + 1, 1, z, PALETTE.WOOD);
+    w.fillBox(x, 0, z - 1, x, 1, z + 1, PALETTE.WOOD);
+    // 2. Ana gövde
     w.fillBox(x, 1, z, x, h - 2, z, PALETTE.WOOD);
-    w.fillBox(x - 1, h - 3, z - 1, x + 1, h - 1, z + 1, PALETTE.GRASS);
+    // 3. Çatallanan dallar
+    w.fillBox(x - 1, h - 4, z, x - 1, h - 3, z, PALETTE.WOOD);
+    w.fillBox(x + 1, h - 4, z, x + 1, h - 3, z, PALETTE.WOOD);
+    w.fillBox(x, h - 3, z - 1, x, h - 2, z - 1, PALETTE.WOOD);
+    w.fillBox(x, h - 3, z + 1, x, h - 2, z + 1, PALETTE.WOOD);
+    // 4. Katmanlı organik yaprak taçı (Koyu yeşil alt tabaka, canlı yeşil orta, fıstık yeşili tepe)
+    w.fillBox(x - 2, h - 4, z - 2, x + 2, h - 3, z + 2, PALETTE.DGREEN);
+    w.fillBox(x - 2, h - 2, z - 2, x + 2, h - 1, z + 2, PALETTE.GRASS);
+    w.fillBox(x - 1, h, z - 1, x + 1, h, z + 1, PALETTE.CACTUS_GREEN);
   }
 
   // Çeşme: taş havuz, orta sütun ve üst kase. Suyun akışı oyun döngüsünde parçacıklarla gösterilir.
@@ -4469,26 +4494,34 @@ export class LevelManager {
       this.world.lamps.push({ x: lx, y: ly + 0.2, z: lz, gy: ly + 0.2, light, color: 0xff9e3d });
     };
 
-    // Gerçekçi Gri Sokak Lambaları (Kaldırım Kenarları)
+    // Gerçekçi Gri Metal Sokak Lambaları (Endüstriyel Döküm & Geniş Sıcak Akkor Aydınlatma)
     const addStreetLamp = (sx, sz, dirX = 1, dirZ = 0) => {
-      // 1. Sağlam döküm gri taban kaidesi
-      boxV(sx - 0.25, 0.5, sz - 0.25, sx + 0.25, 1.0, sz + 0.25, PALETTE.SLATE);
-      // 2. İnce döküm gri dikey direk
-      boxV(sx, 1.0, sz, sx, 4.25, sz, PALETTE.IRON);
-      // 3. Yola doğru uzanan kavisli gri dirsek ve armatür gövdesi
-      const armX = sx + dirX * 0.75;
-      const armZ = sz + dirZ * 0.75;
-      boxV(sx, 4.25, sz, armX, 4.5, armZ, PALETTE.SLATE);
-      // 4. Gri metal gölgelik şapka
-      boxV(armX - 0.25, 4.25, armZ - 0.25, armX + 0.25, 4.4, armZ + 0.25, PALETTE.IRON);
-      // 5. Yolu aydınlatan korumalı akkor lamba
-      boxV(armX, 3.75, armZ, armX, 4.2, armZ, PALETTE.LAMP_ORANGE);
+      // 1. Zemin ankraj tablası ve döküm gri kaide
+      boxV(sx - 0.35, 0.5, sz - 0.35, sx + 0.35, 0.85, sz + 0.35, PALETTE.SLATE);
+      boxV(sx - 0.25, 0.85, sz - 0.25, sx + 0.25, 1.15, sz + 0.25, PALETTE.IRON);
+      // 2. Dikey gri çelik direk (sağlam gövde)
+      boxV(sx - 0.12, 1.15, sz - 0.12, sx + 0.12, 4.4, sz + 0.12, PALETTE.IRON);
+      // 3. Yola ve kaldırıma doğru zarif kavisli gri dirsek ve çapraz destek payandası
+      const armX = sx + dirX * 1.1;
+      const armZ = sz + dirZ * 1.1;
+      // Yatay uzanan dirsek kol
+      boxV(sx, 4.4, sz, armX, 4.7, armZ, PALETTE.SLATE);
+      // Çapraz güçlendirme payandası
+      boxV(sx, 3.8, sz, sx + dirX * 0.5, 4.4, sz + dirZ * 0.5, PALETTE.IRON);
+      // 4. Endüstriyel çan armatür başlığı (Gövde & Şapka)
+      boxV(armX - 0.35, 4.45, armZ - 0.35, armX + 0.35, 4.65, armZ + 0.35, PALETTE.SLATE);
+      boxV(armX - 0.25, 4.25, armZ - 0.25, armX + 0.25, 4.45, armZ + 0.25, PALETTE.IRON);
+      // 5. Buzlu cam lens ve akkor tungsten ışık çekirdeği
+      boxV(armX - 0.15, 4.0, armZ - 0.15, armX + 0.15, 4.25, armZ + 0.15, PALETTE.LAMP_ORANGE);
+      boxV(armX - 0.2, 3.95, armZ - 0.2, armX + 0.2, 4.0, armZ + 0.2, PALETTE.GLASS);
 
-      const light = new THREE.PointLight(0xffa244, 3.0, 15, 2);
-      light.position.set(armX, 3.8, armZ);
+      // Sıcak akkor sokak aydınlatması (Geniş menzil, yumuşak geçiş)
+      const light = new THREE.PointLight(0xffa840, 3.6, 18, 2);
+      light.position.set(armX, 3.9, armZ);
       this.world.scene.add(light);
       this.world.decor.push(light);
-      this.world.lamps.push({ x: armX, y: 3.8, z: armZ, gy: 3.8, light, color: 0xffa244 });
+      // Silahların ve oyuncunun PBR yansıma havuzuna kaydet
+      this.world.lamps.push({ x: armX, y: 3.9, z: armZ, gy: 3.9, light, color: 0xffa840 });
     };
 
     // Yol yönüne eğik gerçekçi gri sokak lambaları
@@ -4501,35 +4534,93 @@ export class LevelManager {
     addStreetLamp(CX - 6.0, CZ + 25, 1, 0);
     addStreetLamp(CX + 6.0, CZ + 25, -1, 0);
 
-    // ── GERÇEKÇİ VE DETAYLI TEARDOWN AĞAÇLARI ──
-    // Kökleri toprağa basan, dalları çatallanan ve çok tonlu hacimli yaprak öbekleri olan ağaçlar
+    // ── GERÇEKÇİ VE ORGANİK TEARDOWN AĞAÇLARI ──
+    // Doğadaki gerçek ağaçlar gibi: Toprağa kök salan, kalınlaşan gövde, 3 boyutlu çatallanan dallar
+    // ve her dalın ucunda küremsi, yuvarlatılmış, çok tonlu yaprak öbekleri (bulutları).
     const makeDetailedTree = (tx, tz, type = 'oak') => {
-      // 1. Yere yayılan kök ayakları
-      boxV(tx - 0.5, 0.5, tz - 0.25, tx + 0.5, 0.8, tz + 0.25, PALETTE.WOOD);
-      boxV(tx - 0.25, 0.5, tz - 0.5, tx + 0.25, 0.8, tz + 0.5, PALETTE.WOOD);
-      // 2. Ana kütük gövde
-      boxV(tx - 0.25, 0.8, tz - 0.25, tx + 0.25, 4.0, tz + 0.25, PALETTE.WOOD);
+      // 1. Toprağa yayılan organik kök ayakları
+      boxV(tx - 0.75, 0.5, tz - 0.25, tx + 0.75, 0.85, tz + 0.25, PALETTE.WOOD);
+      boxV(tx - 0.25, 0.5, tz - 0.75, tx + 0.25, 0.85, tz + 0.75, PALETTE.WOOD);
+      boxV(tx - 0.5, 0.5, tz - 0.5, tx + 0.5, 0.95, tz + 0.5, PALETTE.WOOD);
 
       if (type === 'oak') {
-        // Geniş Meşe Ağacı: Çatallanan dallar
-        boxV(tx - 0.75, 3.2, tz - 0.25, tx - 0.25, 4.0, tz + 0.25, PALETTE.WOOD);
-        boxV(tx + 0.25, 3.0, tz - 0.25, tx + 0.75, 3.8, tz + 0.25, PALETTE.WOOD);
-        boxV(tx - 0.25, 3.5, tz + 0.25, tx + 0.25, 4.2, tz + 0.75, PALETTE.WOOD);
+        // Geniş Meşe Ağacı:
+        // Alt gövde kalın (0.5m x 0.5m)
+        boxV(tx - 0.35, 0.8, tz - 0.35, tx + 0.35, 2.4, tz + 0.35, PALETTE.WOOD);
+        // Orta gövde hafif incelen (0.25m)
+        boxV(tx - 0.25, 2.4, tz - 0.25, tx + 0.25, 3.8, tz + 0.25, PALETTE.WOOD);
 
-        // Katman 1: Alt hacimli yaprak öbeği (Koyu yeşil & zümrüt)
-        boxV(tx - 2.0, 3.5, tz - 2.0, tx + 2.0, 5.0, tz + 2.0, PALETTE.DGREEN);
-        // Katman 2: Orta canlı yaprak öbeği (Orman yeşili)
-        boxV(tx - 2.5, 4.5, tz - 2.5, tx + 2.5, 6.0, tz + 2.5, PALETTE.GRASS);
-        // Katman 3: Tepe kubbe yaprakları ve açık yeşil filizler
-        boxV(tx - 1.8, 6.0, tz - 1.8, tx + 1.8, 7.0, tz + 1.8, PALETTE.GRASS);
-        boxV(tx - 1.0, 7.0, tz - 1.0, tx + 1.0, 7.8, tz + 1.0, PALETTE.CACTUS_GREEN);
+        // 3D Çatallanan ana dallar (Kuzey, Güney, Doğu, Batı yönlerinde yukarı ve dışa doğru uzanır)
+        // Doğu-Güney dalı
+        boxV(tx + 0.25, 3.0, tz + 0.1, tx + 1.25, 3.6, tz + 0.85, PALETTE.WOOD);
+        // Batı-Kuzey dalı
+        boxV(tx - 1.25, 3.2, tz - 0.85, tx - 0.25, 3.8, tz - 0.1, PALETTE.WOOD);
+        // Kuzey-Doğu dalı
+        boxV(tx + 0.1, 3.6, tz - 1.25, tx + 0.85, 4.4, tz - 0.25, PALETTE.WOOD);
+        // Güney-Batı dalı
+        boxV(tx - 0.85, 3.4, tz + 0.25, tx - 0.1, 4.2, tz + 1.25, PALETTE.WOOD);
+        // Tepe ana gövde uzantısı
+        boxV(tx - 0.2, 3.8, tz - 0.2, tx + 0.2, 5.2, tz + 0.2, PALETTE.WOOD);
+
+        // Organik Küremsi Yaprak Öbeği / Bulutu (Foliage Clump) Fonksiyonu
+        const leafClump = (cx, cy, cz, rx, ry, rz) => {
+          for (let x = cx - rx; x <= cx + rx + 1e-4; x += S) {
+            for (let y = cy - ry; y <= cy + ry + 1e-4; y += S) {
+              for (let z = cz - rz; z <= cz + rz + 1e-4; z += S) {
+                const dx = (x - cx) / rx;
+                const dy = (y - cy) / ry;
+                const dz = (z - cz) / rz;
+                const d2 = dx * dx + dy * dy + dz * dz;
+                if (d2 <= 1.05) {
+                  // Alt/gölge kısım koyu yeşil, orta kısım canlı yeşil, üst/güneş alan yerler açık fıstık yeşili
+                  let mat = PALETTE.GRASS;
+                  if (dy < -0.3) mat = PALETTE.DGREEN;
+                  else if (dy > 0.45 && d2 > 0.4) mat = PALETTE.CACTUS_GREEN;
+                  setV(x, y, z, mat);
+                }
+              }
+            }
+          }
+        };
+
+        // Dallar üzerine oturan doğal yaprak kümeleri (Ağacın içinden gökyüzü ve dallar görünür!)
+        leafClump(tx + 1.4, 4.0, tz + 0.9, 1.25, 0.9, 1.25);
+        leafClump(tx - 1.4, 4.2, tz - 0.9, 1.3, 0.95, 1.3);
+        leafClump(tx + 0.9, 4.8, tz - 1.3, 1.15, 0.85, 1.15);
+        leafClump(tx - 0.9, 4.6, tz + 1.3, 1.2, 0.9, 1.2);
+        // Ağacın tepesini taçlandıran tepe kubbe yaprakları
+        leafClump(tx, 5.8, tz, 1.6, 1.2, 1.6);
+        leafClump(tx, 6.7, tz, 0.9, 0.7, 0.9);
       } else {
-        // İğne Yapraklı / Dağ Çamı (Piramit Katmanlı)
-        boxV(tx - 0.25, 3.5, tz - 0.25, tx + 0.25, 5.5, tz + 0.25, PALETTE.WOOD);
-        boxV(tx - 2.2, 3.0, tz - 2.2, tx + 2.2, 4.2, tz + 2.2, PALETTE.DGREEN);
-        boxV(tx - 1.8, 4.2, tz - 1.8, tx + 1.8, 5.4, tz + 1.8, PALETTE.DGREEN);
-        boxV(tx - 1.2, 5.4, tz - 1.2, tx + 1.2, 6.6, tz + 1.2, PALETTE.GRASS);
-        boxV(tx - 0.6, 6.6, tz - 0.6, tx + 0.6, 7.8, tz + 0.6, PALETTE.CACTUS_GREEN);
+        // İğne Yapraklı / Dağ Çamı (Organik Katmanlı Piramit Çam)
+        // Gövde yukarı doğru incelerek yükselir
+        boxV(tx - 0.35, 0.8, tz - 0.35, tx + 0.35, 2.2, tz + 0.35, PALETTE.WOOD);
+        boxV(tx - 0.25, 2.2, tz - 0.25, tx + 0.25, 5.0, tz + 0.25, PALETTE.WOOD);
+        boxV(tx - 0.15, 5.0, tz - 0.15, tx + 0.15, 7.5, tz + 0.15, PALETTE.WOOD);
+
+        const pineTier = (cy, r, h, mat) => {
+          for (let x = tx - r; x <= tx + r + 1e-4; x += S) {
+            for (let z = tz - r; z <= tz + r + 1e-4; z += S) {
+              const dx = (x - tx) / r;
+              const dz = (z - tz) / r;
+              if (dx * dx + dz * dz <= 1.05) {
+                for (let y = cy; y <= cy + h; y += S) {
+                  const frac = (y - cy) / Math.max(0.01, h);
+                  if (dx * dx + dz * dz <= 1.05 * (1.0 - frac * 0.35)) {
+                    setV(x, y, z, mat);
+                  }
+                }
+              }
+            }
+          }
+        };
+
+        // 5 Kademeli sarkan çam iğnesi etekleri
+        pineTier(2.8, 2.2, 1.2, PALETTE.DGREEN);
+        pineTier(4.0, 1.8, 1.1, PALETTE.DGREEN);
+        pineTier(5.1, 1.35, 1.0, PALETTE.GRASS);
+        pineTier(6.1, 0.9, 0.9, PALETTE.GRASS);
+        pineTier(7.0, 0.5, 0.9, PALETTE.CACTUS_GREEN);
       }
     };
 
@@ -4706,13 +4797,15 @@ export class LevelManager {
     boxV(B1X - 4.5, 0.5, B1Z - 0.5, B1X - 3.0, 0.9, B1Z + 0.5, PALETTE.WOOD);
   }
 
-  loadLevel(index) {
+  loadLevel(index = 0) {
     this.world.clear();
-    this.currentLevelIndex = 0;
+    const idx = (index >= 0 && index < this.levelConfigs.length) ? index : 0;
+    this.currentLevelIndex = idx;
 
-    const cfg = this.levelConfigs[0];
+    const cfg = this.levelConfigs[idx];
     cfg.builder();
     this.world.buildMeshBuffers();
+    if (this.world.bridge && idx === 1) this.world.bridge.attach();
     return cfg;
   }
 }

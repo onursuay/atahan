@@ -584,14 +584,14 @@ function startIntro() {
     const menu = document.getElementById('main-menu') || document.createElement('div');
     const $ = (id) => menu.querySelector('#' + id);
     const sBtn = $('mm-settings'), bBtn = $('mm-back'), sndBtn = $('mm-sound'), sensInp = $('mm-sens'), pBtn = $('mm-play');
-    const mapsPanel = $('mm-maps'), mapExpBtn = $('mm-map-experiment'), mapsBackBtn = $('mm-maps-back');
+    const mapsPanel = $('mm-maps'), mapExpBtn = $('mm-map-experiment'), mapCityBtn = $('mm-map-city'), mapsBackBtn = $('mm-maps-back');
 
     if (sBtn) sBtn.onclick = () => { $('mm-home').style.display = 'none'; $('mm-set').style.display = 'flex'; };
     if (bBtn) bBtn.onclick = () => { $('mm-set').style.display = 'none'; $('mm-home').style.display = 'flex'; };
     if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
     if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
 
-    // OYNA: Harita seçim menüsünü açar (Sadece Deney Haritası bulunur)
+    // OYNA: Harita seçim menüsünü açar
     if (pBtn) pBtn.onclick = () => {
       $('mm-home').style.display = 'none';
       if (mapsPanel) mapsPanel.style.display = 'flex';
@@ -606,6 +606,54 @@ function startIntro() {
     if (mapExpBtn) mapExpBtn.onclick = () => {
       startExperimentMap();
     };
+
+    if (mapCityBtn) mapCityBtn.onclick = () => {
+      startCityMap();
+    };
+
+    const startCityMap = () => {
+      try {
+        if (introMenuEl) introMenuEl.style.display = 'none';
+        const mm = document.getElementById('main-menu');
+        if (mm) mm.style.display = 'none';
+        introWaiting = false;
+        introActive = false;
+        introT = 0;
+        try { sound.init(); } catch (e) {}
+        document.body.classList.remove('intro');
+        if (introFadeEl) introFadeEl.style.display = 'none';
+        window._gameMode = 'freeroam';
+        window._octopusUnlocked = true;
+        window._onlyOctopusMode = false;
+        if (remoteModel) remoteModel.visible = false;
+        if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
+
+        loadLevel(1);
+
+        if (storyManager) {
+          storyManager.currentPhase = STORY_PHASES.FREE_ROAM_REVENGE;
+          storyManager.controlsLocked = false;
+          storyManager.weaponsLocked = false;
+          storyManager.cinematicGroup.clear();
+          storyManager.showDialog(false);
+          storyManager.showSkipButton(false);
+          storyManager.setFade(0, 300);
+          storyManager.setMission('🏙️ BÜYÜK ŞEHİR', 'Devasa Şehir! Binaları, asma köprüyü ve sokakları keşfet!');
+        }
+
+        character.resetPosition(-105.0, 1.5, 4.2);
+        seated = false;
+        eyeOffset = 1.8;
+        cameraYaw = 0;
+        cameraPitch = 0.0;
+        setFirstPerson(false);
+
+        if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
+      } catch (err) {
+        console.warn('Şehir haritası başlatma hatası:', err);
+      }
+    };
+    window.__startCity = startCityMap;
 
     const startExperimentMap = () => {
       try {
@@ -838,18 +886,33 @@ function loadLevel(index) {
     window.__bakim = () => loadLevel(1);
   } catch(e){ console.warn('DayNight warn:', e); }
 
-  // Deney ve Bakım Haritası Koordinatları (Ana şehirden 10.000 metre uzakta izole test alanı)
-  WORLD_BOUNDS.minX = 9930;
-  WORLD_BOUNDS.maxX = 10070;
-  WORLD_BOUNDS.minZ = 9930;
-  WORLD_BOUNDS.maxZ = 10070;
-  WORLD_BOUNDS.maxY = 65;
-  if (waterMesh) waterMesh.position.set(10000, -0.35, 10000);
-  seated = false;
-  eyeOffset = 1.8;
-  eyeY = null;
-  cameraYaw = 0;
-  cameraPitch = 0;
+  if (index === 1) {
+    // Büyük Şehir Haritası Sınırları
+    WORLD_BOUNDS.minX = -700;
+    WORLD_BOUNDS.maxX = 660;
+    WORLD_BOUNDS.minZ = -630;
+    WORLD_BOUNDS.maxZ = 480;
+    WORLD_BOUNDS.maxY = 68;
+    const waterCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2;
+    const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2;
+    if (waterMesh) waterMesh.position.set(waterCX, -0.15, waterCZ);
+    cameraYaw = -Math.PI / 2;
+    seated = false;
+    eyeOffset = 1.8;
+  } else {
+    // Deney Haritası Koordinatları (Ana şehirden 10.000 metre uzakta izole test alanı)
+    WORLD_BOUNDS.minX = 9930;
+    WORLD_BOUNDS.maxX = 10070;
+    WORLD_BOUNDS.minZ = 9930;
+    WORLD_BOUNDS.maxZ = 10070;
+    WORLD_BOUNDS.maxY = 65;
+    if (waterMesh) waterMesh.position.set(10000, -0.35, 10000);
+    seated = false;
+    eyeOffset = 1.8;
+    eyeY = null;
+    cameraYaw = 0;
+    cameraPitch = 0;
+  }
 
   try {
     if (!introPlayed) startIntro();
