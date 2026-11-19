@@ -144,13 +144,32 @@ export class VoxelWorld {
       if (!matDef || createdIds.has(matDef.id)) return;
       createdIds.add(matDef.id);
 
-      this.materials[matDef.id] = new THREE.MeshLambertMaterial({
+      const isGlass = matDef.id === PALETTE.GLASS.id;
+      const isIron = matDef.isIron || matDef.id === PALETTE.IRON.id;
+      const isGold = matDef.id === PALETTE.GOLD.id;
+      const isWood = matDef.isWood || matDef.id === PALETTE.WOOD.id;
+      const isRoof = matDef.id === PALETTE.ROOF.id;
+      const isAsphalt = matDef.id === PALETTE.ASPHALT.id;
+
+      let roughness = 0.75;
+      let metalness = 0.04;
+      if (isIron) { roughness = 0.26; metalness = 0.85; }
+      else if (isGold) { roughness = 0.20; metalness = 0.90; }
+      else if (isGlass) { roughness = 0.08; metalness = 0.12; }
+      else if (isRoof) { roughness = 0.38; metalness = 0.08; }
+      else if (isWood) { roughness = 0.65; metalness = 0.02; }
+      else if (isAsphalt) { roughness = 0.60; metalness = 0.06; }
+
+      // Teardown PBR Malzeme Sistemi (Yansımalı, gerçekçi ışık ve pürüzlülük tepkisi)
+      this.materials[matDef.id] = new THREE.MeshStandardMaterial({
         color: 0xffffff,
         map: makeCubeTexture(matDef),
-        transparent: matDef.id === PALETTE.GLASS.id,
-        opacity: matDef.id === PALETTE.GLASS.id ? 0.7 : 1.0,
+        roughness,
+        metalness,
+        transparent: isGlass,
+        opacity: isGlass ? 0.65 : 1.0,
         // Lamba küpleri kendi ışığıyla parlar (gece/gölgede de görünür)
-        ...(matDef.isLamp ? { emissive: new THREE.Color(matDef.emissive || 0xffe9a0), emissiveIntensity: 0.95 } : {})
+        ...(matDef.isLamp ? { emissive: new THREE.Color(matDef.emissive || 0xffe9a0), emissiveIntensity: 1.2, roughness: 0.2 } : {})
       });
     });
   }
@@ -864,7 +883,11 @@ export class VoxelWorld {
     // Görsel Küp (Materyalleri önbellekten alarak GPU bellek sızıntısını ve shader takılmalarını engelle)
     const mid = matType?.id ?? 0;
     if (!this.debrisMaterials[mid]) {
-      this.debrisMaterials[mid] = new THREE.MeshLambertMaterial({ color: matType?.color ?? 0xcccccc });
+      this.debrisMaterials[mid] = new THREE.MeshStandardMaterial({
+        color: matType?.color ?? 0xcccccc,
+        roughness: matType?.isIron ? 0.3 : (matType?.id === 4 ? 0.1 : 0.75),
+        metalness: matType?.isIron ? 0.8 : 0.05
+      });
     }
     const mat = this.debrisMaterials[mid];
     const mesh = new THREE.Mesh(this.debrisGeo, mat);

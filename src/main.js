@@ -130,6 +130,9 @@ function init() {
   renderer.autoClear = false; // silah modeli ikinci geçişte çizilir
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  // Teardown Sinematik Renk & Işık Tonlaması (ACES Filmic)
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.06;
   canvasContainer.appendChild(renderer.domElement);
 
   // 4. Işıklandırma ve Gerçekçi Gölgeler (Optimize Edilmiş Keskin Gölge Haritası)
@@ -845,13 +848,42 @@ function loadLevel(index) {
     dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });
     npcs.day = () => DayNight.dayAmount(dayNight.t);
     window.__gece = (sn) => dayNight.setTime(sn);
+    window.loadLevel = loadLevel;
+    window.loadMaintenanceMap = () => loadLevel(1);
+    window.__bakim = () => loadLevel(1);
   } catch(e){ console.warn('DayNight warn:', e); }
 
-  cameraYaw = -Math.PI / 2; // Evdeki koltuktan doğuya, televizyona doğru baksın
-  seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
+  if (index === 1) {
+    // Bakım Haritası: Ana şehirden 10.000 metre uzakta izole test alanı
+    WORLD_BOUNDS.minX = 9940;
+    WORLD_BOUNDS.maxX = 10060;
+    WORLD_BOUNDS.minZ = 9940;
+    WORLD_BOUNDS.maxZ = 10060;
+    WORLD_BOUNDS.maxY = 60;
+    if (waterMesh) waterMesh.position.set(10000, -0.35, 10000);
+    seated = false;
+    eyeOffset = 1.8;
+    eyeY = null;
+    introActive = false;
+    introWaiting = false;
+    cameraYaw = 0;
+    cameraPitch = 0;
+  } else {
+    // Ana Şehir Haritası Sınırları
+    WORLD_BOUNDS.minX = -700;
+    WORLD_BOUNDS.maxX = 660;
+    WORLD_BOUNDS.minZ = -630;
+    WORLD_BOUNDS.maxZ = 480;
+    WORLD_BOUNDS.maxY = 68;
+    const waterCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2;
+    const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2;
+    if (waterMesh) waterMesh.position.set(waterCX, -0.15, waterCZ);
+    cameraYaw = -Math.PI / 2; // Evdeki koltuktan doğuya, televizyona doğru baksın
+    seated = true; eyeOffset = INTRO_SEAT_EYE; eyeY = null;
+  }
 
   try {
-    if (!introPlayed) startIntro();   // açılış jeneriği yalnız oyun ilk açıldığında
+    if (index === 0 && !introPlayed) startIntro();   // açılış jeneriği yalnız ana şehir ilk açıldığında
     else cameraPitch = 0.0;
   } catch (e) {
     console.warn('Intro warn:', e);
