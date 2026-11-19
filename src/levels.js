@@ -4414,10 +4414,11 @@ export class LevelManager {
     this.world.terrain.addRect(CX - 5.5, CZ - 53, CX - 3.5, CZ + 53, PALETTE.STONE);
     this.world.terrain.addRect(CX + 3.5, CZ - 53, CX + 5.5, CZ + 53, PALETTE.STONE);
 
+    const S = VOXEL_SIZE; // 0.25 m minik küp
     const setV = (x, y, z, mat) => {
-      const ix = Math.round(x / 0.5);
-      const iy = Math.round((y - 0.25) / 0.5);
-      const iz = Math.round(z / 0.5);
+      const ix = Math.round(x / S);
+      const iy = Math.round((y - S / 2) / S);
+      const iz = Math.round(z / S);
       this.world.setVoxel(ix, iy, iz, mat);
     };
 
@@ -4425,9 +4426,9 @@ export class LevelManager {
       const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
       const minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
       const minZ = Math.min(z0, z1), maxZ = Math.max(z0, z1);
-      for (let x = minX; x <= maxX; x += 0.5) {
-        for (let y = minY; y <= maxY; y += 0.5) {
-          for (let z = minZ; z <= maxZ; z += 0.5) {
+      for (let x = minX; x <= maxX + 1e-4; x += S) {
+        for (let y = minY; y <= maxY + 1e-4; y += S) {
+          for (let z = minZ; z <= maxZ + 1e-4; z += S) {
             setV(x, y, z, mat);
           }
         }
@@ -4438,12 +4439,12 @@ export class LevelManager {
       const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
       const minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
       const minZ = Math.min(z0, z1), maxZ = Math.max(z0, z1);
-      for (let x = minX; x <= maxX; x += 0.5) {
-        for (let y = minY; y <= maxY; y += 0.5) {
-          for (let z = minZ; z <= maxZ; z += 0.5) {
-            const isWall = (Math.abs(x - minX) < 0.25 || Math.abs(x - maxX) < 0.25 || Math.abs(z - minZ) < 0.25 || Math.abs(z - maxZ) < 0.25);
-            const isFloor = Math.abs(y - minY) < 0.25;
-            const isCeil = Math.abs(y - maxY) < 0.25;
+      for (let x = minX; x <= maxX + 1e-4; x += S) {
+        for (let y = minY; y <= maxY + 1e-4; y += S) {
+          for (let z = minZ; z <= maxZ + 1e-4; z += S) {
+            const isWall = (Math.abs(x - minX) < S * 0.95 || Math.abs(x - maxX) < S * 0.95 || Math.abs(z - minZ) < S * 0.95 || Math.abs(z - maxZ) < S * 0.95);
+            const isFloor = Math.abs(y - minY) < S * 0.95;
+            const isCeil = Math.abs(y - maxY) < S * 0.95;
             if (isFloor) setV(x, y, z, floorMat || wallMat);
             else if (isCeil) setV(x, y, z, ceilMat || wallMat);
             else if (isWall) setV(x, y, z, wallMat);
@@ -4452,14 +4453,12 @@ export class LevelManager {
       }
     };
 
-    // Teardown Voxel Küp Lamba Ekleme Fonksiyonu
+    // Teardown Voxel Küp Lamba Ekleme Fonksiyonu (Gölge hesaplaması kapatılarak 60 FPS akıcılık sağlandı)
     const addVoxelCubeLamp = (lx, ly, lz, rodLen = 1.0) => {
       boxV(lx, ly + 0.5, lz, lx, ly + rodLen, lz, PALETTE.IRON);
       boxV(lx, ly, lz, lx, ly + 0.5, lz, PALETTE.LAMP_ORANGE);
-      const light = new THREE.PointLight(0xff9e3d, 3.2, 16, 2);
+      const light = new THREE.PointLight(0xff9e3d, 2.8, 12, 2);
       light.position.set(lx, ly + 0.25, lz);
-      light.castShadow = true;
-      light.shadow.bias = -0.002;
       this.world.scene.add(light);
       this.world.decor.push(light);
       this.world.lamps.push({ x: lx, y: ly + 0.25, z: lz, gy: ly + 0.25, light, color: 0xff9e3d });
@@ -4470,7 +4469,7 @@ export class LevelManager {
       boxV(sx, 0.5, sz, sx, 3.5, sz, PALETTE.IRON); // Demir lamba direği
       boxV(sx, 3.5, sz, sx + 0.5, 3.5, sz, PALETTE.IRON);
       boxV(sx + 0.5, 3.0, sz, sx + 0.5, 3.5, sz, PALETTE.LAMP_ORANGE);
-      const light = new THREE.PointLight(0xffa244, 2.8, 14, 2);
+      const light = new THREE.PointLight(0xffa244, 2.4, 10, 2);
       light.position.set(sx + 0.5, 3.2, sz);
       this.world.scene.add(light);
       this.world.decor.push(light);
@@ -4499,6 +4498,27 @@ export class LevelManager {
     makeTree(CX - 8, CZ + 32);
     makeTree(CX + 8, CZ + 32);
 
+    // Küp Silme ve Boşluk Açma Fonksiyonları
+    const removeV = (x, y, z) => {
+      const ix = Math.round(x / S);
+      const iy = Math.round((y - S / 2) / S);
+      const iz = Math.round(z / S);
+      this.world.voxels.delete(`${ix},${iy},${iz}`);
+    };
+
+    const clearBoxV = (x0, y0, z0, x1, y1, z1) => {
+      const minX = Math.min(x0, x1), maxX = Math.max(x0, x1);
+      const minY = Math.min(y0, y1), maxY = Math.max(y0, y1);
+      const minZ = Math.min(z0, z1), maxZ = Math.max(z0, z1);
+      for (let x = minX; x <= maxX + 1e-4; x += S) {
+        for (let y = minY; y <= maxY + 1e-4; y += S) {
+          for (let z = minZ; z <= maxZ + 1e-4; z += S) {
+            removeV(x, y, z);
+          }
+        }
+      }
+    };
+
     // ─────────────────────────────────────────────────────────────
     // 9 ADET ÇEŞİTLİ, RENKLİ TEARDOWN BİNASI
     // ─────────────────────────────────────────────────────────────
@@ -4507,16 +4527,12 @@ export class LevelManager {
     const B1X = CX - 22, B1Z = CZ - 22;
     hollowBoxV(B1X - 6, 0.5, B1Z - 6, B1X + 6, 4.5, B1Z + 6, PALETTE.BRICK, PALETTE.WOOD, PALETTE.WOOD);
     // Kapı açıklığı
-    for (let x = B1X - 1.5; x <= B1X + 1.5; x += 0.5) {
-      for (let y = 0.5; y <= 3.0; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B1Z + 6) / 0.5)}`);
-      }
-    }
+    clearBoxV(B1X - 1.5, 0.5, B1Z + 5.5, B1X + 1.5, 3.0, B1Z + 6.5);
     // Teardown tarzı yıkık gedik (sol duvarda kırık boşluk)
-    for (let z = B1Z - 2; z <= B1Z + 2; z += 0.5) {
-      for (let y = 0.5; y <= 3.0; y += 0.5) {
+    for (let z = B1Z - 2; z <= B1Z + 2; z += S) {
+      for (let y = 0.5; y <= 3.0; y += S) {
         if (Math.abs(z - B1Z) + Math.abs(y - 2.0) < 2.5) {
-          this.world.voxels.delete(`${Math.round((B1X - 6) / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round(z / 0.5)}`);
+          removeV(B1X - 6, y, z);
         }
       }
     }
@@ -4531,11 +4547,7 @@ export class LevelManager {
     // 2. Kat
     hollowBoxV(B2X - 6, 4.0, B2Z - 6, B2X + 6, 7.5, B2Z + 6, PALETTE.BLUE, PALETTE.WOOD, PALETTE.ROOF);
     // Giriş kapısı
-    for (let x = B2X - 1.0; x <= B2X + 1.0; x += 0.5) {
-      for (let y = 0.5; y <= 2.5; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B2Z + 6) / 0.5)}`);
-      }
-    }
+    clearBoxV(B2X - 1.0, 0.5, B2Z + 5.5, B2X + 1.0, 2.5, B2Z + 6.5);
     // Balkon korkuluğu
     boxV(B2X - 4, 4.0, B2Z + 6.5, B2X + 4, 4.8, B2Z + 6.5, PALETTE.WHITE);
     addVoxelCubeLamp(B2X, 3.0, B2Z, 0.7);
@@ -4545,11 +4557,7 @@ export class LevelManager {
     const B3X = CX - 22, B3Z = CZ + 22;
     hollowBoxV(B3X - 7, 0.5, B3Z - 6, B3X + 7, 5.0, B3Z + 6, PALETTE.RED, PALETTE.CONCRETE, PALETTE.SLATE);
     // Geniş garaj kapısı açıklığı
-    for (let x = B3X - 4; x <= B3X + 4; x += 0.5) {
-      for (let y = 0.5; y <= 3.5; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B3Z - 6) / 0.5)}`);
-      }
-    }
+    clearBoxV(B3X - 4.0, 0.5, B3Z - 6.5, B3X + 4.0, 3.5, B3Z - 5.5);
     // İçeride alet rafı ve tezgah
     boxV(B3X + 4, 0.5, B3Z + 4, B3X + 6.5, 2.0, B3Z + 5.5, PALETTE.IRON);
     addVoxelCubeLamp(B3X - 2.5, 4.0, B3Z, 0.8);
@@ -4559,19 +4567,15 @@ export class LevelManager {
     const B4X = CX + 22, B4Z = CZ + 22;
     hollowBoxV(B4X - 6, 0.5, B4Z - 6, B4X + 6, 4.5, B4Z + 6, PALETTE.YELLOW, PALETTE.CREAM, PALETTE.WOOD);
     // Geniş vitrin camı açıklıkları
-    for (let x = B4X - 4; x <= B4X - 1; x += 0.5) {
-      for (let y = 1.0; y <= 3.0; y += 0.5) {
+    for (let x = B4X - 4; x <= B4X - 1; x += S) {
+      for (let y = 1.0; y <= 3.0; y += S) {
         boxV(x, y, B4Z - 6, x, y, B4Z - 6, PALETTE.GLASS);
       }
     }
     // Kapı
-    for (let x = B4X + 1.5; x <= B4X + 3.0; x += 0.5) {
-      for (let y = 0.5; y <= 3.0; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B4Z - 6) / 0.5)}`);
-      }
-    }
+    clearBoxV(B4X + 1.5, 0.5, B4Z - 6.5, B4X + 3.0, 3.0, B4Z - 5.5);
     // Kırmızı-Beyaz tenteli ön gölgelik
-    for (let x = B4X - 5; x <= B4X + 5; x += 0.5) {
+    for (let x = B4X - 5; x <= B4X + 5; x += S) {
       const isRed = Math.floor(x * 2) % 2 === 0;
       boxV(x, 3.5, B4Z - 7.5, x, 3.7, B4Z - 6.0, isRed ? PALETTE.RED : PALETTE.WHITE);
     }
@@ -4581,11 +4585,7 @@ export class LevelManager {
     const B5X = CX - 40, B5Z = CZ - 20;
     hollowBoxV(B5X - 5, 0.5, B5Z - 5, B5X + 5, 4.2, B5Z + 5, PALETTE.DGREEN, PALETTE.WOOD, PALETTE.ROOF);
     // Kapı
-    for (let x = B5X - 1.0; x <= B5X + 1.0; x += 0.5) {
-      for (let y = 0.5; y <= 2.5; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B5Z + 5) / 0.5)}`);
-      }
-    }
+    clearBoxV(B5X - 1.0, 0.5, B5Z + 4.5, B5X + 1.0, 2.5, B5Z + 5.5);
     // Taş Baca (Dış duvardan çatıya uzanır)
     boxV(B5X + 4.5, 0.5, B5Z - 2, B5X + 5.5, 6.5, B5Z, PALETTE.STONE);
     addVoxelCubeLamp(B5X, 3.2, B5Z, 0.8);
@@ -4594,8 +4594,8 @@ export class LevelManager {
     const B6X = CX + 40, B6Z = CZ - 20;
     hollowBoxV(B6X - 5, 0.5, B6Z - 5, B6X + 5, 4.5, B6Z + 5, PALETTE.WHITE, PALETTE.CONCRETE, PALETTE.SLATE);
     // Ön cephe komple cam
-    for (let x = B6X - 3.5; x <= B6X + 3.5; x += 0.5) {
-      for (let y = 1.0; y <= 3.5; y += 0.5) {
+    for (let x = B6X - 3.5; x <= B6X + 3.5; x += S) {
+      for (let y = 1.0; y <= 3.5; y += S) {
         boxV(x, y, B6Z + 5, x, y, B6Z + 5, PALETTE.GLASS);
       }
     }
@@ -4607,11 +4607,7 @@ export class LevelManager {
     const B7X = CX - 20, B7Z = CZ - 40;
     hollowBoxV(B7X - 6, 0.5, B7Z - 5, B7X + 6, 4.5, B7Z + 5, PALETTE.ORANGE, PALETTE.CONCRETE, PALETTE.SLATE);
     // Çift kanat depo kapısı açıklığı
-    for (let x = B7X - 2.5; x <= B7X + 2.5; x += 0.5) {
-      for (let y = 0.5; y <= 3.2; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B7Z + 5) / 0.5)}`);
-      }
-    }
+    clearBoxV(B7X - 2.5, 0.5, B7Z + 4.5, B7X + 2.5, 3.2, B7Z + 5.5);
     // Ahşap kargo kasaları
     boxV(B7X + 3, 0.5, B7Z - 3, B7X + 4.5, 2.0, B7Z - 1.5, PALETTE.WOOD);
     boxV(B7X - 4.5, 0.5, B7Z - 3, B7X - 3, 1.8, B7Z - 1.5, PALETTE.WOOD);
@@ -4621,17 +4617,13 @@ export class LevelManager {
     const B8X = CX + 20, B8Z = CZ + 40;
     hollowBoxV(B8X - 5, 0.5, B8Z - 5, B8X + 5, 4.2, B8Z + 5, PALETTE.CACTUS_PURPLE, PALETTE.BEIGE, PALETTE.WOOD);
     // Vitrin penceresi
-    for (let x = B8X - 3.5; x <= B8X - 0.5; x += 0.5) {
-      for (let y = 1.2; y <= 2.8; y += 0.5) {
+    for (let x = B8X - 3.5; x <= B8X - 0.5; x += S) {
+      for (let y = 1.2; y <= 2.8; y += S) {
         boxV(x, y, B8Z - 5, x, y, B8Z - 5, PALETTE.GLASS);
       }
     }
     // Giriş kapısı
-    for (let x = B8X + 1.0; x <= B8X + 2.5; x += 0.5) {
-      for (let y = 0.5; y <= 2.8; y += 0.5) {
-        this.world.voxels.delete(`${Math.round(x / 0.5)},${Math.round((y - 0.25) / 0.5)},${Math.round((B8Z - 5) / 0.5)}`);
-      }
-    }
+    clearBoxV(B8X + 1.0, 0.5, B8Z - 5.5, B8X + 2.5, 2.8, B8Z - 4.5);
     addVoxelCubeLamp(B8X, 3.2, B8Z, 0.7);
 
     // ── BİNA 9: BETON & ÇELİK SU KULESİ / GÖZETLEME PLATFORMU ──
