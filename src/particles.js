@@ -9,6 +9,8 @@ const geoTrail = new THREE.BoxGeometry(0.22, 0.22, 0.22);
 const geoExplosionFire = new THREE.BoxGeometry(0.35, 0.35, 0.35);
 const geoExplosionSmoke = new THREE.BoxGeometry(0.6, 0.6, 0.6);
 const geoExplosionBlast = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+const geoShard = new THREE.BoxGeometry(0.07, 0.07, 0.07);
+const geoDustPuff = new THREE.BoxGeometry(0.14, 0.14, 0.14);
 
 const matDust = new THREE.MeshBasicMaterial({ color: 0x866043 });
 const matSpark1 = new THREE.MeshBasicMaterial({ color: 0xffe08a });
@@ -180,6 +182,90 @@ export class ParticleSystem {
         maxLife: 0.25,
         scaleSpeed: -2
       });
+    }
+  }
+
+  // Teardown Gerçekçi Voksel Kırılma ve Darbe Efekti:
+  // Çekiç veya mermi değdiğinde malzemeye özel hızlı kıymıklar, toz bulutu ve moloz saçılması!
+  createVoxelImpact(position, normal = null, matType = null, count = 8) {
+    if (this.particles.length > this.maxParticles) return;
+
+    const baseColor = matType?.color || 0xb08a68;
+    const isIron = matType?.isIron || matType?.id === 3;
+    const isWood = matType?.isWood || matType?.id === 2;
+    const isGlass = matType?.id === 4;
+
+    // 1. Malzemeye Özel Hızlı Kıymık / Parçacık Saçılması
+    const shardCount = Math.min(count, 10);
+    const n = normal ? normal.clone().normalize() : new THREE.Vector3(0, 1, 0);
+
+    for (let i = 0; i < shardCount; i++) {
+      // Renk tonu varyasyonu (biraz daha açık/koyu)
+      const colorJitter = isIron ? (Math.random() > 0.3 ? 0xffdf7a : 0xffffff) : baseColor;
+      const shardMat = new THREE.MeshBasicMaterial({ color: colorJitter });
+      const mesh = new THREE.Mesh(geoShard, shardMat);
+      mesh.position.set(
+        position.x + (Math.random() - 0.5) * 0.15,
+        position.y + (Math.random() - 0.5) * 0.15,
+        position.z + (Math.random() - 0.5) * 0.15
+      );
+
+      // Çarpma yönünden dışarıya doğru konik saçılma
+      const speed = isIron ? (4 + Math.random() * 7) : (3 + Math.random() * 5);
+      const spreadX = (Math.random() - 0.5) * 2.2;
+      const spreadY = (Math.random() - 0.5) * 2.2;
+      const spreadZ = (Math.random() - 0.5) * 2.2;
+      const vel = new THREE.Vector3(
+        n.x * speed + spreadX,
+        Math.max(1.5, n.y * speed + spreadY + 2.0),
+        n.z * speed + spreadZ
+      );
+
+      this.scene.add(mesh);
+      this.particles.push({
+        mesh,
+        velocity: vel,
+        gravity: -16,
+        rotSpeed: (Math.random() - 0.5) * 25,
+        life: 0.35 + Math.random() * 0.25,
+        maxLife: 0.6,
+        scaleSpeed: -0.7
+      });
+    }
+
+    // 2. Teardown Voksel Toz Bulutu (Darbe noktasında puf gibi açılan gerçekçi toz)
+    if (!isIron) {
+      const dustCount = Math.min(4, Math.ceil(count / 2));
+      const dustColor = isWood ? 0x9c7a52 : isGlass ? 0xd0f0ff : baseColor;
+      for (let i = 0; i < dustCount; i++) {
+        const dustMat = new THREE.MeshBasicMaterial({
+          color: dustColor,
+          transparent: true,
+          opacity: 0.70
+        });
+        const mesh = new THREE.Mesh(geoDustPuff, dustMat);
+        mesh.position.set(
+          position.x + (Math.random() - 0.5) * 0.2,
+          position.y + (Math.random() - 0.5) * 0.2,
+          position.z + (Math.random() - 0.5) * 0.2
+        );
+
+        this.scene.add(mesh);
+        this.particles.push({
+          mesh,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 1.5,
+            0.6 + Math.random() * 1.2,
+            (Math.random() - 0.5) * 1.5
+          ),
+          gravity: -0.8,
+          rotSpeed: (Math.random() - 0.5) * 4,
+          life: 0.45 + Math.random() * 0.3,
+          maxLife: 0.75,
+          growSpeed: 1.8,
+          fade: true
+        });
+      }
     }
   }
 

@@ -642,10 +642,18 @@ export class VoxelWorld {
     // 2. MADDE: DEMİR - Çekiçle kırılamaz, biri kırmaya çalışırsa sadece demir sesi çıksın!
     if (hitMaterial.isIron || hitMaterial.canBreakWithHammer === false) {
       sound.playIronHit();
+      if (this.particleSystem?.createVoxelImpact) {
+        this.particleSystem.createVoxelImpact(hitPoint, null, hitMaterial, 6);
+      }
       return { success: false, broken: false, material: hitMaterial, reason: 'iron' };
     }
 
     const hardness = MATERIAL_HARDNESS[hitMaterial.id] || 1.0;
+
+    // Gerçekçi Teardown Kırılma Tozu ve Kıymık Fışkırması
+    if (this.particleSystem?.createVoxelImpact) {
+      this.particleSystem.createVoxelImpact(hitPoint, null, hitMaterial, 8);
+    }
 
     // 1. MADDE: TAHTA (ve diğer kırılabilirler) - Çekiçle kırılabilir
     const maxBreak = Math.max(1, Math.round((5 * hammerPower * VOLUME_RATIO) / hardness));
@@ -729,6 +737,10 @@ export class VoxelWorld {
 
     const hitMaterial = candidates[0].v.type;
     let removedCount = 0;
+
+    if (this.particleSystem?.createVoxelImpact) {
+      this.particleSystem.createVoxelImpact(hitPoint, null, hitMaterial, 7);
+    }
 
     if (hitMaterial.isIron) {
       // Demir: tabanca biraz hasar verir — sadece 1-2 voxel kırar

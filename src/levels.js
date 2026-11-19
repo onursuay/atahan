@@ -4453,50 +4453,95 @@ export class LevelManager {
       }
     };
 
-    // Teardown Voxel Küp Lamba Ekleme Fonksiyonu (Gölge hesaplaması kapatılarak 60 FPS akıcılık sağlandı)
+    // ── GERÇEKÇİ GRİ TEARDOWN LAMBALARI ──
+    // İç Mekan / Tavan Lambası: Endüstriyel mat gri metal armatür ve sıcak amber ışık
     const addVoxelCubeLamp = (lx, ly, lz, rodLen = 1.0) => {
-      boxV(lx, ly + 0.5, lz, lx, ly + rodLen, lz, PALETTE.IRON);
-      boxV(lx, ly, lz, lx, ly + 0.5, lz, PALETTE.LAMP_ORANGE);
-      const light = new THREE.PointLight(0xff9e3d, 2.8, 12, 2);
-      light.position.set(lx, ly + 0.25, lz);
+      // Tavandan inen döküm gri çubuk
+      boxV(lx, ly + 0.5, lz, lx, ly + rodLen, lz, PALETTE.SLATE);
+      // Gri metal koruma başlığı ve yan kulakları
+      boxV(lx - 0.25, ly + 0.35, lz - 0.25, lx + 0.25, ly + 0.5, lz + 0.25, PALETTE.IRON);
+      // Sıcak akkor ışık yayan çekirdek küp
+      boxV(lx, ly, lz, lx, ly + 0.35, lz, PALETTE.LAMP_ORANGE);
+      const light = new THREE.PointLight(0xff9e3d, 3.2, 14, 2);
+      light.position.set(lx, ly + 0.2, lz);
       this.world.scene.add(light);
       this.world.decor.push(light);
-      this.world.lamps.push({ x: lx, y: ly + 0.25, z: lz, gy: ly + 0.25, light, color: 0xff9e3d });
+      this.world.lamps.push({ x: lx, y: ly + 0.2, z: lz, gy: ly + 0.2, light, color: 0xff9e3d });
     };
 
-    // Sokak Küp Lambaları (Kaldırım Kenarları)
-    const addStreetLamp = (sx, sz) => {
-      boxV(sx, 0.5, sz, sx, 3.5, sz, PALETTE.IRON); // Demir lamba direği
-      boxV(sx, 3.5, sz, sx + 0.5, 3.5, sz, PALETTE.IRON);
-      boxV(sx + 0.5, 3.0, sz, sx + 0.5, 3.5, sz, PALETTE.LAMP_ORANGE);
-      const light = new THREE.PointLight(0xffa244, 2.4, 10, 2);
-      light.position.set(sx + 0.5, 3.2, sz);
+    // Gerçekçi Gri Sokak Lambaları (Kaldırım Kenarları)
+    const addStreetLamp = (sx, sz, dirX = 1, dirZ = 0) => {
+      // 1. Sağlam döküm gri taban kaidesi
+      boxV(sx - 0.25, 0.5, sz - 0.25, sx + 0.25, 1.0, sz + 0.25, PALETTE.SLATE);
+      // 2. İnce döküm gri dikey direk
+      boxV(sx, 1.0, sz, sx, 4.25, sz, PALETTE.IRON);
+      // 3. Yola doğru uzanan kavisli gri dirsek ve armatür gövdesi
+      const armX = sx + dirX * 0.75;
+      const armZ = sz + dirZ * 0.75;
+      boxV(sx, 4.25, sz, armX, 4.5, armZ, PALETTE.SLATE);
+      // 4. Gri metal gölgelik şapka
+      boxV(armX - 0.25, 4.25, armZ - 0.25, armX + 0.25, 4.4, armZ + 0.25, PALETTE.IRON);
+      // 5. Yolu aydınlatan korumalı akkor lamba
+      boxV(armX, 3.75, armZ, armX, 4.2, armZ, PALETTE.LAMP_ORANGE);
+
+      const light = new THREE.PointLight(0xffa244, 3.0, 15, 2);
+      light.position.set(armX, 3.8, armZ);
       this.world.scene.add(light);
       this.world.decor.push(light);
-      this.world.lamps.push({ x: sx + 0.5, y: 3.2, z: sz, gy: 3.2, light, color: 0xffa244 });
+      this.world.lamps.push({ x: armX, y: 3.8, z: armZ, gy: 3.8, light, color: 0xffa244 });
     };
 
-    addStreetLamp(CX - 12, CZ - 6.5);
-    addStreetLamp(CX + 12, CZ - 6.5);
-    addStreetLamp(CX - 12, CZ + 6.5);
-    addStreetLamp(CX + 12, CZ + 6.5);
-    addStreetLamp(CX - 6.5, CZ - 25);
-    addStreetLamp(CX + 6.5, CZ - 25);
-    addStreetLamp(CX - 6.5, CZ + 25);
-    addStreetLamp(CX + 6.5, CZ + 25);
+    // Yol yönüne eğik gerçekçi gri sokak lambaları
+    addStreetLamp(CX - 12, CZ - 6.0, 0, 1);
+    addStreetLamp(CX + 12, CZ - 6.0, 0, 1);
+    addStreetLamp(CX - 12, CZ + 6.0, 0, -1);
+    addStreetLamp(CX + 12, CZ + 6.0, 0, -1);
+    addStreetLamp(CX - 6.0, CZ - 25, 1, 0);
+    addStreetLamp(CX + 6.0, CZ - 25, -1, 0);
+    addStreetLamp(CX - 6.0, CZ + 25, 1, 0);
+    addStreetLamp(CX + 6.0, CZ + 25, -1, 0);
 
-    // Voxel Ağaç Fonksiyonu
-    const makeTree = (tx, tz) => {
-      boxV(tx - 0.5, 0.5, tz - 0.5, tx + 0.5, 4.5, tz + 0.5, PALETTE.WOOD);
-      boxV(tx - 2.0, 3.5, tz - 2.0, tx + 2.0, 5.5, tz + 2.0, PALETTE.DGREEN);
-      boxV(tx - 1.5, 5.5, tz - 1.5, tx + 1.5, 6.5, tz + 1.5, PALETTE.DGREEN);
+    // ── GERÇEKÇİ VE DETAYLI TEARDOWN AĞAÇLARI ──
+    // Kökleri toprağa basan, dalları çatallanan ve çok tonlu hacimli yaprak öbekleri olan ağaçlar
+    const makeDetailedTree = (tx, tz, type = 'oak') => {
+      // 1. Yere yayılan kök ayakları
+      boxV(tx - 0.5, 0.5, tz - 0.25, tx + 0.5, 0.8, tz + 0.25, PALETTE.WOOD);
+      boxV(tx - 0.25, 0.5, tz - 0.5, tx + 0.25, 0.8, tz + 0.5, PALETTE.WOOD);
+      // 2. Ana kütük gövde
+      boxV(tx - 0.25, 0.8, tz - 0.25, tx + 0.25, 4.0, tz + 0.25, PALETTE.WOOD);
+
+      if (type === 'oak') {
+        // Geniş Meşe Ağacı: Çatallanan dallar
+        boxV(tx - 0.75, 3.2, tz - 0.25, tx - 0.25, 4.0, tz + 0.25, PALETTE.WOOD);
+        boxV(tx + 0.25, 3.0, tz - 0.25, tx + 0.75, 3.8, tz + 0.25, PALETTE.WOOD);
+        boxV(tx - 0.25, 3.5, tz + 0.25, tx + 0.25, 4.2, tz + 0.75, PALETTE.WOOD);
+
+        // Katman 1: Alt hacimli yaprak öbeği (Koyu yeşil & zümrüt)
+        boxV(tx - 2.0, 3.5, tz - 2.0, tx + 2.0, 5.0, tz + 2.0, PALETTE.DGREEN);
+        // Katman 2: Orta canlı yaprak öbeği (Orman yeşili)
+        boxV(tx - 2.5, 4.5, tz - 2.5, tx + 2.5, 6.0, tz + 2.5, PALETTE.GRASS);
+        // Katman 3: Tepe kubbe yaprakları ve açık yeşil filizler
+        boxV(tx - 1.8, 6.0, tz - 1.8, tx + 1.8, 7.0, tz + 1.8, PALETTE.GRASS);
+        boxV(tx - 1.0, 7.0, tz - 1.0, tx + 1.0, 7.8, tz + 1.0, PALETTE.CACTUS_GREEN);
+      } else {
+        // İğne Yapraklı / Dağ Çamı (Piramit Katmanlı)
+        boxV(tx - 0.25, 3.5, tz - 0.25, tx + 0.25, 5.5, tz + 0.25, PALETTE.WOOD);
+        boxV(tx - 2.2, 3.0, tz - 2.2, tx + 2.2, 4.2, tz + 2.2, PALETTE.DGREEN);
+        boxV(tx - 1.8, 4.2, tz - 1.8, tx + 1.8, 5.4, tz + 1.8, PALETTE.DGREEN);
+        boxV(tx - 1.2, 5.4, tz - 1.2, tx + 1.2, 6.6, tz + 1.2, PALETTE.GRASS);
+        boxV(tx - 0.6, 6.6, tz - 0.6, tx + 0.6, 7.8, tz + 0.6, PALETTE.CACTUS_GREEN);
+      }
     };
-    makeTree(CX - 10, CZ - 12);
-    makeTree(CX + 10, CZ - 12);
-    makeTree(CX - 32, CZ + 8);
-    makeTree(CX + 32, CZ + 8);
-    makeTree(CX - 8, CZ + 32);
-    makeTree(CX + 8, CZ + 32);
+
+    // Kasabaya zengin detaylı meşe ve çam ağaçları serpiştir
+    makeDetailedTree(CX - 10, CZ - 12, 'oak');
+    makeDetailedTree(CX + 10, CZ - 12, 'pine');
+    makeDetailedTree(CX - 32, CZ + 8, 'pine');
+    makeDetailedTree(CX + 32, CZ + 8, 'oak');
+    makeDetailedTree(CX - 8, CZ + 32, 'oak');
+    makeDetailedTree(CX + 8, CZ + 32, 'pine');
+    makeDetailedTree(CX - 34, CZ - 34, 'pine');
+    makeDetailedTree(CX + 34, CZ - 34, 'oak');
 
     // Küp Silme ve Boşluk Açma Fonksiyonları
     const removeV = (x, y, z) => {

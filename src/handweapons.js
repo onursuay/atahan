@@ -97,14 +97,18 @@ export class HandWeapons {
     // ── Silah modeli sahnesi (ana sahneden ayrı çizilir) ──
     this.viewScene = new THREE.Scene();
     this.viewCam = new THREE.PerspectiveCamera(60, camera.aspect, 0.01, 20);
-    this.viewAmbient = new THREE.AmbientLight(0xffffff, 0.9);
+    this.viewAmbient = new THREE.AmbientLight(0xffffff, 0.95);
     this.viewScene.add(this.viewAmbient);
-    this.viewDirLight = new THREE.DirectionalLight(0xffffff, 1.1);
-    this.viewDirLight.position.set(0.5, 1.5, 1.0);
+    this.viewDirLight = new THREE.DirectionalLight(0xffffff, 1.3);
+    this.viewDirLight.position.set(0.6, 1.8, 1.2);
     this.viewScene.add(this.viewDirLight);
-    this.viewFillLight = new THREE.DirectionalLight(0x93c5fd, 0.5);
-    this.viewFillLight.position.set(-1, -0.5, 0.5);
+    this.viewFillLight = new THREE.DirectionalLight(0x93c5fd, 0.6);
+    this.viewFillLight.position.set(-1.2, -0.6, 0.6);
     this.viewScene.add(this.viewFillLight);
+    // Arkadan ve yukarıdan vuran metalik hat ışığı (Rim-light & Teardown Specular Yansıması)
+    const rimLight = new THREE.DirectionalLight(0xe0f2fe, 0.7);
+    rimLight.position.set(0.2, 0.8, -1.5);
+    this.viewScene.add(rimLight);
 
     // Gerçek Fiziksel Oda Işığı: Evdeki turuncu küp lambaların silaha vuran dinamik ışığı ve yansıması
     this.weaponRoomLight = new THREE.PointLight(0xff9e3d, 0, 8);
@@ -144,22 +148,33 @@ export class HandWeapons {
   // ───────────────────────── Modeller ─────────────────────────
   _buildRocket() {
     const g = new THREE.Group();
-    const olive = pbrMat(0x4b5a3e, 0.42, 0.18);
-    const dark = pbrMat(0x22272e, 0.38, 0.25);
-    const red = pbrMat(0xdc2626, 0.32, 0.20);
+    const olive = pbrMat(0x44533a, 0.38, 0.25);
+    const dark = pbrMat(0x1e242c, 0.32, 0.40);
+    const steel = pbrMat(0x606b78, 0.22, 0.60);
+    const red = pbrMat(0xc52222, 0.28, 0.25);
+    const B = (w, h, d, m, x, y, z) => { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mesh.position.set(x, y, z); return mesh; };
 
-    const tube = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.17, 0.95), olive);
-    const ring1 = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.21, 0.07), dark);
-    ring1.position.z = -0.45;
-    const ring2 = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.21, 0.07), dark);
-    ring2.position.z = 0.1;
-    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.16), red);
-    nose.position.z = -0.55;
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.2, 0.1), dark);
-    grip.position.set(0, -0.17, 0.05);
-    const sight = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, 0.12), dark);
-    sight.position.set(0, 0.12, -0.1);
-    g.add(tube, ring1, ring2, nose, grip, sight);
+    // Ana atış borusu
+    g.add(B(0.18, 0.18, 0.96, olive, 0, 0, 0));
+    // Namlu ağzı ve arka çıkış takviye bilezikleri
+    g.add(B(0.22, 0.22, 0.08, dark, 0, 0, -0.46));
+    g.add(B(0.21, 0.21, 0.08, dark, 0, 0, 0.12));
+    g.add(B(0.22, 0.22, 0.08, steel, 0, 0, 0.46));
+    // Roket başlığı ucu (fırlatılmaya hazır füze)
+    g.add(B(0.13, 0.13, 0.18, red, 0, 0, -0.58));
+    g.add(B(0.06, 0.06, 0.10, steel, 0, 0, -0.70));
+    // Ergonomik kabza ve tetik
+    g.add(B(0.07, 0.22, 0.10, dark, 0, -0.18, 0.04));
+    g.add(B(0.03, 0.08, 0.03, steel, 0, -0.13, -0.02)); // Tetik
+    g.add(B(0.05, 0.02, 0.08, dark, 0, -0.20, -0.01)); // Tetik korkuluğu
+    // Ön destek tutamağı
+    g.add(B(0.06, 0.18, 0.08, dark, 0, -0.16, -0.32));
+    // Optik nişangah kutusu ve mercek
+    g.add(B(0.08, 0.09, 0.16, dark, 0.07, 0.13, -0.12));
+    g.add(B(0.06, 0.06, 0.04, steel, 0.07, 0.13, -0.21));
+    // Omuz dayanağı pedi
+    g.add(B(0.08, 0.12, 0.24, dark, 0, -0.12, 0.28));
+
     g.position.set(0.3, -0.26, -0.62);
     g.rotation.y = 0.05;
     this.rocketModel = g;
@@ -169,41 +184,47 @@ export class HandWeapons {
   // Tek minigun modeli: { g, barrels, flash }
   _makeMinigun() {
     const g = new THREE.Group();
-    const steel = pbrMat(0x525c6c, 0.30, 0.45);
-    const dark = pbrMat(0x242a35, 0.40, 0.25);
-    const brass = pbrMat(0xc49b38, 0.25, 0.60);
+    const steel = pbrMat(0x626d7c, 0.22, 0.65);
+    const dark = pbrMat(0x1c2128, 0.34, 0.38);
+    const brass = pbrMat(0xd4a536, 0.18, 0.75);
+    const B = (w, h, d, m, x, y, z) => { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mesh.position.set(x, y, z); return mesh; };
 
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.5), dark);
-    body.position.z = 0.05;
-    const handle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.24, 0.09), steel);
-    handle.position.set(0, -0.2, 0.15);
-    const ammo = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.2, 0.28), brass);
-    ammo.position.set(-0.19, -0.04, 0.1);
-    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.04), brass);
-    belt.position.set(-0.09, 0.0, 0.05);
+    // Ağır gövde ve motor bloğu
+    g.add(B(0.24, 0.26, 0.52, dark, 0, 0, 0.05));
+    // Üst taşıma kolu
+    g.add(B(0.06, 0.12, 0.28, steel, 0, 0.18, 0.02));
+    g.add(B(0.08, 0.05, 0.20, dark, 0, 0.24, 0.02));
+    // Arka tetik kabzası
+    g.add(B(0.08, 0.25, 0.10, steel, 0, -0.20, 0.16));
+    // Mermi besleme tamburu ve parlak pirinç kovan şeridi
+    g.add(B(0.18, 0.22, 0.30, brass, -0.20, -0.04, 0.10));
+    g.add(B(0.22, 0.05, 0.06, brass, -0.09, 0.0, 0.05));
 
-    // Dönen 6 namlu
+    // Dönen 6 çelik namlu tertibatı
     const barrels = new THREE.Group();
     barrels.position.z = -0.52;
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.045, 0.78), steel);
-      b.position.set(Math.cos(a) * 0.075, Math.sin(a) * 0.075, 0);
+      const bx = Math.cos(a) * 0.08;
+      const by = Math.sin(a) * 0.08;
+      const b = B(0.042, 0.042, 0.82, steel, bx, by, 0);
       barrels.add(b);
     }
-    const shroud = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.07), dark);
-    shroud.position.z = -0.28;
-    const muzzleRing = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.05), dark);
-    muzzleRing.position.z = -0.9;
+    // Namluları birbirine kilitleyen dairesel 3 çelik kılavuz disk
+    barrels.add(B(0.21, 0.21, 0.04, dark, 0, 0, -0.25));
+    barrels.add(B(0.21, 0.21, 0.04, dark, 0, 0, 0.05));
+    barrels.add(B(0.22, 0.22, 0.05, steel, 0, 0, -0.38)); // Namlu ucu bileziği
 
+    // Soğutma kalkanı
+    const shroud = B(0.26, 0.26, 0.08, dark, 0, 0, -0.28);
     const flash = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.2, 0.08),
-      new THREE.MeshBasicMaterial({ color: 0xffd45a })
+      new THREE.BoxGeometry(0.22, 0.22, 0.09),
+      new THREE.MeshBasicMaterial({ color: 0xffe066 })
     );
-    flash.position.z = -0.97;
+    flash.position.z = -0.98;
     flash.visible = false;
 
-    g.add(body, handle, ammo, belt, barrels, shroud, muzzleRing, flash);
+    g.add(barrels, shroud, flash);
     g.position.set(0.28, -0.3, -0.7);
     this.root.add(g);
     return { g, barrels, flash };
@@ -296,15 +317,116 @@ export class HandWeapons {
   }
 
   _buildGuns() {
-    const dark = pbrMat(0x242a35, 0.40, 0.25), steel = pbrMat(0x556070, 0.30, 0.45);
-    const wood = pbrMat(0x824e23, 0.52, 0.05), black = pbrMat(0x15181f, 0.40, 0.25);
+    const steel = pbrMat(0x657080, 0.22, 0.65);
+    const dark = pbrMat(0x1c2128, 0.35, 0.35);
+    const blackPoly = pbrMat(0x12151a, 0.45, 0.20);
+    const walnut = pbrMat(0x864c22, 0.48, 0.04);
+    const gold = pbrMat(0xd4af37, 0.20, 0.75);
+    const scopeGlass = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.05, metalness: 0.90, emissive: 0x172554, emissiveIntensity: 0.4 });
     const B = (w, h, d, m, x, y, z) => { const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); mesh.position.set(x, y, z); return mesh; };
     const mk = (parts, pos) => { const g = new THREE.Group(); parts.forEach(p => g.add(p)); g.position.set(...pos); g.visible = false; this.root.add(g); return g; };
+
     this.gunModels = {
-      5: mk([B(0.07, 0.1, 0.34, steel, 0, 0.05, -0.1), B(0.065, 0.2, 0.09, dark, 0, -0.1, 0.05), B(0.05, 0.05, 0.05, black, 0, 0.1, -0.25)], [0.26, -0.22, -0.5]),
-      6: mk([B(0.07, 0.07, 1.05, steel, 0, 0.05, -0.35), B(0.09, 0.1, 0.18, wood, 0, 0.0, -0.1), B(0.08, 0.14, 0.45, wood, 0, -0.04, 0.3), B(0.06, 0.06, 0.45, dark, 0, -0.04, -0.35)], [0.26, -0.24, -0.55]),
-      7: mk([B(0.08, 0.12, 0.55, dark, 0, 0.0, -0.1), B(0.045, 0.045, 0.5, steel, 0, 0.02, -0.55), B(0.07, 0.2, 0.1, black, 0, -0.14, -0.05), B(0.08, 0.13, 0.4, wood, 0, -0.02, 0.35), B(0.06, 0.1, 0.25, wood, 0, 0.0, -0.4)], [0.25, -0.24, -0.5]),
-      8: mk([B(0.07, 0.1, 0.7, dark, 0, 0.0, -0.05), B(0.045, 0.045, 0.85, steel, 0, 0.02, -0.75), B(0.06, 0.11, 0.3, wood, 0, -0.04, 0.4), B(0.07, 0.07, 0.34, black, 0, 0.12, -0.1), B(0.09, 0.09, 0.06, steel, 0, 0.12, -0.3), B(0.09, 0.09, 0.06, steel, 0, 0.12, 0.1)], [0.25, -0.24, -0.5])
+      // 5: PİSTOL / TABANCA (Çelik sürgü, kovan atma penceresi, gez/arpacık, tetik korkuluğu, dokulu kabza)
+      5: mk([
+        // Çelik sürgü (Slide)
+        B(0.065, 0.08, 0.36, steel, 0, 0.06, -0.08),
+        // Sürgü kavrama tırtıkları (Serrations)
+        B(0.068, 0.075, 0.09, dark, 0, 0.06, 0.05),
+        // Namlu ucu
+        B(0.05, 0.05, 0.08, dark, 0, 0.055, -0.26),
+        // Kovan atma penceresi (Ejection port)
+        B(0.045, 0.035, 0.08, dark, 0.02, 0.075, -0.06),
+        // Arpacık ve Gez nişangahları
+        B(0.015, 0.025, 0.02, dark, 0, 0.11, -0.23),
+        B(0.035, 0.025, 0.02, dark, 0, 0.11, 0.08),
+        // Alt çerçeve ve tetik korkuluğu
+        B(0.06, 0.06, 0.26, dark, 0, -0.01, -0.04),
+        B(0.035, 0.08, 0.10, dark, 0, -0.07, -0.02), // Korkuluk
+        B(0.018, 0.05, 0.02, steel, 0, -0.06, -0.01), // Tetik
+        // Ergonomik polimer kabza ve şarjör taban pedi
+        B(0.062, 0.20, 0.10, blackPoly, 0, -0.14, 0.06),
+        B(0.066, 0.03, 0.11, dark, 0, -0.24, 0.07)
+      ], [0.26, -0.22, -0.5]),
+
+      // 6: POMPALI TÜFEK / SHOTGUN (Çift namlu/şarjör tüpü, ahşap kurma kolu, ahşap kundak, tetik grubu)
+      6: mk([
+        // Üst ateşleme namlusu
+        B(0.055, 0.055, 1.10, steel, 0, 0.06, -0.38),
+        // Alt mermi besleme tüpü
+        B(0.05, 0.05, 0.85, dark, 0, 0.01, -0.30),
+        // Namlu ucu bağlama kelepçesi
+        B(0.06, 0.11, 0.04, steel, 0, 0.035, -0.72),
+        // Arpacık boncuğu
+        B(0.015, 0.02, 0.02, gold, 0, 0.095, -0.90),
+        // Tırtıklı ahşap pompalı kurma kolu (Pump action grip)
+        B(0.085, 0.085, 0.28, walnut, 0, 0.01, -0.36),
+        // Çelik gövde (Receiver)
+        B(0.075, 0.13, 0.38, dark, 0, 0.02, 0.02),
+        // Kovan fırlatma boşluğu
+        B(0.04, 0.05, 0.12, steel, 0.03, 0.04, -0.02),
+        // Tetik tertibatı
+        B(0.04, 0.08, 0.10, dark, 0, -0.07, 0.08),
+        B(0.018, 0.04, 0.02, steel, 0, -0.06, 0.08),
+        // Oymalı ceviz ahşap dipçik ve kauçuk dipçik pedi
+        B(0.07, 0.15, 0.48, walnut, 0, -0.06, 0.38),
+        B(0.075, 0.16, 0.04, blackPoly, 0, -0.06, 0.62)
+      ], [0.26, -0.24, -0.55]),
+
+      // 7: AK-47 SALDIRI TÜFEĞİ (Kavisli şarjör, ahşap dipçik/el kundağı, gaz tüpü, alev gizleyen)
+      7: mk([
+        // Çelik alıcı gövde (Receiver)
+        B(0.075, 0.12, 0.52, dark, 0, 0.01, -0.05),
+        // Üst gövde toz kapağı (Dust cover)
+        B(0.068, 0.04, 0.40, steel, 0, 0.08, -0.02),
+        // Uzun çelik namlu
+        B(0.04, 0.04, 0.65, steel, 0, 0.04, -0.58),
+        // Namlu ucu alev gizleyen (Muzzle brake)
+        B(0.048, 0.048, 0.08, dark, 0, 0.04, -0.90),
+        // Üst gaz bloğu ve gaz borusu
+        B(0.042, 0.042, 0.35, steel, 0, 0.08, -0.44),
+        // Ön arpacık kulesi
+        B(0.025, 0.08, 0.04, dark, 0, 0.08, -0.84),
+        // Ahşap el kundağı (Üst ve alt koruma)
+        B(0.075, 0.09, 0.32, walnut, 0, 0.045, -0.42),
+        // Kavisli 30 mermilik çelik şarjör (Curved banana magazine)
+        B(0.065, 0.24, 0.14, steel, 0, -0.16, -0.10),
+        B(0.063, 0.08, 0.08, dark, 0, -0.26, -0.06),
+        // Eğimli polimer tabanca kabzası
+        B(0.06, 0.18, 0.09, blackPoly, 0, -0.14, 0.08),
+        // Tetik grubu
+        B(0.03, 0.06, 0.07, dark, 0, -0.07, 0.02),
+        B(0.015, 0.04, 0.02, steel, 0, -0.06, 0.03),
+        // Klasik Rus ahşap dipçiği
+        B(0.07, 0.14, 0.42, walnut, 0, -0.03, 0.38)
+      ], [0.25, -0.24, -0.5]),
+
+      // 8: SNIPER KESKİN NİŞANCI TÜFEĞİ (Yivli namlu, optik dürbün & mercek parıltısı, yanak dayamalı kundak)
+      8: mk([
+        // Ağır çelik gövde (Receiver)
+        B(0.075, 0.11, 0.62, dark, 0, 0.01, -0.02),
+        // Ekstra uzun serbest salınımlı namlu
+        B(0.042, 0.042, 0.95, steel, 0, 0.03, -0.78),
+        // Taktik namlu ucu freni (Muzzle brake)
+        B(0.055, 0.055, 0.12, dark, 0, 0.03, -1.24),
+        // Yüksek ayaklı profesyonel optik dürbün gövdesi
+        B(0.065, 0.065, 0.48, dark, 0, 0.14, -0.12),
+        // Dürbün montaj ayakları
+        B(0.03, 0.06, 0.04, steel, 0, 0.09, -0.28),
+        B(0.03, 0.06, 0.04, steel, 0, 0.09, 0.04),
+        // Dürbün ön ve arka mercekleri (Mavi/mor yansımalı optik cam)
+        B(0.068, 0.068, 0.02, scopeGlass, 0, 0.14, -0.36),
+        B(0.06, 0.06, 0.02, scopeGlass, 0, 0.14, 0.12),
+        // Dürbün ayar taretleri (Windage & Elevation knobs)
+        B(0.095, 0.035, 0.035, steel, 0, 0.14, -0.12),
+        B(0.035, 0.095, 0.035, steel, 0, 0.14, -0.12),
+        // Kurma kolu (Bolt handle)
+        B(0.12, 0.03, 0.03, steel, 0.06, 0.05, 0.02),
+        // Yanak dayamalı ceviz ahşap / taktik dipçik
+        B(0.065, 0.14, 0.38, walnut, 0, -0.05, 0.42),
+        B(0.07, 0.06, 0.22, dark, 0, 0.04, 0.38), // Yanak yastığı
+        B(0.07, 0.15, 0.04, blackPoly, 0, -0.05, 0.61) // Kauçuk dipçik pedi
+      ], [0.25, -0.24, -0.5])
     };
   }
 
@@ -401,19 +523,19 @@ export class HandWeapons {
       }
 
       const dist = Math.sqrt(nearestDistSq);
-      // Oyuncu lambaya yaklaşık 4-6 küp (2.0m - 3.5m) mesafeye geldiğinde gerçekçi yansıma aktifleşir
-      const maxProximity = 3.5;
+      // Oyuncu lambaların veya sokak aydınlatmalarının menziline (8.5 - 10 m) girdiğinde silah aydınlanmaya başlar, altından geçerken parlar
+      const maxProximity = 9.5;
       if (dist < maxProximity) {
         const factor = Math.max(0, 1 - dist / maxProximity);
-        // Yaklaştıkça daha yoğun sıcak akkor ışıltı
-        const lampIntensity = factor * factor * 3.2;
+        // Doğal yumuşak kavis: menzile girince hafif başlar, altından geçerken belirgin parlama verir
+        const lampIntensity = Math.pow(factor, 1.6) * 3.4;
         this.weaponRoomLight.color.setHex(nearestColor);
         this.weaponRoomLight.intensity = THREE.MathUtils.lerp(this.weaponRoomLight.intensity, lampIntensity, Math.min(1, dt * 10));
 
-        // Ortam ışığı da evin sıcak turuncu ışığıyla karışarak silahın gölgedeki rengini canlandırır
-        const targetColor = new THREE.Color(0xffffff).lerp(new THREE.Color(nearestColor), factor * 0.75);
+        // Ortam ışığı da sokak ve oda ışığıyla harmanlanarak silahın metal gövdesini ve namlusunu canlandırır
+        const targetColor = new THREE.Color(0xffffff).lerp(new THREE.Color(nearestColor), factor * 0.70);
         this.viewAmbient.color.lerp(targetColor, Math.min(1, dt * 8));
-        this.viewAmbient.intensity = THREE.MathUtils.lerp(this.viewAmbient.intensity, 0.9 + factor * 0.55, Math.min(1, dt * 8));
+        this.viewAmbient.intensity = THREE.MathUtils.lerp(this.viewAmbient.intensity, 0.95 + factor * 0.65, Math.min(1, dt * 8));
       } else {
         this.weaponRoomLight.intensity = THREE.MathUtils.lerp(this.weaponRoomLight.intensity, 0, Math.min(1, dt * 6));
         this.viewAmbient.color.lerp(new THREE.Color(0xffffff), Math.min(1, dt * 6));
