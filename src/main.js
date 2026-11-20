@@ -28,9 +28,9 @@ let scene, camera, renderer;
 let physicsWorld;
 let inCar = false, scopeOn = false, targetFov = 70;
 let cars, hp = 100, lastHitT = 0, invulnUntil = 0;
-let waterMesh = null;
+let waterMesh = null, fakeOceanMesh = null;
 let planes, bombs, npcs, handWeapons, character, weaponSystem, levelManager, particleSystem, voxelWorld;
-let props, mapSystem, metro, seaLife, busManager, storyManager;
+let props, mapSystem, seaLife, storyManager;
 
 let currentScore = 0;
 let isLevelCompleted = false;
@@ -246,8 +246,6 @@ function init() {
   npcs = new NPCManager(scene, voxelWorld, particleSystem, (points, text) => addScore(points, text));
   voxelWorld.npcs = npcs;
   handWeapons.npcs = npcs;
-  metro = new MetroSystem(scene, voxelWorld, (s) => { screenShake = Math.max(screenShake, s); });
-  voxelWorld.metro = metro;
 
   levelManager = new LevelManager(voxelWorld);
 
@@ -263,7 +261,6 @@ function init() {
   try { buildLevelSelectButtons(); } catch (e) { console.warn(e); }
   try { mapSystem = new MapSystem(); } catch (e) { console.warn(e); }
   try { seaLife = new SeaLife(scene, voxelWorld); } catch (e) { console.warn(e); }
-  try { busManager = new BusManager(scene, voxelWorld, character); } catch (e) { console.warn(e); }
   try {
     storyManager = new StoryManager(scene, voxelWorld, character, camera, weaponSystem, handWeapons);
     character.storyManager = storyManager;
@@ -306,14 +303,14 @@ function init() {
 function createWorldArena() {
   // Zemin artık voxelWorld.terrain tarafından kurulur (yollar, kumsal, iskele kaplama + fizik kutuları)
 
-  // ── Okyanus Suyu Düzlemi (Kullanıcı İsteği: Okyanus küçültüldü, görünmez duvardan sonrası su olmasın) ──
-  // Görünmez duvar sınırlarına tam oturan (1360m x 1110m) optimize su düzlemi; duvardan sonra su çizilmez, FPS yükselir.
-  const waterW = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX; // 1360 m
-  const waterD = WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ; // 1110 m
-  const waterCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2; // -20 m
-  const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2; // -75 m
+  // ── Okyanus Suyu Düzlemi (Kullanıcı İsteği: Görünmez duvara kadar sıkılaştırıldı) ──
+  const waterW = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX;
+  const waterD = WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ;
+  const waterCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2;
+  const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2;
 
-  waterGeo = new THREE.PlaneGeometry(waterW, waterD, 24, 24);
+  // Gerçek interaktif su (sadece görünmez duvar içi)
+  waterGeo = new THREE.PlaneGeometry(waterW, waterD, 16, 16);
   waterMat = new THREE.MeshStandardMaterial({
     color: 0x0284c7,
     roughness: 0.12,
@@ -324,8 +321,19 @@ function createWorldArena() {
   waterMesh = new THREE.Mesh(waterGeo, waterMat);
   waterMesh.rotation.x = -Math.PI / 2;
   waterMesh.position.set(waterCX, -0.15, waterCZ);
-  waterMesh.receiveShadow = false; // Dev okyanus yüzeyinde ağır gölge fragment hesaplamasını kapat (GPU tasarrufu)
+  waterMesh.receiveShadow = false;
   scene.add(waterMesh);
+
+  // Sahte Ufuk Okyanus Görseli (Görünmez duvarın ardında 0 GPU yüküyle sonsuz deniz illüzyonu)
+  const fakeOceanGeo = new THREE.PlaneGeometry(3200, 3200, 1, 1);
+  const fakeOceanMat = new THREE.MeshBasicMaterial({
+    color: 0x0369a1,
+    fog: true
+  });
+  fakeOceanMesh = new THREE.Mesh(fakeOceanGeo, fakeOceanMat);
+  fakeOceanMesh.rotation.x = -Math.PI / 2;
+  fakeOceanMesh.position.set(waterCX, -0.35, waterCZ);
+  scene.add(fakeOceanMesh);
 
   // Yüzen Voxel Bulutlar (Dünya sınırları içinde hafif süzülüş)
   const cloudMat = new THREE.MeshBasicMaterial({
@@ -505,8 +513,6 @@ function updateGame(dt) {
   planes.update(dt);
   cars.update(dt, character.mesh.position);
   if (seaLife) seaLife.update(dt, character ? character.mesh.position : null);
-  if (metro && !introWaiting) metro.update(dt, character);
-  if (busManager && !introWaiting) busManager.update(dt, character, inputState);
   if (storyManager) {
     storyManager.update(dt, character.mesh.position);
     const inCinematic = storyManager.currentPhase !== STORY_PHASES.NONE &&
@@ -845,8 +851,6 @@ function loadLevel(index) {
   try { handWeapons.resetAmmo(); } catch(e){}
   try { props.clear(); } catch(e){}
   try { cars.clear(); } catch(e){}
-  try { if (busManager) busManager.clear(); } catch(e){}
-  try { if (metro) metro.clear(); } catch(e){}
   try { if (seaLife) seaLife.clear(); } catch(e){}
 
   // 2. Yeni Haritayı Voxel Dünyasına yükle (levelManager.loadLevel önceki haritayı voxelWorld.clear() ile bellekten ve fizikten siler)
@@ -874,11 +878,16 @@ function loadLevel(index) {
       const wCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2;
       const wCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2;
       if (waterMesh.geometry) waterMesh.geometry.dispose();
-      waterMesh.geometry = new THREE.PlaneGeometry(wW, wD, 24, 24);
+      waterMesh.geometry = new THREE.PlaneGeometry(wW, wD, 16, 16);
       waterGeo = waterMesh.geometry;
       waterMesh.position.set(wCX, cfg.water.y !== undefined ? cfg.water.y : -0.15, wCZ);
+      if (fakeOceanMesh) {
+        fakeOceanMesh.visible = true;
+        fakeOceanMesh.position.set(wCX, -0.35, wCZ);
+      }
     } else {
       waterMesh.visible = false;
+      if (fakeOceanMesh) fakeOceanMesh.visible = false;
     }
   }
 
@@ -903,14 +912,6 @@ function loadLevel(index) {
     try { cars.build(); } catch(e){ console.warn('Car build warn:', e); }
   } else {
     voxelWorld.traffic = null;
-  }
-
-  if (feat.metro) {
-    try { if (metro) metro.initWorld(); } catch(e){}
-  }
-
-  if (feat.bus) {
-    try { if (busManager) busManager.initWorld(); } catch(e){}
   }
 
   if (feat.seaLife) {

@@ -348,7 +348,7 @@ export class VoxelWorld {
       const mesh = new THREE.InstancedMesh(this.cubeGeo, this.materials[m.id], cap);
       mesh.count = 0;
       mesh.frustumCulled = false;
-      mesh.castShadow = true;
+      mesh.castShadow = false; // Gölge hesaplamasını sıfıra indirir
       mesh.receiveShadow = true;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       this.scene.add(mesh);
@@ -511,6 +511,8 @@ export class VoxelWorld {
     const minIz = Math.floor((blastPos.z - blastRadius) / VOXEL_SIZE);
     const maxIz = Math.ceil((blastPos.z + blastRadius) / VOXEL_SIZE);
 
+    const affectedMeshes = new Set();
+
     for (let ix = minIx; ix <= maxIx; ix++) {
       for (let iy = minIy; iy <= maxIy; iy++) {
         for (let iz = minIz; iz <= maxIz; iz++) {
@@ -531,23 +533,21 @@ export class VoxelWorld {
             if (v.instanceIdx !== -1) {
               const mesh = v.mesh;
               mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
-              mesh.instanceMatrix.needsUpdate = true;
+              affectedMeshes.add(mesh);
             }
 
             // TNT ise zincirleme patlama kuyruğuna ekle
             if (v.type.isTNT) {
               tntChainPositions.push(new THREE.Vector3(v.x, v.y, v.z));
             }
-
-            // Teardown Tarzı Uçuşan Minik Fizik Küpleri (Debris Spawning)
-            // Çeperdeki minik küpleri loose physics parçalarına çevir
-            const dist = Math.sqrt(distSq);
-            if (Math.random() > 0.65 && this.dynamicDebris.length < this.maxDynamicDebris) {
-              this.spawnLooseVoxel(v.x, v.y, v.z, v.type, blastPos, dist, blastRadius, force);
-            }
           }
         }
       }
+    }
+
+    // Toplu tek seferde GPU güncellemesi (stutter / anlık takılmayı sıfırlar)
+    for (const m of affectedMeshes) {
+      m.instanceMatrix.needsUpdate = true;
     }
 
 
@@ -657,6 +657,7 @@ export class VoxelWorld {
 
     // 1. MADDE: TAHTA (ve diğer kırılabilirler) - Çekiçle kırılabilir
     const maxBreak = Math.max(1, Math.round((5 * hammerPower * VOLUME_RATIO) / hardness));
+    const affectedHammerMeshes = new Set();
 
     for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
       const v = candidates[i].v;
@@ -666,13 +667,11 @@ export class VoxelWorld {
       if (v.instanceIdx !== -1) {
         const mesh = v.mesh;
         mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
-        mesh.instanceMatrix.needsUpdate = true;
+        affectedHammerMeshes.add(mesh);
       }
-
-      // Minik döküntü fırlat
-      if (this.dynamicDebris.length < this.maxDynamicDebris) {
-        this.spawnLooseVoxel(v.x, v.y, v.z, v.type, hitPoint, Math.sqrt(candidates[i].distSq), hitRadius, 25);
-      }
+    }
+    for (const m of affectedHammerMeshes) {
+      m.instanceMatrix.needsUpdate = true;
     }
 
 
@@ -893,55 +892,8 @@ export class VoxelWorld {
 
   // scale (isteğe bağlı): döküntü küpünün büyüklük çarpanı (1 = 0.25 m; araç parçaları için daha büyük)
   spawnLooseVoxel(x, y, z, matType, blastCenter, dist, blastRadius, blastForce, push = null, scale = 1) {
-    // Görsel Küp (Materyalleri önbellekten alarak GPU bellek sızıntısını ve shader takılmalarını engelle)
-    const mid = matType?.id ?? 0;
-    if (!this.debrisMaterials[mid]) {
-      this.debrisMaterials[mid] = new THREE.MeshStandardMaterial({
-        color: matType?.color ?? 0xcccccc,
-        roughness: matType?.isIron ? 0.3 : (matType?.id === 4 ? 0.1 : 0.75),
-        metalness: matType?.isIron ? 0.8 : 0.05
-      });
-    }
-    const mat = this.debrisMaterials[mid];
-    const mesh = new THREE.Mesh(this.debrisGeo, mat);
-    if (scale !== 1) mesh.scale.setScalar(scale);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = scale >= 1.4; // Yalnızca büyük parçalar gölge bıraksın; binlerce küçük küp gölge çizimini tıkamasın
-    this.scene.add(mesh);
-
-    // Fizik Gövdesi
-    const body = new CANNON.Body({
-      mass: 1.2 * scale,
-      shape: scale === 1 ? this.cubeShape : new CANNON.Box(new CANNON.Vec3(VOXEL_SIZE / 2 * scale, VOXEL_SIZE / 2 * scale, VOXEL_SIZE / 2 * scale)),
-      position: new CANNON.Vec3(x, y, z),
-      linearDamping: 0.15,
-      angularDamping: 0.2
-    });
-
-    // Patlama merkezinden dışarı doğru fırlama vektörü
-    const dir = new THREE.Vector3(x - blastCenter.x, y - blastCenter.y + 0.8, z - blastCenter.z).normalize();
-    const impulse = (blastForce / 12) * Math.max(0.2, 1 - dist / blastRadius);
-    body.velocity.set(
-      dir.x * impulse + (Math.random() - 0.5) * 4,
-      dir.y * impulse + Math.random() * 5,
-      dir.z * impulse + (Math.random() - 0.5) * 4
-    );
-    if (push) body.velocity.set(body.velocity.x + push.x * 0.7, body.velocity.y + push.y * 0.7, body.velocity.z + push.z * 0.7);
-    body.angularVelocity.set(
-      (Math.random() - 0.5) * 15,
-      (Math.random() - 0.5) * 15,
-      (Math.random() - 0.5) * 15
-    );
-
-    this.physicsWorld.addBody(body);
-
-    const debrisObj = {
-      mesh,
-      body,
-      life: 8.0 + Math.random() * 4.0 // 8-12 saniye sonra temizlenir
-    };
-
-    this.dynamicDebris.push(debrisObj);
+    // Fizik küpleri kullanıcı isteğiyle tamamen kaldırıldı (sıfır GPU/CPU yükü)
+    return;
   }
 
   // Yıkım Yüzdesi
@@ -963,7 +915,7 @@ export class VoxelWorld {
       this._cullTimer = 0;
       const camX = camPos.x, camZ = camPos.z;
       const maxDistSq = CHUNK_STREAM_DIST * CHUNK_STREAM_DIST;
-      const shadowDistSq = 45 * 45; // Odaklanmış gölge mesafesi (GPU yükünü %60 hafifletir)
+      const shadowDistSq = 35 * 35; // 35 metre odaklanmış dinamik gölge (kasmayı ve draw call yükünü tamamen engeller)
       for (let i = 0; i < this.chunkMeshes.length; i++) {
         const m = this.chunkMeshes[i];
         const u = m.userData;
