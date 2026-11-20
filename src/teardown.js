@@ -738,7 +738,10 @@ export class VoxelWorld {
     const hitMaterial = candidates[0].v.type;
     let removedCount = 0;
 
-    if (this.particleSystem?.createVoxelImpact) {
+    // Gerçekçi kurşun darbesi tozu (kaba küp kutuları yere saçılmaz)
+    if (this.particleSystem?.createBulletImpactDust) {
+      this.particleSystem.createBulletImpactDust(hitPoint, null, hitMaterial);
+    } else if (this.particleSystem?.createVoxelImpact) {
       this.particleSystem.createVoxelImpact(hitPoint, null, hitMaterial, 7);
     }
 
@@ -754,13 +757,10 @@ export class VoxelWorld {
           mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
           mesh.instanceMatrix.needsUpdate = true;
         }
-        if (this.dynamicDebris.length < this.maxDynamicDebris) {
-          this.spawnLooseVoxel(v.x, v.y, v.z, v.type, hitPoint, Math.sqrt(candidates[i].distSq), hitRadius, 20);
-        }
       }
       sound.playIronHit();
     } else {
-      // Tahta ve diğerleri: tabanca rahatça kırar
+      // Tahta, tuğla ve beton: kurşun temiz bir delik açar ve harç tozu tüter
       const hardness = MATERIAL_HARDNESS[hitMaterial.id] || 1.0;
       const maxBreak = Math.max(2, Math.round((12 * gunPower * VOLUME_RATIO) / hardness));
       for (let i = 0; i < Math.min(candidates.length, maxBreak); i++) {
@@ -771,9 +771,6 @@ export class VoxelWorld {
           const mesh = v.mesh;
           mesh.setMatrixAt(v.instanceIdx, dummy.matrix);
           mesh.instanceMatrix.needsUpdate = true;
-        }
-        if (this.dynamicDebris.length < this.maxDynamicDebris) {
-          this.spawnLooseVoxel(v.x, v.y, v.z, v.type, hitPoint, Math.sqrt(candidates[i].distSq), hitRadius, 35);
         }
       }
       if (hitMaterial.isWood) sound.playWoodHit();

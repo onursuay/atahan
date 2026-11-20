@@ -12,6 +12,9 @@ const geoExplosionBlast = new THREE.BoxGeometry(1.2, 1.2, 1.2);
 const geoShard = new THREE.BoxGeometry(0.07, 0.07, 0.07);
 const geoDustPuff = new THREE.BoxGeometry(0.14, 0.14, 0.14);
 const geoLeaf = new THREE.BoxGeometry(0.12, 0.02, 0.12); // Teardown tarzı minik yassı yaprak pikseli
+const geoMicroDust = new THREE.BoxGeometry(0.08, 0.08, 0.08);
+const geoDemolitionDust = new THREE.BoxGeometry(0.45, 0.45, 0.45);
+const geoShockwaveDust = new THREE.BoxGeometry(0.65, 0.25, 0.65);
 
 const leafColors = [
   0x22c55e, // taze yeşil
@@ -137,6 +140,142 @@ export class ParticleSystem {
       growSpeed: radius * 5,
       fade: true
     });
+  }
+
+  // ── GERÇEKÇİ KURŞUN & DARBE TOZU (Yere Kaba Kutu Düşürmez, Yumuşak Harç & Kireç Tozu) ──
+  createBulletImpactDust(position, normal = null, matType = null) {
+    if (this.particles.length > this.maxParticles) return;
+
+    const baseColor = matType?.color || 0xcccccc;
+    const isIron = matType?.isIron || matType?.id === 3;
+    const isWood = matType?.isWood || matType?.id === 2;
+    const isGlass = matType?.id === 4;
+    const isBrick = matType?.id === 1;
+
+    const n = normal ? normal.clone().normalize() : new THREE.Vector3(0, 1, 0);
+
+    if (isIron) {
+      // Demir: Keskin kıvılcım sıçramaları (kutu düşmez)
+      for (let i = 0; i < 7; i++) {
+        const mat = new THREE.MeshBasicMaterial({ color: Math.random() > 0.4 ? 0xffdf7a : 0xffffff });
+        const mesh = new THREE.Mesh(geoSpark, mat);
+        mesh.position.copy(position);
+        this.scene.add(mesh);
+        this.particles.push({
+          mesh,
+          velocity: new THREE.Vector3(
+            n.x * 5 + (Math.random() - 0.5) * 4,
+            Math.max(1.0, n.y * 5 + (Math.random() - 0.5) * 4),
+            n.z * 5 + (Math.random() - 0.5) * 4
+          ),
+          gravity: -18,
+          rotSpeed: (Math.random() - 0.5) * 20,
+          life: 0.18 + Math.random() * 0.15,
+          maxLife: 0.35,
+          scaleSpeed: -0.6
+        });
+      }
+      return;
+    }
+
+    // Beton, Tuğla, Ahşap ve Alçı: Yumuşak genişleyen toz pufu ve harç dumanı
+    const dustCount = isGlass ? 3 : 6;
+    let dustColor = 0xcfd8dc; // standart açık beton/harç tozu
+    if (isBrick) dustColor = 0xc87d65;      // tuğla kırmızısı kiremit tozu
+    else if (isWood) dustColor = 0x9e7855;  // ahşap talaş tozu
+    else if (isGlass) dustColor = 0xd8f3dc; // cam parıltısı
+
+    for (let i = 0; i < dustCount; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: dustColor,
+        transparent: true,
+        opacity: 0.75
+      });
+      const mesh = new THREE.Mesh(geoMicroDust, mat);
+      mesh.position.set(
+        position.x + (Math.random() - 0.5) * 0.12,
+        position.y + (Math.random() - 0.5) * 0.12,
+        position.z + (Math.random() - 0.5) * 0.12
+      );
+      this.scene.add(mesh);
+
+      // Yüzey normali yönünde hafifçe dışarı fırlayıp havada genişleyen mikro toz
+      const sp = 1.0 + Math.random() * 2.2;
+      this.particles.push({
+        mesh,
+        velocity: new THREE.Vector3(
+          n.x * sp + (Math.random() - 0.5) * 1.4,
+          n.y * sp + 0.4 + Math.random() * 0.8,
+          n.z * sp + (Math.random() - 0.5) * 1.4
+        ),
+        gravity: -0.9,
+        rotSpeed: (Math.random() - 0.5) * 6,
+        life: 0.35 + Math.random() * 0.25,
+        maxLife: 0.6,
+        growSpeed: 2.8,
+        fade: true
+      });
+    }
+  }
+
+  // ── GERÇEKÇİ BİNA YIKILMA VE ÇÖKME ENKAZ TOZU (Demolition Dust Shockwave) ──
+  createDemolitionDust(position, radius = 2.5, intensity = 1.0) {
+    if (this.particles.length > this.maxParticles) return;
+
+    const count = Math.min(18, Math.round(10 * intensity));
+    const dustColors = [0xd6d3d1, 0xe7e5e4, 0xa8a29e, 0xc4b5a5];
+
+    // 1. Zeminde Yatay Açılan Dairesel Şok Dalgası Toz Halkası
+    const ringCount = Math.min(12, Math.round(8 * intensity));
+    for (let i = 0; i < ringCount; i++) {
+      const angle = (i / ringCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+      const sp = (2.5 + Math.random() * 3.5) * (radius / 2.5);
+      const c = dustColors[Math.floor(Math.random() * dustColors.length)];
+      const mat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.70 });
+      const mesh = new THREE.Mesh(geoShockwaveDust, mat);
+      mesh.position.set(
+        position.x + Math.cos(angle) * 0.5,
+        position.y + 0.15,
+        position.z + Math.sin(angle) * 0.5
+      );
+      this.scene.add(mesh);
+      this.particles.push({
+        mesh,
+        velocity: new THREE.Vector3(Math.cos(angle) * sp, 0.3 + Math.random() * 0.5, Math.sin(angle) * sp),
+        gravity: -0.3,
+        life: 0.6 + Math.random() * 0.4,
+        maxLife: 1.0,
+        growSpeed: 3.2,
+        fade: true
+      });
+    }
+
+    // 2. Yukarı Doğru Kabaran Yoğun Harç ve Enkaz Tozu Sütunları
+    for (let i = 0; i < count; i++) {
+      const c = dustColors[Math.floor(Math.random() * dustColors.length)];
+      const mat = new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.65 });
+      const mesh = new THREE.Mesh(geoDemolitionDust, mat);
+      mesh.position.set(
+        position.x + (Math.random() - 0.5) * radius * 0.7,
+        position.y + (Math.random() - 0.5) * 0.8,
+        position.z + (Math.random() - 0.5) * radius * 0.7
+      );
+      this.scene.add(mesh);
+      this.particles.push({
+        mesh,
+        velocity: new THREE.Vector3(
+          (Math.random() - 0.5) * 2.0,
+          1.8 + Math.random() * 3.2,
+          (Math.random() - 0.5) * 2.0
+        ),
+        gravity: -0.4,
+        rotSpeed: (Math.random() - 0.5) * 3,
+        life: 0.8 + Math.random() * 0.5,
+        maxLife: 1.3,
+        growSpeed: 2.2,
+        fade: true
+      });
+    }
   }
 
   // Karakter yürürken ayaklarından çıkan minik toprak küpleri

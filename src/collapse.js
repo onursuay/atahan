@@ -1218,15 +1218,16 @@ export class CollapseSystem {
       c.attachedProps.length = 0;
     }
 
-    // Çarpma hızına orantılı toz, ses ve sarsıntı
+    // Çarpma hızına orantılı gerçekçi yıkım tozu, ses ve sarsıntı
     if (speed >= 2.0) {
       const at = contact || new THREE.Vector3(c.com.x, c.lowBy + c.oy0 + c.oy1, c.com.z);
-      vw.particleSystem.createExplosion(at, clamp(0.8 + speed * 0.25, 0.8, 5.5), 0x9c9484);
-      if (vw.particleSystem.createDust) {
-        vw.particleSystem.createDust(at.clone());
+      if (vw.particleSystem?.createDemolitionDust) {
+        vw.particleSystem.createDemolitionDust(at, clamp(2.0 + speed * 0.45, 2.0, 7.5), clamp(0.9 + speed * 0.15, 0.9, 2.5));
+      } else {
+        vw.particleSystem.createExplosion(at, clamp(0.8 + speed * 0.25, 0.8, 5.5), 0x9c9484);
       }
       sound.playExplosion(clamp(0.35 + speed / 28, 0.35, 1.4));
-      if (this.onShake) this.onShake(clamp(0.05 + speed / 75, 0.05, 0.45));
+      if (this.onShake) this.onShake(clamp(0.08 + speed / 60, 0.08, 0.65));
     }
     if (broken > 0 && vw.onScoreGain) {
       const score = Math.max(10, Math.round(broken * 5));
