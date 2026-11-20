@@ -399,7 +399,7 @@ export class LevelManager {
     // 4. Köprü Girişi & Sahil Yolu Binaları
     this.buildTower(244, 1, 8, 260, 10, 38, { wall: PALETTE.WHITE, floor: PALETTE.WOOD, side: 'x2' });        // Ada Yat Kulübü & Marina Ofisi
     this.buildOutdoorTeknoMarket(270, 1, 8, 288, 12, 38);
-    this.buildNewDistricts();                                 // Ada Gurme & Elektronik Çarşısı
+    // Şehir binaları (hastane, okul, havalimanı, gökdelenler, evler) zaten yukarıda tam kuruldu; aşırı bellek ve donmayı önlemek için kaldırıldı.
 
     // ── CADDE KENARLARINDA PARK EDİLMİŞ ARABALAR VE SAHİPLERİ ──
     const vw = this.world;
@@ -705,8 +705,8 @@ export class LevelManager {
     // ══════════════════════════════════════════════════════════
     // 1. BATI ADASI: TÜM BOŞ DİKDÖRTGEN YOL ALANLARINI DOLDURMA
     // ══════════════════════════════════════════════════════════
-    const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -27];
-    const Z_ROADS = [-480, -420, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 420, 480];
+    const X_ROADS = [-360, -310, -260, -210, -170, -127, -87, -27];
+    const Z_ROADS = [-266, -200, -134, -66, 0, 66, 134, 200, 266];
 
     for (let i = 0; i < X_ROADS.length - 1; i++) {
       const rx0 = X_ROADS[i], rx1 = X_ROADS[i + 1];
@@ -755,7 +755,7 @@ export class LevelManager {
       [324, 360],  // otoyol ile ei-dogu arası
       [374, 418]   // ei-dogu doğusu (villa ve tepe parseli)
     ];
-    const EAST_Z_ROADS = [-350, -250, -180, -134, -88, -44, 0, 44, 88, 134, 270, 350];
+    const EAST_Z_ROADS = [-180, -134, -88, -44, 0, 44, 88, 134, 270];
 
     for (const [bx0, bx1] of EAST_X_COLS) {
       const bW = bx1 - bx0;
