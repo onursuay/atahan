@@ -249,8 +249,8 @@ function init() {
 
   levelManager = new LevelManager(voxelWorld);
 
-  // İlk Bölümü Yükle
-  setLoadingProgress(55, 'DEVASA METROPOL HARİTASI İNŞA EDİLİYOR...', 'Bulvarlar, caddeler ve kumsal hazırlanıyor...');
+  // İlk Bölümü Yükle (Doğrudan Deney Haritası Açılır)
+  setLoadingProgress(70, 'DENEY HARİTASI YÜKLENİYOR...', '2 Ev, mutfak, mobilyalar ve bahçe hazırlanıyor...');
   try {
     loadLevel(0);
   } catch (err) {
@@ -615,11 +615,9 @@ function startIntro() {
     if (sndBtn) sndBtn.onclick = () => { sound.init(); const m = sound.toggleMute(); sndBtn.innerText = m ? 'SES: KAPALI' : 'SES: AÇIK'; const b = document.getElementById('btn-sound'); if (b) b.innerText = m ? '🔇' : '🔊'; };
     if (sensInp) sensInp.oninput = (e) => { mouseSens = parseFloat(e.target.value); };
 
-    // OYNA: Harita seçim menüsünü açar
+    // OYNA: Doğrudan Deney Haritasını başlatır
     if (pBtn) pBtn.onclick = () => {
-      $('mm-home').style.display = 'none';
-      if (mapsPanel) mapsPanel.style.display = 'flex';
-      else startExperimentMap();
+      startExperimentMap();
     };
 
     if (mapsBackBtn) mapsBackBtn.onclick = () => {
@@ -632,32 +630,11 @@ function startIntro() {
     };
 
     if (mapCityBtn) mapCityBtn.onclick = () => {
-      startCityMap();
+      startExperimentMap();
     };
 
     const startCityMap = () => {
-      try {
-        if (introMenuEl) introMenuEl.style.display = 'none';
-        const mm = document.getElementById('main-menu');
-        if (mm) mm.style.display = 'none';
-        introWaiting = false;
-        introActive = false;
-        introT = 0;
-        try { sound.init(); } catch (e) {}
-        document.body.classList.remove('intro');
-        if (introFadeEl) introFadeEl.style.display = 'none';
-        window._gameMode = 'freeroam';
-        window._octopusUnlocked = true;
-        window._onlyOctopusMode = false;
-        if (remoteModel) remoteModel.visible = false;
-        if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
-
-        loadLevel(0); // Büyük Şehir Haritası
-
-        if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
-      } catch (err) {
-        console.warn('Şehir haritası başlatma hatası:', err);
-      }
+      startExperimentMap();
     };
     window.__startCity = startCityMap;
 
@@ -678,7 +655,7 @@ function startIntro() {
         if (remoteModel) remoteModel.visible = false;
         if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
 
-        loadLevel(1); // Deney Haritası
+        loadLevel(0); // Deney Haritası
 
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {

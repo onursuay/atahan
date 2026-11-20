@@ -160,28 +160,6 @@ export class LevelManager {
     this.levelConfigs = [
       {
         id: 0,
-        title: '🏙️ BÜYÜK ŞEHİR',
-        desc: 'Gökdelenler, asma köprü, metro, sahil ve sokaklar. (Tüm binalar eksiksiz, kompakt çank & okyanus).',
-        targetPercent: 70,
-        spawn: { x: -110.25, y: 7.05, z: 19.75, yaw: 0, pitch: 0.0 },
-        bounds: { minX: -650, maxX: 560, minZ: -480, maxZ: 440, maxY: 68 },
-        water: { x: -45, y: -0.15, z: -20 },
-        features: {
-          traffic: true,
-          cars: true,
-          metro: true,
-          bus: true,
-          seaLife: true,
-          cityNPCs: true
-        },
-        mission: {
-          title: '🏙️ BÜYÜK ŞEHİR',
-          desc: 'Devasa Şehir! Binaları, asma köprü, metro ve sokakları keşfet!'
-        },
-        builder: this.buildFullCityWorld.bind(this)
-      },
-      {
-        id: 1,
         title: '🔬 DENEY HARİTASI',
         desc: 'İki detaylı müstakil ev (Mutfak, salon, mobilyalar), doğal bahçe arazisi ve gerçekçi toz & çökme efektleri.',
         targetPercent: 50,
@@ -2971,7 +2949,7 @@ export class LevelManager {
     this.world.homeTV = homeTV;
 
     // Başlangıç noktası: 2. kattaki televizyon odasında koltuğun üstü
-    const cityCfg = this.levelConfigs.find(c => c.title.includes('ŞEHİR')) || this.levelConfigs[0];
+    const cityCfg = this.levelConfigs.find(c => c.title && c.title.includes('ŞEHİR'));
     if (cityCfg) {
       cityCfg.spawn.x = seatX; cityCfg.spawn.z = seatZ; cityCfg.spawn.y = seatTopY + 1.05;
     }
