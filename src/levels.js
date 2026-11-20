@@ -225,38 +225,29 @@ export class LevelManager {
     const ISL = 346; // zengin bölgenin x kayması (eski birim): köprü 3x uzadığı için +180 birim doğuya alındı (166 + 180)
 
     // ==========================================
-    // 1. ZEMİN, SAHİL, YOLLAR (kaplama yüzeyi) — DEVASA METROPOL HARİTASI
+    // 1. ZEMİN, SAHİL & YOLLAR (Stabil, Optimize Çekirdek Şehir Alanı)
     // ==========================================
-    // Doğu Ada & Zengin Bölgesi: Zengin abimizin villası için tepe çimi
-    w.fillBox(240, 0, -400, 427, 0, 400, PALETTE.GRASS);
-    w.fillBox(428, 0, -300, 720, 0, 300, PALETTE.GRASS); // MUST BE GRASS for heightFn to build the mountain!
-    this._setHills();
+    // Şehir Adası Zemin Betonu ve Park Çimleri
+    w.fillBox(-250, 0, -190, 130, 0, 230, PALETTE.CONCRETE);
+    w.fillBox(-250, 0, 110, 130, 0, 230, PALETTE.GRASS); // Güney yeşil park & sahil kordonu
+    w.fillBox(10, 0, -190, 130, 0, 10, PALETTE.GRASS);   // Doğu villa & tepe arazisi
 
-    // Batı Ada ve Havalimanı Zemin Betonu:
-    // Havalimanı bölgesi (x: -770 .. -530) pistin ve servis yollarının sonuna (z: -680) kadar uzanır; asla suda havada kalmaz!
-    w.fillBox(-770, 0, -680, -530, 0, 480, PALETTE.CONCRETE);
-    w.fillBox(-530, 0, -480, 20, 0, 480, PALETTE.CONCRETE);
-    this.buildOrganicBeach();                                    // Organik dalgalı, cetvelle çizilmemiş devasa sahil kumsalı ve iskeleler
+    // Organik Sahil Kumsalı
+    this.buildOrganicBeach();
 
-    w.fillBox(240, 0, -380, 290, 0, 380, PALETTE.CONCRETE);     // doğu ada: batı sahil ve şehir blokları (köprüden sonra)
-    w.fillBox(321, 0, -380, 370, 0, 380, PALETTE.CONCRETE);     // doğu ada: orta kuleler ve merkez bloklar
-    w.fillBox(370, 0, -380, 428, 0, 380, PALETTE.CONCRETE);     // doğu ada: doğu lüks villa ve rezidans alanları
-
-    // Dış çevre arazileri aşağıda bağımsız 3D çevre modelleri olarak eklenir (terrain dokusunu kilitlemez)
-
-    // Yollar: asfalt cityplan.js tanımından boyanır (trafik ağı da aynı tanımdan kurulur)
-    for (const r of ROADS) for (const sg of paintSegments(r)) w.fillBox(sg.x0, 0, sg.z0, sg.x1, 0, sg.z1, PALETTE.ASPHALT);
-    ROUNDABOUTS.forEach(g => this.buildRoundaboutGround(g));
-    paintVillaRoad(this.world.terrain, PALETTE.ASPHALT);        // tepeye çıkan kavisli yol + ön avlu
-
-    // Otoyol orta bariyeri (kavşaklarda boşluk) ve çift kollu aydınlatma (otoyol z=±134 caddelerinde biter)
-    [[-126, -96], [-80, -52], [-36, -8], [8, 36], [52, 80], [96, 126]].forEach(([a, b]) => w.fillBox(305, 1, a, 305, 2, b, PALETTE.CONCRETE));
-    for (let z = -130; z <= 130; z += 15) if ([0, 44, -44, 88, -88, 134, -134].every(g => Math.abs(z - g) > 10)) this.lamp(305, z, 1, 0, true, true);
-
-    // ==========================================
-    // 2. ASMA KÖPRÜ (iki adayı bağlar)
-    // ==========================================
-    this.buildSuspensionBridge();
+    // Asfalt Yollar (cityplan.js yol şebekesi)
+    for (const r of ROADS) {
+      for (const sg of paintSegments(r)) {
+        if (sg.x0 >= -250 && sg.x1 <= 140 && sg.z0 >= -200 && sg.z1 <= 240) {
+          w.fillBox(sg.x0, 0, sg.z0, sg.x1, 0, sg.z1, PALETTE.ASPHALT);
+        }
+      }
+    }
+    ROUNDABOUTS.forEach(g => {
+      if (g.cx >= -240 && g.cx <= 120 && g.cz >= -180 && g.cz <= 220) {
+        this.buildRoundaboutGround(g);
+      }
+    });
 
     // ==========================================
     // 3. BATI ADA: ŞEHİR (eski merkez + batıya genişleme)
@@ -346,73 +337,24 @@ export class LevelManager {
     // Removed playground inside MegaSupermarket block
     // Yanına şık balkonlu ten rengi / bej rezidans apartmanı
     // Removed conflicting apartment inside MegaSupermarket block
-    // buildNewDistricts moved to after static buildings
-    this.buildAirport();                                         // KOCAMAN ULUSLARARASI HAVALİMANI: Pist, taksi yolları, apron, AVM kadar terminal, kule, yolcu uçakları!
-    ROUNDABOUTS.forEach(g => this.buildRoundaboutCenter(g));
-    buildTraffic(this);                                          // trafik ışıkları ve yol tabelaları: yolun kenarında
-    buildVilla(this.world);                                      // doğudaki tepede çok zengin bir adamın villası
-    buildCentralPark(this);                                      // villanın güneyindeki kocaman alanda Merkez Park
-    this.buildSite(-81, -124, -53, -74);
+    // ==========================================
+    // 4. 🏰 ZENGİN ABİNİN VİLLASI & MALİKANESİ (Doğu Parselinde, Havuzlu ve Geniş Bahçeli)
+    // ==========================================
+    this.buildLuxuryVilla(24, 1, -60, 68, 15, -12, PALETTE.WHITE, 'Zengin Abinin Villası');
+    this.buildLuxuryMansion(24, 1, 12, 68, 16, 56);
+
+    // Trafik Işıkları ve Tabelalar
+    buildTraffic(this);
 
     // ==========================================
-    // 4. DOĞU ADA: ŞEHİR BLOKLARI (köprüden sonra) — hastane, itfaiye, polis, okul, AVM, apartmanlar
+    // 5. 🚗 CADDE BOYU PARK EDİLMİŞ ARABALAR VE SAHİPLERİ
     // ==========================================
-    this.buildGrandHospital(324, 1, 52, 360, 26, 126);                               // devasa 4 katlı tıp merkezi (otoyoldan tamamen arındırıldı)
-    this.buildMall(323, 1, -127, 360, 34, -50);                                     // devasa AVM (38x78, 4 kat, kat yüksekliği 6 m)
-    this.buildFireStation(270, 1, 52, 288, 14, 82);                                 // itfaiye istasyonu
-    this.buildTower(270, 1, 96, 286, 12, 120, { ...CC, side: 'z1', sign: true, interior: 'police' });     // polis merkezi
-    this.buildGrandSchoolCampus(274, 1, 146, 356, 18, 258);                         // KOCAMAN OKUL KAMPÜSÜ: duvarlar, futbol sahası, çocuklar ve okul zili!
-    this.buildTower(270, 1, -38, 288, 26, -8, { ...CC, side: 'z2' });               // iş merkezi
-    this.buildTower(270, 1, -82, 288, 20, -50, { ...BR, side: 'z1', interior: 'hotel' });  // otel
-    this.buildBakkal(270, 1, -122, 286, 8, -100, 'YILDIZ BAKKALI', 0xdc2626);        // Ada Yıldız Bakkalı
-    this.buildTower(324, 1, 8, 356, 28, 38, { ...CC, side: 'z1' });                 // apartman bloğu
-    this.buildTower(324, 1, -38, 356, 22, -8, { ...BR, side: 'z2' });               // ofis kulesi
-    this.buildTower(374, 1, 78, 394, 14, 100, { ...BR, side: 'x1' });
-    this.buildTower(398, 1, 78, 416, 16, 104, { ...CC, side: 'x1' });
-    [[-164, -142, 'z2']].forEach(([za, zb, door]) => {
-      this.buildTower(270, 1, za, 288, 14, zb, { ...BR, side: door });
-      this.buildTower(324, 1, za, 356, 16, zb, { ...CC, side: door });
-    });
-    this.buildOverpass();
-    this.buildTower(374, 1, -104, 394, 14, -78, { ...CC, side: 'x1' });
-    this.buildTower(398, 1, -108, 416, 18, -80, { ...BR, side: 'x1' });
-
-    // ── DOĞU ADA GENİŞLETİLMİŞ LÜKS YAŞAM BİNALARI (Kullanıcı İsteği: "Karşı şehri biraz büyüt, fazla bina olsun") ──
-    // 1. Tepe Bölgesi Lüks Müstakil Villalar (Özel yüzme havuzlu, şezlonglu, teraslı)
-    this.buildLuxuryVilla(374, 1, -240, 414, 13, -196, PALETTE.WHITE, 'Villa Akdeniz');
-    this.buildLuxuryVilla(374, 1, -320, 414, 13, -276, PALETTE.BEIGE, 'Villa Bella Vista');
-    this.buildLuxuryVilla(374, 1, 280, 414, 13, 324, PALETTE.CREAM, 'Villa Panorama');
-    this.buildLuxuryVilla(374, 1, 332, 414, 13, 376, PALETTE.TERRACOTTA, 'Villa Zümrüt');
-
-    // 2. Kuzey Doğu Ada Şehir Blokları (Rezidanslar, Finans Bankası, Poliklinik & Eczane, Grand Hotel)
-    this.buildTower(324, 1, -330, 358, 34, -265, { wall: PALETTE.WHITE, floor: PALETTE.WOOD, side: 'z1', sign: true, interior: 'hotel' }); // Grand Palace Otel & Penthouse
-    this.buildCityBank(324, 1, -245, 356, 24, -195);                                      // Doğu Ada Özel Yatırım Bankası
-    this.buildCityApartment(270, 1, -330, 288, 22, -270, PALETTE.BEIGE, 'z1');            // Marina Rezidans Kulesi
-    this.buildTower(270, 1, -245, 288, 14, -195, { wall: PALETTE.WHITE, floor: PALETTE.WOOD, side: 'z1', sign: true, interior: 'hospital' }); // Ada Sağlık Merkezi & Eczane
-
-    // 3. Güney Doğu Ada Şehir Blokları (Teknoloji Merkezi, Kütüphane, Tenis Kulübü, Butik Kafe)
-    this.buildTower(324, 1, 275, 358, 26, 318, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'z2' }); // Doğu Ada İnovasyon & Ar-Ge Kulesi
-    this.buildTower(324, 1, 328, 358, 18, 344, { wall: PALETTE.BRICK, floor: PALETTE.WOOD, side: 'z2' });    // Üniversite Araştırma Kütüphanesi
-    this.buildTower(270, 1, 325, 288, 14, 344, { wall: PALETTE.TERRACOTTA, floor: PALETTE.WOOD, side: 'z1' }); // Ada Tenis & Spor Kulübü
-    this.buildOutdoorFashionStore(270, 1, 275, 288, 12, 315);                              // Sahil Kafe & Butik Mağaza
-
-    // 4. Köprü Girişi & Sahil Yolu Binaları
-    this.buildTower(244, 1, 8, 260, 10, 38, { wall: PALETTE.WHITE, floor: PALETTE.WOOD, side: 'x2' });        // Ada Yat Kulübü & Marina Ofisi
-    this.buildOutdoorTeknoMarket(270, 1, 8, 288, 12, 38);
-    this.buildNewDistricts();                                 // Ada Gurme & Elektronik Çarşısı ve Şehir Genişlemesi Blokları
-
-    // ── CADDE KENARLARINDA PARK EDİLMİŞ ARABALAR VE SAHİPLERİ ──
     const vw = this.world;
     const p1Idx = vw.parkedCars.length;
     vw.parkedCars.push({ kind: 'sedan', color: 0x2563eb, x: -72 * 0.75, y: 0.5, z: -14 * 0.75, heading: 0 }); // Bakkal önü park aracı
     const p2Idx = vw.parkedCars.length;
     vw.parkedCars.push({ kind: 'suv', color: 0xdc2626, x: -30 * 0.75, y: 0.5, z: 70 * 0.75, heading: Math.PI / 2 }); // Market önü SUV
-    const p3Idx = vw.parkedCars.length;
-    vw.parkedCars.push({ kind: 'van', color: 0xfacc15, x: 268 * 0.75, y: 0.5, z: 142 * 0.75, heading: 0 }); // Okul önü servis minibüsü
-    const p4Idx = vw.parkedCars.length;
-    vw.parkedCars.push({ kind: 'merzedes', color: 0x111827, x: 314 * 0.75, y: 0.5, z: 48 * 0.75, heading: Math.PI / 2 }); // Hastane önü lüks sedan
 
-    // Arabalarına doğru yürüyüp binen sahipleri
     vw.carOwners.push({
       spawnPos: { x: -66 * 0.75, y: 0.5, z: -20 * 0.75 },
       carPos: { x: -72 * 0.75, y: 0.5, z: -14 * 0.75 },
@@ -425,28 +367,18 @@ export class LevelManager {
     });
 
     // ==========================================
-    // 5. SOKAK DONATIMI: lambalar, çöp kutuları, ağaçlar
+    // 6. 💡 SOKAK DONATIMI: Döküm Gri Lambalar, Ağaçlar & Çöp Kutuları
     // ==========================================
-    // Donatı (lamba, çöp kutusu, ağaç) yolun üstüne konmaz: lamp/trashBin/tree yol dikdörtgenlerini kendileri denetler
-    for (const zc of [-450, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 450]) {
-      for (let x = -340; x <= -30; x += 22) {
-        this.lamp(x, zc + 6.5, 0, -1); this.trashBin(x + 4, zc + 7);
-        this.lamp(x + 11, zc - 6.5, 0, 1); this.trashBin(x + 15, zc - 7);
+    for (const zc of [-134, -66, 0, 66, 134]) {
+      for (let x = -180; x <= -20; x += 28) {
+        this.lamp(x, zc + 6.5, 0, -1);
+        this.trashBin(x + 4, zc + 7);
+        this.lamp(x + 14, zc - 6.5, 0, 1);
       }
-      for (let x = -336; x <= -32; x += 36) { this.tree(x, zc + 6.5, 6); this.tree(x + 18, zc - 6.5, 6); }
+      for (let x = -170; x <= -30; x += 44) {
+        this.tree(x, zc + 6.5, 6);
+      }
     }
-    for (let x = 270; x <= 352; x += 16) [-350, -250, -180, -134, -44, 44, 134, 180, 250, 350].forEach(zz => { if (Math.abs(x - 305) > 20 && !(Math.abs(zz) === 88 && x > 286)) { this.lamp(x, zz + 6.5, 0, -1); this.lamp(x + 8, zz - 6.5, 0, 1); } });
-
-    // ==========================================
-    // 5. ZENGİN BÖLGE (doğu adanın doğusu)
-    // ==========================================
-    this.buildGrandCinema(28 + ISL, 1, -28, 42 + ISL, 18, -4);
-    this.buildLuxuryVilla(28 + ISL, 1, 6, 42 + ISL, 18, 26);
-    this.buildLuxuryMansion(48 + ISL, 1, -14, 64 + ISL, 18, 14);
-    this.buildLuxuryBoutique(48 + ISL, 1, 16, 62 + ISL, 14, 28);
-    this.buildTower(48 + ISL, 1, -30, 57 + ISL, 14, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' });
-    this.buildTower(62 + ISL, 1, -30, 69 + ISL, 26, -18, { wall: PALETTE.CONCRETE, floor: PALETTE.WOOD, side: 'x1' });   // komşu kuleyle 5 birim boşluk (kapıdan girilsin)
-    for (let z = -60; z <= 60; z += 20) { this.tree(419, z, 7); this.lamp(387, z + 4, 0, 0); }
   }
 
   // ── ÜST GEÇİT: ana cadde otoyolun üstünden geçer. Rampalar zeminin kendisidir (yükselen yol), tabliye küptür. ──
