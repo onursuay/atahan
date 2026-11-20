@@ -395,7 +395,8 @@ export class CarManager {
 
   // ── Güncelleme ──
   update(dt, playerPos) {
-    if (!this.driven) this.player.copy(playerPos);
+    if (this.cars.length === 0 && !this.driven) return;
+    if (!this.driven && playerPos) this.player.copy(playerPos);
     this.blinkT = (this.blinkT || 0) + dt;
     const phase = Math.floor(this.blinkT * 5) % 2 === 0;
     for (const car of this.cars) {            // polis/ambulans çakarları: kırmızı-mavi dönüşümlü (bölgesi parçalanmadıysa)
@@ -740,7 +741,15 @@ export class CarManager {
 
   clear() {
     this.driven = null;
-    this.cars.forEach(c => this.scene.remove(c.g));
-    this.cars = []; this.nodes = new Map(); this.edges = []; this.respawn = [];
+    this.cars.forEach(c => {
+      if (c.g) {
+        this.scene.remove(c.g);
+        c.g.traverse(m => { if (m.geometry) m.geometry.dispose(); });
+      }
+    });
+    this.cars = [];
+    this.nodes = new Map();
+    this.edges = [];
+    this.respawn = [];
   }
 }

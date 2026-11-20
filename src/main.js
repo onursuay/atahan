@@ -648,24 +648,6 @@ function startIntro() {
 
         loadLevel(1);
 
-        if (storyManager) {
-          storyManager.currentPhase = STORY_PHASES.FREE_ROAM_REVENGE;
-          storyManager.controlsLocked = false;
-          storyManager.weaponsLocked = false;
-          storyManager.cinematicGroup.clear();
-          storyManager.showDialog(false);
-          storyManager.showSkipButton(false);
-          storyManager.setFade(0, 300);
-          storyManager.setMission('🏙️ BÜYÜK ŞEHİR', 'Devasa Şehir! Binaları, asma köprüyü ve sokakları keşfet!');
-        }
-
-        character.resetPosition(-105.0, 1.5, 4.2);
-        seated = false;
-        eyeOffset = 1.8;
-        cameraYaw = 0;
-        cameraPitch = 0.0;
-        setFirstPerson(false);
-
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
         console.warn('Şehir haritası başlatma hatası:', err);
@@ -690,24 +672,7 @@ function startIntro() {
         if (remoteModel) remoteModel.visible = false;
         if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
 
-        if (storyManager) {
-          storyManager.currentPhase = STORY_PHASES.FREE_ROAM_REVENGE;
-          storyManager.controlsLocked = false;
-          storyManager.weaponsLocked = false;
-          storyManager.cinematicGroup.clear();
-          storyManager.showDialog(false);
-          storyManager.showSkipButton(false);
-          storyManager.setFade(0, 300);
-          storyManager.setMission('🔬 DENEY HARİTASI', 'Teardown tarzı test evi, küp lambalar ve posterler! Çekiç ve silahlarınla dilediğince test et ve yık!');
-        }
-
-        // Oyuncu test evinin hemen önünde geniş arazide ayakta başlar ve eve bakar
-        character.resetPosition(10000, 1.2, 10014);
-        seated = false;
-        eyeOffset = 1.8;
-        cameraYaw = Math.PI; // Eve doğru (kuzey yönüne) bakar
-        cameraPitch = 0.05;
-        setFirstPerson(false);
+        loadLevel(0);
 
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
@@ -869,67 +834,110 @@ function loadLevel(index) {
     levelsModal.classList.remove('active');
   } catch (e) {}
 
-  setLoadingProgress(80, 'BİNALAR VE YAŞAM ALANLARI KURULUYOR...', 'Okul, hastane, gökdelenler ve yapay zeka ekleniyor...');
-  
+  // 1. Önceki tüm araçları ve dinamik alt sistemleri temizle
+  try { sound.stopEngine(); } catch(e){}
+  inCar = false;
+  if (cars && cars.driven) cars.driven = null;
+  try { weaponSystem.clear(); } catch(e){}
+  try { bombs.clear(); } catch(e){}
+  try { planes.clear(); } catch(e){}
+  try { particleSystem.clear(); } catch(e){}
+  try { handWeapons.resetAmmo(); } catch(e){}
+  try { props.clear(); } catch(e){}
+  try { cars.clear(); } catch(e){}
+  try { if (busManager) busManager.clear(); } catch(e){}
+  try { if (metro) metro.clear(); } catch(e){}
+  try { if (seaLife) seaLife.clear(); } catch(e){}
+
+  // 2. Yeni Haritayı Voxel Dünyasına yükle (levelManager.loadLevel önceki haritayı voxelWorld.clear() ile bellekten ve fizikten siler)
   let cfg = null;
   try {
     cfg = levelManager.loadLevel(index);
   } catch (err) {
     console.error('Bölüm yüklenirken hata oluştu:', err);
   }
-  if (!cfg) cfg = { spawn: { x: 0, y: 15, z: 0 }, title: 'BÜYÜK ŞEHİR', desc: 'Şehri keşfet!', targetPercent: 70 };
+  if (!cfg) cfg = levelManager.levelConfigs[0];
 
-  try { weaponSystem.clear(); } catch(e){}
-  try { bombs.clear(); } catch(e){}
-  try { planes.clear(); } catch(e){}
-  try { particleSystem.clear(); } catch(e){}
-  try { handWeapons.resetAmmo(); } catch(e){}
+  // 3. Harita Sınırları ve Su Ayarları
+  if (cfg.bounds) {
+    WORLD_BOUNDS.minX = cfg.bounds.minX;
+    WORLD_BOUNDS.maxX = cfg.bounds.maxX;
+    WORLD_BOUNDS.minZ = cfg.bounds.minZ;
+    WORLD_BOUNDS.maxZ = cfg.bounds.maxZ;
+    WORLD_BOUNDS.maxY = cfg.bounds.maxY;
+  }
+  if (waterMesh) {
+    if (cfg.water) {
+      waterMesh.visible = true;
+      waterMesh.position.set(cfg.water.x, cfg.water.y, cfg.water.z);
+    } else {
+      waterMesh.visible = false;
+    }
+  }
+
+  // 4. Karakter ve Kamera Konumlandırma
   try { character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); } catch(e){}
-  try { npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z); } catch(e){}
+  seated = false;
+  eyeOffset = 1.8;
+  eyeY = null;
+  cameraYaw = cfg.spawn.yaw !== undefined ? cfg.spawn.yaw : 0;
+  cameraPitch = cfg.spawn.pitch !== undefined ? cfg.spawn.pitch : 0.0;
+  setFirstPerson(false);
+
+  // 5. Haritanın Eşyalarını (Props) Doğur
   try {
-    props.clear();
     for (const s of (voxelWorld.propSpawns || [])) props.add(s.kind, s.x, s.y, s.z, s);
   } catch(e){ console.warn('Prop spawn warn:', e); }
-  try { npcs.reset(); } catch(e){ console.warn('NPC reset warn:', e); }
-  try { voxelWorld.traffic = new TrafficLights(voxelWorld); } catch(e){}
-  try { cars.build(); } catch(e){ console.warn('Car build warn:', e); }
-  try { if (metro) metro.initWorld(); } catch(e){}
+
+  // 6. Harita Özelliklerine Göre Alt Sistemleri Başlat (Kasmaması için sadece bu haritaya ait olanlar açılır)
+  const feat = cfg.features || {};
+  if (feat.traffic || feat.cars) {
+    try { voxelWorld.traffic = new TrafficLights(voxelWorld); } catch(e){}
+    try { cars.build(); } catch(e){ console.warn('Car build warn:', e); }
+  } else {
+    voxelWorld.traffic = null;
+  }
+
+  if (feat.metro) {
+    try { if (metro) metro.initWorld(); } catch(e){}
+  }
+
+  if (feat.bus) {
+    try { if (busManager) busManager.initWorld(); } catch(e){}
+  }
+
+  if (feat.seaLife) {
+    try { if (seaLife) seaLife.initWorld(); } catch(e){}
+  }
+
+  // 7. NPC Sistemini Haritaya Göre Sıfırla
+  try {
+    npcs.playerPos.set(cfg.spawn.x, 0, cfg.spawn.z);
+    npcs.reset();
+  } catch(e){ console.warn('NPC reset warn:', e); }
+
+  // 8. Gökyüzü / Gündüz-Gece Döngüsü
   try {
     if (dayNight && typeof dayNight.dispose === 'function') dayNight.dispose();
     dayNight = new DayNight({ scene, ambient: ambientLight, sun: sunLight, sunMesh, clouds, water: waterMat, vw: voxelWorld });
     npcs.day = () => DayNight.dayAmount(dayNight.t);
     window.__gece = (sn) => dayNight.setTime(sn);
     window.loadLevel = loadLevel;
-    window.loadMaintenanceMap = () => loadLevel(1);
-    window.__bakim = () => loadLevel(1);
+    window.loadMaintenanceMap = () => loadLevel(0);
+    window.__bakim = () => loadLevel(0);
   } catch(e){ console.warn('DayNight warn:', e); }
 
-  if (index === 1) {
-    // Büyük Şehir Haritası Sınırları
-    WORLD_BOUNDS.minX = -700;
-    WORLD_BOUNDS.maxX = 660;
-    WORLD_BOUNDS.minZ = -630;
-    WORLD_BOUNDS.maxZ = 480;
-    WORLD_BOUNDS.maxY = 68;
-    const waterCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2;
-    const waterCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2;
-    if (waterMesh) waterMesh.position.set(waterCX, -0.15, waterCZ);
-    cameraYaw = -Math.PI / 2;
-    seated = false;
-    eyeOffset = 1.8;
-  } else {
-    // Deney Haritası Koordinatları (Ana şehirden 10.000 metre uzakta izole test alanı)
-    WORLD_BOUNDS.minX = 9930;
-    WORLD_BOUNDS.maxX = 10070;
-    WORLD_BOUNDS.minZ = 9930;
-    WORLD_BOUNDS.maxZ = 10070;
-    WORLD_BOUNDS.maxY = 65;
-    if (waterMesh) waterMesh.position.set(10000, -0.35, 10000);
-    seated = false;
-    eyeOffset = 1.8;
-    eyeY = null;
-    cameraYaw = 0;
-    cameraPitch = 0;
+  // 9. Görev ve Hikaye Sistemi
+  if (storyManager) {
+    storyManager.currentPhase = STORY_PHASES.FREE_ROAM_REVENGE;
+    storyManager.controlsLocked = false;
+    storyManager.weaponsLocked = false;
+    storyManager.cinematicGroup.clear();
+    storyManager.showDialog(false);
+    storyManager.showSkipButton(false);
+    storyManager.setFade(0, 300);
+    const m = cfg.mission || { title: cfg.title, desc: cfg.desc };
+    storyManager.setMission(m.title, m.desc);
   }
 
   try {
@@ -950,6 +958,26 @@ function loadLevel(index) {
     updateWeaponUI();
   } catch (e) {}
 }
+
+function switchMap(index) {
+  const fade = document.getElementById('intro-fade');
+  if (fade) {
+    fade.style.display = 'block';
+    fade.style.opacity = '1';
+    fade.style.transition = 'opacity 0.2s ease';
+  }
+  setTimeout(() => {
+    loadLevel(index);
+    buildLevelSelectButtons();
+    setTimeout(() => {
+      if (fade) {
+        fade.style.opacity = '0';
+        setTimeout(() => { fade.style.display = 'none'; }, 250);
+      }
+    }, 100);
+  }, 60);
+}
+window.switchMap = switchMap;
 
 function updateDestructionUI(percent) {
   destructionPercentEl.innerText = `${percent}%`;
@@ -1556,13 +1584,23 @@ function setupEventListeners() {
 function buildLevelSelectButtons() {
   levelsGrid.innerHTML = '';
   levelManager.levelConfigs.forEach((cfg, idx) => {
+    const isCurrent = (levelManager.currentLevelIndex === idx);
     const btn = document.createElement('button');
     btn.className = 'btn btn-secondary';
     btn.style.textAlign = 'left';
-    btn.style.padding = '12px';
-    btn.innerHTML = `<div style="font-size: 13px; font-weight: 900; color: #ffaa00;">${cfg.title}</div><div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Hedef: %${cfg.targetPercent}</div>`;
+    btn.style.padding = '14px 16px';
+    btn.style.border = isCurrent ? '2px solid #4ade80' : '1px solid #334155';
+    btn.style.background = isCurrent ? 'linear-gradient(135deg, rgba(22, 101, 52, 0.4), rgba(30, 41, 59, 0.8))' : 'rgba(30, 41, 59, 0.7)';
+    btn.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size: 14px; font-weight: 900; color: ${isCurrent ? '#4ade80' : '#f8fafc'};">${cfg.title}</div>
+        ${isCurrent ? '<span style="font-size:11px; background:#16a34a; color:#ffffff; padding:2px 8px; border-radius:10px; font-weight:bold;">AKTİF</span>' : ''}
+      </div>
+      <div style="font-size: 11px; color: #94a3b8; margin-top: 6px;">${cfg.desc}</div>
+      <div style="font-size: 10px; color: #38bdf8; margin-top: 4px; font-weight:bold;">Hedef Yıkım: %${cfg.targetPercent}</div>
+    `;
     btn.addEventListener('click', () => {
-      loadLevel(idx);
+      switchMap(idx);
     });
     levelsGrid.appendChild(btn);
   });

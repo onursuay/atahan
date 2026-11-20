@@ -14,7 +14,12 @@ export class SeaLife {
     this.crabs = [];
     this.group = new THREE.Group();
     this.scene.add(this.group);
+  }
 
+  initWorld() {
+    this.clear();
+    this.group = new THREE.Group();
+    this.scene.add(this.group);
     this._initFish();
     this._initCrabs();
   }
@@ -133,6 +138,7 @@ export class SeaLife {
   }
 
   update(dt, playerPos) {
+    if (this.fishList.length === 0 && this.crabs.length === 0) return;
     // 1. Minik Balıklar: Sığ sularda kıvrılarak yüzer, oyuncu yaklaşınca kaçar
     for (const f of this.fishList) {
       f.swimPhase += dt * f.tailSpeed;
@@ -175,7 +181,10 @@ export class SeaLife {
   }
 
   clear() {
-    this.scene.remove(this.group);
+    if (this.group) {
+      this.scene.remove(this.group);
+      this.group.traverse(m => { if (m.geometry) m.geometry.dispose(); });
+    }
     this.fishList = [];
     this.crabs = [];
   }

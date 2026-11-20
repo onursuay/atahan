@@ -34,19 +34,19 @@ export class MetroSystem {
     this.doorsOpen = false;
     this.doorProgress = 0;
 
-    this.trainGroup = new THREE.Group();
-    this.group.add(this.trainGroup);
-
+    this.trainGroup = null;
     this.passengers = [];
-    this.initWorld();
   }
 
   clear() {
     while (this.group.children.length > 0) {
       const obj = this.group.children[0];
       this.group.remove(obj);
-      if (obj.geometry) obj.geometry.dispose();
+      obj.traverse(m => { if (m.geometry) m.geometry.dispose(); });
     }
+    this.trainGroup = null;
+    this.doorMeshes = [];
+    this.passengers = [];
   }
 
   initWorld() {

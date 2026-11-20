@@ -1046,5 +1046,23 @@ export class VoxelWorld {
     this.dynamicDebris = [];
     this.totalInitialVoxels = 0;
     this.destroyedVoxels = 0;
+    this.fountains = [];
+    this.lamps = [];
+    this.trees = [];
+    this.propSpawns = [];
+    this.shelves = [];
+    this.officeBuildings = [];
+    this.residents = [];
+    this.workers = [];
+    this.bosses = [];
+    this.guards = [];
+    this.doctors = [];
+    this.schoolChildren = [];
+    this.bakkalKids = [];
+    this.marketShoppers = [];
+    this.carOwners = [];
+    this.parkedCars = [];
+    this.marketCats = [];
+    this.dogs = [];
   }
 }

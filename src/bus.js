@@ -123,7 +123,38 @@ export class BusManager {
     this.promptEl = null;
     this.hudEl = null;
     this._createUI();
+  }
 
+  clear() {
+    if (this.passengerState && this.passengerState.inBus) {
+      this.passengerState.inBus = false;
+      this.passengerState.bus = null;
+      this.passengerState.stopRequest = false;
+    }
+    if (this.hudEl) this.hudEl.style.display = 'none';
+    if (this.promptEl) this.promptEl.style.display = 'none';
+    if (this.stops) {
+      this.stops.forEach(s => {
+        if (s.group) {
+          this.scene.remove(s.group);
+          s.group.traverse(m => { if (m.geometry) m.geometry.dispose(); });
+        }
+      });
+      this.stops = [];
+    }
+    if (this.buses) {
+      this.buses.forEach(b => {
+        if (b.group) {
+          this.scene.remove(b.group);
+          b.group.traverse(m => { if (m.geometry) m.geometry.dispose(); });
+        }
+      });
+      this.buses = [];
+    }
+  }
+
+  initWorld() {
+    this.clear();
     this.initStops();
     this.initBuses();
   }
@@ -548,7 +579,9 @@ export class BusManager {
 
   // ── Her Kare Güncelleme (Otobüs AI & Oyuncu Kontrolü) ──
   update(dt, character, inputState) {
-    const playerPos = character.mesh.position;
+    if (!this.buses || this.buses.length === 0) return;
+    const playerPos = character && character.mesh ? character.mesh.position : null;
+    if (!playerPos) return;
 
     // Otobüsleri güncelle
     for (const bus of this.buses) {

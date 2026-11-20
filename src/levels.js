@@ -163,7 +163,21 @@ export class LevelManager {
         title: '🔬 DENEY HARİTASI (ÖNERİLEN)',
         desc: 'Teardown tarzı tam yıkım, organik ağaçlar, döküm gri lambalar ve 60 FPS akıcılık.',
         targetPercent: 50,
-        spawn: { x: 10000, y: 1.2, z: 10014 },
+        spawn: { x: 10000, y: 1.2, z: 10014, yaw: Math.PI, pitch: 0.05 },
+        bounds: { minX: 9930, maxX: 10070, minZ: 9930, maxZ: 10070, maxY: 65 },
+        water: { x: 10000, y: -0.35, z: 10000 },
+        features: {
+          traffic: false,
+          cars: false,
+          metro: false,
+          bus: false,
+          seaLife: false,
+          cityNPCs: false
+        },
+        mission: {
+          title: '🔬 DENEY HARİTASI',
+          desc: 'Teardown tarzı test evi, küp lambalar ve posterler! Çekiç ve silahlarınla dilediğince test et ve yık!'
+        },
         builder: this.buildMaintenanceMap.bind(this)
       },
       {
@@ -171,7 +185,21 @@ export class LevelManager {
         title: '🏙️ BÜYÜK ŞEHİR (DENEYSEL)',
         desc: 'Gökdelenler, asma köprü, metro, sahil ve sokaklar (Ağır yük & kasabilir).',
         targetPercent: 70,
-        spawn: { x: -110.25, y: 7.05, z: 19.75 },
+        spawn: { x: -105.0, y: 1.5, z: 4.2, yaw: 0, pitch: 0.0 },
+        bounds: { minX: -700, maxX: 660, minZ: -630, maxZ: 480, maxY: 68 },
+        water: { x: -20, y: -0.15, z: -75 },
+        features: {
+          traffic: true,
+          cars: true,
+          metro: true,
+          bus: true,
+          seaLife: true,
+          cityNPCs: true
+        },
+        mission: {
+          title: '🏙️ BÜYÜK ŞEHİR',
+          desc: 'Devasa Şehir! Binaları, asma köprü, metro ve sokakları keşfet!'
+        },
         builder: this.buildFullCityWorld.bind(this)
       }
     ];
