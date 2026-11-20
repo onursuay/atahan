@@ -706,25 +706,25 @@
   <div id="main-menu">
     <h1>ŞEHİR YIKIMI</h1>
     <div id="mm-loading" style="display:flex; flex-direction:column; align-items:center; gap:12px; margin-bottom:8px;">
-      <div id="mm-loading-text" style="font-size:15px; letter-spacing:2px; color:#93c5fd; font-weight:bold;">DENEY HARİTASI YÜKLENİYOR...</div>
+      <div id="mm-loading-text" style="font-size:15px; letter-spacing:2px; color:#93c5fd; font-weight:bold;">BÜYÜK ŞEHİR YÜKLENİYOR...</div>
       <div style="width:300px; height:12px; background:rgba(15,23,42,0.85); border-radius:6px; overflow:hidden; border:2px solid #3b82f6; box-shadow:0 0 16px rgba(59,130,246,0.4);">
         <div id="mm-loading-bar" style="width:10%; height:100%; background:linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd); border-radius:4px; transition:width 0.25s ease;"></div>
       </div>
-      <div id="mm-loading-sub" style="font-size:12px; color:#94a3b8; letter-spacing:1px;">Bir ev ve geniş arazi hazırlanıyor...</div>
+      <div id="mm-loading-sub" style="font-size:12px; color:#94a3b8; letter-spacing:1px;">Gökdelenler, asma köprü ve caddeler hazırlanıyor...</div>
     </div>
     <div class="panel" id="mm-home" style="display:none;gap:14px">
-      <button id="mm-play">▶ OYNA</button>
+      <button id="mm-play">▶ OYNA (BÜYÜK ŞEHİR)</button>
       <button id="mm-settings">AYARLAR</button>
     </div>
     <div class="panel" id="mm-maps" style="display:none;gap:14px">
       <div style="font-size:16px; letter-spacing:2px; color:#93c5fd; font-weight:bold; margin-bottom:4px;">HARİTA SEÇİN</div>
-      <button id="mm-map-experiment" style="background:linear-gradient(180deg, #16a34a, #15803d); border:3px solid #4ade80; box-shadow:0 0 22px rgba(74,222,128,0.6); font-size:18px; padding:16px 28px; width:340px; text-align:center;">
-        🔬 DENEY HARİTASI (TAVSİYE EDİLEN)
-        <div style="font-size:12px; font-weight:normal; color:#dcfce7; margin-top:4px;">2 Detaylı Ev (Mutfak & Eşyalı), Bahçe Arazisi, Gerçekçi Yıkım</div>
+      <button id="mm-map-city" style="background:linear-gradient(180deg, #2563eb, #1d4ed8); border:3px solid #60a5fa; box-shadow:0 0 22px rgba(59,130,246,0.6); font-size:18px; padding:16px 28px; width:340px; text-align:center;">
+        🏙️ BÜYÜK ŞEHİR (ANA HARİTA)
+        <div style="font-size:12px; font-weight:normal; color:#dbeafe; margin-top:4px;">Gökdelenler, Asma Köprü, Metro (Küçük Çank & Kompakt Okyanus)</div>
       </button>
-      <button id="mm-map-city" style="background:linear-gradient(180deg, #1e3a8a, #1e293b); border:2px solid #3b82f6; font-size:16px; padding:14px 24px; width:340px; text-align:center; color:#e2e8f0;">
-        🏙️ BÜYÜK ŞEHİR (DENEYSEL)
-        <div style="font-size:11px; font-weight:normal; color:#93c5fd; margin-top:4px;">Gökdelenler & Metropol (Ağır Yük / Kasabilir)</div>
+      <button id="mm-map-experiment" style="background:linear-gradient(180deg, #15803d, #1e293b); border:2px solid #4ade80; font-size:16px; padding:14px 24px; width:340px; text-align:center; color:#e2e8f0;">
+        🔬 DENEY HARİTASI
+        <div style="font-size:11px; font-weight:normal; color:#86efac; margin-top:4px;">2 Detaylı Ev (Mutfak & Eşyalı), Bahçe Arazisi</div>
       </button>
       <button id="mm-maps-back" style="width:200px; padding:10px 0; font-size:15px; background:#1e293b; border-color:#64748b; margin-top:4px;">GERİ</button>
     </div>
@@ -788,7 +788,7 @@
           if (typeof window.__startCity === 'function') {
             window.__startCity();
           } else if (typeof window.loadLevel === 'function') {
-            window.loadLevel(1);
+            window.loadLevel(0);
           }
         });
       }

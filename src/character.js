@@ -28,11 +28,11 @@ const WATER_LEVEL = -0.15;   // main.js içindeki deniz yüzeyi (waterMesh.posit
 // ── Görünmez Okyanus Duvarı, Gökyüzü Tavanı & Dünya Sınırları ──
 // Kullanıcı İsteği: "Çok fazla havaya gidemeyelim. Sanki şehirde bir tüpün içindeymiş gibi, çok fazla yukarı çıktığımızda bir yerden sonra çıkamayalım."
 export const WORLD_BOUNDS = {
-  minX: 9930,
-  maxX: 10070,
-  minZ: 9930,
-  maxZ: 10070,
-  maxY: 65
+  minX: -580,
+  maxX: 500,
+  minZ: -420,
+  maxZ: 380,
+  maxY: 68
 };
 const WATER_ENTER_DEPTH = 1.25;  // sığ sularda ayak yere basarken yürünür, göğüs hizasını geçip taban desteği kesilince yüzülür
 const FLOAT_DEPTH = 1.2;     // yüzerken ayak tabanının yüzeyin altında kalacağı derinlik (su göğüs hizasında)

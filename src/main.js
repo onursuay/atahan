@@ -646,7 +646,7 @@ function startIntro() {
         if (remoteModel) remoteModel.visible = false;
         if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
 
-        loadLevel(1);
+        loadLevel(0); // Büyük Şehir Haritası
 
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
@@ -672,7 +672,7 @@ function startIntro() {
         if (remoteModel) remoteModel.visible = false;
         if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
 
-        loadLevel(0);
+        loadLevel(1); // Deney Haritası
 
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
@@ -858,7 +858,7 @@ function loadLevel(index) {
   }
   if (!cfg) cfg = levelManager.levelConfigs[0];
 
-  // 3. Harita Sınırları ve Su Ayarları
+  // 3. Harita Sınırları ve Su Ayarları (Okyanus ve Görünmez Duvarlar Küçültüldü)
   if (cfg.bounds) {
     WORLD_BOUNDS.minX = cfg.bounds.minX;
     WORLD_BOUNDS.maxX = cfg.bounds.maxX;
@@ -866,10 +866,17 @@ function loadLevel(index) {
     WORLD_BOUNDS.maxZ = cfg.bounds.maxZ;
     WORLD_BOUNDS.maxY = cfg.bounds.maxY;
   }
-  if (waterMesh) {
+  if (waterMesh && cfg.bounds) {
     if (cfg.water) {
       waterMesh.visible = true;
-      waterMesh.position.set(cfg.water.x, cfg.water.y, cfg.water.z);
+      const wW = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX;
+      const wD = WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ;
+      const wCX = (WORLD_BOUNDS.minX + WORLD_BOUNDS.maxX) / 2;
+      const wCZ = (WORLD_BOUNDS.minZ + WORLD_BOUNDS.maxZ) / 2;
+      if (waterMesh.geometry) waterMesh.geometry.dispose();
+      waterMesh.geometry = new THREE.PlaneGeometry(wW, wD, 24, 24);
+      waterGeo = waterMesh.geometry;
+      waterMesh.position.set(wCX, cfg.water.y !== undefined ? cfg.water.y : -0.15, wCZ);
     } else {
       waterMesh.visible = false;
     }

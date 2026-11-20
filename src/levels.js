@@ -160,7 +160,29 @@ export class LevelManager {
     this.levelConfigs = [
       {
         id: 0,
-        title: '🔬 DENEY HARİTASI (ÖNERİLEN)',
+        title: '🏙️ BÜYÜK ŞEHİR',
+        desc: 'Gökdelenler, asma köprü, metro, sahil ve sokaklar. (Çanklar ve okyanus küçültüldü, akıcı 60 FPS).',
+        targetPercent: 70,
+        spawn: { x: -110.25, y: 7.05, z: 19.75, yaw: 0, pitch: 0.0 },
+        bounds: { minX: -580, maxX: 500, minZ: -420, maxZ: 380, maxY: 68 },
+        water: { x: -40, y: -0.15, z: -20 },
+        features: {
+          traffic: true,
+          cars: true,
+          metro: true,
+          bus: true,
+          seaLife: true,
+          cityNPCs: true
+        },
+        mission: {
+          title: '🏙️ BÜYÜK ŞEHİR',
+          desc: 'Devasa Şehir! Binaları, asma köprü, metro ve sokakları keşfet!'
+        },
+        builder: this.buildFullCityWorld.bind(this)
+      },
+      {
+        id: 1,
+        title: '🔬 DENEY HARİTASI',
         desc: 'İki detaylı müstakil ev (Mutfak, salon, mobilyalar), doğal bahçe arazisi ve gerçekçi toz & çökme efektleri.',
         targetPercent: 50,
         spawn: { x: 10000, y: 1.2, z: 10012, yaw: Math.PI, pitch: 0.05 },
@@ -179,28 +201,6 @@ export class LevelManager {
           desc: 'İki detaylı ev (Mutfak, tezgah, fırın, mobilyalar), bahçe arazisi ve gerçekçi yıkım efektleri! Silahlarınla dilediğince test et!'
         },
         builder: this.buildMaintenanceMap.bind(this)
-      },
-      {
-        id: 1,
-        title: '🏙️ BÜYÜK ŞEHİR (DENEYSEL)',
-        desc: 'Gökdelenler, asma köprü, metro, sahil ve sokaklar (Ağır yük & kasabilir).',
-        targetPercent: 70,
-        spawn: { x: -110.25, y: 7.05, z: 19.75, yaw: 0, pitch: 0.0 },
-        bounds: { minX: -700, maxX: 660, minZ: -630, maxZ: 480, maxY: 68 },
-        water: { x: -20, y: -0.15, z: -75 },
-        features: {
-          traffic: true,
-          cars: true,
-          metro: true,
-          bus: true,
-          seaLife: true,
-          cityNPCs: true
-        },
-        mission: {
-          title: '🏙️ BÜYÜK ŞEHİR',
-          desc: 'Devasa Şehir! Binaları, asma köprü, metro ve sokakları keşfet!'
-        },
-        builder: this.buildFullCityWorld.bind(this)
       }
     ];
   }
@@ -3044,7 +3044,7 @@ export class LevelManager {
     this.world.homeTV = homeTV;
 
     // Başlangıç noktası: 2. kattaki televizyon odasında koltuğun üstü
-    const cityCfg = this.levelConfigs.find(c => c.id === 1) || this.levelConfigs[1];
+    const cityCfg = this.levelConfigs.find(c => c.title.includes('ŞEHİR')) || this.levelConfigs[0];
     if (cityCfg) {
       cityCfg.spawn.x = seatX; cityCfg.spawn.z = seatZ; cityCfg.spawn.y = seatTopY + 1.05;
     }

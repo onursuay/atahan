@@ -36,8 +36,8 @@ function makeCubeTexture(def) {
 
 // Eski 0.5 m'lik küp için ayarlanmış sayılar (kırılan küp adedi, puan) yeni boyuta oranlanır
 const VOLUME_RATIO = Math.pow(0.5 / VOXEL_SIZE, 3); // 0.5 m küpte 1; küçüldükçe daha çok küp gerekir
-const CHUNK_SIZE = 48; // metre: Minecraft tarzı dinamik bölge boyutu (performansı ve akıcı chunk yüklemeyi maksimize eder)
-const CHUNK_STREAM_DIST = 210; // metre: dengeli görüş mesafesi (binaları silmeden GPU yükünü %50 azaltır)
+const CHUNK_SIZE = 24; // metre: Çank boyutu 24m'ye küçültüldü (Kullanıcı İsteği: Daha küçük çanklar sayesinde binalar silinmeden GPU yükü azalır)
+const CHUNK_STREAM_DIST = 170; // metre: Optimize çank görüş mesafesi (GPU yükünü yarıya indirir, kasmayı önler)
 
 // Teardown Tarzı Mikro-Voxel Renk Paleti
 export const PALETTE = {
