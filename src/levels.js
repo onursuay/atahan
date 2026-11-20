@@ -236,18 +236,13 @@ export class LevelManager {
     this.buildOrganicBeach();
 
     // Asfalt Yollar (cityplan.js yol şebekesi)
-    for (const r of ROADS) {
-      for (const sg of paintSegments(r)) {
-        if (sg.x0 >= -250 && sg.x1 <= 140 && sg.z0 >= -200 && sg.z1 <= 240) {
-          w.fillBox(sg.x0, 0, sg.z0, sg.x1, 0, sg.z1, PALETTE.ASPHALT);
-        }
-      }
-    }
+    for (const r of ROADS) for (const sg of paintSegments(r)) w.fillBox(sg.x0, 0, sg.z0, sg.x1, 0, sg.z1, PALETTE.ASPHALT);
     ROUNDABOUTS.forEach(g => {
-      if (g.cx >= -240 && g.cx <= 120 && g.cz >= -180 && g.cz <= 220) {
-        this.buildRoundaboutGround(g);
-      }
+      this.buildRoundaboutGround(g);
+      this.buildRoundaboutCenter(g);
     });
+    paintVillaRoad(this.world.terrain, PALETTE.ASPHALT);        // tepeye çıkan kavisli yol + ön avlu
+    buildTraffic(this);                                          // trafik ışıkları ve yol tabelaları: yolun kenarında
 
     // ==========================================
     // 3. BATI ADA: ŞEHİR (eski merkez + batıya genişleme)
