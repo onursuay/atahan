@@ -16,8 +16,8 @@ import { buildCentralPark } from './park.js';
 // Duvarlar ve döşemeler tek küp (0.25 m) kalınlığındadır; bu hem gerçekçidir hem de
 // küp sayısını makul tutar.
 // ─────────────────────────────────────────────────────────────────────────────
-const K = 2;          // 1 eski birim = 2 küçük küp (0.50 m) - Hızlı yükleme ve dengeli bellek
-const UNIT_M = 0.50;  // 1 eski birimin metre karşılığı
+const K = 3;          // 1 eski birim = 3 küçük küp (0.75 m)
+const UNIT_M = 0.75;  // 1 eski birimin metre karşılığı
 const WALL_T = 1;     // duvar/döşeme kalınlığı (küp)
 const MAX_FLOORS = 2;
 const MALL_FLOOR = 8;  // AVM'de kat yüksekliği (satır): 6 m; diğer binalarda 6 satır = 4.5 m  // iç döşemesi yapılan en üst kat
@@ -185,7 +185,7 @@ export class LevelManager {
         title: '🏙️ BÜYÜK ŞEHİR (DENEYSEL)',
         desc: 'Gökdelenler, asma köprü, metro, sahil ve sokaklar (Ağır yük & kasabilir).',
         targetPercent: 70,
-        spawn: { x: -105.0, y: 1.5, z: 4.2, yaw: 0, pitch: 0.0 },
+        spawn: { x: -110.25, y: 7.05, z: 19.75, yaw: 0, pitch: 0.0 },
         bounds: { minX: -700, maxX: 660, minZ: -630, maxZ: 480, maxY: 68 },
         water: { x: -20, y: -0.15, z: -75 },
         features: {
@@ -705,9 +705,8 @@ export class LevelManager {
     // ══════════════════════════════════════════════════════════
     // 1. BATI ADASI: TÜM BOŞ DİKDÖRTGEN YOL ALANLARINI DOLDURMA
     // ══════════════════════════════════════════════════════════
-    // Şehir merkezini ve ana caddeleri dolduran odaksal yol ızgarası (Aşırı bellek yükünü ve donmayı engeller)
-    const X_ROADS = [-260, -210, -170, -127, -87, -27];
-    const Z_ROADS = [-200, -134, -66, 0, 66, 134, 200];
+    const X_ROADS = [-750, -650, -530, -450, -410, -360, -310, -260, -210, -170, -127, -87, -27];
+    const Z_ROADS = [-480, -420, -380, -320, -266, -200, -134, -66, 0, 66, 134, 200, 266, 320, 380, 420, 480];
 
     for (let i = 0; i < X_ROADS.length - 1; i++) {
       const rx0 = X_ROADS[i], rx1 = X_ROADS[i + 1];
@@ -756,7 +755,7 @@ export class LevelManager {
       [324, 360],  // otoyol ile ei-dogu arası
       [374, 418]   // ei-dogu doğusu (villa ve tepe parseli)
     ];
-    const EAST_Z_ROADS = [-134, -88, -44, 0, 44, 88, 134];
+    const EAST_Z_ROADS = [-350, -250, -180, -134, -88, -44, 0, 44, 88, 134, 270, 350];
 
     for (const [bx0, bx1] of EAST_X_COLS) {
       const bW = bx1 - bx0;
@@ -3045,8 +3044,10 @@ export class LevelManager {
     this.world.homeTV = homeTV;
 
     // Başlangıç noktası: 2. kattaki televizyon odasında koltuğun üstü
-    const spawn = this.levelConfigs[0].spawn;
-    spawn.x = seatX; spawn.z = seatZ; spawn.y = seatTopY + 1.05;
+    const cityCfg = this.levelConfigs.find(c => c.id === 1) || this.levelConfigs[1];
+    if (cityCfg) {
+      cityCfg.spawn.x = seatX; cityCfg.spawn.z = seatZ; cityCfg.spawn.y = seatTopY + 1.05;
+    }
     this.world.homeSeat = { x: seatX, y: seatTopY, z: seatZ, tvX, tvY };
   }
 
