@@ -645,6 +645,9 @@ function startIntro() {
         if (mm) mm.style.display = 'none';
         introWaiting = false;
         introActive = false;
+        introPlayed = true;
+        seated = false;
+        eyeOffset = 1.8;
         introT = 0;
         try { sound.init(); } catch (e) {}
         document.body.classList.remove('intro');
@@ -656,6 +659,8 @@ function startIntro() {
         if (handWeapons && !handWeapons.root.visible) handWeapons.root.visible = true;
 
         loadLevel(0); // Deney Haritası
+        seated = false;
+        eyeOffset = 1.8;
 
         if (document.pointerLockElement !== canvasContainer) canvasContainer.requestPointerLock();
       } catch (err) {
@@ -871,6 +876,8 @@ function loadLevel(index) {
   // 4. Karakter ve Kamera Konumlandırma
   try { character.resetPosition(cfg.spawn.x, cfg.spawn.y, cfg.spawn.z); } catch(e){}
   seated = false;
+  introActive = false;
+  introWaiting = false;
   eyeOffset = 1.8;
   eyeY = null;
   cameraYaw = cfg.spawn.yaw !== undefined ? cfg.spawn.yaw : 0;
@@ -926,8 +933,14 @@ function loadLevel(index) {
   }
 
   try {
-    if (!introPlayed) startIntro();
-    else cameraPitch = 0.0;
+    if (!introPlayed && cfg.title && cfg.title.includes('ŞEHİR')) startIntro();
+    else {
+      introWaiting = false;
+      introActive = false;
+      seated = false;
+      eyeOffset = 1.8;
+      cameraPitch = 0.0;
+    }
   } catch (e) {
     console.warn('Intro warn:', e);
   } finally {

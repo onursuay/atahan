@@ -163,7 +163,7 @@ export class LevelManager {
         title: '🔬 DENEY HARİTASI',
         desc: 'Bizim 2 katlı evimiz, bahçe arazisi ve mekanik kulüp evi (testereli atölye).',
         targetPercent: 50,
-        spawn: { x: 0, y: 1.2, z: 14, yaw: Math.PI, pitch: 0.0 },
+        spawn: { x: 0, y: 2.5, z: 14, yaw: Math.PI, pitch: 0.0 },
         bounds: { minX: -60, maxX: 60, minZ: -60, maxZ: 60, maxY: 40 },
         water: { x: 0, y: -0.35, z: 0 },
         features: {
